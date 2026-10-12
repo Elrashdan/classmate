@@ -120,11 +120,39 @@
     ]);
     for (const r of [st, se, co, ta]) if (r.error) throw r.error;
     staff = st.data; settings = se.data; courses = co.data; tasAll = ta.data;
-    if (!courses.find(c => c.id === curId)) curId = (courses.find(c => role(c) !== "viewer" && !c.archived) || courses[0] || {}).id || null;
+    const fl = filtered(); if (!fl.find(c => c.id === curId)) curId = (fl.find(c => role(c) !== "viewer" && !c.archived) || fl[0] || {}).id || null;
   }
 
   /* ======================= permissions & helpers ======================= */
   const staffName = e => (staff.find(s => s.email === e) || {}).name || e;
+
+  /* ---------- course classification: academic year, term, level, track ---------- */
+  const LEVELS = ["", "المستوى الأول", "المستوى الثاني", "المستوى الثالث", "المستوى الرابع", "المستوى الخامس"];
+  const TERMS = { 1: "الترم الأول", 2: "الترم الثاني", 3: "الترم الصيفي" };
+  const TRACKS = ["عمارة داخلية", "سينوغرافيا"];
+  const nowYear = () => { const d = new Date(), y = d.getFullYear(); return d.getMonth() >= 7 ? `${y}/${y + 1}` : `${y - 1}/${y}`; };
+  const nowTerm = () => { const m = new Date().getMonth() + 1; return m >= 9 || m === 1 ? 1 : m <= 6 ? 2 : 3; };
+  const yearList = () => { const b = +nowYear().split("/")[0], ys = new Set(); for (let y = b - 2; y <= b + 1; y++) ys.add(`${y}/${y + 1}`); courses.forEach(c => c.academic_year && ys.add(c.academic_year)); return [...ys].sort().reverse(); };
+  const clsLabel = c => [LEVELS[c.level] || "", c.track || "", TERMS[c.term] || "", c.academic_year || ""].filter(Boolean).join(" · ") || "غير مصنفة";
+  const groupLabel = c => c.level ? LEVELS[c.level] + (c.track ? " · " + c.track : (c.level <= 2 ? " · تخصص عام" : "")) : "غير مصنفة";
+  let fYear = store.get("cm_year") || nowYear(), fTerm = store.get("cm_term") || String(nowTerm());
+  const inFilter = c => (fYear === "all" || !c.academic_year || c.academic_year === fYear) && (fTerm === "all" || !c.term || String(c.term) === fTerm);
+  const filtered = () => courses.filter(inFilter).sort((a, b) => (a.level || 9) - (b.level || 9) || (a.track || "").localeCompare(b.track || "", "ar") || a.name.localeCompare(b.name, "ar"));
+  function classFields(p, c) {
+    c = c || {};
+    const y = c.academic_year || (fYear !== "all" ? fYear : nowYear()), t = String(c.term || (fTerm !== "all" ? fTerm : nowTerm())), l = c.level || "";
+    return `<label class="f"><span>العام الدراسي</span><select id="${p}Year">${yearList().map(v => `<option value="${v}" ${v === y ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+      <label class="f"><span>الترم</span><select id="${p}Term">${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === t ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+      <label class="f"><span>المستوى</span><select id="${p}Level"><option value="">اختار المستوى</option>${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${n === l ? "selected" : ""}>${LEVELS[n]}${n <= 2 ? " (تخصص عام)" : ""}</option>`).join("")}</select></label>
+      <label class="f" id="${p}TrackBox" ${l >= 3 ? "" : "hidden"}><span>الشعبة</span><select id="${p}Track"><option value="">اختار الشعبة</option>${TRACKS.map(v => `<option value="${v}" ${v === c.track ? "selected" : ""}>${v}</option>`).join("")}</select></label>`;
+  }
+  function wireClass(p) { const l = $("#" + p + "Level"); if (l) l.onchange = () => { $("#" + p + "TrackBox").hidden = !(+l.value >= 3); }; }
+  function readClass(p) {
+    const level = +$("#" + p + "Level").value || null, track = level >= 3 ? $("#" + p + "Track").value : "";
+    if (!level) throw { message: "اختار المستوى." };
+    if (level >= 3 && !track) throw { message: "المستوى " + LEVELS[level].replace("المستوى ", "") + " لازم تختار له شعبة: عمارة داخلية أو سينوغرافيا." };
+    return { p_year: $("#" + p + "Year").value, p_term: +$("#" + p + "Term").value, p_level: level, p_track: track };
+  }
   function role(c) { if (!c || !me) return null; if (c.owner_email === me.email) return "owner"; if (tasAll.some(t => t.course_id === c.id && t.email === me.email)) return "ta"; if (me.role === "admin") return "viewer"; return null; }
   const course = () => courses.find(c => c.id === curId) || null;
   const canRun = c => ["owner", "ta"].includes(role(c));
@@ -238,14 +266,25 @@
       <header class="top">
         <div class="brand"><div class="mark">C</div><div><h1>Classmate</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}${owned ? " · " + owned + " مادة" : ""}</p></div></div>
         <div class="row">
-          ${courses.length && view === "course" ? `<select id="pick" style="width:auto;min-width:220px" aria-label="المادة">${courses.map(x => { const r = role(x); return `<option value="${x.id}" ${x.id === curId ? "selected" : ""}>${esc(x.name)}${x.archived ? " (أرشيف)" : ""}${r === "ta" ? " · معيد" : r === "viewer" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`; }).join("")}</select>` : ""}
           ${me.role !== "ta" && view === "course" ? `<button class="btn sm" id="newC">مادة جديدة</button>` : ""}
           ${me.role === "admin" ? `<button class="btn sm ${view === "admin" ? "primary" : ""}" id="admin">${view === "admin" ? "رجوع للمواد" : "لوحة المسؤول"}</button>` : ""}
           <button class="btn sm ghost" id="out">خروج</button>
         </div>
       </header>
-      <div id="newCForm" class="panel" hidden style="margin-bottom:16px"><div class="settings"><label class="f"><span>اسم المادة الجديدة</span><input type="text" id="ncName"></label><button class="btn primary" id="ncSave">أضف المادة</button></div></div>
-      ${view === "admin" ? `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>مفيش مواد لسه</h2><div class="empty">${me.role === "ta" ? "لما محاضر يضيفك كمعيد في مادة، هتظهر هنا." : "اضغط «مادة جديدة» فوق، وبعدين ارفع شيت الطلبة."}</div></div>` : `
+      <div id="newCForm" class="panel" hidden style="margin-bottom:16px">
+        <h3>مادة جديدة</h3>
+        <div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="ncName" placeholder="مثلا: التشريح الفني"></label>${classFields("nc")}</div>
+        <div class="row"><button class="btn primary" id="ncSave">أضف المادة</button><span class="muted small">المستوى الأول والثاني تخصص عام. الثالث والرابع والخامس لازم تختار الشعبة.</span></div>
+      </div>
+      ${view === "course" ? `<div class="panel" style="margin-bottom:16px;padding-block:12px">
+        <div class="settings" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <label class="f"><span>العام الدراسي</span><select id="fYear"><option value="all" ${fYear === "all" ? "selected" : ""}>كل الأعوام</option>${yearList().map(v => `<option value="${v}" ${v === fYear ? "selected" : ""}>${v}${v === nowYear() ? " (الحالي)" : ""}</option>`).join("")}</select></label>
+          <label class="f"><span>الترم</span><select id="fTerm"><option value="all" ${fTerm === "all" ? "selected" : ""}>كل الترمات</option>${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === fTerm ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+          ${filtered().length ? `<label class="f" style="grid-column:span 2"><span>المادة</span><select id="pick">${(() => { const groups = new Map(); filtered().forEach(x => { const g = groupLabel(x); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(x); });
+            return [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(x => { const r = role(x); return `<option value="${x.id}" ${x.id === curId ? "selected" : ""}>${esc(x.name)}${x.archived ? " (أرشيف)" : ""}${r === "ta" ? " · معيد" : r === "viewer" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`; }).join("")}</optgroup>`).join(""); })()}</select></label>` : ""}
+        </div></div>` : ""}
+      ${view === "admin" ? `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "مفيش مواد في الفترة دي" : "مفيش مواد لسه"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الترم من فوق، أو اعمل مادة جديدة." : me.role === "ta" ? "لما محاضر يضيفك كمعيد في مادة، هتظهر هنا." : "اضغط «مادة جديدة» فوق، وبعدين ارفع شيت الطلبة."}</div></div>` : `
+      <div style="margin-bottom:12px"><h2>${esc(c.name)}</h2><p class="muted small">${esc(clsLabel(c))}${c.archived ? " · مؤرشفة" : ""}</p></div>
       ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "ta" ? `انت معيد في المادة دي. تقدر تبدأ المحاضرات وتوافق على الطلبات وتسجل يدوي. التعديل في الطلبة والفريق للمحاضر ${esc(staffName(c.owner_email))}.` : `دي مادة ${esc(staffName(c.owner_email))}. انت شايفها كمسؤول للقراءة والتصدير بس.`}</div>` : ""}
       <div class="col">
         <div id="sessionArea"></div>
@@ -257,10 +296,23 @@
     const pk = $("#pick"); if (pk) pk.onchange = () => { curId = pk.value; flash = {}; liveTab = "all"; regGroup = "all"; startState = null; loadCourse().catch(showErr); };
     const ad = $("#admin"); if (ad) ad.onclick = () => { view = view === "admin" ? "course" : "admin"; if (view === "admin") { stopLoops(); render(); } else loadCourse().catch(showErr); };
     const nc = $("#newC"); if (nc) nc.onclick = () => { $("#newCForm").hidden = !$("#newCForm").hidden; };
+    wireClass("nc");
     $("#ncSave").onclick = async () => {
-      const n = $("#ncName").value.trim(); if (!n) return;
-      try { curId = await rpc("create_course", { p_name: n }); await loadBase(); say("roster", "اتضافت المادة. ارفع شيت الطلبة بتوعها."); await loadCourse(); } catch (e) { showErr(e); }
+      const n = $("#ncName").value.trim(); if (!n) return showErr({ message: "name_required" });
+      try {
+        const cls = readClass("nc");
+        curId = await rpc("create_course", { p_name: n, ...cls });
+        fYear = cls.p_year; fTerm = String(cls.p_term); store.set("cm_year", fYear); store.set("cm_term", fTerm);
+        await loadBase(); say("roster", "اتضافت المادة. ارفع شيت الطلبة بتوعها."); await loadCourse();
+      } catch (e) { showErr(e); }
     };
+    const onFilter = () => {
+      fYear = $("#fYear").value; fTerm = $("#fTerm").value; store.set("cm_year", fYear); store.set("cm_term", fTerm);
+      const list = filtered(); if (!list.find(x => x.id === curId)) curId = (list[0] || {}).id || null;
+      flash = {}; liveTab = "all"; regGroup = "all"; startState = null; loadCourse().catch(showErr);
+    };
+    const fy = $("#fYear"); if (fy) fy.onchange = onFilter;
+    const ft = $("#fTerm"); if (ft) ft.onchange = onFilter;
     if (view === "admin") return renderAdmin();
     if (!c) return;
     renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit();
@@ -461,7 +513,8 @@
       ${mng || me.role === "admin" ? `<div style="border-top:1px solid var(--line);padding-top:12px;display:grid;gap:10px">
         <h3>إعدادات المادة</h3>
         ${msgHtml("course")}
-        ${mng ? `<div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="cName" value="${esc(c.name)}"></label><button class="btn" id="cRename">حفظ الاسم</button></div>
+        ${mng ? `${c.level ? "" : `<div class="msg bad small">المادة دي لسه مش متصنفة. اختار العام والترم والمستوى واضغط حفظ.</div>`}
+        <div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="cName" value="${esc(c.name)}"></label>${classFields("e", c)}<button class="btn" id="cRename">حفظ بيانات المادة</button></div>
         <div class="row"><button class="btn sm ghost" id="arch">${c.archived ? "رجّع المادة من الأرشيف" : "أرشف المادة (آخر الترم)"}</button><span class="muted small">الأرشفة بتخفي المادة عند الطلبة وبتحفظ الكشف.</span></div>` : ""}
         ${confirmKey === "delcourse" ? `<div class="msg bad" style="display:grid;gap:8px">
             <b>المسح نهائي ومفيش رجوع.</b>
@@ -476,9 +529,14 @@
     const rn = $("#cRename"); if (rn) rn.onclick = () => {
       const n = $("#cName").value.trim();
       if (!n) { say("course", "!اكتب اسم المادة."); return renderTeam(); }
-      if (n === c.name) return;
-      act(async () => { await rpc("rename_course", { cid: c.id, p_name: n }); say("course", "اتغيّر اسم المادة."); }, async () => { await loadBase(); await loadCourse(); });
+      let cls; try { cls = readClass("e"); } catch (e) { say("course", "!" + e.message); return renderTeam(); }
+      act(async () => {
+        await rpc("update_course_info", { cid: c.id, p_name: n, ...cls });
+        fYear = cls.p_year; fTerm = String(cls.p_term); store.set("cm_year", fYear); store.set("cm_term", fTerm);
+        say("course", "اتحفظت بيانات المادة.");
+      }, async () => { await loadBase(); await loadCourse(); });
     };
+    wireClass("e");
     const da = $("#delAsk"); if (da) da.onclick = () => { confirmKey = "delcourse"; renderTeam(); const i = $("#delName"); if (i) i.focus(); };
     const dc = $("#delCancel"); if (dc) dc.onclick = () => { confirmKey = null; renderTeam(); };
     const dg = $("#delGo"); if (dg) dg.onclick = async () => {
@@ -528,9 +586,9 @@
         <div class="settings"><label class="f"><span>دومين إيميل الجامعة (فاضي = أي دومين)</span><input type="text" id="domIn" dir="ltr" value="${esc(settings.domain || "")}"></label><button class="btn" id="domSave">حفظ الدومين</button></div>
       </section>
       <section class="panel">
-        <div class="panel-h"><div><div class="eyebrow">كل مواد القسم</div><h2>طلبة عندهم إنذار ثالث أو انسحاب</h2></div><button class="btn sm" id="repBtn">${report === "loading" ? `<span class="spinner"></span>` : report ? "تحديث" : "احسب التقرير"}</button></div>
+        <div class="panel-h"><div><div class="eyebrow">كل مواد القسم · ${fYear === "all" ? "كل الأعوام" : esc(fYear)} · ${fTerm === "all" ? "كل الترمات" : TERMS[fTerm]}</div><h2>طلبة عندهم إنذار ثالث أو انسحاب</h2></div><button class="btn sm" id="repBtn">${report === "loading" ? `<span class="spinner"></span>` : report ? "تحديث" : "احسب التقرير"}</button></div>
         ${Array.isArray(report) ? (report.length ? `<div class="tbl-wrap"><table><thead><tr><th>الطالب</th><th>المادة</th><th>المحاضر</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
-          ${report.map(x => `<tr><td>${esc(x.e.name)}<div class="mono muted small">${esc(x.e.student_code)}</div></td><td>${esc(x.c.name)}</td><td>${esc(staffName(x.c.owner_email))}</td><td class="c mono">${x.ab}</td><td>${CM.warnChip(x.ab)}</td></tr>`).join("")}
+          ${report.map(x => `<tr><td>${esc(x.e.name)}<div class="mono muted small">${esc(x.e.student_code)}</div></td><td>${esc(x.c.name)}<div class="muted small">${esc(clsLabel(x.c))}</div></td><td>${esc(staffName(x.c.owner_email))}</td><td class="c mono">${x.ab}</td><td>${CM.warnChip(x.ab)}</td></tr>`).join("")}
           </tbody></table></div>` : `<div class="empty">مفيش طلبة عندهم إنذار ثالث أو انسحاب.</div>`) : `<p class="muted small">التقرير بيلف على كل المواد، فبيتحسب لما تطلبه.</p>`}
       </section>
       <section class="panel"><div class="panel-h"><div><div class="eyebrow">آخر التعديلات في كل المواد</div><h2>سجل التعديلات</h2></div></div>${auditList(au.data || [], true)}</section>`;
@@ -551,7 +609,7 @@
         ]);
         const att = new Set(at.map(a => a.session_id + "|" + a.student_code));
         const out = [];
-        courses.filter(c => !c.archived).forEach(c => {
+        courses.filter(c => !c.archived && inFilter(c)).forEach(c => {
           const ss = se.filter(s => s.course_id === c.id);
           en.filter(e => e.course_id === c.id).forEach(e => {
             const own = s => !s.grp || s.grp === e.grp;

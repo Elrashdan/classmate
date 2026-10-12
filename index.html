@@ -131,7 +131,7 @@
           <button class="btn primary" id="pwSave">حفظ</button></div>` : ""}
         ${home.courses.length ? home.courses.map(c => `
           <article class="course">
-            <div class="row between"><div><h2>${esc(c.name)}</h2>${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
+            <div class="row between"><div><h2>${esc(c.name)}</h2>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ""}${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
             ${c.absences ? `<p class="small muted">غبت ${c.absences} ${c.absences === 1 ? "مرة" : c.absences === 2 ? "مرتين" : "مرات"}.${c.absences === 3 ? " أي غياب تاني هيبقى انسحاب إجباري." : c.absences >= 4 ? " راجع المحاضر أو شؤون الطلاب." : ""}</p>` : ""}
             ${sessionBlock(c)}
           </article>`).join("") : `<div class="empty">كودك مش موجود في أي مادة حاليا. كلّم المحاضر.</div>`}
