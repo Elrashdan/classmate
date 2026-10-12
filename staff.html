@@ -265,6 +265,7 @@
     if (!c) return;
     renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit();
   }
+  const toast = text => { const m = document.createElement("div"); m.className = "msg ok"; m.textContent = text; m.style.cssText = "position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:60;max-width:560px;margin:auto"; document.body.appendChild(m); setTimeout(() => m.remove(), 5000); };
   const showErr = e => { const m = document.createElement("div"); m.className = "msg bad"; m.textContent = errText(e); m.style.cssText = "position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:60;max-width:560px;margin:auto"; document.body.appendChild(m); setTimeout(() => m.remove(), 6000); };
   async function act(fn, after) { try { await fn(); } catch (e) { showErr(e); } if (after) await after().catch(showErr); }
 
@@ -456,11 +457,40 @@
         ${D.tas.map(t => `<div class="li"><span class="chip none">معيد</span><div class="who"><b>${esc(staffName(t.email))}</b><small class="mono">${esc(t.email)}</small></div><div class="acts">${mng ? `<button class="btn sm ghost danger" data-rmta="${esc(t.email)}">شيل</button>` : ""}</div></div>`).join("")}
       </div>
       ${mng ? (cands.length ? `<div class="settings"><label class="f"><span>ضيف معيد</span><select id="taPick">${cands.map(u => `<option value="${esc(u.email)}">${esc(u.name)} (${ROLE[u.role]})</option>`).join("")}</select></label><button class="btn" id="taAdd">أضف</button></div>` : `<p class="muted small">مفيش حسابات تانية تضيفها. لو المعيد مش موجود، اطلب من مسؤول القسم يضيفه.</p>`)
-        + `<p class="muted small">المعيد يقدر يبدأ المحاضرات ويوافق على الطلبات ويسجل يدوي، لكن مايقدرش يغيّر طلبة المادة أو الفريق.</p>
-        <div class="row"><button class="btn sm ghost" id="arch">${c.archived ? "رجّع المادة من الأرشيف" : "أرشف المادة (آخر الترم)"}</button></div>` : ""}`;
+        + `<p class="muted small">المعيد يقدر يبدأ المحاضرات ويوافق على الطلبات ويسجل يدوي، لكن مايقدرش يغيّر طلبة المادة أو الفريق.</p>` : ""}
+      ${mng || me.role === "admin" ? `<div style="border-top:1px solid var(--line);padding-top:12px;display:grid;gap:10px">
+        <h3>إعدادات المادة</h3>
+        ${msgHtml("course")}
+        ${mng ? `<div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="cName" value="${esc(c.name)}"></label><button class="btn" id="cRename">حفظ الاسم</button></div>
+        <div class="row"><button class="btn sm ghost" id="arch">${c.archived ? "رجّع المادة من الأرشيف" : "أرشف المادة (آخر الترم)"}</button><span class="muted small">الأرشفة بتخفي المادة عند الطلبة وبتحفظ الكشف.</span></div>` : ""}
+        ${confirmKey === "delcourse" ? `<div class="msg bad" style="display:grid;gap:8px">
+            <b>المسح نهائي ومفيش رجوع.</b>
+            <span class="small">هيتمسح ${D.sessions.length} محاضرة وكل الحضور والإنذارات بتاعتها، وطلبة المادة. لو محتاج الكشف، صدّر شيت الإكسيل الأول. للتأكيد اكتب اسم المادة زي ما هو: <b>${esc(c.name)}</b></span>
+            <input type="text" id="delName" autocomplete="off">
+            <div class="row"><button class="btn sm danger" id="delGo">امسح المادة نهائي</button><button class="btn sm ghost" id="delCancel">إلغاء</button></div>
+          </div>` : `<div class="row"><button class="btn sm ghost danger" id="delAsk">مسح المادة</button></div>`}
+      </div>` : ""}`;
     el.querySelectorAll("[data-rmta]").forEach(b => b.onclick = () => act(() => rpc("remove_ta", { cid: c.id, p_email: b.dataset.rmta }), async () => { await loadBase(); await loadCourse(); }));
     const ta = $("#taAdd"); if (ta) ta.onclick = () => act(() => rpc("add_ta", { cid: c.id, p_email: $("#taPick").value }), async () => { await loadBase(); await loadCourse(); });
     const ar = $("#arch"); if (ar) ar.onclick = () => act(() => rpc("set_course_archived", { cid: c.id, p_archived: !c.archived }), async () => { await loadBase(); await loadCourse(); });
+    const rn = $("#cRename"); if (rn) rn.onclick = () => {
+      const n = $("#cName").value.trim();
+      if (!n) { say("course", "!اكتب اسم المادة."); return renderTeam(); }
+      if (n === c.name) return;
+      act(async () => { await rpc("rename_course", { cid: c.id, p_name: n }); say("course", "اتغيّر اسم المادة."); }, async () => { await loadBase(); await loadCourse(); });
+    };
+    const da = $("#delAsk"); if (da) da.onclick = () => { confirmKey = "delcourse"; renderTeam(); const i = $("#delName"); if (i) i.focus(); };
+    const dc = $("#delCancel"); if (dc) dc.onclick = () => { confirmKey = null; renderTeam(); };
+    const dg = $("#delGo"); if (dg) dg.onclick = async () => {
+      const typed = $("#delName").value.trim();
+      if (typed !== c.name.trim()) { say("course", "!الاسم اللي كتبته مش مطابق لاسم المادة."); return renderTeam(); }
+      try {
+        await rpc("delete_course", { cid: c.id, p_confirm: typed });
+        confirmKey = null; flash = {}; curId = null; store.del("cm_course");
+        await loadBase(); await loadCourse();
+        toast("اتمسحت المادة «" + c.name + "».");
+      } catch (e) { say("course", "!" + errText(e)); renderTeam(); }
+    };
   }
 
   function auditList(items, showCourse) {
