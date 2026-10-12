@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d6b58">
+<title>Classmate · المحاضرين</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="overlay" id="overlay" hidden>
+  <div class="inner">
+    <h2 id="ovTitle"></h2>
+    <div class="code" id="ovCode"></div>
+    <div class="bar"><i id="ovBar"></i></div>
+    <div class="row" style="justify-content:center;gap:28px"><span class="lbl" id="ovLeft"></span><span class="lbl" id="ovCount"></span></div>
+    <div><button class="btn" id="ovClose" style="background:transparent;color:var(--board-ink);border-color:var(--board-dim)">إغلاق العرض</button></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+(function () {
+  const { $, esc, rpc, errText, store, sb } = CM;
+  const app = $("#app");
+  if (!CM.configured) { app.innerHTML = CM.setupNotice(); return; }
+
+  const ROLE = { admin: "مسؤول", lecturer: "محاضر", ta: "معيد" };
+  const REASON = { wrong_code: "كود غلط", expired_code: "كود منتهي (غالبا اتبعت له)", device_used: "موبايل سجّل لطالب تاني", other_group: "من مجموعة تانية والتعويض مقفول", rejected_by_staff: "اترفض طلبه" };
+  const reasonText = r => r.startsWith("too_far:") ? "برة نطاق القاعة (" + CM.dist(+r.split(":")[1]) + ")" : (REASON[r] || r);
+
+  let me = null, staff = [], settings = { domain: "" }, courses = [], tasAll = [], curId = store.get("cm_course"), view = "course";
+  let D = null; // current course data
+  let flash = {}; // per-panel messages
+  let liveTab = "all", regGroup = "all", confirmKey = null, startState = null, report = null;
+  let codeState = null, codeTimer = null, liveTimer = null;
+  let login = { step: "email", email: "", err: "", busy: false };
+
+  /* ======================= auth ======================= */
+  function renderLogin() {
+    stopLoops();
+    app.innerHTML = `<header class="top"><div class="brand"><div class="mark">C</div><div><h1>Classmate</h1><p class="muted small">دخول المحاضرين والمعيدين</p></div></div></header>
+      <section class="panel" style="max-width:480px">
+      ${login.step === "email" ? `
+        <h2>ادخل بإيميل الجامعة</h2>
+        <p class="muted small">مفيش باسورد. هيوصلك كود على إيميلك تدخل بيه. لو إيميلك مش متسجل، اطلب من مسؤول القسم يضيفك.</p>
+        <label class="f"><span>إيميل الجامعة</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
+        ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
+        <button class="btn primary" id="lgSend" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "ابعت كود الدخول"}</button>
+      ` : `
+        <div class="eyebrow mono" style="text-align:start">${esc(login.email)}</div>
+        <h2>بص على إيميلك</h2>
+        <p class="muted small">لو الإيميل فيه كود، اكتبه هنا. لو فيه لينك، افتحه من نفس الجهاز ده وهتدخل على طول. لو مالقيتهوش، بص في Spam أو Junk.</p>
+        <label class="f"><span>كود الدخول</span><input type="text" id="lgCode" class="codein" inputmode="numeric" maxlength="10" autocomplete="one-time-code"></label>
+        ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
+        <div class="row"><button class="btn primary" id="lgVerify" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button><button class="btn ghost" id="lgBack">إيميل تاني</button></div>
+      `}</section>`;
+    if (login.step === "email") {
+      const send = async () => {
+        const email = $("#lgEmail").value.trim().toLowerCase(); login.email = email; login.err = "";
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { login.err = "اكتب إيميل صحيح."; return renderLogin(); }
+        login.busy = true; renderLogin();
+        try {
+          const allowed = await rpc("staff_can_login", { p_email: email });
+          if (!allowed) throw { message: "الإيميل ده مش متسجل أو موقوف. اطلب من مسؤول القسم يضيفك." };
+          const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } });
+          if (error) throw error;
+          login.step = "code";
+        } catch (e) { login.err = e.message && e.message.startsWith("الإيميل") ? e.message : errText(e); }
+        login.busy = false; renderLogin();
+      };
+      $("#lgSend").onclick = send; $("#lgEmail").onkeydown = e => { if (e.key === "Enter") send(); };
+    } else {
+      const verify = async () => {
+        const token = $("#lgCode").value.trim(); login.err = "";
+        if (!token) return;
+        login.busy = true; renderLogin();
+        try {
+          const { error } = await sb.auth.verifyOtp({ email: login.email, token, type: "email" });
+          if (error) throw error;
+          login = { step: "email", email: "", err: "", busy: false };
+          await afterLogin();
+          return;
+        } catch (e) { login.err = errText(e); }
+        login.busy = false; renderLogin();
+      };
+      $("#lgVerify").onclick = verify; $("#lgCode").onkeydown = e => { if (e.key === "Enter") verify(); };
+      $("#lgBack").onclick = () => { login.step = "email"; login.err = ""; renderLogin(); };
+    }
+  }
+
+  async function signOut(msg) {
+    stopLoops(); await sb.auth.signOut().catch(() => {});
+    me = null; D = null; login = { step: "email", email: "", err: msg || "", busy: false }; renderLogin();
+  }
+
+  async function afterLogin() {
+    app.innerHTML = `<div class="empty" style="margin-top:40px"><span class="spinner"></span></div>`;
+    try {
+      me = await rpc("staff_me");
+      if (!me) return signOut("الإيميل ده مش متسجل كمحاضر أو حسابه موقوف. كلّم مسؤول القسم.");
+      await loadBase();
+      await loadCourse();
+    } catch (e) { app.innerHTML = `<div class="msg bad">${esc(errText(e))}</div>`; }
+  }
+
+  async function loadBase() {
+    const [st, se, co, ta] = await Promise.all([
+      sb.from("staff").select("*").order("name"),
+      sb.from("settings").select("*").single(),
+      sb.from("courses").select("*").order("created_at"),
+      sb.from("course_tas").select("*")
+    ]);
+    for (const r of [st, se, co, ta]) if (r.error) throw r.error;
+    staff = st.data; settings = se.data; courses = co.data; tasAll = ta.data;
+    if (!courses.find(c => c.id === curId)) curId = (courses.find(c => role(c) !== "viewer" && !c.archived) || courses[0] || {}).id || null;
+  }
+
+  /* ======================= permissions & helpers ======================= */
+  const staffName = e => (staff.find(s => s.email === e) || {}).name || e;
+  function role(c) { if (!c || !me) return null; if (c.owner_email === me.email) return "owner"; if (tasAll.some(t => t.course_id === c.id && t.email === me.email)) return "ta"; if (me.role === "admin") return "viewer"; return null; }
+  const course = () => courses.find(c => c.id === curId) || null;
+  const canRun = c => ["owner", "ta"].includes(role(c));
+  const canManage = c => role(c) === "owner";
+  const isOwn = (s, e) => !s.grp || (e && s.grp === e.grp);
+  const counted = r => r && r.status !== "pending";
+  const groupsOf = () => [...new Set(D.enroll.map(e => e.grp).filter(Boolean))].sort();
+  const running = () => D && D.sessions.find(s => !s.ended);
+  const isOpen = s => s && !s.ended && !s.closed_at && new Date(s.ends_at) > new Date();
+  const nameOf = code => (D.enroll.find(e => e.student_code === code) || {}).name || code;
+  function absences(e) {
+    const missed = D.sessions.filter(s => s.ended && isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).length;
+    const made = D.sessions.filter(s => !isOwn(s, e) && counted((D.att[s.id] || {})[e.student_code])).length;
+    return Math.max(0, missed - made);
+  }
+  function attendance(e) {
+    const own = D.sessions.filter(s => isOwn(s, e)).length, att = D.sessions.filter(s => counted((D.att[s.id] || {})[e.student_code])).length;
+    return { own, att, pct: own ? Math.min(100, Math.round(att / own * 100)) : 0 };
+  }
+  const say = (k, text) => { flash[k] = text; };
+  const msgHtml = k => flash[k] ? `<div class="msg ${flash[k].startsWith("!") ? "bad" : "ok"}">${esc(flash[k].replace(/^!/, ""))}</div>` : "";
+
+  /* ======================= data ======================= */
+  async function loadCourse() {
+    stopLoops();
+    const c = course();
+    if (!c) { D = null; return render(); }
+    store.set("cm_course", c.id);
+    const [en, se, ta, au] = await Promise.all([
+      CM.fetchAll(() => sb.from("enrollments").select("*").eq("course_id", c.id).order("student_code")),
+      sb.from("sessions").select("*").eq("course_id", c.id).order("n"),
+      sb.from("course_tas").select("*").eq("course_id", c.id),
+      sb.from("audit").select("*").eq("course_id", c.id).order("at", { ascending: false }).limit(60)
+    ]);
+    for (const r of [se, ta, au]) if (r.error) throw r.error;
+    const sessions = se.data, ids = sessions.map(s => s.id);
+    const att = {};
+    if (ids.length) {
+      const rows = await CM.fetchAll(() => sb.from("attendance").select("*").in("session_id", ids).order("at"));
+      rows.forEach(r => { (att[r.session_id] = att[r.session_id] || {})[r.student_code] = r; });
+    }
+    const focus = sessions.find(s => !s.ended) || sessions[sessions.length - 1];
+    let attempts = [];
+    if (focus) { const r = await sb.from("attempts").select("*").eq("session_id", focus.id).order("at", { ascending: false }).limit(300); if (r.error) throw r.error; attempts = r.data; }
+    let bindings = {};
+    try { (await rpc("course_bindings", { cid: c.id })).forEach(b => bindings[b.student_code] = b); } catch (e) {}
+    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings };
+    render();
+    startLoops();
+  }
+
+  async function refreshLive() {
+    const s = D && running(); if (!s) return;
+    const [a, t, ss, au] = await Promise.all([
+      sb.from("attendance").select("*").eq("session_id", s.id),
+      sb.from("attempts").select("*").eq("session_id", s.id).order("at", { ascending: false }).limit(300),
+      sb.from("sessions").select("*").eq("id", s.id).single(),
+      sb.from("audit").select("*").eq("course_id", s.course_id).order("at", { ascending: false }).limit(60)
+    ]);
+    if (a.error || t.error || ss.error || !D || D.cid !== s.course_id) return;
+    D.att[s.id] = {}; a.data.forEach(r => D.att[s.id][r.student_code] = r);
+    D.attempts = t.data;
+    if (!au.error && (au.data[0] || {}).id !== (D.audit[0] || {}).id) { D.audit = au.data; renderAudit(); }
+    const i = D.sessions.findIndex(x => x.id === s.id), wasOpen = isOpen(s);
+    if (i >= 0) D.sessions[i] = ss.data;
+    renderLive(); renderRegister();
+    if (wasOpen !== isOpen(ss.data)) renderSession();
+  }
+
+  /* ======================= loops (code + live list) ======================= */
+  function stopLoops() { clearTimeout(codeTimer); clearInterval(liveTimer); codeTimer = null; liveTimer = null; codeState = null; $("#overlay").hidden = true; }
+  function startLoops() {
+    const c = course(), s = running();
+    if (!s) return;
+    liveTimer = setInterval(() => { if (document.visibilityState === "visible") refreshLive().catch(() => {}); }, 5000);
+    if (canRun(c) && isOpen(s)) fetchCode();
+  }
+  async function fetchCode() {
+    const s = running(); if (!s) return;
+    try {
+      const r = await rpc("current_code", { sid: s.id });
+      if (!r.open) { codeState = null; await loadCourse(); return; }
+      codeState = { code: r.code, until: Date.now() + Number(r.ms_left), ends: Date.now() + Number(r.ends_in_ms) };
+      tick();
+      codeTimer = setTimeout(fetchCode, Math.max(500, Number(r.ms_left) + 300));
+    } catch (e) { codeTimer = setTimeout(fetchCode, 3000); }
+  }
+  function tick() {
+    if (!codeState) return;
+    const left = codeState.until - Date.now(), pct = Math.max(0, Math.min(100, left / 300)), code = codeState.code.slice(0, 3) + " " + codeState.code.slice(3);
+    const s = running(), c = course(), exp = s ? D.enroll.filter(e => isOwn(s, e)) : [], pres = s ? exp.filter(e => counted((D.att[s.id] || {})[e.student_code])).length : 0;
+    const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+    set("#bCode", code); set("#ovCode", code);
+    const bar = $("#bBar"); if (bar) bar.style.width = pct + "%";
+    $("#ovBar").style.width = pct + "%";
+    set("#bNext", "الكود الجاي بعد " + Math.max(0, Math.ceil(left / 1000)) + " ثانية");
+    set("#bLeft", "التسجيل يقفل بعد " + CM.mmss(codeState.ends - Date.now()));
+    set("#ovLeft", "التسجيل يقفل بعد " + CM.mmss(codeState.ends - Date.now()));
+    set("#ovCount", "حضر " + pres + " من " + exp.length);
+    if (s && c) set("#ovTitle", c.name + " · المحاضرة " + s.n + " · " + (s.grp ? "مجموعة " + s.grp : "الدفعة كلها"));
+    if (codeState.ends <= Date.now()) { codeState = null; clearTimeout(codeTimer); loadCourse(); }
+  }
+  setInterval(tick, 1000);
+  $("#ovClose").onclick = () => { $("#overlay").hidden = true; if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); };
+
+  /* ======================= render ======================= */
+  function render() {
+    const c = course();
+    const owned = courses.filter(x => x.owner_email === me.email).length;
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand"><div class="mark">C</div><div><h1>Classmate</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}${owned ? " · " + owned + " مادة" : ""}</p></div></div>
+        <div class="row">
+          ${courses.length && view === "course" ? `<select id="pick" style="width:auto;min-width:220px" aria-label="المادة">${courses.map(x => { const r = role(x); return `<option value="${x.id}" ${x.id === curId ? "selected" : ""}>${esc(x.name)}${x.archived ? " (أرشيف)" : ""}${r === "ta" ? " · معيد" : r === "viewer" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`; }).join("")}</select>` : ""}
+          ${me.role !== "ta" && view === "course" ? `<button class="btn sm" id="newC">مادة جديدة</button>` : ""}
+          ${me.role === "admin" ? `<button class="btn sm ${view === "admin" ? "primary" : ""}" id="admin">${view === "admin" ? "رجوع للمواد" : "لوحة المسؤول"}</button>` : ""}
+          <button class="btn sm ghost" id="out">خروج</button>
+        </div>
+      </header>
+      <div id="newCForm" class="panel" hidden style="margin-bottom:16px"><div class="settings"><label class="f"><span>اسم المادة الجديدة</span><input type="text" id="ncName"></label><button class="btn primary" id="ncSave">أضف المادة</button></div></div>
+      ${view === "admin" ? `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>مفيش مواد لسه</h2><div class="empty">${me.role === "ta" ? "لما محاضر يضيفك كمعيد في مادة، هتظهر هنا." : "اضغط «مادة جديدة» فوق، وبعدين ارفع شيت الطلبة."}</div></div>` : `
+      ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "ta" ? `انت معيد في المادة دي. تقدر تبدأ المحاضرات وتوافق على الطلبات وتسجل يدوي. التعديل في الطلبة والفريق للمحاضر ${esc(staffName(c.owner_email))}.` : `دي مادة ${esc(staffName(c.owner_email))}. انت شايفها كمسؤول للقراءة والتصدير بس.`}</div>` : ""}
+      <div class="col">
+        <div id="sessionArea"></div>
+        <section class="panel" id="livePanel"></section>
+        <section class="panel" id="regPanel"></section>
+        <div class="grid2"><section class="panel" id="rosterPanel"></section><div class="col"><section class="panel" id="teamPanel"></section><section class="panel" id="auditPanel"></section></div></div>
+      </div>`}`;
+    $("#out").onclick = () => signOut();
+    const pk = $("#pick"); if (pk) pk.onchange = () => { curId = pk.value; flash = {}; liveTab = "all"; regGroup = "all"; startState = null; loadCourse().catch(showErr); };
+    const ad = $("#admin"); if (ad) ad.onclick = () => { view = view === "admin" ? "course" : "admin"; if (view === "admin") { stopLoops(); render(); } else loadCourse().catch(showErr); };
+    const nc = $("#newC"); if (nc) nc.onclick = () => { $("#newCForm").hidden = !$("#newCForm").hidden; };
+    $("#ncSave").onclick = async () => {
+      const n = $("#ncName").value.trim(); if (!n) return;
+      try { curId = await rpc("create_course", { p_name: n }); await loadBase(); say("roster", "اتضافت المادة. ارفع شيت الطلبة بتوعها."); await loadCourse(); } catch (e) { showErr(e); }
+    };
+    if (view === "admin") return renderAdmin();
+    if (!c) return;
+    renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit();
+  }
+  const showErr = e => { const m = document.createElement("div"); m.className = "msg bad"; m.textContent = errText(e); m.style.cssText = "position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:60;max-width:560px;margin:auto"; document.body.appendChild(m); setTimeout(() => m.remove(), 6000); };
+  async function act(fn, after) { try { await fn(); } catch (e) { showErr(e); } if (after) await after().catch(showErr); }
+
+  /* ---------- lecture panel ---------- */
+  function renderSession() {
+    const c = course(), s = running(), el = $("#sessionArea");
+    if (!canRun(c)) {
+      if (!s) { el.innerHTML = `<section class="panel"><h2>مفيش محاضرة شغالة</h2><p class="muted small">المحاضرات بيبدأها المحاضر أو المعيد بتوع المادة.</p></section>`; return; }
+      const exp = D.enroll.filter(e => isOwn(s, e));
+      el.innerHTML = `<section class="panel"><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كلها"}</div><h2>${isOpen(s) ? "التسجيل مفتوح دلوقتي" : "التسجيل اتقفل"}</h2><p class="muted small">حضر ${exp.filter(e => counted((D.att[s.id] || {})[e.student_code])).length} من ${exp.length}. الكود بيظهر للمحاضر والمعيد بس.</p></section>`;
+      return;
+    }
+    if (!s) {
+      const n = (D.sessions[D.sessions.length - 1] || { n: 0 }).n + 1, gs = groupsOf();
+      let sugg = "", why = "";
+      if (gs.length > 1) { const last = [...D.sessions].reverse().find(x => x.grp); sugg = last ? gs[(gs.indexOf(last.grp) + 1) % gs.length] : gs[0]; why = last ? `آخر محاضرة كانت لمجموعة ${last.grp}، فالدور على مجموعة ${sugg}.` : ""; }
+      el.innerHTML = `<section class="panel">
+        <div><div class="eyebrow">المحاضرة ${n}</div><h2>ابدأ محاضرة جديدة</h2></div>
+        ${!D.enroll.length ? `<div class="msg warn">ارفع شيت الطلبة الأول من «طلبة المادة».</div>` : ""}
+        <div class="settings">
+          ${gs.length > 1 ? `<label class="f"><span>المحاضرة دي لـ</span><select id="sGrp">${gs.map(g => `<option value="${esc(g)}" ${g === sugg ? "selected" : ""}>مجموعة ${esc(g)} (${D.enroll.filter(e => e.grp === g).length} طالب)</option>`).join("")}<option value="">الدفعة كلها</option></select></label>` : ""}
+          <label class="f"><span>مدة فتح التسجيل (دقايق)</span><input type="number" id="sMin" min="1" max="60" value="${esc(store.get("cm_min") || 10)}"></label>
+          <label class="f"><span>نطاق القاعة (متر)</span><input type="number" id="sRad" min="20" max="500" value="${esc(store.get("cm_rad") || 80)}"></label>
+          <button class="btn primary" id="sStart" ${startState === "locating" || !D.enroll.length ? "disabled" : ""}>${startState === "locating" ? `<span class="spinner"></span> بنحدد موقعك…` : "ابدأ المحاضرة " + n}</button>
+        </div>
+        ${gs.length > 1 ? `<label class="row small"><input type="checkbox" id="sMk"> اسمح بالحضور التعويضي لطلبة المجموعة التانية</label><p class="muted small">${why} الحضور التعويضي بيلغي غياب واحد من غيابات الطالب في مجموعته.</p>` : ""}
+        ${startState && startState.geoFail ? `<div class="msg warn">${startState.geoFail === "denied" ? "المتصفح رفض صلاحية الموقع. فعّلها من إعدادات المتصفح لموقع Classmate وجرب تاني." : "معرفناش نحدد موقعك. جرب جنب شباك أو من الموبايل."}
+          <div class="row" style="margin-top:8px"><button class="btn sm" id="sRetry">جرب تاني</button><button class="btn sm ghost" id="sNoGeo">ابدأ من غير تحقق موقع</button></div></div>` : ""}
+        <p class="muted small">عند البدء، موقعك الحالي بيبقى مركز القاعة، والسيرفر بيولّد سر جديد للكود بتاع المحاضرة دي بس. ابدأ المحاضرة وانت في القاعة.</p>
+      </section>`;
+      const start = async (geo) => {
+        const grp = $("#sGrp") ? $("#sGrp").value : "", mk = !!($("#sMk") && $("#sMk").checked), mins = +$("#sMin").value || 10, rad = +$("#sRad").value || 80;
+        store.set("cm_min", mins); store.set("cm_rad", rad);
+        let pos = { lat: null, lng: null };
+        if (geo) { startState = "locating"; renderSession(); pos = await CM.getPosition(20000); if (pos.error) { startState = { geoFail: pos.error, grp, mk }; return renderSession(); } }
+        try { await rpc("start_session", { cid: c.id, p_grp: grp, p_makeup: mk, p_minutes: mins, p_radius: rad, p_lat: pos.lat, p_lng: pos.lng }); liveTab = "all"; }
+        catch (e) { showErr(e); }
+        startState = null; await loadCourse().catch(showErr);
+      };
+      $("#sStart").onclick = () => start(true);
+      const rt = $("#sRetry"); if (rt) rt.onclick = () => start(true);
+      const ng = $("#sNoGeo"); if (ng) ng.onclick = () => start(false);
+      return;
+    }
+    const open = isOpen(s);
+    el.innerHTML = `<section class="board">
+      <div class="row between"><div><div class="lbl">${esc(c.name)} · المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) + (s.allow_makeup ? " · التعويض مفتوح" : " · التعويض مقفول") : "الدفعة كلها"}</div><h2>${open ? "كود الحضور" : "التسجيل مقفول"}</h2></div>
+        <div class="row">${open ? `<button class="btn sm" id="bProj">اعرض على البروجكتور</button><button class="btn sm" id="bClose">اقفل التسجيل</button>` : ""}<button class="btn sm" id="bEnd">${confirmKey === "end" ? "متأكد؟ اضغط تاني" : "إنهاء المحاضرة"}</button></div></div>
+      ${open ? `<div class="code" id="bCode">··· ···</div><div class="bar"><i id="bBar"></i></div><div class="row between lbl"><span id="bNext"></span><span id="bLeft"></span></div>`
+        : `<p class="lbl">اتقفل التسجيل ${s.closed_at ? "الساعة " + CM.fmtT(s.closed_at) : ""}. وافق على الطلبات المعلقة أو سجّل يدوي، وبعدين أنهي المحاضرة. الطلبات المعلقة وقت الإنهاء بتتحسب غياب.</p>`}
+      <div class="lbl">${s.lat == null ? "من غير تحقق موقع" : "النطاق " + s.radius + " متر حوالين مكان بدء المحاضرة"} · بدأها ${esc(staffName(s.started_by))} الساعة ${CM.fmtT(s.started_at)}</div>
+    </section>`;
+    if (open) {
+      $("#bProj").onclick = () => { $("#overlay").hidden = false; tick(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); };
+      $("#bClose").onclick = () => act(() => rpc("close_session", { sid: s.id }), loadCourse);
+    }
+    $("#bEnd").onclick = () => { if (confirmKey !== "end") { confirmKey = "end"; renderSession(); setTimeout(() => { if (confirmKey === "end") { confirmKey = null; renderSession(); } }, 4000); return; } confirmKey = null; act(() => rpc("end_session", { sid: s.id }), loadCourse); };
+    tick();
+  }
+
+  /* ---------- live attendance ---------- */
+  function renderLive() {
+    const el = $("#livePanel"); if (!el) return;
+    const c = course(), s = running() || D.sessions[D.sessions.length - 1];
+    if (!s) { el.innerHTML = `<h2>الحضور</h2><div class="empty">ابدأ أول محاضرة وهيظهر هنا كل طالب أول ما يسجل.</div>`; return; }
+    const recs = D.att[s.id] || {};
+    const pres = D.enroll.filter(e => counted(recs[e.student_code])).sort((a, b) => new Date(recs[b.student_code].at) - new Date(recs[a.student_code].at));
+    const pend = D.enroll.filter(e => recs[e.student_code] && recs[e.student_code].status === "pending");
+    const abs = D.enroll.filter(e => isOwn(s, e) && !recs[e.student_code]);
+    const rej = D.attempts.filter(a => a.session_id === s.id);
+    const editable = canRun(c) && (!s.ended || canManage(c));
+    const items = [];
+    if (liveTab === "all" || liveTab === "pend") pend.forEach(e => items.push({ e, k: "warn", chip: recs[e.student_code].makeup ? "تعويض معلّق" : "معلّق", r: recs[e.student_code] }));
+    if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : "حاضر", r }); });
+    if (liveTab === "rej") rej.forEach(a => items.push({ e: { student_code: a.student_code, name: nameOf(a.student_code), grp: (D.enroll.find(x => x.student_code === a.student_code) || {}).grp }, k: "bad", chip: "مرفوض", r: { at: a.at, reason: reasonText(a.reason) }, log: true }));
+    if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: "غايب", r: null }));
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كلها"}${s.ended ? " · منتهية" : ""}</div><h2>الحضور${s.ended ? "" : " لايف"}</h2></div>
+      <div class="tabs" role="group">${[["all", "الكل"], ["pend", "معلّق"], ["pres", "حاضر"], ["rej", "محاولات مرفوضة"], ["abs", "غايب"]].map(([k, t]) => `<button data-lt="${k}" aria-pressed="${liveTab === k}">${t}</button>`).join("")}</div></div>
+      <div class="stats"><div class="stat"><b>${pres.length}</b><span>حاضر</span></div><div class="stat"><b>${pend.length}</b><span>محتاج موافقة</span></div><div class="stat"><b>${rej.length}</b><span>محاولة مرفوضة</span></div><div class="stat"><b>${abs.length}</b><span>${s.ended ? "غايب" : "لسه ماسجلش"}</span></div></div>
+      <div class="list">${items.length ? items.map(it => `<div class="li ${it.k}">
+        <span class="chip ${it.k}">${it.chip}</span>
+        <div class="who"><b>${esc(it.e.name)}</b><small><span class="mono">${esc(it.e.student_code)}</span>${it.e.grp ? " · مجموعة " + esc(it.e.grp) : ""}${it.r ? " · " + CM.fmtT(it.r.at) : ""}${it.r && it.r.dist != null ? " · على بعد " + CM.dist(it.r.dist) : ""}${it.r && it.r.reason ? " · " + esc(it.r.reason) : ""}</small></div>
+        <div class="acts">${!editable || it.log ? "" : it.k === "warn" ? `<button class="btn sm" data-ap="${esc(it.e.student_code)}">موافقة</button><button class="btn sm danger" data-rj="${esc(it.e.student_code)}">رفض</button>` : it.k === "none" ? `<button class="btn sm" data-man="${esc(it.e.student_code)}">تسجيل يدوي</button>` : `<button class="btn sm ghost" data-rm="${esc(it.e.student_code)}">${confirmKey === "rm:" + it.e.student_code ? "متأكد؟" : "إلغاء"}</button>`}</div>
+      </div>`).join("") : `<div class="empty">${liveTab === "rej" ? "مفيش محاولات مرفوضة." : liveTab === "pend" ? "مفيش طلبات معلقة." : liveTab === "abs" ? "كل الطلبة سجلوا." : "لسه محدش سجل. الطلبة بيكتبوا الكود اللي على الشاشة من موبايلاتهم."}</div>`}</div>`;
+    el.querySelectorAll("[data-lt]").forEach(b => b.onclick = () => { liveTab = b.dataset.lt; renderLive(); });
+    const after = async () => { if (running()) await refreshLive(); else await loadCourse(); };
+    el.querySelectorAll("[data-ap]").forEach(b => b.onclick = () => act(() => rpc("approve_attendance", { sid: s.id, code: b.dataset.ap }), after));
+    el.querySelectorAll("[data-rj]").forEach(b => b.onclick = () => act(() => rpc("reject_attendance", { sid: s.id, code: b.dataset.rj }), after));
+    el.querySelectorAll("[data-man]").forEach(b => b.onclick = () => act(() => rpc("mark_manual", { sid: s.id, code: b.dataset.man }), after));
+    el.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => {
+      const k = "rm:" + b.dataset.rm; if (confirmKey !== k) { confirmKey = k; return renderLive(); }
+      confirmKey = null; act(() => rpc("cancel_attendance", { sid: s.id, code: b.dataset.rm }), after);
+    });
+  }
+
+  /* ---------- register ---------- */
+  function cell(s, e) {
+    const r = (D.att[s.id] || {})[e.student_code];
+    if (!isOwn(s, e)) return r && r.status !== "pending" ? `<span class="chip man">ت</span>` : r ? `<span class="chip warn">م</span>` : `<span class="muted">·</span>`;
+    if (!r) return s.ended ? `<span class="chip none">غ</span>` : `<span class="muted">…</span>`;
+    return r.status === "present" ? `<span class="chip ok">ح</span>` : r.status === "manual" ? `<span class="chip man">ي</span>` : `<span class="chip warn">م</span>`;
+  }
+  function renderRegister() {
+    const el = $("#regPanel"), gs = groupsOf();
+    if (regGroup !== "all" && !gs.includes(regGroup)) regGroup = "all";
+    const rows = regGroup === "all" ? D.enroll : D.enroll.filter(e => e.grp === regGroup);
+    const ss = regGroup === "all" ? D.sessions : D.sessions.filter(s => !s.grp || s.grp === regGroup || rows.some(e => (D.att[s.id] || {})[e.student_code]));
+    const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[Math.min(absences(e), 4)]++);
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.length} محاضرة · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
+      <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}<button class="btn sm" id="exp" ${D.enroll.length ? "" : "disabled"}>تصدير شيت إكسيل</button></div></div>
+      ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.warnChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">مفيش إنذارات لحد دلوقتي.</span>`}</div>
+      <div class="tbl-wrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الطالب</th>${ss.map(s => `<th class="c">م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span></th>`).join("")}<th class="c">النسبة</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
+      ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${ab >= 4 ? "withdrawn" : ""}"><td><div>${esc(e.name)}</div><div class="mono muted small">${esc(e.student_code)}${e.grp ? " · مج " + esc(e.grp) : ""}</div></td>${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
+      </tbody></table></div>
+      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة تانية · م معلّق · غ غايب · النقطة يعني المحاضرة مش لمجموعته. الغياب بيتحسب من المحاضرات المنتهية بس، وكل حضور تعويضي بيلغي غياب: مرة إنذار أول، مرتين إنذار ثاني، 3 إنذار ثالث ونهائي، 4 انسحاب إجباري.</p>`
+      : `<div class="empty">الكشف هيتملى أول ما تبدأ محاضرات.</div>`}`;
+    el.querySelectorAll("[data-rg]").forEach(b => b.onclick = () => { regGroup = b.dataset.rg; renderRegister(); });
+    $("#exp").onclick = exportXlsx;
+  }
+  function exportXlsx() {
+    const c = course(), ss = D.sessions, lab = { present: "حاضر", manual: "يدوي", pending: "معلّق" };
+    const aoa = [["كود الطالب", "الاسم", "المجموعة", ...ss.map(s => "محاضرة " + s.n + (s.grp ? " - مجموعة " + s.grp : "") + " (" + new Date(s.started_at).toLocaleDateString("en-GB") + ")"), "عدد الحضور", "النسبة", "عدد الغياب", "الحالة"]];
+    D.enroll.forEach(e => {
+      const row = ss.map(s => { const r = (D.att[s.id] || {})[e.student_code]; if (!isOwn(s, e)) return r ? (r.status === "pending" ? "معلّق" : "تعويض") : "—"; return r ? lab[r.status] : (s.ended ? "غايب" : "—"); });
+      const a = attendance(e), ab = absences(e);
+      aoa.push([e.student_code, e.name, e.grp || "-", ...row, a.att, a.own ? a.pct + "%" : "-", ab, CM.warnOf(ab).t]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{ wch: 12 }, { wch: 26 }, { wch: 9 }, ...ss.map(() => ({ wch: 18 })), { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "الحضور"); wb.Workbook = { Views: [{ RTL: true }] };
+    XLSX.writeFile(wb, "حضور " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
+  }
+
+  /* ---------- roster ---------- */
+  function renderRoster() {
+    const c = course(), el = $("#rosterPanel"), mng = canManage(c);
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.enroll.length} طالب</div><h2>طلبة المادة</h2></div>
+      ${mng ? `<label class="btn sm" for="xls">رفع شيت إكسيل</label><input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div>
+      ${msgHtml("roster")}
+      ${mng ? `<p class="muted small">الشيت فيه عمود للكود وعمود للاسم، واختياري عمود «المجموعة» (أ / ب) وعمود «رمز التفعيل». رفع شيت جديد بيستبدل القائمة، والحضور القديم بيفضل محفوظ.</p>` : ""}
+      ${D.enroll.length ? `<div class="tbl-wrap" style="max-height:440px;overflow:auto"><table><thead><tr><th>الكود</th><th>الاسم</th><th>المجموعة</th><th>الحساب</th>${mng ? "<th></th>" : ""}</tr></thead><tbody>
+      ${D.enroll.map((e, i) => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td>${esc(e.name)}</td>
+        <td>${mng ? `<select data-grp="${i}" style="width:auto;padding:3px 6px">${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${esc(g) || "—"}</option>`).join("")}</select>` : esc(e.grp || "—")}</td>
+        <td>${b.device_bound ? `<span class="chip ok">مربوط بموبايل</span>` : b.registered ? `<span class="chip warn">مستني يربط موبايل</span>` : `<span class="chip none">ماعملش حساب</span>`}</td>
+        ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الموبايل"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "مسح الحساب"}</button>` : ""}</div></td>` : ""}</tr>`; }).join("")}
+      </tbody></table></div>` : `<div class="empty">${mng ? "ارفع شيت إكسيل فيه أكواد وأسماء الطلبة." : "المحاضر لسه مارفعش شيت الطلبة."}</div>`}
+      ${mng && D.enroll.length ? `<p class="muted small">«فك ربط الموبايل» لو الطالب غيّر موبايله، فيدخل من الجديد بنفس كلمة السر. «مسح الحساب» لو نسي كلمة السر أو حد عمل حساب بكوده، فيعمل حساب من الأول.</p>` : ""}`;
+    const x = $("#xls"); if (x) x.onchange = ev => importFile(ev.target.files[0]);
+    el.querySelectorAll("[data-grp]").forEach(sel => sel.onchange = () => { const e = D.enroll[+sel.dataset.grp]; act(() => rpc("set_group", { cid: c.id, code: e.student_code, p_grp: sel.value }), loadCourse); });
+    el.querySelectorAll("[data-dev]").forEach(b => b.onclick = () => { const k = "dev:" + b.dataset.dev; if (confirmKey !== k) { confirmKey = k; return renderRoster(); } confirmKey = null; act(async () => { await rpc("reset_device", { cid: c.id, code: b.dataset.dev }); say("roster", "اتفك ربط موبايل " + nameOf(b.dataset.dev) + ". أول دخول جاي هيربطه بالموبايل الجديد."); }, loadCourse); });
+    el.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => { const k = "acc:" + b.dataset.acc; if (confirmKey !== k) { confirmKey = k; return renderRoster(); } confirmKey = null; act(async () => { await rpc("reset_account", { cid: c.id, code: b.dataset.acc }); say("roster", "اتمسح حساب " + nameOf(b.dataset.acc) + ". يقدر يعمل حساب جديد من «أول مرة»."); }, loadCourse); });
+  }
+  function importFile(file) {
+    if (!file) return;
+    const c = course(), fr = new FileReader();
+    fr.onload = async ev => {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array" });
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" }).filter(r => r.some(v => String(v).trim()));
+        if (!rows.length) throw { message: "empty_roster" };
+        let ci = -1, ni = -1, gi = -1, pi = -1, start = 0; const h = rows[0].map(v => String(v).trim());
+        h.forEach((v, i) => {
+          if (gi < 0 && /مجموع|group|سكشن|section|فوج/i.test(v)) gi = i;
+          else if (pi < 0 && /رمز|تفعيل|pin|قومي/i.test(v)) pi = i;
+          else if (ci < 0 && /كود|رقم|code|id/i.test(v)) ci = i;
+          else if (ni < 0 && /اسم|name/i.test(v)) ni = i;
+        });
+        if (ci >= 0 && ni >= 0) start = 1;
+        else { ci = 0; ni = 1; if (!/\d/.test(String(rows[0][0])) && /\d/.test(String(rows[0][1]))) { ci = 1; ni = 0; } if (!/\d/.test(String(rows[0][ci]))) start = 1; }
+        const normG = v => { v = String(v ?? "").trim(); const m = { a: "أ", b: "ب", c: "ج", "1": "أ", "2": "ب", "3": "ج", "ا": "أ" }; return m[v.toLowerCase()] || v.slice(0, 10); };
+        const list = rows.slice(start).map(r => ({ code: String(r[ci]).trim(), name: String(r[ni]).trim(), grp: gi >= 0 ? normG(r[gi]) : "", pin: pi >= 0 ? String(r[pi]).trim().slice(-4) : "" })).filter(r => r.code && r.name);
+        if (!list.length) throw { message: "empty_roster" };
+        const n = await rpc("replace_roster", { cid: c.id, rows: list, p_file: file.name });
+        const gs = [...new Set(list.map(x => x.grp).filter(Boolean))].sort();
+        say("roster", "اتضاف " + n + " طالب من «" + file.name + "»" + (gs.length > 1 ? "، مقسمين على " + gs.map(g => "مجموعة " + g + " (" + list.filter(x => x.grp === g).length + ")").join(" و") : "") + (pi >= 0 ? "، ومعاهم رمز تفعيل" : "") + ".");
+      } catch (e) { say("roster", "!" + (e.message === "empty_roster" ? errText(e) : "معرفناش نقرا الشيت. اتأكد إن فيه عمود للكود وعمود للاسم. " + errText(e))); }
+      await loadCourse().catch(showErr);
+    };
+    fr.readAsArrayBuffer(file);
+  }
+
+  /* ---------- team + course settings ---------- */
+  function renderTeam() {
+    const c = course(), el = $("#teamPanel"), mng = canManage(c);
+    const cands = staff.filter(u => u.status !== "suspended" && u.email !== c.owner_email && !D.tas.some(t => t.email === u.email));
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">مين شغال على المادة</div><h2>فريق المادة</h2></div></div>
+      ${msgHtml("team")}
+      <div class="list" style="max-height:none">
+        <div class="li man"><span class="chip man">محاضر</span><div class="who"><b>${esc(staffName(c.owner_email))}</b><small class="mono">${esc(c.owner_email)}</small></div><span></span></div>
+        ${D.tas.map(t => `<div class="li"><span class="chip none">معيد</span><div class="who"><b>${esc(staffName(t.email))}</b><small class="mono">${esc(t.email)}</small></div><div class="acts">${mng ? `<button class="btn sm ghost danger" data-rmta="${esc(t.email)}">شيل</button>` : ""}</div></div>`).join("")}
+      </div>
+      ${mng ? (cands.length ? `<div class="settings"><label class="f"><span>ضيف معيد</span><select id="taPick">${cands.map(u => `<option value="${esc(u.email)}">${esc(u.name)} (${ROLE[u.role]})</option>`).join("")}</select></label><button class="btn" id="taAdd">أضف</button></div>` : `<p class="muted small">مفيش حسابات تانية تضيفها. لو المعيد مش موجود، اطلب من مسؤول القسم يضيفه.</p>`)
+        + `<p class="muted small">المعيد يقدر يبدأ المحاضرات ويوافق على الطلبات ويسجل يدوي، لكن مايقدرش يغيّر طلبة المادة أو الفريق.</p>
+        <div class="row"><button class="btn sm ghost" id="arch">${c.archived ? "رجّع المادة من الأرشيف" : "أرشف المادة (آخر الترم)"}</button></div>` : ""}`;
+    el.querySelectorAll("[data-rmta]").forEach(b => b.onclick = () => act(() => rpc("remove_ta", { cid: c.id, p_email: b.dataset.rmta }), async () => { await loadBase(); await loadCourse(); }));
+    const ta = $("#taAdd"); if (ta) ta.onclick = () => act(() => rpc("add_ta", { cid: c.id, p_email: $("#taPick").value }), async () => { await loadBase(); await loadCourse(); });
+    const ar = $("#arch"); if (ar) ar.onclick = () => act(() => rpc("set_course_archived", { cid: c.id, p_archived: !c.archived }), async () => { await loadBase(); await loadCourse(); });
+  }
+
+  function auditList(items, showCourse) {
+    if (!items.length) return `<div class="empty">مفيش تعديلات لحد دلوقتي.</div>`;
+    return `<div class="list">${items.map(a => { const c = courses.find(x => x.id === a.course_id);
+      return `<div class="li"><span class="small muted mono">${CM.fmtD(a.at)} ${CM.fmtT(a.at)}</span><div class="who"><b>${esc(staffName(a.actor))}</b><small>${esc(a.action)}${showCourse && c ? " · " + esc(c.name) : ""}</small></div><span></span></div>`; }).join("")}</div>`;
+  }
+  function renderAudit() {
+    $("#auditPanel").innerHTML = `<div class="panel-h"><div><div class="eyebrow">مين عمل إيه وإمتى</div><h2>سجل تعديلات المادة</h2></div></div>
+      <p class="muted small">أي تسجيل يدوي، أو موافقة أو رفض، أو إلغاء حضور، أو فك ربط موبايل، أو نقل طالب بين المجموعات بيتسجل هنا، ومحدش يقدر يمسحه.</p>${auditList(D.audit, false)}`;
+  }
+
+  /* ======================= admin ======================= */
+  async function renderAdmin() {
+    const el = $("#adminArea");
+    const au = await sb.from("audit").select("*").order("at", { ascending: false }).limit(40);
+    el.innerHTML = `
+      <section class="panel">
+        <div class="panel-h"><div><div class="eyebrow">${staff.length} حساب</div><h2>المحاضرين والمعيدين</h2></div></div>
+        ${msgHtml("admin")}
+        <div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الدور</th><th>المواد</th><th>الحالة</th><th></th></tr></thead><tbody>
+        ${staff.map(u => { const o = courses.filter(c => c.owner_email === u.email).length, t = tasAll.filter(x => x.email === u.email).length;
+          return `<tr><td>${esc(u.name)}</td><td class="mono small">${esc(u.email)}</td><td>${ROLE[u.role]}</td><td class="small">${o ? o + " مادة" : ""}${o && t ? " · " : ""}${t ? "معيد في " + t : ""}${!o && !t ? `<span class="muted">—</span>` : ""}</td>
+          <td>${u.status === "active" ? `<span class="chip ok">مفعّل</span>` : u.status === "invited" ? `<span class="chip warn">مادخلش لسه</span>` : `<span class="chip bad">موقوف</span>`}</td>
+          <td>${u.email === me.email ? `<span class="small muted">انت</span>` : `<button class="btn sm ghost ${u.status === "suspended" ? "" : "danger"}" data-sus="${esc(u.email)}" data-to="${u.status === "suspended" ? "active" : "suspended"}">${u.status === "suspended" ? "تفعيل" : "إيقاف"}</button>`}</td></tr>`; }).join("")}
+        </tbody></table></div>
+        <h3>إضافة محاضر أو معيد</h3>
+        <div class="settings">
+          <label class="f"><span>الاسم</span><input type="text" id="invName"></label>
+          <label class="f"><span>إيميل الجامعة</span><input type="email" id="invEmail" dir="ltr" placeholder="name@${esc(settings.domain || "university.edu.eg")}"></label>
+          <label class="f"><span>الدور</span><select id="invRole"><option value="lecturer">محاضر</option><option value="ta">معيد</option><option value="admin">مسؤول</option></select></label>
+          <button class="btn primary" id="invBtn">أضف</button>
+        </div>
+        <p class="muted small">بعد ما تضيفه، ابعتله لينك صفحة المحاضرين. أول ما يدخل بإيميله والكود اللي هيوصله، حسابه بيتفعّل. الموقوف مايقدرش يدخل، ومواده وكشوفه بتفضل محفوظة.</p>
+        <div class="settings"><label class="f"><span>دومين إيميل الجامعة (فاضي = أي دومين)</span><input type="text" id="domIn" dir="ltr" value="${esc(settings.domain || "")}"></label><button class="btn" id="domSave">حفظ الدومين</button></div>
+      </section>
+      <section class="panel">
+        <div class="panel-h"><div><div class="eyebrow">كل مواد القسم</div><h2>طلبة عندهم إنذار ثالث أو انسحاب</h2></div><button class="btn sm" id="repBtn">${report === "loading" ? `<span class="spinner"></span>` : report ? "تحديث" : "احسب التقرير"}</button></div>
+        ${Array.isArray(report) ? (report.length ? `<div class="tbl-wrap"><table><thead><tr><th>الطالب</th><th>المادة</th><th>المحاضر</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
+          ${report.map(x => `<tr><td>${esc(x.e.name)}<div class="mono muted small">${esc(x.e.student_code)}</div></td><td>${esc(x.c.name)}</td><td>${esc(staffName(x.c.owner_email))}</td><td class="c mono">${x.ab}</td><td>${CM.warnChip(x.ab)}</td></tr>`).join("")}
+          </tbody></table></div>` : `<div class="empty">مفيش طلبة عندهم إنذار ثالث أو انسحاب.</div>`) : `<p class="muted small">التقرير بيلف على كل المواد، فبيتحسب لما تطلبه.</p>`}
+      </section>
+      <section class="panel"><div class="panel-h"><div><div class="eyebrow">آخر التعديلات في كل المواد</div><h2>سجل التعديلات</h2></div></div>${auditList(au.data || [], true)}</section>`;
+    el.querySelectorAll("[data-sus]").forEach(b => b.onclick = () => act(async () => { await rpc("admin_set_status", { p_email: b.dataset.sus, p_status: b.dataset.to }); say("admin", (b.dataset.to === "suspended" ? "اتوقف حساب " : "اتفعّل حساب ") + staffName(b.dataset.sus) + "."); }, async () => { await loadBase(); renderAdmin(); }));
+    $("#invBtn").onclick = () => act(async () => {
+      const n = $("#invName").value.trim(), e = $("#invEmail").value.trim().toLowerCase(), r = $("#invRole").value;
+      await rpc("admin_save_staff", { p_email: e, p_name: n, p_role: r });
+      say("admin", "اتضاف " + n + ". ابعتله لينك صفحة المحاضرين: " + location.href.split("#")[0]);
+    }, async () => { await loadBase(); renderAdmin(); });
+    $("#domSave").onclick = () => act(async () => { await rpc("admin_set_domain", { p_domain: $("#domIn").value }); say("admin", "اتحفظ الدومين."); }, async () => { await loadBase(); renderAdmin(); });
+    $("#repBtn").onclick = async () => {
+      report = "loading"; renderAdmin();
+      try {
+        const [en, se, at] = await Promise.all([
+          CM.fetchAll(() => sb.from("enrollments").select("course_id,student_code,name,grp").order("course_id")),
+          CM.fetchAll(() => sb.from("sessions").select("id,course_id,grp,ended").order("id")),
+          CM.fetchAll(() => sb.from("attendance").select("session_id,student_code,status").neq("status", "pending").order("session_id"))
+        ]);
+        const att = new Set(at.map(a => a.session_id + "|" + a.student_code));
+        const out = [];
+        courses.filter(c => !c.archived).forEach(c => {
+          const ss = se.filter(s => s.course_id === c.id);
+          en.filter(e => e.course_id === c.id).forEach(e => {
+            const own = s => !s.grp || s.grp === e.grp;
+            const missed = ss.filter(s => s.ended && own(s) && !att.has(s.id + "|" + e.student_code)).length;
+            const made = ss.filter(s => !own(s) && att.has(s.id + "|" + e.student_code)).length;
+            const ab = Math.max(0, missed - made); if (ab >= 3) out.push({ c, e, ab });
+          });
+        });
+        report = out.sort((a, b) => b.ab - a.ab);
+      } catch (e) { report = null; showErr(e); }
+      renderAdmin();
+    };
+  }
+
+  /* ======================= start ======================= */
+  sb.auth.onAuthStateChange((ev) => {
+    if (ev === "SIGNED_OUT" && me) { me = null; renderLogin(); }
+    if (ev === "SIGNED_IN" && !me && login.step === "code" && !login.busy) { login = { step: "email", email: "", err: "", busy: false }; afterLogin(); } // opened the email link in another tab
+  });
+  sb.auth.getSession().then(({ data }) => { if (data.session) afterLogin(); else renderLogin(); });
+})();
+</script>
+</body>
+</html>

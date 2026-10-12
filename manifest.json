@@ -1,0 +1,11 @@
+{
+  "name": "Classmate",
+  "short_name": "Classmate",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#eef2f0",
+  "theme_color": "#1d6b58",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

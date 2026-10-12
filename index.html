@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d6b58">
+<title>Classmate</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap narrow" id="app"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+(function () {
+  const { $, esc, rpc, errText, store } = CM;
+  const app = $("#app");
+  if (!CM.configured) { app.innerHTML = CM.setupNotice(); return; }
+
+  // device id: generated once on this phone and kept in the browser
+  let device = store.get("cm_device");
+  if (!device) { device = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)); store.set("cm_device", device); }
+  if (store.get("cm_device") !== device) device = ""; // storage blocked (private mode)
+
+  let token = store.get("cm_token");
+  let home = null, authTab = "login", authMsg = "", busy = false, results = {}, drafts = {}, pwOpen = false, pwMsg = "";
+
+  function header(extra) {
+    return `<header class="top"><div class="brand"><div class="mark">C</div><div><h1>Classmate</h1><p class="muted small">${esc((window.CLASSMATE || {}).UNIVERSITY_NAME || "")}</p></div></div>${extra || ""}</header>`;
+  }
+
+  /* ---------------- sign in / first time ---------------- */
+  function renderAuth() {
+    app.innerHTML = header() + `
+      <section class="panel">
+        <div class="tabs" role="group"><button id="tLogin" aria-pressed="${authTab === "login"}">دخول</button><button id="tReg" aria-pressed="${authTab === "reg"}">أول مرة</button></div>
+        ${authTab === "login" ? `
+          <h2>ادخل بكود الطالب</h2>
+          <label class="f"><span>كود الطالب</span><input type="text" id="code" inputmode="numeric" autocomplete="username" class="mono" style="text-align:start" value="${esc(store.get("cm_last_code") || "")}"></label>
+          <label class="f"><span>كلمة السر</span><input type="password" id="pass" autocomplete="current-password"></label>
+        ` : `
+          <h2>اعمل حسابك</h2>
+          <p class="muted small">الحساب هيترتبط بالموبايل ده، ومش هتقدر تسجل حضور من موبايل تاني. ماتستخدمش وضع التصفح الخفي.</p>
+          <label class="f"><span>كود الطالب</span><input type="text" id="code" inputmode="numeric" autocomplete="username" class="mono" style="text-align:start"></label>
+          <label class="f"><span>كلمة سر (6 حروف أو أكتر)</span><input type="password" id="pass" autocomplete="new-password"></label>
+          <label class="f"><span>اكتب كلمة السر تاني</span><input type="password" id="pass2" autocomplete="new-password"></label>
+          <label class="f"><span>رمز التفعيل (لو المحاضر اداكم رمز، زي آخر 4 أرقام من الرقم القومي)</span><input type="text" id="pin" inputmode="numeric" class="mono" style="text-align:start"></label>
+        `}
+        ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
+        ${!device ? `<div class="msg warn">المتصفح ده مش بيحفظ البيانات (غالبا وضع التصفح الخفي). افتح الموقع في متصفح عادي.</div>` : ""}
+        <button class="btn primary block" id="go" ${busy || !device ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : authTab === "login" ? "دخول" : "اعمل الحساب"}</button>
+      </section>
+      <p class="muted small" style="margin-top:14px;text-align:center">نسيت كلمة السر أو غيرت موبايلك؟ كلّم المحاضر يفك ربط الجهاز أو يمسح حسابك تعمله من جديد.</p>`;
+    $("#tLogin").onclick = () => { authTab = "login"; authMsg = ""; renderAuth(); };
+    $("#tReg").onclick = () => { authTab = "reg"; authMsg = ""; renderAuth(); };
+    $("#go").onclick = submitAuth;
+    app.querySelectorAll("input").forEach(i => i.onkeydown = e => { if (e.key === "Enter") submitAuth(); });
+  }
+
+  async function submitAuth() {
+    if (busy) return;
+    // read every field before re-rendering (re-render clears the inputs)
+    const code = $("#code").value.trim(), pass = $("#pass").value, pass2 = $("#pass2") ? $("#pass2").value : "", pin = $("#pin") ? $("#pin").value.trim() : "";
+    authMsg = "";
+    if (!code || !pass) { authMsg = "اكتب الكود وكلمة السر."; return renderAuth(); }
+    if (authTab === "reg") {
+      if (pass.length < 6) { authMsg = "كلمة السر لازم تكون 6 حروف أو أكتر."; return renderAuth(); }
+      if (pass !== pass2) { authMsg = "كلمتين السر مش زي بعض."; return renderAuth(); }
+    }
+    busy = true; renderAuth();
+    try {
+      const r = authTab === "login"
+        ? await rpc("student_login", { p_code: code, p_password: pass, p_device: device })
+        : await rpc("student_register", { p_code: code, p_password: pass, p_pin: pin, p_device: device });
+      token = r.token; store.set("cm_token", token); store.set("cm_last_code", code);
+      busy = false; await loadHome();
+    } catch (e) { busy = false; authMsg = errText(e); renderAuth(); }
+  }
+
+  /* ---------------- home ---------------- */
+  async function loadHome(silent) {
+    try {
+      home = await rpc("student_home", { p_token: token });
+      renderHome();
+    } catch (e) {
+      if (String(e.message || "").includes("not_signed_in")) { signOut(); return; }
+      if (!silent) { app.innerHTML = header() + `<div class="msg bad">${esc(errText(e))}</div><p style="margin-top:12px"><button class="btn" id="retry">جرب تاني</button></p>`; $("#retry").onclick = () => loadHome(); }
+    }
+  }
+
+  function signOut() {
+    if (token) rpc("student_logout", { p_token: token }).catch(() => {});
+    token = null; home = null; results = {}; store.del("cm_token"); authTab = "login"; renderAuth();
+  }
+
+  function sessionBlock(c) {
+    const s = c.session, res = results[c.id];
+    if (!s) return `<p class="muted small">مفيش محاضرة شغالة دلوقتي. لما المحاضر يبدأ، هيظهر هنا مكان الكود.</p>`;
+    const mine = s.mine;
+    let body = "";
+    if (mine && mine.status !== "pending") body = `<div class="result ok"><b>${mine.makeup ? "حضورك التعويضي متسجل" : "حضورك متسجل"}</b><span class="small">المحاضرة ${s.n} · ${CM.fmtT(mine.at)}${mine.status === "manual" ? " · سجّلك المحاضر يدوي" : ""}</span></div>`;
+    else if (mine) body = `<div class="result warn"><b>طلبك مستني موافقة المحاضر</b><span class="small">${esc(mine.reason)}</span></div>`;
+    else if (!s.open) body = `<div class="result bad"><b>التسجيل اتقفل</b><span class="small">لو كنت موجود فعلا، كلّم المحاضر يسجلك يدوي.</span></div>`;
+    else if (!s.own && !s.allow_makeup) body = `<div class="result warn"><b>النهارده محاضرة مجموعة ${esc(s.grp)}</b><span class="small">انت في ${c.grp ? "مجموعة " + esc(c.grp) : "مجموعة تانية"}، ومحاضرتك في أسبوعها. لو محتاج تعوض، كلّم المحاضر يفتح الحضور التعويضي.</span></div>`;
+    else if (s.tries_left <= 0) body = `<div class="result bad"><b>اتقفلت محاولاتك في المحاضرة دي</b><span class="small">كتبت الكود غلط 5 مرات. كلّم المحاضر.</span></div>`;
+    else body = `
+      ${!s.own ? `<div class="msg">دي محاضرة مجموعة ${esc(s.grp)}، فهتتسجل حضور تعويضي.</div>` : ""}
+      <label class="f"><span>اكتب الكود اللي على الشاشة</span><input type="text" class="codein" id="ci-${c.id}" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="000000" value="${esc(drafts[c.id] || "")}"></label>
+      <button class="btn primary block" data-ci="${c.id}" ${busy ? "disabled" : ""}>${busy === c.id ? `<span class="spinner"></span> بنحدد مكانك…` : "سجّل حضوري"}</button>
+      <p class="muted small">التطبيق هيطلب صلاحية الموقع عشان يتأكد إنك في القاعة.${s.tries_left < 5 ? ` فاضلك ${s.tries_left} محاولات.` : ""}</p>`;
+    return `<div class="row between"><span class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كلها"}</span>${s.open ? `<span class="chip ok">التسجيل مفتوح</span>` : ""}</div>${body}
+      ${res ? `<div class="result ${res.k}"><b>${esc(res.title)}</b>${res.checks.length ? `<ul class="checks">${res.checks.map(ch => `<li class="${ch[0]}">${esc(ch[1])}</li>`).join("")}</ul>` : ""}</div>` : ""}`;
+  }
+
+  function renderHome() {
+    const active = document.activeElement && document.activeElement.id;
+    app.innerHTML = header(`<div class="row"><button class="btn sm ghost" id="pwBtn">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button></div>`) + `
+      <section class="col">
+        <div><div class="eyebrow mono" style="text-align:start">${esc(home.code)}</div><h2>أهلا ${esc((home.name || "").split(" ")[0])}</h2></div>
+        ${pwOpen ? `<div class="panel"><h3>تغيير كلمة السر</h3>
+          <label class="f"><span>كلمة السر الحالية</span><input type="password" id="pwOld" autocomplete="current-password"></label>
+          <label class="f"><span>كلمة السر الجديدة</span><input type="password" id="pwNew" autocomplete="new-password"></label>
+          ${pwMsg ? `<div class="msg ${pwMsg.startsWith("!") ? "bad" : "ok"}">${esc(pwMsg.replace(/^!/, ""))}</div>` : ""}
+          <button class="btn primary" id="pwSave">حفظ</button></div>` : ""}
+        ${home.courses.length ? home.courses.map(c => `
+          <article class="course">
+            <div class="row between"><div><h2>${esc(c.name)}</h2>${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
+            ${c.absences ? `<p class="small muted">غبت ${c.absences} ${c.absences === 1 ? "مرة" : c.absences === 2 ? "مرتين" : "مرات"}.${c.absences === 3 ? " أي غياب تاني هيبقى انسحاب إجباري." : c.absences >= 4 ? " راجع المحاضر أو شؤون الطلاب." : ""}</p>` : ""}
+            ${sessionBlock(c)}
+          </article>`).join("") : `<div class="empty">كودك مش موجود في أي مادة حاليا. كلّم المحاضر.</div>`}
+      </section>`;
+    $("#out").onclick = signOut;
+    $("#pwBtn").onclick = () => { pwOpen = !pwOpen; pwMsg = ""; renderHome(); };
+    const ps = $("#pwSave"); if (ps) ps.onclick = async () => {
+      try { await rpc("student_change_password", { p_token: token, p_old: $("#pwOld").value, p_new: $("#pwNew").value }); pwMsg = "اتغيرت كلمة السر."; }
+      catch (e) { pwMsg = "!" + errText(e); }
+      renderHome();
+    };
+    app.querySelectorAll("input.codein").forEach(inp => {
+      const cid = inp.id.slice(3);
+      inp.oninput = () => { const v = inp.value.replace(/\D/g, "").slice(0, 6); if (v !== inp.value) inp.value = v; drafts[cid] = v; };
+      inp.onkeydown = e => { if (e.key === "Enter") checkIn(cid); };
+    });
+    app.querySelectorAll("[data-ci]").forEach(b => b.onclick = () => checkIn(b.dataset.ci));
+    if (active && $("#" + CSS.escape(active))) { const el = $("#" + CSS.escape(active)); el.focus(); }
+  }
+
+  /* ---------------- check in ---------------- */
+  async function checkIn(cid) {
+    if (busy) return;
+    const c = home.courses.find(x => x.id === cid); if (!c || !c.session) return;
+    const code = (drafts[cid] || "").trim();
+    if (code.length !== 6) { results[cid] = { k: "bad", title: "الكود 6 أرقام", checks: [["x", "اكتب الكود كامل زي ما هو على الشاشة"]] }; return renderHome(); }
+    busy = cid; results[cid] = null; renderHome();
+    const pos = await CM.getPosition();
+    try {
+      const r = await rpc("student_check_in", { p_token: token, sid: c.session.id, p_code: code,
+        p_lat: pos.lat ?? null, p_lng: pos.lng ?? null, p_acc: pos.acc ?? null, p_device: device });
+      results[cid] = describe(r, pos);
+      if (r.result === "present" || r.result === "pending" || r.result === "already") drafts[cid] = "";
+      else if (r.reason === "wrong_code" || r.reason === "expired_code") drafts[cid] = "";
+    } catch (e) {
+      if (String(e.message || "").includes("not_signed_in")) { busy = false; return signOut(); }
+      results[cid] = { k: "bad", title: "معرفناش نسجل", checks: [["x", errText(e)]] };
+    }
+    busy = false; await loadHome(true);
+  }
+
+  function describe(r, pos) {
+    const ch = [];
+    switch (r.result) {
+      case "present":
+        ch.push(["", "الحساب مربوط بالموبايل ده"], ["", "الكود صح وفي وقته"]);
+        if (r.no_geo) ch.push(["q", "المحاضر بدأ المحاضرة من غير تحقق موقع"]); else ch.push(["", "في نطاق القاعة (" + CM.dist(r.dist) + ")"]);
+        return { k: "ok", title: r.makeup ? "تم تسجيل حضورك التعويضي" : "تم تسجيل حضورك", checks: ch };
+      case "already": return { k: "ok", title: "حضورك متسجل قبل كده", checks: [] };
+      case "pending":
+        if (r.reason === "no_location") ch.push(["q", pos.error === "denied" ? "رفضت صلاحية الموقع. فعّلها للمتصفح من إعدادات الموبايل المرة الجاية" : "الموبايل ماقدرش يحدد مكانك"]);
+        else ch.push(["q", "دقة الموقع " + r.acc + " م، أضعف من المسموح. جرب جنب شباك المرة الجاية"]);
+        return { k: "warn", title: "الكود صح، وطلبك اتبعت للمحاضر يوافق", checks: ch };
+      case "locked": return { k: "bad", title: "اتقفلت محاولاتك في المحاضرة دي", checks: [["x", "كلّم المحاضر"]] };
+      case "closed": return { k: "bad", title: "التسجيل اتقفل", checks: [] };
+      default: {
+        const left = r.tries_left != null ? (r.tries_left > 0 ? [["q", "فاضلك " + r.tries_left + " محاولات"]] : [["x", "اتقفلت محاولاتك"]]) : [];
+        const m = {
+          wrong_code: ["الكود غلط", [["x", "اكتب الكود اللي على الشاشة بالظبط"], ...left]],
+          expired_code: ["الكود ده انتهى", [["x", "الكود بيتغير كل 30 ثانية. اكتب الكود اللي على الشاشة دلوقتي"], ...left]],
+          too_far: ["انت مش في القاعة", [["x", "انت على بعد " + CM.dist(r.dist) + " من القاعة، والمسموح " + r.radius + " م"]]],
+          device_used: ["مينفعش تسجل من الموبايل ده", [["x", "الموبايل ده سجّل حضور طالب تاني في المحاضرة دي"]]],
+          other_group: ["مش محاضرة مجموعتك", [["x", "المحاضرة دي لمجموعة " + r.session_grp]]],
+          not_enrolled: ["انت مش في شيت المادة دي", []]
+        }[r.reason] || ["معرفناش نسجل", []];
+        return { k: "bad", title: m[0], checks: m[1] };
+      }
+    }
+  }
+
+  // refresh while open: picks up a lecture that just started
+  setInterval(() => { if (token && home && !busy && document.visibilityState === "visible" && !(document.activeElement && document.activeElement.tagName === "INPUT")) loadHome(true); }, 15000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && token && !busy) loadHome(true); });
+
+  if (token) loadHome(); else renderAuth();
+})();
+</script>
+</body>
+</html>
