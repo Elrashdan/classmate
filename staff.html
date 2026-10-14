@@ -22,6 +22,13 @@
   </div>
 </div>
 
+<div class="scanov" id="scanOv" hidden>
+  <video id="scanVid" playsinline muted autoplay></video>
+  <div class="frame"><i></i></div>
+  <div class="res info" id="scanRes"><b>وجّه الكاميرا على كود الطالب</b><span>الطالب يفتح «كود الحضور» من موبايله.</span></div>
+  <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">قفل الكاميرا</button></div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="config.js"></script>
@@ -33,14 +40,14 @@
   if (!CM.configured) { app.innerHTML = CM.setupNotice(); return; }
 
   const ROLE = { admin: "مسؤول", lecturer: "محاضر", ta: "معيد" };
-  const REASON = { wrong_code: "كود غلط", expired_code: "كود منتهي (غالبا اتبعت له)", device_used: "موبايل سجّل لطالب تاني", other_group: "من مجموعة تانية والتعويض مقفول", rejected_by_staff: "اترفض طلبه" };
+  const REASON = { wrong_code: "كود غلط", expired_code: "كود منتهي (غالبا اتبعت له)", device_used: "موبايل سجّل لطالب تاني", other_group: "من مجموعة تانية والتعويض مقفول", rejected_by_staff: "اترفض طلبه", bad_qr: "كود حضور (QR) مش صحيح", old_qr: "كود حضور (QR) قديم (غالبا صورة)" };
   const reasonText = r => r.startsWith("too_far:") ? "برة نطاق القاعة (" + CM.dist(+r.split(":")[1]) + ")" : (REASON[r] || r);
 
   let me = null, staff = [], settings = { domain: "" }, courses = [], tasAll = [], curId = store.get("cm_course"), view = "course";
   let D = null; // current course data
   let flash = {}; // per-panel messages
   let liveTab = "all", regGroup = "all", confirmKey = null, startState = null, report = null;
-  let codeState = null, codeTimer = null, liveTimer = null;
+  let codeState = null, codeTimer = null, liveTimer = null, manFor = null, manDraft = "";
   let login = { step: "email", email: "", err: "", busy: false };
 
   /* ======================= auth ======================= */
@@ -97,7 +104,7 @@
   }
 
   async function signOut(msg) {
-    stopLoops(); await sb.auth.signOut().catch(() => {});
+    stopLoops(); closeScanner(); await sb.auth.signOut().catch(() => {});
     me = null; D = null; login = { step: "email", email: "", err: msg || "", busy: false }; renderLogin();
   }
 
@@ -200,6 +207,7 @@
     let bindings = {};
     try { (await rpc("course_bindings", { cid: c.id })).forEach(b => bindings[b.student_code] = b); } catch (e) {}
     D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings };
+    if (scan && !sessions.some(x => x.id === scan.sid && !x.ended)) closeScanner();
     render();
     startLoops();
   }
@@ -218,12 +226,14 @@
     if (!au.error && (au.data[0] || {}).id !== (D.audit[0] || {}).id) { D.audit = au.data; renderAudit(); }
     const i = D.sessions.findIndex(x => x.id === s.id), wasOpen = isOpen(s);
     if (i >= 0) D.sessions[i] = ss.data;
-    renderLive(); renderRegister();
+    if (!manFor) renderLive();
+    renderRegister();
+    scanCount();
     if (wasOpen !== isOpen(ss.data)) renderSession();
   }
 
   /* ======================= loops (code + live list) ======================= */
-  function stopLoops() { clearTimeout(codeTimer); clearInterval(liveTimer); codeTimer = null; liveTimer = null; codeState = null; $("#overlay").hidden = true; }
+  function stopLoops() { manFor = null; clearTimeout(codeTimer); clearInterval(liveTimer); codeTimer = null; liveTimer = null; codeState = null; $("#overlay").hidden = true; }
   function startLoops() {
     const c = course(), s = running();
     if (!s) return;
@@ -252,7 +262,7 @@
     set("#bLeft", "التسجيل يقفل بعد " + CM.mmss(codeState.ends - Date.now()));
     set("#ovLeft", "التسجيل يقفل بعد " + CM.mmss(codeState.ends - Date.now()));
     set("#ovCount", "حضر " + pres + " من " + exp.length);
-    if (s && c) set("#ovTitle", c.name + " · المحاضرة " + s.n + " · " + (s.grp ? "مجموعة " + s.grp : "الدفعة كلها"));
+    if (s && c) set("#ovTitle", c.name + " · المحاضرة " + s.n + (s.kind === "outdoor" ? " (خارجية)" : "") + " · " + (s.grp ? "مجموعة " + s.grp : "الدفعة كلها"));
     if (codeState.ends <= Date.now()) { codeState = null; clearTimeout(codeTimer); loadCourse(); }
   }
   setInterval(tick, 1000);
@@ -317,6 +327,84 @@
     if (!c) return;
     renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit();
   }
+  const MAN_REASONS = ["موبايله فاضي شحن", "موبايله مش معاه", "مشكلة في حسابه", "حاضر وأنا شايفه"];
+  let kindPick = "hall";
+
+  /* ---------- scanner: staff scans the student's personal QR ---------- */
+  let scan = null; // { sid, stream, timer, busy, last, lastAt, detector }
+  const SCAN_MSG = {
+    present: r => ["ok", r.name, (r.makeup ? "اتسجل حضور تعويضي" : "اتسجل حاضر") + (r.grp ? " · مجموعة " + r.grp : "")],
+    already: r => ["info", r.name, "متسجل حاضر قبل كده"],
+    expired: r => ["warn", r.name || "كود قديم", "الكود ده قديم، غالبا صورة (سكرين شوت). خلّي الطالب يفتح «كود الحضور» من موبايله قدامك."],
+    invalid: r => ["bad", r.name || "كود مش صحيح", "الكود مش مطابق لموبايل الطالب. لو غيّر موبايله، يدخل بالنت مرة ويفتح الكود تاني."],
+    not_enrolled: r => ["bad", "الطالب ده مش في المادة", "كود " + (r.code || "") + " مش في شيت المادة."],
+    other_group: r => ["warn", r.name, "من مجموعة " + r.grp + "، والمحاضرة لمجموعة " + r.session_grp + " والتعويض مقفول."],
+    not_ours: () => ["bad", "ده مش كود حضور", "الطالب يفتح «كود الحضور» من صفحة الطلبة في Classmate."],
+    ended: () => ["bad", "المحاضرة خلصت", "مينفعش تمسح بعد إنهاء المحاضرة."]
+  };
+  function scanCount() {
+    const s = running(), el = $("#scanCount"); if (!el || !s || !D) return;
+    const exp = D.enroll.filter(e => isOwn(s, e));
+    el.textContent = "حضر " + exp.filter(e => counted((D.att[s.id] || {})[e.student_code])).length + " من " + exp.length;
+  }
+  function scanShow(k, title, sub) { const el = $("#scanRes"); if (!el) return; el.className = "res " + k; el.innerHTML = `<b>${esc(title || "")}</b><span>${esc(sub || "")}</span>`; }
+  function beep(ok) {
+    try { if (navigator.vibrate) navigator.vibrate(ok ? 80 : [60, 60, 60]); } catch (e) {}
+    try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; scan.ac = scan.ac || new A(); const o = scan.ac.createOscillator(), g = scan.ac.createGain(); o.frequency.value = ok ? 880 : 220; g.gain.value = .08; o.connect(g); g.connect(scan.ac.destination); o.start(); o.stop(scan.ac.currentTime + (ok ? .12 : .3)); } catch (e) {}
+  }
+  const loadJsQR = () => window.jsQR ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
+  async function openScanner(s) {
+    closeScanner();
+    scan = { sid: s.id, busy: false, last: "", lastAt: 0 };
+    $("#scanOv").hidden = false; scanCount();
+    scanShow("info", "بنفتح الكاميرا…", "لو المتصفح سأل، اسمح بالكاميرا.");
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw { name: "NotSupported" };
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+      if (!scan) { stream.getTracks().forEach(t => t.stop()); return; }
+      scan.stream = stream;
+      const v = $("#scanVid"); v.srcObject = stream; await v.play().catch(() => {});
+      if ("BarcodeDetector" in window) { try { scan.detector = new window.BarcodeDetector({ formats: ["qr_code"] }); } catch (e) {} }
+      if (!scan.detector) await loadJsQR();
+      scanShow("info", "وجّه الكاميرا على كود الطالب", "الطالب يفتح «كود الحضور» من موبايله ويقرّبه.");
+      scan.timer = setInterval(scanFrame, 200);
+    } catch (e) {
+      scanShow("bad", "الكاميرا مش شغالة", e && e.name === "NotAllowedError" ? "اسمح للمتصفح يستخدم الكاميرا من إعدادات الموقع وجرب تاني." : "جرب من الموبايل بمتصفح Chrome أو Safari.");
+    }
+  }
+  function closeScanner() {
+    if (!scan) return;
+    clearInterval(scan.timer);
+    if (scan.stream) scan.stream.getTracks().forEach(t => t.stop());
+    const v = $("#scanVid"); if (v) v.srcObject = null;
+    scan = null; $("#scanOv").hidden = true;
+  }
+  $("#scanClose").onclick = () => { closeScanner(); if (running()) refreshLive().catch(() => {}); };
+  async function scanFrame() {
+    if (!scan || scan.busy) return;
+    const v = $("#scanVid"); if (!v || !v.videoWidth) { if (!scan.detector) return; }
+    let text = "";
+    try {
+      if (scan.detector) { const r = await scan.detector.detect(v); text = r && r[0] ? r[0].rawValue : ""; }
+      else if (window.jsQR) {
+        const w = Math.min(640, v.videoWidth), h = Math.round(v.videoHeight * w / v.videoWidth);
+        const cv = scan.cv || (scan.cv = document.createElement("canvas")); cv.width = w; cv.height = h;
+        const ctx = cv.getContext("2d", { willReadFrequently: true }); ctx.drawImage(v, 0, 0, w, h);
+        const r = window.jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: "dontInvert" }); text = r ? r.data : "";
+      }
+    } catch (e) { return; }
+    if (!text || !scan) return;
+    if (text === scan.last && Date.now() - scan.lastAt < 4000) return;
+    scan.busy = true; scan.last = text; scan.lastAt = Date.now();
+    try {
+      const r = await rpc("scan_student", { sid: scan.sid, p_payload: text });
+      const [k, title, sub] = (SCAN_MSG[r.result] || (() => ["bad", "حصلت مشكلة", r.result]))(r);
+      if (r.result === "present" && D && running()) { (D.att[scan.sid] = D.att[scan.sid] || {})[r.code] = { session_id: scan.sid, student_code: r.code, status: "present", via: "scan", makeup: r.makeup, reason: "", at: new Date().toISOString() }; scanCount(); }
+      scanShow(k, title, sub); beep(k === "ok" || k === "info");
+    } catch (e) { scanShow("bad", "معرفناش نسجل", errText(e)); beep(false); }
+    if (scan) scan.busy = false;
+  }
+
   const toast = text => { const m = document.createElement("div"); m.className = "msg ok"; m.textContent = text; m.style.cssText = "position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:60;max-width:560px;margin:auto"; document.body.appendChild(m); setTimeout(() => m.remove(), 5000); };
   const showErr = e => { const m = document.createElement("div"); m.className = "msg bad"; m.textContent = errText(e); m.style.cssText = "position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:60;max-width:560px;margin:auto"; document.body.appendChild(m); setTimeout(() => m.remove(), 6000); };
   async function act(fn, after) { try { await fn(); } catch (e) { showErr(e); } if (after) await after().catch(showErr); }
@@ -339,21 +427,26 @@
         ${!D.enroll.length ? `<div class="msg warn">ارفع شيت الطلبة الأول من «طلبة المادة».</div>` : ""}
         <div class="settings">
           ${gs.length > 1 ? `<label class="f"><span>المحاضرة دي لـ</span><select id="sGrp">${gs.map(g => `<option value="${esc(g)}" ${g === sugg ? "selected" : ""}>مجموعة ${esc(g)} (${D.enroll.filter(e => e.grp === g).length} طالب)</option>`).join("")}<option value="">الدفعة كلها</option></select></label>` : ""}
-          <label class="f"><span>مدة فتح التسجيل (دقايق)</span><input type="number" id="sMin" min="1" max="60" value="${esc(store.get("cm_min") || 10)}"></label>
-          <label class="f"><span>نطاق القاعة (متر)</span><input type="number" id="sRad" min="20" max="500" value="${esc(store.get("cm_rad") || 80)}"></label>
+          <label class="f"><span>نوع المحاضرة</span><select id="sKind"><option value="hall" ${kindPick === "hall" ? "selected" : ""}>في القاعة</option><option value="outdoor" ${kindPick === "outdoor" ? "selected" : ""}>خارجية (رسم خارجي، زيارة…)</option></select></label>
+          <label class="f"><span>مدة فتح التسجيل (دقايق)</span><input type="number" id="sMin" min="1" max="120" value="${esc(store.get(kindPick === "outdoor" ? "cm_min_out" : "cm_min") || (kindPick === "outdoor" ? 30 : 10))}"></label>
+          <label class="f"><span>${kindPick === "outdoor" ? "النطاق حوالين مكانك (متر)" : "نطاق القاعة (متر)"}</span><input type="number" id="sRad" min="20" max="500" value="${esc(store.get(kindPick === "outdoor" ? "cm_rad_out" : "cm_rad") || (kindPick === "outdoor" ? 200 : 80))}"></label>
           <button class="btn primary" id="sStart" ${startState === "locating" || !D.enroll.length ? "disabled" : ""}>${startState === "locating" ? `<span class="spinner"></span> بنحدد موقعك…` : "ابدأ المحاضرة " + n}</button>
         </div>
         ${gs.length > 1 ? `<label class="row small"><input type="checkbox" id="sMk"> اسمح بالحضور التعويضي لطلبة المجموعة التانية</label><p class="muted small">${why} الحضور التعويضي بيلغي غياب واحد من غيابات الطالب في مجموعته.</p>` : ""}
         ${startState && startState.geoFail ? `<div class="msg warn">${startState.geoFail === "denied" ? "المتصفح رفض صلاحية الموقع. فعّلها من إعدادات المتصفح لموقع Classmate وجرب تاني." : "معرفناش نحدد موقعك. جرب جنب شباك أو من الموبايل."}
           <div class="row" style="margin-top:8px"><button class="btn sm" id="sRetry">جرب تاني</button><button class="btn sm ghost" id="sNoGeo">ابدأ من غير تحقق موقع</button></div></div>` : ""}
-        <p class="muted small">عند البدء، موقعك الحالي بيبقى مركز القاعة، والسيرفر بيولّد سر جديد للكود بتاع المحاضرة دي بس. ابدأ المحاضرة وانت في القاعة.</p>
+        <p class="muted small">${kindPick === "outdoor"
+          ? "المحاضرة الخارجية: موقعك وانت بتبدأ بيبقى مركز المكان، والكود بيظهر على موبايلك تعرضه ملء الشاشة. الطلبة اللي مش قادرين يوصلوا للكود أو مفيش عندهم نت، امسح «كود الحضور» بتاعهم من زرار «امسح كود الطلبة»."
+          : "عند البدء، موقعك الحالي بيبقى مركز القاعة، والسيرفر بيولّد سر جديد للكود بتاع المحاضرة دي بس. ابدأ المحاضرة وانت في القاعة."}</p>
       </section>`;
+      $("#sKind").onchange = () => { kindPick = $("#sKind").value; renderSession(); };
       const start = async (geo) => {
-        const grp = $("#sGrp") ? $("#sGrp").value : "", mk = !!($("#sMk") && $("#sMk").checked), mins = +$("#sMin").value || 10, rad = +$("#sRad").value || 80;
-        store.set("cm_min", mins); store.set("cm_rad", rad);
+        const kind = $("#sKind").value, out = kind === "outdoor";
+        const grp = $("#sGrp") ? $("#sGrp").value : "", mk = !!($("#sMk") && $("#sMk").checked), mins = +$("#sMin").value || (out ? 30 : 10), rad = +$("#sRad").value || (out ? 200 : 80);
+        store.set(out ? "cm_min_out" : "cm_min", mins); store.set(out ? "cm_rad_out" : "cm_rad", rad);
         let pos = { lat: null, lng: null };
         if (geo) { startState = "locating"; renderSession(); pos = await CM.getPosition(20000); if (pos.error) { startState = { geoFail: pos.error, grp, mk }; return renderSession(); } }
-        try { await rpc("start_session", { cid: c.id, p_grp: grp, p_makeup: mk, p_minutes: mins, p_radius: rad, p_lat: pos.lat, p_lng: pos.lng }); liveTab = "all"; }
+        try { await rpc("start_session", { cid: c.id, p_grp: grp, p_makeup: mk, p_minutes: mins, p_radius: rad, p_lat: pos.lat, p_lng: pos.lng, p_kind: kind }); liveTab = "all"; }
         catch (e) { showErr(e); }
         startState = null; await loadCourse().catch(showErr);
       };
@@ -364,16 +457,17 @@
     }
     const open = isOpen(s);
     el.innerHTML = `<section class="board">
-      <div class="row between"><div><div class="lbl">${esc(c.name)} · المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) + (s.allow_makeup ? " · التعويض مفتوح" : " · التعويض مقفول") : "الدفعة كلها"}</div><h2>${open ? "كود الحضور" : "التسجيل مقفول"}</h2></div>
-        <div class="row">${open ? `<button class="btn sm" id="bProj">اعرض على البروجكتور</button><button class="btn sm" id="bClose">اقفل التسجيل</button>` : ""}<button class="btn sm" id="bEnd">${confirmKey === "end" ? "متأكد؟ اضغط تاني" : "إنهاء المحاضرة"}</button></div></div>
+      <div class="row between"><div><div class="lbl">${esc(c.name)} · المحاضرة ${s.n}${s.kind === "outdoor" ? " · خارجية" : ""} · ${s.grp ? "مجموعة " + esc(s.grp) + (s.allow_makeup ? " · التعويض مفتوح" : " · التعويض مقفول") : "الدفعة كلها"}</div><h2>${open ? "كود الحضور" : "التسجيل مقفول"}</h2></div>
+        <div class="row"><button class="btn sm" id="bScan">امسح كود الطلبة</button>${open ? `<button class="btn sm" id="bProj">${s.kind === "outdoor" ? "اعرض الكود ملء الشاشة" : "اعرض على البروجكتور"}</button><button class="btn sm" id="bClose">اقفل التسجيل</button>` : ""}<button class="btn sm" id="bEnd">${confirmKey === "end" ? "متأكد؟ اضغط تاني" : "إنهاء المحاضرة"}</button></div></div>
       ${open ? `<div class="code" id="bCode">··· ···</div><div class="bar"><i id="bBar"></i></div><div class="row between lbl"><span id="bNext"></span><span id="bLeft"></span></div>`
-        : `<p class="lbl">اتقفل التسجيل ${s.closed_at ? "الساعة " + CM.fmtT(s.closed_at) : ""}. وافق على الطلبات المعلقة أو سجّل يدوي، وبعدين أنهي المحاضرة. الطلبات المعلقة وقت الإنهاء بتتحسب غياب.</p>`}
-      <div class="lbl">${s.lat == null ? "من غير تحقق موقع" : "النطاق " + s.radius + " متر حوالين مكان بدء المحاضرة"} · بدأها ${esc(staffName(s.started_by))} الساعة ${CM.fmtT(s.started_at)}</div>
+        : `<p class="lbl">اتقفل التسجيل بالكود ${s.closed_at ? "الساعة " + CM.fmtT(s.closed_at) : ""}. لسه تقدر تمسح «كود الحضور» من موبايلات الطلبة، أو توافق على الطلبات المعلقة، أو تسجل يدوي. بعدين أنهي المحاضرة. الطلبات المعلقة وقت الإنهاء بتتحسب غياب.</p>`}
+      <div class="lbl">${s.lat == null ? "من غير تحقق موقع" : "النطاق " + s.radius + " متر حوالين مكان بدء المحاضرة"} · الطالب اللي مفيش عنده نت أو GPS: امسح «كود الحضور» من موبايله · بدأها ${esc(staffName(s.started_by))} الساعة ${CM.fmtT(s.started_at)}</div>
     </section>`;
     if (open) {
       $("#bProj").onclick = () => { $("#overlay").hidden = false; tick(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); };
       $("#bClose").onclick = () => act(() => rpc("close_session", { sid: s.id }), loadCourse);
     }
+    $("#bScan").onclick = () => openScanner(s);
     $("#bEnd").onclick = () => { if (confirmKey !== "end") { confirmKey = "end"; renderSession(); setTimeout(() => { if (confirmKey === "end") { confirmKey = null; renderSession(); } }, 4000); return; } confirmKey = null; act(() => rpc("end_session", { sid: s.id }), loadCourse); };
     tick();
   }
@@ -391,7 +485,7 @@
     const editable = canRun(c) && (!s.ended || canManage(c));
     const items = [];
     if (liveTab === "all" || liveTab === "pend") pend.forEach(e => items.push({ e, k: "warn", chip: recs[e.student_code].makeup ? "تعويض معلّق" : "معلّق", r: recs[e.student_code] }));
-    if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : "حاضر", r }); });
+    if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · QR" : "حاضر", r }); });
     if (liveTab === "rej") rej.forEach(a => items.push({ e: { student_code: a.student_code, name: nameOf(a.student_code), grp: (D.enroll.find(x => x.student_code === a.student_code) || {}).grp }, k: "bad", chip: "مرفوض", r: { at: a.at, reason: reasonText(a.reason) }, log: true }));
     if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: "غايب", r: null }));
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كلها"}${s.ended ? " · منتهية" : ""}</div><h2>الحضور${s.ended ? "" : " لايف"}</h2></div>
@@ -400,13 +494,26 @@
       <div class="list">${items.length ? items.map(it => `<div class="li ${it.k}">
         <span class="chip ${it.k}">${it.chip}</span>
         <div class="who"><b>${esc(it.e.name)}</b><small><span class="mono">${esc(it.e.student_code)}</span>${it.e.grp ? " · مجموعة " + esc(it.e.grp) : ""}${it.r ? " · " + CM.fmtT(it.r.at) : ""}${it.r && it.r.dist != null ? " · على بعد " + CM.dist(it.r.dist) : ""}${it.r && it.r.reason ? " · " + esc(it.r.reason) : ""}</small></div>
-        <div class="acts">${!editable || it.log ? "" : it.k === "warn" ? `<button class="btn sm" data-ap="${esc(it.e.student_code)}">موافقة</button><button class="btn sm danger" data-rj="${esc(it.e.student_code)}">رفض</button>` : it.k === "none" ? `<button class="btn sm" data-man="${esc(it.e.student_code)}">تسجيل يدوي</button>` : `<button class="btn sm ghost" data-rm="${esc(it.e.student_code)}">${confirmKey === "rm:" + it.e.student_code ? "متأكد؟" : "إلغاء"}</button>`}</div>
+        <div class="acts">${!editable || it.log ? "" : it.k === "warn" ? `<button class="btn sm" data-ap="${esc(it.e.student_code)}">موافقة</button><button class="btn sm danger" data-rj="${esc(it.e.student_code)}">رفض</button>` : it.k === "none" ? (manFor === it.e.student_code ? "" : `<button class="btn sm" data-man="${esc(it.e.student_code)}">تسجيل يدوي</button>`) : `<button class="btn sm ghost" data-rm="${esc(it.e.student_code)}">${confirmKey === "rm:" + it.e.student_code ? "متأكد؟" : "إلغاء"}</button>`}</div>
+        ${manFor === it.e.student_code && it.k === "none" ? `<div class="manbox">
+          <label class="f"><span>سبب التسجيل اليدوي (بيتسجل في سجل التعديلات)</span><input type="text" id="manReason" maxlength="200" value="${esc(manDraft)}" placeholder="مثلا: موبايله فاضي شحن"></label>
+          <div class="quick">${MAN_REASONS.map(t => `<button class="btn sm ghost" data-mq="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+          <div class="row"><button class="btn sm primary" id="manSave">سجّله حاضر</button><button class="btn sm ghost" id="manCancel">إلغاء</button></div>
+        </div>` : ""}
       </div>`).join("") : `<div class="empty">${liveTab === "rej" ? "مفيش محاولات مرفوضة." : liveTab === "pend" ? "مفيش طلبات معلقة." : liveTab === "abs" ? "كل الطلبة سجلوا." : "لسه محدش سجل. الطلبة بيكتبوا الكود اللي على الشاشة من موبايلاتهم."}</div>`}</div>`;
     el.querySelectorAll("[data-lt]").forEach(b => b.onclick = () => { liveTab = b.dataset.lt; renderLive(); });
     const after = async () => { if (running()) await refreshLive(); else await loadCourse(); };
     el.querySelectorAll("[data-ap]").forEach(b => b.onclick = () => act(() => rpc("approve_attendance", { sid: s.id, code: b.dataset.ap }), after));
     el.querySelectorAll("[data-rj]").forEach(b => b.onclick = () => act(() => rpc("reject_attendance", { sid: s.id, code: b.dataset.rj }), after));
-    el.querySelectorAll("[data-man]").forEach(b => b.onclick = () => act(() => rpc("mark_manual", { sid: s.id, code: b.dataset.man }), after));
+    el.querySelectorAll("[data-man]").forEach(b => b.onclick = () => { manFor = b.dataset.man; manDraft = ""; renderLive(); const i = $("#manReason"); if (i) i.focus(); });
+    const mr = $("#manReason"); if (mr) mr.oninput = () => { manDraft = mr.value; };
+    el.querySelectorAll("[data-mq]").forEach(b => b.onclick = () => { manDraft = b.dataset.mq; const i = $("#manReason"); if (i) { i.value = manDraft; i.focus(); } });
+    const mc = $("#manCancel"); if (mc) mc.onclick = () => { manFor = null; manDraft = ""; renderLive(); };
+    const ms = $("#manSave"); if (ms) ms.onclick = () => {
+      const reason = ($("#manReason").value || "").trim(), code = manFor;
+      if (reason.length < 3) return showErr({ message: "reason_required" });
+      act(async () => { await rpc("mark_manual", { sid: s.id, code, p_reason: reason }); manFor = null; manDraft = ""; }, after);
+    };
     el.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => {
       const k = "rm:" + b.dataset.rm; if (confirmKey !== k) { confirmKey = k; return renderLive(); }
       confirmKey = null; act(() => rpc("cancel_attendance", { sid: s.id, code: b.dataset.rm }), after);

@@ -4,7 +4,7 @@
   const configured = cfg.SUPABASE_URL && !cfg.SUPABASE_URL.includes("YOUR-PROJECT") && cfg.SUPABASE_ANON_KEY && !cfg.SUPABASE_ANON_KEY.includes("YOUR-ANON");
   const CM = window.CM = {};
   CM.configured = configured;
-  CM.sb = configured ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
+  CM.sb = configured && window.supabase ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
 
   CM.$ = s => document.querySelector(s);
   CM.$$ = s => Array.from(document.querySelectorAll(s));
@@ -42,6 +42,7 @@
     bad_level: "اختار المستوى.",
     track_required: "المستوى ده لازم تختار له شعبة: عمارة داخلية أو سينوغرافيا.",
     track_not_allowed: "المستوى الأول والتاني تخصص عام، من غير شعبة.",
+    reason_required: "اكتب سبب التسجيل اليدوي (3 حروف على الأقل).",
     confirm_mismatch: "الاسم اللي كتبته مش مطابق لاسم المادة.",
     not_enrolled: "الكود ده مش موجود في شيت أي مادة. اتأكد منه أو كلّم المحاضر.",
     already_registered: "الكود ده عليه حساب قبل كده. ادخل من «دخول». لو مش انت اللي عملته، كلّم المحاضر يمسح الحساب.",
@@ -64,6 +65,7 @@
   };
 
   CM.rpc = async (name, args) => {
+    if (!CM.sb) throw { message: "Failed to fetch" }; // supabase script didn't load (offline)
     const { data, error } = await CM.sb.rpc(name, args || {});
     if (error) throw error;
     if (data && typeof data === "object" && !Array.isArray(data) && data.error) throw { message: data.error };
@@ -91,6 +93,15 @@
       { enableHighAccuracy: true, timeout, maximumAge: 0 }
     );
   });
+
+  // personal attendance QR: "CM1:<code>:<step>:<first 16 hex of HMAC-SHA256(key, code:step)>"
+  CM.QR_STEP = 15000;
+  CM.qrPayload = async (code, keyHex, step) => {
+    const raw = new Uint8Array(keyHex.match(/../g).map(h => parseInt(h, 16)));
+    const key = await crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(code + ":" + step)));
+    return "CM1:" + code + ":" + step + ":" + Array.from(sig.slice(0, 8), b => b.toString(16).padStart(2, "0")).join("");
+  };
 
   CM.setupNotice = () => `<div class="panel setup"><h2>التطبيق لسه ما اتربطش بقاعدة البيانات</h2>
     <p class="muted">افتح ملف <span class="mono">config.js</span> وحط فيه Project URL و anon key من Supabase، زي ما هو مشروح في دليل التشغيل.</p></div>`;
