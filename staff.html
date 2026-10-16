@@ -171,7 +171,8 @@
   const course = () => courses.find(c => c.id === curId) || null;
   const canRun = c => ["owner", "co", "ta"].includes(role(c));
   const canManage = c => ["owner", "co"].includes(role(c)); // students, roster, ended lectures
-  const isOwner = c => role(c) === "owner";                 // team, course settings, delete
+  const isOwner = c => role(c) === "owner";
+  const canCreate = () => me && (me.role !== "ta" || !!settings.ta_can_create);                 // team, course settings, delete
   const isOwn = (s, e) => !s.grp || (e && s.grp === e.grp);
   const counted = r => r && r.status !== "pending";
   const groupsOf = () => [...new Set(D.enroll.map(e => e.grp).filter(Boolean))].sort();
@@ -284,7 +285,7 @@
       <header class="top">
         <div class="brand"><div class="mark">C</div><div><h1>Classmate</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}${owned ? " · " + owned + " مادة" : ""}</p></div></div>
         <div class="row">
-          ${me.role !== "ta" && view === "course" ? `<button class="btn sm" id="newC">مادة جديدة</button>` : ""}
+          ${canCreate() && view === "course" ? `<button class="btn sm" id="newC">مادة جديدة</button>` : ""}
           ${me.role === "admin" ? `<button class="btn sm ${view === "admin" ? "primary" : ""}" id="admin">${view === "admin" ? "رجوع للمواد" : "لوحة المسؤول"}</button>` : ""}
           <button class="btn sm ghost" id="out">خروج</button>
         </div>
@@ -715,7 +716,7 @@
         ${msgHtml("admin")}
         <div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الدور</th><th>المواد</th><th>الحالة</th><th></th></tr></thead><tbody>
         ${staff.map(u => { const o = courses.filter(c => c.owner_email === u.email).length, t = tasAll.filter(x => x.email === u.email).length;
-          return `<tr><td>${esc(u.name)}</td><td class="mono small">${esc(u.email)}</td><td>${ROLE[u.role]}</td><td class="small">${o ? o + " مادة" : ""}${o && t ? " · " : ""}${t ? "معيد في " + t : ""}${!o && !t ? `<span class="muted">—</span>` : ""}</td>
+          return `<tr><td>${esc(u.name)}</td><td class="mono small">${esc(u.email)}</td><td>${u.email === me.email ? ROLE[u.role] : `<select data-role="${esc(u.email)}" style="width:auto;padding:3px 6px">${["ta", "lecturer", "admin"].map(r => `<option value="${r}" ${u.role === r ? "selected" : ""}>${ROLE[r]}</option>`).join("")}</select>`}</td><td class="small">${o ? o + " مادة" : ""}${o && t ? " · " : ""}${t ? "معيد في " + t : ""}${!o && !t ? `<span class="muted">—</span>` : ""}</td>
           <td>${u.status === "active" ? `<span class="chip ok">مفعّل</span>` : u.status === "invited" ? `<span class="chip warn">مادخلش لسه</span>` : `<span class="chip bad">موقوف</span>`}</td>
           <td>${u.email === me.email ? `<span class="small muted">انت</span>` : `<button class="btn sm ghost ${u.status === "suspended" ? "" : "danger"}" data-sus="${esc(u.email)}" data-to="${u.status === "suspended" ? "active" : "suspended"}">${u.status === "suspended" ? "تفعيل" : "إيقاف"}</button>`}</td></tr>`; }).join("")}
         </tbody></table></div>
@@ -727,6 +728,8 @@
           <button class="btn primary" id="invBtn">أضف</button>
         </div>
         <p class="muted small">بعد ما تضيفه، ابعتله لينك صفحة المحاضرين. أول ما يدخل بإيميله والكود اللي هيوصله، حسابه بيتفعّل. الموقوف مايقدرش يدخل، ومواده وكشوفه بتفضل محفوظة.</p>
+        <label class="row small" style="gap:8px"><input type="checkbox" id="taCreate" ${settings.ta_can_create ? "checked" : ""}> المعيدين يقدروا يعملوا مواد بنفسهم (المعيد اللي يعمل مادة بيبقى صاحبها، ويضيف طلبتها وفريقها ويعمل فيها كل حاجة)</label>
+        <p class="muted small">تغيير الدور من الجدول بيتطبق على طول: المحاضر يقدر يعمل مواد، والمعيد لأ إلا لو فعّلت الاختيار ده، والمسؤول بيشوف كل المواد ويدير الحسابات. صلاحيات الشخص جوه أي مادة بتتحدد من فريق المادة نفسها.</p>
         <div class="settings"><label class="f"><span>دومين إيميل الجامعة (فاضي = أي دومين)</span><input type="text" id="domIn" dir="ltr" value="${esc(settings.domain || "")}"></label><button class="btn" id="domSave">حفظ الدومين</button></div>
       </section>
       <section class="panel">
@@ -742,6 +745,8 @@
       await rpc("admin_save_staff", { p_email: e, p_name: n, p_role: r });
       say("admin", "اتضاف " + n + ". ابعتله لينك صفحة المحاضرين: " + location.href.split("#")[0]);
     }, async () => { await loadBase(); renderAdmin(); });
+    el.querySelectorAll("[data-role]").forEach(sel => sel.onchange = () => act(async () => { await rpc("admin_set_role", { p_email: sel.dataset.role, p_role: sel.value }); say("admin", "اتغيّر دور " + staffName(sel.dataset.role) + " لـ" + ROLE[sel.value] + "."); }, async () => { await loadBase(); renderAdmin(); }));
+    $("#taCreate").onchange = ev => act(async () => { await rpc("admin_set_ta_create", { p_on: ev.target.checked }); say("admin", ev.target.checked ? "المعيدين بقوا يقدروا يعملوا مواد." : "المعيدين مش هيقدروا يعملوا مواد."); }, async () => { await loadBase(); render(); });
     $("#domSave").onclick = () => act(async () => { await rpc("admin_set_domain", { p_domain: $("#domIn").value }); say("admin", "اتحفظ الدومين."); }, async () => { await loadBase(); renderAdmin(); });
     $("#repBtn").onclick = async () => {
       report = "loading"; renderAdmin();
