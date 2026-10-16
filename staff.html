@@ -254,20 +254,20 @@
     try {
       const r = await rpc("current_code", { sid: s.id });
       if (!r.open) { codeState = null; await loadCourse(); return; }
-      codeState = { code: r.code, until: Date.now() + Number(r.ms_left), ends: Date.now() + Number(r.ends_in_ms) };
+      codeState = { code: r.code, until: Date.now() + Number(r.ms_left), step: Number(r.step_ms) || 30000, ends: Date.now() + Number(r.ends_in_ms) };
       tick();
       codeTimer = setTimeout(fetchCode, Math.max(500, Number(r.ms_left) + 300));
     } catch (e) { codeTimer = setTimeout(fetchCode, 3000); }
   }
   function tick() {
     if (!codeState) return;
-    const left = codeState.until - Date.now(), pct = Math.max(0, Math.min(100, left / 300)), code = codeState.code.slice(0, 3) + " " + codeState.code.slice(3);
+    const left = codeState.until - Date.now(), pct = Math.max(0, Math.min(100, left / codeState.step * 100)), code = codeState.code.slice(0, 3) + " " + codeState.code.slice(3);
     const s = running(), c = course(), exp = s ? D.enroll.filter(e => isOwn(s, e)) : [], pres = s ? exp.filter(e => counted((D.att[s.id] || {})[e.student_code])).length : 0;
     const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
     set("#bCode", code); set("#ovCode", code);
     const bar = $("#bBar"); if (bar) bar.style.width = pct + "%";
     $("#ovBar").style.width = pct + "%";
-    set("#bNext", "الكود الجاي بعد " + Math.max(0, Math.ceil(left / 1000)) + " ثانية");
+    set("#bNext", "الكود الجاي بعد " + (left >= 60000 ? CM.mmss(left) : Math.max(0, Math.ceil(left / 1000)) + " ثانية"));
     set("#bLeft", "التسجيل يقفل بعد " + CM.mmss(codeState.ends - Date.now()));
     set("#ovLeft", "التسجيل يقفل بعد " + CM.mmss(codeState.ends - Date.now()));
     set("#ovCount", "حضر " + pres + " من " + exp.length);
