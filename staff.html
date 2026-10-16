@@ -714,7 +714,7 @@
         if (!list.length) throw { message: "empty_roster" };
         const n = await rpc("replace_roster", { cid: c.id, rows: list, p_file: file.name });
         const gs = [...new Set(list.map(x => x.grp).filter(Boolean))].sort();
-        say("roster", "اتضاف " + n + " طالب من «" + file.name + "»" + (gs.length > 1 ? "، مقسمين على " + gs.map(g => "مجموعة " + g + " (" + list.filter(x => x.grp === g).length + ")").join(" و") : "") + (pi >= 0 ? "، ومعاهم رمز تفعيل" : "") + ".");
+        say("roster", "اتضاف " + n + " طالب من «" + file.name + "»" + (gs.length > 1 ? "، مقسمين على " + gs.map(g => "مجموعة " + g + " (" + list.filter(x => x.grp === g).length + ")").join(" و") : "") + (list.some(x => x.pin) ? "، ومعاهم رمز تفعيل" : "") + ".");
       } catch (e) { say("roster", "!" + (e.message === "empty_roster" ? errText(e) : "معرفناش نقرا الشيت. اتأكد إن فيه عمود للكود وعمود للاسم. " + errText(e))); }
       await loadCourse().catch(showErr);
     };
