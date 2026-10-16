@@ -482,8 +482,10 @@
   }
 
   /* ---------- live attendance ---------- */
+  let liveQ = "";
   function renderLive() {
     const el = $("#livePanel"); if (!el) return;
+    const ae = document.activeElement, keepQ = ae && ae.id === "lvQ", selA = keepQ ? ae.selectionStart : 0, selB = keepQ ? ae.selectionEnd : 0;
     const c = course(), s = running() || D.sessions[D.sessions.length - 1];
     if (!s) { el.innerHTML = `<h2>الحضور</h2><div class="empty">ابدأ أول محاضرة وهيظهر هنا كل طالب أول ما يسجل.</div>`; return; }
     const recs = D.att[s.id] || {};
@@ -496,11 +498,13 @@
     if (liveTab === "all" || liveTab === "pend") pend.forEach(e => items.push({ e, k: "warn", chip: recs[e.student_code].makeup ? "تعويض معلّق" : "معلّق", r: recs[e.student_code] }));
     if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · QR" : "حاضر", r }); });
     if (liveTab === "rej") rej.forEach(a => items.push({ e: { student_code: a.student_code, name: nameOf(a.student_code), grp: (D.enroll.find(x => x.student_code === a.student_code) || {}).grp }, k: "bad", chip: "مرفوض", r: { at: a.at, reason: reasonText(a.reason) }, log: true }));
-    if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: "غايب", r: null }));
+    if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: s.ended ? "غايب" : "لسه ماسجلش", r: null }));
+    const lq = normAr(liveQ), shown = lq ? items.filter(it => normAr(it.e.name).includes(lq) || String(it.e.student_code).toLowerCase().includes(lq)) : items;
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كلها"}${s.ended ? " · منتهية" : ""}</div><h2>الحضور${s.ended ? "" : " لايف"}</h2></div>
       <div class="tabs" role="group">${[["all", "الكل"], ["pend", "معلّق"], ["pres", "حاضر"], ["rej", "محاولات مرفوضة"], ["abs", "غايب"]].map(([k, t]) => `<button data-lt="${k}" aria-pressed="${liveTab === k}">${t}</button>`).join("")}</div></div>
       <div class="stats"><div class="stat"><b>${pres.length}</b><span>حاضر</span></div><div class="stat"><b>${pend.length}</b><span>محتاج موافقة</span></div><div class="stat"><b>${rej.length}</b><span>محاولة مرفوضة</span></div><div class="stat"><b>${abs.length}</b><span>${s.ended ? "غايب" : "لسه ماسجلش"}</span></div></div>
-      <div class="list">${items.length ? items.map(it => `<div class="li ${it.k}">
+      <div class="rs-bar"><input type="search" id="lvQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(liveQ)}" autocomplete="off">${lq ? `<span class="small muted">${shown.length} نتيجة في «${{ all: "الكل", pend: "معلّق", pres: "حاضر", rej: "محاولات مرفوضة", abs: "غايب" }[liveTab]}»</span>` : ""}</div>
+      <div class="list">${shown.length ? shown.map(it => `<div class="li ${it.k}">
         <span class="chip ${it.k}">${it.chip}</span>
         <div class="who"><b>${esc(it.e.name)}</b><small><span class="mono">${esc(it.e.student_code)}</span>${it.e.grp ? " · مجموعة " + esc(it.e.grp) : ""}${it.r ? " · " + CM.fmtT(it.r.at) : ""}${it.r && it.r.dist != null ? " · على بعد " + CM.dist(it.r.dist) : ""}${it.r && it.r.reason ? " · " + esc(it.r.reason) : ""}</small></div>
         <div class="acts">${!editable || it.log ? "" : it.k === "warn" ? `<button class="btn sm" data-ap="${esc(it.e.student_code)}">موافقة</button><button class="btn sm danger" data-rj="${esc(it.e.student_code)}">رفض</button>` : it.k === "none" ? (manFor === it.e.student_code ? "" : `<button class="btn sm" data-man="${esc(it.e.student_code)}">تسجيل يدوي</button>`) : `<button class="btn sm ghost" data-rm="${esc(it.e.student_code)}">${confirmKey === "rm:" + it.e.student_code ? "متأكد؟" : "إلغاء"}</button>`}</div>
@@ -509,8 +513,9 @@
           <div class="quick">${MAN_REASONS.map(t => `<button class="btn sm ghost" data-mq="${esc(t)}">${esc(t)}</button>`).join("")}</div>
           <div class="row"><button class="btn sm primary" id="manSave">سجّله حاضر</button><button class="btn sm ghost" id="manCancel">إلغاء</button></div>
         </div>` : ""}
-      </div>`).join("") : `<div class="empty">${liveTab === "rej" ? "مفيش محاولات مرفوضة." : liveTab === "pend" ? "مفيش طلبات معلقة." : liveTab === "abs" ? "كل الطلبة سجلوا." : "لسه محدش سجل. الطلبة بيكتبوا الكود اللي على الشاشة من موبايلاتهم."}</div>`}</div>`;
+      </div>`).join("") : lq ? `<div class="empty">مفيش طالب بالاسم أو الكود ده في التبويب ده.${liveTab !== "all" ? " جرّب تبويب «الكل» أو «غايب»." : ""}</div>` : `<div class="empty">${liveTab === "rej" ? "مفيش محاولات مرفوضة." : liveTab === "pend" ? "مفيش طلبات معلقة." : liveTab === "abs" ? "كل الطلبة سجلوا." : "لسه محدش سجل. الطلبة بيكتبوا الكود اللي على الشاشة من موبايلاتهم."}</div>`}</div>`;
     el.querySelectorAll("[data-lt]").forEach(b => b.onclick = () => { liveTab = b.dataset.lt; renderLive(); });
+    const lv = $("#lvQ"); if (lv) { lv.oninput = () => { liveQ = lv.value; renderLive(); }; if (keepQ) { lv.focus(); try { lv.setSelectionRange(selA, selB); } catch (e) {} } }
     const after = async () => { if (running()) await refreshLive(); else await loadCourse(); };
     el.querySelectorAll("[data-ap]").forEach(b => b.onclick = () => act(() => rpc("approve_attendance", { sid: s.id, code: b.dataset.ap }), after));
     el.querySelectorAll("[data-rj]").forEach(b => b.onclick = () => act(() => rpc("reject_attendance", { sid: s.id, code: b.dataset.rj }), after));
