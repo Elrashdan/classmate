@@ -149,3 +149,19 @@ tr.withdrawn td{background:var(--bad-soft)}
 .scanov .foot .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.4)}
 .manbox{grid-column:1/-1;display:grid;gap:8px;padding-top:6px}
 .manbox .quick{display:flex;flex-wrap:wrap;gap:6px}
+
+/* ---------- roster: search + Excel-style sort & filter ---------- */
+.rs-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rs-bar input[type=search]{flex:1 1 220px;border:1px solid var(--line);background:var(--sunk);border-radius:8px;padding:8px 11px;min-width:0}
+.fh{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-weight:600;color:var(--muted);white-space:nowrap;padding:2px 4px;border-radius:6px}
+.fh:hover,.fh:focus-visible{background:var(--accent-soft);color:var(--accent)}
+.fh.on{color:var(--accent)}
+.fh-i{display:inline-flex;gap:2px;font-size:.72rem}
+.fh-i b{font-weight:400;opacity:.7}
+.fpop{position:fixed;z-index:80;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:6px;display:grid;gap:2px;max-height:60vh;overflow:auto}
+.fp-h{font-size:.75rem;font-weight:600;color:var(--muted);padding:4px 8px}
+.fp-i{all:unset;cursor:pointer;padding:7px 8px;border-radius:6px;font-size:.88rem}
+.fp-i:hover,.fp-i.on{background:var(--accent-soft);color:var(--accent)}
+.fp-sep{height:1px;background:var(--line);margin:4px 0}
+.fp-c{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:.88rem;cursor:pointer}
+.fp-c:hover{background:var(--sunk)}

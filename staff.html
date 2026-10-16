@@ -583,12 +583,12 @@
         <div class="row"><button class="btn sm primary" id="stSave">أضف الطالب</button><button class="btn sm ghost" id="stCancel">إلغاء</button><span class="muted small">الطالب بيظهر في الكشف من دلوقتي، ويقدر يعمل حساب بكوده.</span></div>
       </div>` : ""}
       ${mng ? `<p class="muted small">الشيت فيه عمود للكود وعمود للاسم، واختياري عمود «المجموعة» (أ / ب) وعمود «رمز التفعيل». رفع شيت جديد بيستبدل القائمة كلها (أي طالب مش في الشيت الجديد بيتشال)، والحضور القديم بيفضل محفوظ. لطالب واحد استخدم «إضافة طالب».</p>` : ""}
-      ${D.enroll.length ? `<div class="tbl-wrap" style="max-height:440px;overflow:auto"><table><thead><tr><th>الكود</th><th>الاسم</th><th>المجموعة</th><th>الحساب</th>${mng ? "<th></th>" : ""}</tr></thead><tbody>
-      ${D.enroll.map((e, i) => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td>${esc(e.name)}</td>
-        <td>${mng ? `<select data-grp="${i}" style="width:auto;padding:3px 6px">${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${esc(g) || "—"}</option>`).join("")}</select>` : esc(e.grp || "—")}</td>
-        <td>${b.device_bound ? `<span class="chip ok">مربوط بموبايل</span>` : b.registered ? `<span class="chip warn">مستني يربط موبايل</span>` : `<span class="chip none">ماعملش حساب</span>`}</td>
-        ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الموبايل"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "مسح الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "شيل من المادة"}</button></div></td>` : ""}</tr>`; }).join("")}
-      </tbody></table></div>` : `<div class="empty">${mng ? "ارفع شيت إكسيل فيه أكواد وأسماء الطلبة." : "المحاضر لسه مارفعش شيت الطلبة."}</div>`}
+      ${D.enroll.length ? `<div class="rs-bar">
+          <input type="search" id="rsQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(rv.q)}" autocomplete="off">
+          <span class="small muted" id="rsCount"></span>
+          <button class="btn sm ghost" id="rsClear" hidden>مسح الترتيب والفلاتر</button>
+        </div>
+        <div class="tbl-wrap" id="rsWrap" style="max-height:480px;overflow:auto"><table id="rsTbl"></table></div>` : `<div class="empty">${mng ? "ارفع شيت إكسيل فيه أكواد وأسماء الطلبة." : "المحاضر لسه مارفعش شيت الطلبة."}</div>`}
       ${mng && D.enroll.length ? `<p class="muted small">«فك ربط الموبايل» لو الطالب غيّر موبايله، فيدخل من الجديد بنفس كلمة السر. «مسح الحساب» لو نسي كلمة السر أو حد عمل حساب بكوده، فيعمل حساب من الأول. «شيل من المادة» بيشيله من الكشف، ولو رجعته تاني حضوره القديم بيرجع.</p>` : ""}`;
     const x = $("#xls"); if (x) x.onchange = ev => importFile(ev.target.files[0]);
     const at = $("#stAddT"); if (at) at.onclick = () => { addOpen = !addOpen; renderRoster(); const i = $("#stCode"); if (i) i.focus(); };
@@ -607,11 +607,86 @@
         await loadCourse();
       } catch (e) { say("roster", "!" + errText(e)); renderRoster(); }
     };
-    el.querySelectorAll("[data-rmst]").forEach(b => b.onclick = () => { const k = "rmst:" + b.dataset.rmst; if (confirmKey !== k) { confirmKey = k; return renderRoster(); } confirmKey = null; const nm = nameOf(b.dataset.rmst); act(async () => { await rpc("remove_student", { cid: c.id, code: b.dataset.rmst }); say("roster", "اتشال " + nm + " من المادة."); }, loadCourse); });
-    el.querySelectorAll("[data-grp]").forEach(sel => sel.onchange = () => { const e = D.enroll[+sel.dataset.grp]; act(() => rpc("set_group", { cid: c.id, code: e.student_code, p_grp: sel.value }), loadCourse); });
-    el.querySelectorAll("[data-dev]").forEach(b => b.onclick = () => { const k = "dev:" + b.dataset.dev; if (confirmKey !== k) { confirmKey = k; return renderRoster(); } confirmKey = null; act(async () => { await rpc("reset_device", { cid: c.id, code: b.dataset.dev }); say("roster", "اتفك ربط موبايل " + nameOf(b.dataset.dev) + ". أول دخول جاي هيربطه بالموبايل الجديد."); }, loadCourse); });
-    el.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => { const k = "acc:" + b.dataset.acc; if (confirmKey !== k) { confirmKey = k; return renderRoster(); } confirmKey = null; act(async () => { await rpc("reset_account", { cid: c.id, code: b.dataset.acc }); say("roster", "اتمسح حساب " + nameOf(b.dataset.acc) + ". يقدر يعمل حساب جديد من «أول مرة»."); }, loadCourse); });
+    const rq = $("#rsQ"); if (rq) rq.oninput = () => { rv.q = rq.value; renderRosterTable(); };
+    const rc = $("#rsClear"); if (rc) rc.onclick = () => { rv.q = ""; rv.sort = { col: "code", dir: 1 }; rv.f = { grp: null, acc: null }; if (rq) rq.value = ""; closeFpop(); renderRosterTable(); };
+    const rw = $("#rsWrap"); if (rw) rw.onscroll = closeFpop;
+    renderRosterTable();
   }
+
+  /* ---------- roster table: search + Excel-style sort & filter per column ---------- */
+  let rv = { cid: null, q: "", sort: { col: "code", dir: 1 }, f: { grp: null, acc: null } }, fpopCol = null;
+  const ACC = { bound: "مربوط بموبايل", reg: "مستني يربط موبايل", none: "ماعملش حساب" };
+  const accOf = e => { const b = D.bindings[e.student_code] || {}; return b.device_bound ? "bound" : b.registered ? "reg" : "none"; };
+  const grpOf = e => e.grp || "";
+  const RCOLS = {
+    code: { t: "الكود", v: e => e.student_code, num: true, up: "من الأصغر للأكبر", down: "من الأكبر للأصغر" },
+    name: { t: "الاسم", v: e => e.name, up: "أ ← ي", down: "ي ← أ" },
+    grp: { t: "المجموعة", v: grpOf, list: true, lab: g => g ? "مجموعة " + g : "من غير مجموعة", up: "أ ← ي", down: "ي ← أ" },
+    acc: { t: "الحساب", v: accOf, list: true, lab: a => ACC[a], key: e => ["none", "reg", "bound"].indexOf(accOf(e)), up: "اللي ماعملوش حساب الأول", down: "المربوطين الأول" }
+  };
+  const normAr = x => String(x || "").toLowerCase().replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/\s+/g, " ").trim();
+  function rosterRows() {
+    if (rv.cid !== D.cid) rv = { cid: D.cid, q: "", sort: { col: "code", dir: 1 }, f: { grp: null, acc: null } };
+    const q = normAr(rv.q);
+    const rows = D.enroll.filter(e => (!q || normAr(e.name).includes(q) || e.student_code.toLowerCase().includes(q))
+      && (!rv.f.grp || rv.f.grp.has(grpOf(e))) && (!rv.f.acc || rv.f.acc.has(accOf(e))));
+    const col = RCOLS[rv.sort.col], d = rv.sort.dir;
+    const cmp = (a, b) => col.key ? col.key(a) - col.key(b) : String(col.v(a)).localeCompare(String(col.v(b)), col.num ? "en" : "ar", { numeric: true, sensitivity: "base" });
+    return rows.sort((a, b) => d * cmp(a, b) || a.student_code.localeCompare(b.student_code, "en", { numeric: true }));
+  }
+  function renderRosterTable() {
+    const tb = $("#rsTbl"); if (!tb || !D) return;
+    const c = course(), mng = canManage(c), rows = rosterRows();
+    const head = k => { const C = RCOLS[k], srt = rv.sort.col === k, flt = C.list && rv.f[k];
+      return `<th><button class="fh ${srt || flt ? "on" : ""}" data-fcol="${k}" aria-haspopup="true">${C.t}<span class="fh-i">${srt ? (rv.sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button></th>`; };
+    tb.innerHTML = `<thead><tr>${head("code")}${head("name")}${head("grp")}${head("acc")}${mng ? "<th></th>" : ""}</tr></thead><tbody>
+      ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td>${esc(e.name)}</td>
+        <td>${mng ? `<select data-grp="${esc(e.student_code)}" style="width:auto;padding:3px 6px">${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${esc(g) || "—"}</option>`).join("")}</select>` : esc(e.grp || "—")}</td>
+        <td>${b.device_bound ? `<span class="chip ok">مربوط بموبايل</span>` : b.registered ? `<span class="chip warn">مستني يربط موبايل</span>` : `<span class="chip none">ماعملش حساب</span>`}</td>
+        ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الموبايل"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "مسح الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "شيل من المادة"}</button></div></td>` : ""}</tr>`; }).join("")
+        : `<tr><td colspan="${mng ? 5 : 4}"><div class="empty">مفيش طلبة مطابقين للبحث أو الفلتر.</div></td></tr>`}
+      </tbody>`;
+    const busy = !!rv.q.trim() || !!rv.f.grp || !!rv.f.acc || rv.sort.col !== "code" || rv.sort.dir !== 1;
+    const cnt = $("#rsCount"); if (cnt) cnt.textContent = rows.length === D.enroll.length ? D.enroll.length + " طالب" : "عرض " + rows.length + " من " + D.enroll.length;
+    const rc = $("#rsClear"); if (rc) rc.hidden = !busy;
+    tb.querySelectorAll("[data-fcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === b.dataset.fcol ? closeFpop() : openFpop(b); });
+    const again = () => { renderRosterTable(); };
+    tb.querySelectorAll("[data-rmst]").forEach(b => b.onclick = () => { const k = "rmst:" + b.dataset.rmst; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; const nm = nameOf(b.dataset.rmst); act(async () => { await rpc("remove_student", { cid: c.id, code: b.dataset.rmst }); say("roster", "اتشال " + nm + " من المادة."); }, loadCourse); });
+    tb.querySelectorAll("[data-grp]").forEach(sel => sel.onchange = () => act(() => rpc("set_group", { cid: c.id, code: sel.dataset.grp, p_grp: sel.value }), loadCourse));
+    tb.querySelectorAll("[data-dev]").forEach(b => b.onclick = () => { const k = "dev:" + b.dataset.dev; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_device", { cid: c.id, code: b.dataset.dev }); say("roster", "اتفك ربط موبايل " + nameOf(b.dataset.dev) + ". أول دخول جاي هيربطه بالموبايل الجديد."); }, loadCourse); });
+    tb.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => { const k = "acc:" + b.dataset.acc; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_account", { cid: c.id, code: b.dataset.acc }); say("roster", "اتمسح حساب " + nameOf(b.dataset.acc) + ". يقدر يعمل حساب جديد من «أول مرة»."); }, loadCourse); });
+  }
+  function closeFpop() { fpopCol = null; const p = $("#fpop"); if (p) p.hidden = true; }
+  function openFpop(btn) {
+    const k = btn.dataset.fcol, C = RCOLS[k];
+    let p = $("#fpop"); if (!p) { p = document.createElement("div"); p.id = "fpop"; p.className = "fpop"; document.body.appendChild(p); p.onclick = ev => ev.stopPropagation(); }
+    fpopCol = k;
+    const draw = () => {
+      const vals = C.list ? [...new Set(D.enroll.map(C.v))].sort((a, b) => k === "acc" ? ["none", "reg", "bound"].indexOf(a) - ["none", "reg", "bound"].indexOf(b) : a.localeCompare(b, "ar")) : [];
+      const sel = C.list ? (rv.f[k] || new Set(vals)) : null, cntOf = v => D.enroll.filter(e => C.v(e) === v).length;
+      p.innerHTML = `<div class="fp-h">${C.t}</div>
+        <button class="fp-i ${rv.sort.col === k && rv.sort.dir > 0 ? "on" : ""}" data-s="1">▲ ترتيب: ${C.up}</button>
+        <button class="fp-i ${rv.sort.col === k && rv.sort.dir < 0 ? "on" : ""}" data-s="-1">▼ ترتيب: ${C.down}</button>
+        ${C.list ? `<div class="fp-sep"></div>
+          <label class="fp-c"><input type="checkbox" data-all ${sel.size === vals.length ? "checked" : ""}> <b>تحديد الكل</b></label>
+          ${vals.map(v => `<label class="fp-c"><input type="checkbox" data-v="${esc(v)}" ${sel.has(v) ? "checked" : ""}> ${esc(C.lab(v))} <span class="muted">(${cntOf(v)})</span></label>`).join("")}
+          ${rv.f[k] ? `<button class="fp-i" data-clr>مسح فلتر «${C.t}»</button>` : ""}` : ""}`;
+      p.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { rv.sort = { col: k, dir: +b.dataset.s }; closeFpop(); renderRosterTable(); });
+      const setF = s2 => { rv.f[k] = s2.size === vals.length ? null : s2; renderRosterTable(); draw(); };
+      const all = p.querySelector("[data-all]"); if (all) all.onchange = () => setF(all.checked ? new Set(vals) : new Set());
+      p.querySelectorAll("[data-v]").forEach(cb => cb.onchange = () => { const s2 = new Set(rv.f[k] || vals); cb.checked ? s2.add(cb.dataset.v) : s2.delete(cb.dataset.v); setF(s2); });
+      const clr = p.querySelector("[data-clr]"); if (clr) clr.onclick = () => { rv.f[k] = null; renderRosterTable(); draw(); };
+    };
+    draw();
+    p.hidden = false;
+    const r = btn.getBoundingClientRect(), w = Math.min(260, innerWidth - 24);
+    p.style.width = w + "px";
+    p.style.top = Math.min(r.bottom + 4, innerHeight - 40) + "px";
+    p.style.left = Math.max(12, Math.min(r.right - w, innerWidth - w - 12)) + "px";
+  }
+  document.addEventListener("click", () => { if (fpopCol) closeFpop(); });
+  document.addEventListener("keydown", ev => { if (ev.key === "Escape" && fpopCol) closeFpop(); });
+  window.addEventListener("resize", () => { if (fpopCol) closeFpop(); });
   function importFile(file) {
     if (!file) return;
     const c = course(), fr = new FileReader();
