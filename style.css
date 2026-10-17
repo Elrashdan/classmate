@@ -166,8 +166,8 @@ tr.withdrawn td{background:var(--bad-soft)}
 .fp-c{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:.88rem;cursor:pointer}
 .fp-c:hover{background:var(--sunk)}
 /* register: lecture header buttons + delete confirm */
-.th-btn{all:unset;cursor:pointer;display:block;border-radius:6px;padding:2px 6px;line-height:1.35}
-.th-btn:hover,.th-btn:focus-visible{background:var(--bad-soft);outline:none}
-.th-btn.on{background:var(--bad-soft);color:var(--bad)}
+.th-del{display:inline-flex;align-items:center;gap:3px;margin-top:4px;border:1px solid var(--line);background:var(--surface);color:var(--bad);border-radius:6px;padding:1px 7px;font:inherit;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
+.th-del:hover,.th-del:focus-visible{background:var(--bad-soft);border-color:var(--bad);outline:none}
+th.th-on{background:var(--bad-soft)!important}
 .note-box{border-radius:10px;padding:12px 14px;display:grid;gap:6px;margin:8px 0}
 .note-box.bad{background:var(--bad-soft)} .note-box.bad>b{color:var(--bad)}
