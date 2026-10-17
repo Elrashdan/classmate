@@ -165,3 +165,9 @@ tr.withdrawn td{background:var(--bad-soft)}
 .fp-sep{height:1px;background:var(--line);margin:4px 0}
 .fp-c{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;font-size:.88rem;cursor:pointer}
 .fp-c:hover{background:var(--sunk)}
+/* register: lecture header buttons + delete confirm */
+.th-btn{all:unset;cursor:pointer;display:block;border-radius:6px;padding:2px 6px;line-height:1.35}
+.th-btn:hover,.th-btn:focus-visible{background:var(--bad-soft);outline:none}
+.th-btn.on{background:var(--bad-soft);color:var(--bad)}
+.note-box{border-radius:10px;padding:12px 14px;display:grid;gap:6px;margin:8px 0}
+.note-box.bad{background:var(--bad-soft)} .note-box.bad>b{color:var(--bad)}

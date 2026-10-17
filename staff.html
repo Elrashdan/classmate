@@ -46,7 +46,7 @@
   let me = null, staff = [], settings = { domain: "" }, courses = [], tasAll = [], curId = store.get("cm_course"), view = "course";
   let D = null; // current course data
   let flash = {}; // per-panel messages
-  let liveTab = "all", regGroup = "all", confirmKey = null, startState = null, report = null;
+  let liveTab = "all", regGroup = "all", delSess = null, confirmKey = null, startState = null, report = null;
   let codeState = null, codeTimer = null, liveTimer = null, manFor = null, manDraft = "";
   let addOpen = false, addDraft = { code: "", name: "", grp: "", pin: "" };
   let login = { step: "email", email: "", err: "", busy: false };
@@ -179,8 +179,10 @@
   const running = () => D && D.sessions.find(s => !s.ended);
   const isOpen = s => s && !s.ended && !s.closed_at && new Date(s.ends_at) > new Date();
   const nameOf = code => (D.enroll.find(e => e.student_code === code) || {}).name || code;
+  // المحاضرة بتتحسب في الغياب أول ما التسجيل فيها يتقفل (أو تنتهي)
+  const regDone = s => !!(s.ended || s.closed_at || Date.now() >= new Date(s.ends_at).getTime());
   function absences(e) {
-    const missed = D.sessions.filter(s => s.ended && isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).length;
+    const missed = D.sessions.filter(s => regDone(s) && isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).length;
     const made = D.sessions.filter(s => !isOwn(s, e) && counted((D.att[s.id] || {})[e.student_code])).length;
     return Math.max(0, missed - made);
   }
@@ -481,9 +483,18 @@
     tick();
   }
 
+  /* re-rendering a panel replaces its HTML; keep the inner lists and the page where the user left them */
+  function keepScroll(sel, fn) {
+    const el = $(sel), y = window.scrollY;
+    const pos = el ? [...el.querySelectorAll(".list,.tbl-wrap")].map(x => [x.scrollTop, x.scrollLeft]) : [];
+    fn();
+    if (el) [...el.querySelectorAll(".list,.tbl-wrap")].forEach((x, i) => { if (pos[i]) { x.scrollTop = pos[i][0]; x.scrollLeft = pos[i][1]; } });
+    if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+  }
   /* ---------- live attendance ---------- */
   let liveQ = "";
-  function renderLive() {
+  function renderLive() { keepScroll("#livePanel", _renderLive); }
+  function _renderLive() {
     const el = $("#livePanel"); if (!el) return;
     const ae = document.activeElement, keepQ = ae && ae.id === "lvQ", selA = keepQ ? ae.selectionStart : 0, selB = keepQ ? ae.selectionEnd : 0;
     const c = course(), s = running() || D.sessions[D.sessions.length - 1];
@@ -498,11 +509,11 @@
     if (liveTab === "all" || liveTab === "pend") pend.forEach(e => items.push({ e, k: "warn", chip: recs[e.student_code].makeup ? "تعويض معلّق" : "معلّق", r: recs[e.student_code] }));
     if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · QR" : "حاضر", r }); });
     if (liveTab === "rej") rej.forEach(a => items.push({ e: { student_code: a.student_code, name: nameOf(a.student_code), grp: (D.enroll.find(x => x.student_code === a.student_code) || {}).grp }, k: "bad", chip: "مرفوض", r: { at: a.at, reason: reasonText(a.reason) }, log: true }));
-    if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: s.ended ? "غايب" : "لسه ماسجلش", r: null }));
+    if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: regDone(s) ? "غايب" : "لسه ماسجلش", r: null }));
     const lq = normAr(liveQ), shown = lq ? items.filter(it => normAr(it.e.name).includes(lq) || String(it.e.student_code).toLowerCase().includes(lq)) : items;
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كلها"}${s.ended ? " · منتهية" : ""}</div><h2>الحضور${s.ended ? "" : " لايف"}</h2></div>
       <div class="tabs" role="group">${[["all", "الكل"], ["pend", "معلّق"], ["pres", "حاضر"], ["rej", "محاولات مرفوضة"], ["abs", "غايب"]].map(([k, t]) => `<button data-lt="${k}" aria-pressed="${liveTab === k}">${t}</button>`).join("")}</div></div>
-      <div class="stats"><div class="stat"><b>${pres.length}</b><span>حاضر</span></div><div class="stat"><b>${pend.length}</b><span>محتاج موافقة</span></div><div class="stat"><b>${rej.length}</b><span>محاولة مرفوضة</span></div><div class="stat"><b>${abs.length}</b><span>${s.ended ? "غايب" : "لسه ماسجلش"}</span></div></div>
+      <div class="stats"><div class="stat"><b>${pres.length}</b><span>حاضر</span></div><div class="stat"><b>${pend.length}</b><span>محتاج موافقة</span></div><div class="stat"><b>${rej.length}</b><span>محاولة مرفوضة</span></div><div class="stat"><b>${abs.length}</b><span>${regDone(s) ? "غايب" : "لسه ماسجلش"}</span></div></div>
       <div class="rs-bar"><input type="search" id="lvQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(liveQ)}" autocomplete="off">${lq ? `<span class="small muted">${shown.length} نتيجة في «${{ all: "الكل", pend: "معلّق", pres: "حاضر", rej: "محاولات مرفوضة", abs: "غايب" }[liveTab]}»</span>` : ""}</div>
       <div class="list">${shown.length ? shown.map(it => `<div class="li ${it.k}">
         <span class="chip ${it.k}">${it.chip}</span>
@@ -538,31 +549,48 @@
   function cell(s, e) {
     const r = (D.att[s.id] || {})[e.student_code];
     if (!isOwn(s, e)) return r && r.status !== "pending" ? `<span class="chip man">ت</span>` : r ? `<span class="chip warn">م</span>` : `<span class="muted">·</span>`;
-    if (!r) return s.ended ? `<span class="chip none">غ</span>` : `<span class="muted">…</span>`;
+    if (!r) return regDone(s) ? `<span class="chip none">غ</span>` : `<span class="muted">…</span>`;
     return r.status === "present" ? `<span class="chip ok">ح</span>` : r.status === "manual" ? `<span class="chip man">ي</span>` : `<span class="chip warn">م</span>`;
   }
-  function renderRegister() {
-    const el = $("#regPanel"), gs = groupsOf();
+  function dsBox() {
+    const s = delSess && D.sessions.find(x => x.id === delSess); if (!s) return "";
+    const rec = D.att[s.id] || {}, pres = Object.values(rec).filter(counted).length, later = D.sessions.filter(x => x.n > s.n).length;
+    return `<div class="note-box bad">
+      <b>تمسح المحاضرة ${s.n}${s.grp ? " (مجموعة " + esc(s.grp) + ")" : ""} بتاريخ ${CM.fmtD(s.started_at)}؟</b>
+      <span class="small">فيها ${pres} حاضر. حضورها وغيابها هيتمسحوا من الكشف${s.ended ? "" : "، والمحاضرة هتقف"}${later ? "، والمحاضرات اللي بعدها هتترقم من جديد" : ""}. المسح بيتسجل في سجل التعديلات ومينفعش يترجع.</span>
+      <div class="row"><button class="btn sm danger" id="dsGo">${confirmKey === "ds" ? "متأكد؟ اضغط تاني" : "امسح المحاضرة"}</button><button class="btn sm ghost" id="dsNo">إلغاء</button></div></div>`;
+  }
+  function renderRegister() { keepScroll("#regPanel", _renderRegister); }
+  function _renderRegister() {
+    const el = $("#regPanel"), gs = groupsOf(), mng = canManage(course());
     if (regGroup !== "all" && !gs.includes(regGroup)) regGroup = "all";
     const rows = regGroup === "all" ? D.enroll : D.enroll.filter(e => e.grp === regGroup);
     const ss = regGroup === "all" ? D.sessions : D.sessions.filter(s => !s.grp || s.grp === regGroup || rows.some(e => (D.att[s.id] || {})[e.student_code]));
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[Math.min(absences(e), 4)]++);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.length} محاضرة · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
       <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}<button class="btn sm" id="exp" ${D.enroll.length ? "" : "disabled"}>تصدير شيت إكسيل</button></div></div>
+      ${dsBox()}
       ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.warnChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">مفيش إنذارات لحد دلوقتي.</span>`}</div>
-      <div class="tbl-wrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الطالب</th>${ss.map(s => `<th class="c">م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span></th>`).join("")}<th class="c">النسبة</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
+      <div class="tbl-wrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الطالب</th>${ss.map(s => { const lab = `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`; return `<th class="c">${mng ? `<button class="th-btn ${delSess === s.id ? "on" : ""}" data-ds="${s.id}" title="مسح المحاضرة دي">${lab}</button>` : lab}</th>`; }).join("")}<th class="c">النسبة</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
       ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${ab >= 4 ? "withdrawn" : ""}"><td><div>${esc(e.name)}</div><div class="mono muted small">${esc(e.student_code)}${e.grp ? " · مج " + esc(e.grp) : ""}</div></td>${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
       </tbody></table></div>
-      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة تانية · م معلّق · غ غايب · النقطة يعني المحاضرة مش لمجموعته. الغياب بيتحسب من المحاضرات المنتهية بس، وكل حضور تعويضي بيلغي غياب: مرة إنذار أول، مرتين إنذار ثاني، 3 إنذار ثالث ونهائي، 4 انسحاب إجباري.</p>`
+      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة تانية · م معلّق · غ غايب · النقطة يعني المحاضرة مش لمجموعته.${mng ? " لو عملت محاضرة بالغلط، دوس على رقمها فوق عشان تمسحها." : ""} الغياب بيتحسب أول ما التسجيل في المحاضرة يتقفل، ولو سجّلت الطالب بعدها يدوي أو بمسح كوده الغياب بيتشال. وكل حضور تعويضي بيلغي غياب: مرة إنذار أول، مرتين إنذار ثاني، 3 إنذار ثالث ونهائي، 4 انسحاب إجباري.</p>`
       : `<div class="empty">الكشف هيتملى أول ما تبدأ محاضرات.</div>`}`;
     el.querySelectorAll("[data-rg]").forEach(b => b.onclick = () => { regGroup = b.dataset.rg; renderRegister(); });
+    el.querySelectorAll("[data-ds]").forEach(b => b.onclick = () => { delSess = delSess === b.dataset.ds ? null : b.dataset.ds; confirmKey = null; renderRegister(); const x = $("#dsGo"); if (x) x.scrollIntoView({ block: "nearest" }); });
+    const dn = $("#dsNo"); if (dn) dn.onclick = () => { delSess = null; confirmKey = null; renderRegister(); };
+    const dg = $("#dsGo"); if (dg) dg.onclick = () => {
+      if (confirmKey !== "ds") { confirmKey = "ds"; renderRegister(); setTimeout(() => { if (confirmKey === "ds") { confirmKey = null; renderRegister(); } }, 5000); return; }
+      const sid = delSess; confirmKey = null; delSess = null;
+      act(() => rpc("delete_session", { sid }), loadCourse);
+    };
     $("#exp").onclick = exportXlsx;
   }
   function exportXlsx() {
     const c = course(), ss = D.sessions, lab = { present: "حاضر", manual: "يدوي", pending: "معلّق" };
     const aoa = [["كود الطالب", "الاسم", "المجموعة", ...ss.map(s => "محاضرة " + s.n + (s.grp ? " - مجموعة " + s.grp : "") + " (" + new Date(s.started_at).toLocaleDateString("en-GB") + ")"), "عدد الحضور", "النسبة", "عدد الغياب", "الحالة"]];
     D.enroll.forEach(e => {
-      const row = ss.map(s => { const r = (D.att[s.id] || {})[e.student_code]; if (!isOwn(s, e)) return r ? (r.status === "pending" ? "معلّق" : "تعويض") : "—"; return r ? lab[r.status] : (s.ended ? "غايب" : "—"); });
+      const row = ss.map(s => { const r = (D.att[s.id] || {})[e.student_code]; if (!isOwn(s, e)) return r ? (r.status === "pending" ? "معلّق" : "تعويض") : "—"; return r ? lab[r.status] : (regDone(s) ? "غايب" : "—"); });
       const a = attendance(e), ab = absences(e);
       aoa.push([e.student_code, e.name, e.grp || "-", ...row, a.att, a.own ? a.pct + "%" : "-", ab, CM.warnOf(ab).t]);
     });
