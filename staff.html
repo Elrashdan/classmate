@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d6b58">
+<script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 <title>Classmate · المحاضرين</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,7 +55,7 @@
   /* ======================= auth ======================= */
   function renderLogin() {
     stopLoops();
-    app.innerHTML = `<header class="top"><div class="brand"><div class="mark">C</div><div><h1>Classmate</h1><p class="muted small">دخول المحاضرين والمعيدين</p></div></div></header>
+    app.innerHTML = `<header class="top"><div class="brand"><div class="mark">C</div><div><h1>Classmate</h1><p class="muted small">دخول المحاضرين والمعيدين</p></div></div>${CM.themeBtn()}</header>
       <section class="panel" style="max-width:480px">
       ${login.step === "email" ? `
         <h2>ادخل بإيميل الجامعة</h2>
@@ -239,6 +240,7 @@
     if (i >= 0) D.sessions[i] = ss.data;
     if (!manFor) renderLive();
     renderRegister();
+    tabBadges();
     if (!rosterMan && !fpopCol && !(document.activeElement && document.activeElement.closest && document.activeElement.closest("#rsTbl"))) keepScroll("#rosterPanel", renderRosterTable);
     scanCount();
     if (wasOpen !== isOpen(ss.data)) renderSession();
@@ -281,6 +283,28 @@
   $("#ovClose").onclick = () => { $("#overlay").hidden = true; if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); };
 
   /* ======================= render ======================= */
+  const ICO = d => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const CTABS = [
+    ["live", "المحاضرة", ICO('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>')],
+    ["students", "الطلبة", ICO('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>')],
+    ["reg", "الكشف", ICO('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>')],
+    ["team", "الفريق", ICO('<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/><path d="M19 3.5v3M20.5 5h-3"/>')],
+    ["log", "السجل", ICO('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>')]
+  ];
+  let ctab = ["live", "students", "reg", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live";
+  function showTab(k) {
+    ctab = k; store.set("cm_tab", k); closeFpop();
+    document.querySelectorAll("[data-ct]").forEach(b => b.setAttribute("aria-selected", b.dataset.ct === k));
+    document.querySelectorAll(".tabpane").forEach(p => p.hidden = p.id !== "pane-" + k);
+    const nav = $(".ctabs"); if (nav && nav.getBoundingClientRect().top < 0 && getComputedStyle(nav).position === "sticky") window.scrollTo({ top: window.scrollY + nav.getBoundingClientRect().top - 2 });
+  }
+  function tabBadges() {
+    if (!D || !$(".ctabs")) return;
+    const s = running(), pend = s ? Object.values(D.att[s.id] || {}).filter(r => r.status === "pending").length : 0;
+    const put = (k, html) => { const el = document.querySelector(`[data-tbx="${k}"]`); if (el) el.outerHTML = `<i class="tbx" data-tbx="${k}">${html}</i>`; };
+    put("live", s && !s.ended ? (pend ? `<b class="tb" title="${pend} طلب معلّق">${pend}</b>` : `<b class="live-dot" title="فيه محاضرة شغالة"></b>`) : "");
+    put("students", "");
+  }
   function render() {
     const c = course();
     const owned = courses.filter(x => x.owner_email === me.email).length;
@@ -290,7 +314,7 @@
         <div class="row">
           ${canCreate() && view === "course" ? `<button class="btn sm" id="newC">مادة جديدة</button>` : ""}
           ${me.role === "admin" ? `<button class="btn sm ${view === "admin" ? "primary" : ""}" id="admin">${view === "admin" ? "رجوع للمواد" : "لوحة المسؤول"}</button>` : ""}
-          <button class="btn sm ghost" id="out">خروج</button>
+          ${CM.themeBtn()}<button class="btn sm ghost" id="out">خروج</button>
         </div>
       </header>
       <div id="newCForm" class="panel" hidden style="margin-bottom:16px">
@@ -298,7 +322,7 @@
         <div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="ncName" placeholder="مثلا: التشريح الفني"></label>${classFields("nc")}</div>
         <div class="row"><button class="btn primary" id="ncSave">أضف المادة</button><span class="muted small">المستوى الأول والثاني تخصص عام. الثالث والرابع والخامس لازم تختار الشعبة.</span></div>
       </div>
-      ${view === "course" ? `<div class="panel" style="margin-bottom:16px;padding-block:12px">
+      ${view === "course" ? `<div class="panel filters">
         <div class="settings" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
           <label class="f"><span>العام الدراسي</span><select id="fYear"><option value="all" ${fYear === "all" ? "selected" : ""}>كل الأعوام</option>${yearList().map(v => `<option value="${v}" ${v === fYear ? "selected" : ""}>${v}${v === nowYear() ? " (الحالي)" : ""}</option>`).join("")}</select></label>
           <label class="f"><span>الترم</span><select id="fTerm"><option value="all" ${fTerm === "all" ? "selected" : ""}>كل الترمات</option>${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === fTerm ? "selected" : ""}>${v}</option>`).join("")}</select></label>
@@ -306,14 +330,17 @@
             return [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(x => { const r = role(x); return `<option value="${x.id}" ${x.id === curId ? "selected" : ""}>${esc(x.name)}${x.archived ? " (أرشيف)" : ""}${r === "ta" ? " · معيد" : r === "co" ? " · محاضر مشارك" : r === "viewer" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`; }).join("")}</optgroup>`).join(""); })()}</select></label>` : ""}
         </div></div>` : ""}
       ${view === "admin" ? `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "مفيش مواد في الفترة دي" : "مفيش مواد لسه"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الترم من فوق، أو اعمل مادة جديدة." : me.role === "ta" ? "لما محاضر يضيفك كمعيد في مادة، هتظهر هنا." : "اضغط «مادة جديدة» فوق، وبعدين ارفع شيت الطلبة."}</div></div>` : `
-      <div style="margin-bottom:12px"><h2>${esc(c.name)}</h2><p class="muted small">${esc(clsLabel(c))}${c.archived ? " · مؤرشفة" : ""}</p></div>
+      <div class="course-h"><div><h2>${esc(c.name)}</h2><p class="muted small">${esc(clsLabel(c))}${c.archived ? " · مؤرشفة" : ""}</p></div></div>
       ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `انت محاضر مشارك في المادة دي مع ${esc(staffName(c.owner_email))}. تقدر تعمل كل حاجة في المحاضرات والطلبة والكشف. مسح المادة وتعديل بياناتها والفريق لصاحب المادة.` : role(c) === "ta" ? `انت معيد في المادة دي. تقدر تبدأ المحاضرات وتوافق على الطلبات وتسجل يدوي وتضيف طالب. رفع الشيت والفريق للمحاضر ${esc(staffName(c.owner_email))}.` : `دي مادة ${esc(staffName(c.owner_email))}. انت شايفها كمسؤول للقراءة والتصدير بس.`}</div>` : ""}
-      <div class="col">
-        <div id="sessionArea"></div>
-        <section class="panel" id="livePanel"></section>
-        <section class="panel" id="regPanel"></section>
-        <div class="grid2"><section class="panel" id="rosterPanel"></section><div class="col"><section class="panel" id="teamPanel"></section><section class="panel" id="auditPanel"></section></div></div>
-      </div>`}`;
+      <nav class="ctabs" role="tablist" aria-label="أقسام المادة">${CTABS.map(([k, t, ic]) => `<button role="tab" data-ct="${k}" aria-selected="${ctab === k}" aria-controls="pane-${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
+      <div class="tabpane" id="pane-live" role="tabpanel" ${ctab === "live" ? "" : "hidden"}><div id="sessionArea"></div><section class="panel" id="livePanel"></section></div>
+      <div class="tabpane" id="pane-students" role="tabpanel" ${ctab === "students" ? "" : "hidden"}><section class="panel" id="rosterPanel"></section></div>
+      <div class="tabpane" id="pane-reg" role="tabpanel" ${ctab === "reg" ? "" : "hidden"}><section class="panel" id="regPanel"></section></div>
+      <div class="tabpane" id="pane-team" role="tabpanel" ${ctab === "team" ? "" : "hidden"}><section class="panel" id="teamPanel"></section></div>
+      <div class="tabpane" id="pane-log" role="tabpanel" ${ctab === "log" ? "" : "hidden"}><section class="panel" id="auditPanel"></section></div>`}`;
+    document.body.classList.toggle("has-ctabs", !!$(".ctabs"));
+    document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));
+    tabBadges();
     $("#out").onclick = () => signOut();
     const pk = $("#pick"); if (pk) pk.onchange = () => { curId = pk.value; flash = {}; liveTab = "all"; regGroup = "all"; startState = null; loadCourse().catch(showErr); };
     const ad = $("#admin"); if (ad) ad.onclick = () => { view = view === "admin" ? "course" : "admin"; if (view === "admin") { stopLoops(); render(); } else loadCourse().catch(showErr); };
@@ -993,7 +1020,9 @@
     p.hidden = false;
     const r = btn.getBoundingClientRect(), w = Math.min(260, innerWidth - 24);
     p.style.width = w + "px";
-    p.style.top = Math.min(r.bottom + 4, innerHeight - 40) + "px";
+    p.style.maxHeight = Math.round(innerHeight * 0.7) + "px";
+    const ph = p.offsetHeight, below = innerHeight - r.bottom - 8;
+    p.style.top = (ph <= below ? r.bottom + 4 : Math.max(12, Math.min(r.top - ph - 4, innerHeight - ph - 12))) + "px";
     p.style.left = Math.max(12, Math.min(r.right - w, innerWidth - w - 12)) + "px";
   }
   document.addEventListener("click", () => { if (fpopCol) closeFpop(); });
@@ -1094,11 +1123,13 @@
   }
 
   /* ======================= admin ======================= */
+  let atab = ["staff", "report", "log"].includes(store.get("cm_atab")) ? store.get("cm_atab") : "staff";
   async function renderAdmin() {
     const el = $("#adminArea");
     const au = await sb.from("audit").select("*").order("at", { ascending: false }).limit(40);
-    el.innerHTML = `
-      <section class="panel">
+    const AT = [["staff", "الحسابات", CTABS[3][2]], ["report", "تقرير الإنذارات", CTABS[2][2]], ["log", "السجل", CTABS[4][2]]];
+    el.innerHTML = `<nav class="ctabs admin" role="tablist" aria-label="لوحة المسؤول">${AT.map(([k, t, ic]) => `<button role="tab" data-at="${k}" aria-selected="${atab === k}">${ic}<span class="l">${t}</span></button>`).join("")}</nav>
+      <section class="panel" data-apane="staff" ${atab === "staff" ? "" : "hidden"}>
         <div class="panel-h"><div><div class="eyebrow">${staff.length} حساب</div><h2>المحاضرين والمعيدين</h2></div></div>
         ${msgHtml("admin")}
         <div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الدور</th><th>المواد</th><th>الحالة</th><th></th></tr></thead><tbody>
@@ -1119,13 +1150,15 @@
         <p class="muted small">تغيير الدور من الجدول بيتطبق على طول: المحاضر يقدر يعمل مواد، والمعيد لأ إلا لو فعّلت الاختيار ده، والمسؤول بيشوف كل المواد ويدير الحسابات. صلاحيات الشخص جوه أي مادة بتتحدد من فريق المادة نفسها.</p>
         <div class="settings"><label class="f"><span>دومين إيميل الجامعة (فاضي = أي دومين)</span><input type="text" id="domIn" dir="ltr" value="${esc(settings.domain || "")}"></label><button class="btn" id="domSave">حفظ الدومين</button></div>
       </section>
-      <section class="panel">
+      <section class="panel" data-apane="report" ${atab === "report" ? "" : "hidden"}>
         <div class="panel-h"><div><div class="eyebrow">كل مواد القسم · ${fYear === "all" ? "كل الأعوام" : esc(fYear)} · ${fTerm === "all" ? "كل الترمات" : TERMS[fTerm]}</div><h2>طلبة عندهم إنذار ثالث أو انسحاب</h2></div><button class="btn sm" id="repBtn">${report === "loading" ? `<span class="spinner"></span>` : report ? "تحديث" : "احسب التقرير"}</button></div>
         ${Array.isArray(report) ? (report.length ? `<div class="tbl-wrap"><table><thead><tr><th>الطالب</th><th>المادة</th><th>المحاضر</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
           ${report.map(x => `<tr><td>${esc(x.e.name)}<div class="mono muted small">${esc(x.e.student_code)}</div></td><td>${esc(x.c.name)}<div class="muted small">${esc(clsLabel(x.c))}</div></td><td>${esc(staffName(x.c.owner_email))}</td><td class="c mono">${x.ab}</td><td>${CM.warnChip(x.ab)}</td></tr>`).join("")}
           </tbody></table></div>` : `<div class="empty">مفيش طلبة عندهم إنذار ثالث أو انسحاب.</div>`) : `<p class="muted small">التقرير بيلف على كل المواد، فبيتحسب لما تطلبه.</p>`}
       </section>
-      <section class="panel"><div class="panel-h"><div><div class="eyebrow">آخر التعديلات في كل المواد</div><h2>سجل التعديلات</h2></div></div>${auditList(au.data || [], true)}</section>`;
+      <section class="panel" data-apane="log" ${atab === "log" ? "" : "hidden"}><div class="panel-h"><div><div class="eyebrow">آخر التعديلات في كل المواد</div><h2>سجل التعديلات</h2></div></div>${auditList(au.data || [], true)}</section>`;
+    document.body.classList.add("has-ctabs");
+    el.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { atab = b.dataset.at; store.set("cm_atab", atab); el.querySelectorAll("[data-at]").forEach(x => x.setAttribute("aria-selected", x.dataset.at === atab)); el.querySelectorAll("[data-apane]").forEach(p => p.hidden = p.dataset.apane !== atab); });
     el.querySelectorAll("[data-sus]").forEach(b => b.onclick = () => act(async () => { await rpc("admin_set_status", { p_email: b.dataset.sus, p_status: b.dataset.to }); say("admin", (b.dataset.to === "suspended" ? "اتوقف حساب " : "اتفعّل حساب ") + staffName(b.dataset.sus) + "."); }, async () => { await loadBase(); renderAdmin(); }));
     $("#invBtn").onclick = () => act(async () => {
       const n = $("#invName").value.trim(), e = $("#invEmail").value.trim().toLowerCase(), r = $("#invRole").value;

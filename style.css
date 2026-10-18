@@ -9,7 +9,14 @@
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
   --r:10px;
 }
-@media (prefers-color-scheme: dark){:root{
+:root{color-scheme:light}
+:root[data-theme="dark"]{
+  --bg:#0e1513; --surface:#161f1d; --sunk:#121a18; --ink:#e4ece9; --muted:#97a7a2; --line:#2a3633;
+  --accent:#4fb398; --accent-ink:#06120f; --accent-soft:#1d332d;
+  --board:#0a1311; --board-ink:#e9f5f0; --board-dim:#6f9389; --board-hot:#9fe3c8;
+  --ok:#6cc583; --ok-soft:#173022; --warn:#e3a94a; --warn-soft:#33270f; --bad:#ef7a70; --bad-soft:#3a1916;
+  color-scheme:dark}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0e1513; --surface:#161f1d; --sunk:#121a18; --ink:#e4ece9; --muted:#97a7a2; --line:#2a3633;
   --accent:#4fb398; --accent-ink:#06120f; --accent-soft:#1d332d;
   --board:#0a1311; --board-ink:#e9f5f0; --board-dim:#6f9389; --board-hot:#9fe3c8;
@@ -53,7 +60,7 @@ label.f>span{font-weight:500}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:grid;gap:12px;min-width:0}
 .panel-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .eyebrow{font-size:.75rem;letter-spacing:.04em;color:var(--muted);font-weight:600}
-.board{background:var(--board);color:var(--board-ink);border-radius:var(--r);padding:20px;display:grid;gap:14px}
+.board{border:1px solid var(--line);background:var(--board);color:var(--board-ink);border-radius:var(--r);padding:20px;display:grid;gap:14px}
 .board .lbl{color:var(--board-dim);font-size:.85rem}
 .board h2{color:var(--board-ink)}
 .board .btn{background:transparent;color:var(--board-ink);border-color:color-mix(in srgb,var(--board-dim) 60%,transparent)}
@@ -189,3 +196,32 @@ tr.manrow .note-box{margin:0 0 6px}
 .note-box.imp select{width:auto;padding:3px 6px}
 tr.bad-row td{background:var(--bad-soft)}
 tr.manrow td>div{position:sticky;right:0;max-width:min(620px,calc(100vw - 72px))}
+
+/* theme button */
+.btn.icon{padding:5px 8px;line-height:0}
+/* course tabs: sticky bar on computers, bottom bar on phones */
+.course-h{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.ctabs{position:sticky;top:0;z-index:30;display:flex;gap:4px;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:6px 0 10px;margin-bottom:6px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.ctabs::-webkit-scrollbar{display:none}
+.ctabs button{display:inline-flex;align-items:center;gap:7px;border:1px solid transparent;background:transparent;color:var(--muted);border-radius:9px;padding:8px 14px;font-weight:600;white-space:nowrap;position:relative}
+.ctabs button svg{width:18px;height:18px;flex:none}
+.ctabs button:hover{color:var(--ink);background:var(--surface)}
+.ctabs button[aria-selected=true]{color:var(--accent);background:var(--surface);border-color:var(--line)}
+.ctabs .tb{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:700}
+.ctabs .tb.n{background:var(--sunk);color:var(--muted);border:1px solid var(--line);line-height:16px}
+.ctabs .live-dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.ctabs .live-dot{animation:none}}
+.tabpane{display:grid;gap:16px;min-width:0}
+.tabpane[hidden]{display:none!important}
+.filters{margin-bottom:12px;padding-block:10px}
+@media (max-width:760px){
+  body.has-ctabs{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+  .ctabs{position:fixed;inset:auto 0 0 0;margin:0;padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));border-bottom:0;border-top:1px solid var(--line);background:var(--surface);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;overflow:visible;box-shadow:0 -4px 16px rgba(0,0,0,.06)}
+  .ctabs button{flex-direction:column;gap:2px;padding:6px 2px;font-size:.7rem;border-radius:8px;min-width:0}
+  .ctabs button span.l{overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .ctabs button[aria-selected=true]{background:var(--accent-soft);border-color:transparent}
+  .ctabs .tb,.ctabs .live-dot{position:absolute;top:2px;inset-inline-start:calc(50% + 6px)}
+  .ctabs .tb{height:16px;line-height:16px;min-width:16px;font-size:10px;padding:0 4px}
+}
+@media (max-width:760px){.ctabs.admin{grid-template-columns:repeat(3,minmax(0,1fr))}}

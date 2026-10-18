@@ -107,6 +107,32 @@
     return "CM1:" + code + ":" + step + ":" + Array.from(sig.slice(0, 8), b => b.toString(16).padStart(2, "0")).join("");
   };
 
+
+  // theme: auto (follows the phone/computer) → light → dark. Saved per browser.
+  const THEMES = { auto: "تلقائي", light: "فاتح", dark: "غامق" };
+  const ICONS = {
+    auto: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>',
+    light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
+  };
+  CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
+  const applyTheme = () => {
+    const t = CM.theme(), root = document.documentElement;
+    if (t === "auto") delete root.dataset.theme; else root.dataset.theme = t;
+    const dark = t === "dark" || (t === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+    const mc = document.querySelector('meta[name="theme-color"]'); if (mc) mc.content = dark ? "#0e1513" : "#1d6b58";
+    document.querySelectorAll("[data-theme-btn]").forEach(b => { b.innerHTML = ICONS[t]; b.title = "الثيم: " + THEMES[t] + " (دوس للتغيير)"; b.setAttribute("aria-label", b.title); });
+  };
+  CM.themeBtn = () => { const t = CM.theme(); return `<button class="btn sm ghost icon" data-theme-btn title="الثيم: ${THEMES[t]} (دوس للتغيير)" aria-label="الثيم: ${THEMES[t]}">${ICONS[t]}</button>`; };
+  document.addEventListener("click", ev => {
+    const b = ev.target.closest && ev.target.closest("[data-theme-btn]"); if (!b) return;
+    const next = { auto: "light", light: "dark", dark: "auto" }[CM.theme()];
+    if (next === "auto") CM.store.del("cm_theme"); else CM.store.set("cm_theme", next);
+    applyTheme();
+  });
+  if (window.matchMedia) { try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme); } catch (e) {} }
+  applyTheme();
+
   CM.setupNotice = () => `<div class="panel setup"><h2>التطبيق لسه ما اتربطش بقاعدة البيانات</h2>
     <p class="muted">افتح ملف <span class="mono">config.js</span> وحط فيه Project URL و anon key من Supabase، زي ما هو مشروح في دليل التشغيل.</p></div>`;
 })();
