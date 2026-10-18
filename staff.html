@@ -239,12 +239,13 @@
     if (i >= 0) D.sessions[i] = ss.data;
     if (!manFor) renderLive();
     renderRegister();
+    if (!rosterMan && !fpopCol && !(document.activeElement && document.activeElement.closest && document.activeElement.closest("#rsTbl"))) keepScroll("#rosterPanel", renderRosterTable);
     scanCount();
     if (wasOpen !== isOpen(ss.data)) renderSession();
   }
 
   /* ======================= loops (code + live list) ======================= */
-  function stopLoops() { manFor = null; clearTimeout(codeTimer); clearInterval(liveTimer); codeTimer = null; liveTimer = null; codeState = null; $("#overlay").hidden = true; }
+  function stopLoops() { manFor = null; rosterMan = null; clearTimeout(codeTimer); clearInterval(liveTimer); codeTimer = null; liveTimer = null; codeState = null; $("#overlay").hidden = true; }
   function startLoops() {
     const c = course(), s = running();
     if (!s) return;
@@ -338,7 +339,7 @@
     if (!c) return;
     renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit();
   }
-  const MAN_REASONS = ["موبايله فاضي شحن", "موبايله مش معاه", "مشكلة في حسابه", "حاضر وأنا شايفه"];
+  const MAN_REASONS = ["مفيش نت ولا GPS", "موبايله فاضي شحن", "موبايله مش معاه", "مشكلة في حسابه", "حاضر وأنا شايفه"];
   let kindPick = "hall";
 
   /* ---------- scanner: staff scans the student's personal QR ---------- */
@@ -486,59 +487,129 @@
   /* re-rendering a panel replaces its HTML; keep the inner lists and the page where the user left them */
   function keepScroll(sel, fn) {
     const el = $(sel), y = window.scrollY;
-    const pos = el ? [...el.querySelectorAll(".list,.tbl-wrap")].map(x => [x.scrollTop, x.scrollLeft]) : [];
+    const key = (x, i) => x.id || "i" + i, pos = {};
+    if (el) [...el.querySelectorAll(".list,.tbl-wrap")].forEach((x, i) => { pos[key(x, i)] = [x.scrollTop, x.scrollLeft]; });
     fn();
-    if (el) [...el.querySelectorAll(".list,.tbl-wrap")].forEach((x, i) => { if (pos[i]) { x.scrollTop = pos[i][0]; x.scrollLeft = pos[i][1]; } });
+    if (el) [...el.querySelectorAll(".list,.tbl-wrap")].forEach((x, i) => { const p = pos[key(x, i)]; if (p) { x.scrollTop = p[0]; x.scrollLeft = p[1]; } });
     if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
   }
   /* ---------- live attendance ---------- */
-  let liveQ = "";
   function renderLive() { keepScroll("#livePanel", _renderLive); }
+  /* live attendance as an Excel-style table: search, sort & filter per column, select rows, bulk actions */
+  let lv = { q: "", sort: null, f: { st: null, grp: null } }, lvSel = new Set();
+  const LCOLS = {
+    st: { t: "الحالة", v: it => it.chip, list: true, lab: x => x, up: "أ ← ي", down: "ي ← أ" },
+    code: { t: "الكود", v: it => it.e.student_code, num: true, up: "من الأصغر للأكبر", down: "من الأكبر للأصغر" },
+    name: { t: "الاسم", v: it => it.e.name || "", up: "أ ← ي", down: "ي ← أ" },
+    grp: { t: "المجموعة", v: it => it.e.grp || "", list: true, lab: g => g ? "مجموعة " + g : "من غير مجموعة", up: "أ ← ي", down: "ي ← أ" },
+    time: { t: "الوقت", v: it => it.r ? it.r.at : "", key: it => it.r ? new Date(it.r.at).getTime() : 0, up: "الأقدم الأول", down: "الأحدث الأول" }
+  };
+  const LDEF = { all: { col: "time", dir: -1 }, pend: { col: "time", dir: 1 }, pres: { col: "time", dir: -1 }, rej: { col: "time", dir: -1 }, abs: { col: "code", dir: 1 } };
+  let lvItems = [];
+  const LG = { cols: LCOLS, st: () => lv, all: () => lvItems, redraw: () => renderLive(), defSort: () => LDEF[liveTab] };
+  function sortRows(rows, cols, sort) {
+    const col = cols[sort.col], d = sort.dir;
+    const cmp = (a, b) => col.key ? col.key(a) - col.key(b) : String(col.v(a)).localeCompare(String(col.v(b)), col.num ? "en" : "ar", { numeric: true, sensitivity: "base" });
+    return rows.sort((a, b) => d * cmp(a, b) || String(a.e ? a.e.student_code : a.student_code).localeCompare(String(b.e ? b.e.student_code : b.student_code), "en", { numeric: true }));
+  }
+  function manBoxHtml(codes, ids) {
+    const names = codes.map(nameOf);
+    return `<div class="manbox note-box">
+      <b>تحضير يدوي: ${codes.length === 1 ? esc(names[0]) : codes.length + " طالب"}</b>
+      ${codes.length > 1 ? `<span class="small muted">${esc(names.slice(0, 8).join("، "))}${names.length > 8 ? " و" + (names.length - 8) + " كمان" : ""}</span>` : ""}
+      <label class="f"><span>السبب (بيتسجل في سجل التعديلات)</span><input type="text" id="${ids}Reason" maxlength="200" value="${esc(manDraft)}" placeholder="مثلا: مفيش نت ولا GPS"></label>
+      <div class="quick">${MAN_REASONS.map(t => `<button class="btn sm ghost" data-mq="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <div class="row"><button class="btn sm primary" id="${ids}Save">${codes.length === 1 ? "سجّله حاضر" : "سجّلهم حاضر (" + codes.length + ")"}</button><button class="btn sm ghost" id="${ids}Cancel">إلغاء</button></div>
+    </div>`;
+  }
+  function wireManBox(root, ids, codes, sid, done) {
+    const inp = $("#" + ids + "Reason"); if (!inp) return;
+    inp.oninput = () => { manDraft = inp.value; };
+    root.querySelectorAll("[data-mq]").forEach(b => b.onclick = () => { manDraft = b.dataset.mq; inp.value = manDraft; inp.focus(); });
+    $("#" + ids + "Cancel").onclick = () => done(false);
+    $("#" + ids + "Save").onclick = () => {
+      const reason = (inp.value || "").trim();
+      if (reason.length < 3) return showErr({ message: "reason_required" });
+      act(async () => { codes.length === 1 ? await rpc("mark_manual", { sid, code: codes[0], p_reason: reason }) : await rpc("mark_manual_many", { sid, codes, p_reason: reason }); manDraft = ""; done(true); }, async () => { if (running()) await refreshLive(); else await loadCourse(); });
+    };
+  }
   function _renderLive() {
     const el = $("#livePanel"); if (!el) return;
     const ae = document.activeElement, keepQ = ae && ae.id === "lvQ", selA = keepQ ? ae.selectionStart : 0, selB = keepQ ? ae.selectionEnd : 0;
     const c = course(), s = running() || D.sessions[D.sessions.length - 1];
     if (!s) { el.innerHTML = `<h2>الحضور</h2><div class="empty">ابدأ أول محاضرة وهيظهر هنا كل طالب أول ما يسجل.</div>`; return; }
+    if (lv.sid !== s.id) { lv = { sid: s.id, q: lv.q, sort: null, f: { st: null, grp: null } }; lvSel.clear(); }
     const recs = D.att[s.id] || {};
-    const pres = D.enroll.filter(e => counted(recs[e.student_code])).sort((a, b) => new Date(recs[b.student_code].at) - new Date(recs[a.student_code].at));
+    const pres = D.enroll.filter(e => counted(recs[e.student_code]));
     const pend = D.enroll.filter(e => recs[e.student_code] && recs[e.student_code].status === "pending");
     const abs = D.enroll.filter(e => isOwn(s, e) && !recs[e.student_code]);
     const rej = D.attempts.filter(a => a.session_id === s.id);
-    const editable = canRun(c) && (!s.ended || canManage(c));
+    const editable = canRun(c) && (!s.ended || canManage(c)), done = regDone(s);
     const items = [];
-    if (liveTab === "all" || liveTab === "pend") pend.forEach(e => items.push({ e, k: "warn", chip: recs[e.student_code].makeup ? "تعويض معلّق" : "معلّق", r: recs[e.student_code] }));
-    if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · QR" : "حاضر", r }); });
-    if (liveTab === "rej") rej.forEach(a => items.push({ e: { student_code: a.student_code, name: nameOf(a.student_code), grp: (D.enroll.find(x => x.student_code === a.student_code) || {}).grp }, k: "bad", chip: "مرفوض", r: { at: a.at, reason: reasonText(a.reason) }, log: true }));
-    if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: regDone(s) ? "غايب" : "لسه ماسجلش", r: null }));
-    const lq = normAr(liveQ), shown = lq ? items.filter(it => normAr(it.e.name).includes(lq) || String(it.e.student_code).toLowerCase().includes(lq)) : items;
+    if (liveTab === "all" || liveTab === "pend") pend.forEach(e => items.push({ e, k: "warn", chip: recs[e.student_code].makeup ? "تعويض معلّق" : "معلّق", r: recs[e.student_code], sel: "pend" }));
+    if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · QR" : r.via === "import" ? "حاضر · شيت" : "حاضر", r }); });
+    if (liveTab === "rej") rej.forEach(a => { const e = D.enroll.find(x => x.student_code === a.student_code) || { student_code: a.student_code, name: nameOf(a.student_code), grp: "" }; items.push({ e, k: "bad", chip: "مرفوض", r: { at: a.at, reason: reasonText(a.reason) }, log: true, sel: !recs[a.student_code] && D.enroll.includes(e) ? "abs" : null }); });
+    if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: done ? "غايب" : "لسه ماسجلش", r: null, sel: "abs" }));
+    lvItems = items;
+    const selectable = new Map(); items.forEach(it => { if (editable && it.sel) selectable.set(it.e.student_code, it.sel); });
+    [...lvSel].forEach(k => { if (!selectable.has(k)) lvSel.delete(k); });
+    const q = normAr(lv.q), sort = lv.sort || LDEF[liveTab];
+    const shown = sortRows(items.filter(it => (!q || normAr(it.e.name).includes(q) || String(it.e.student_code).toLowerCase().includes(q))
+      && (!lv.f.st || lv.f.st.has(LCOLS.st.v(it))) && (!lv.f.grp || lv.f.grp.has(LCOLS.grp.v(it)))), LCOLS, sort);
+    const shownSel = [...new Set(shown.filter(it => editable && it.sel).map(it => it.e.student_code))];
+    const selPend = [...lvSel].filter(k => selectable.get(k) === "pend"), selAbs = [...lvSel].filter(k => selectable.get(k) === "abs");
+    const shownPend = [...new Set(shown.filter(it => it.sel === "pend").map(it => it.e.student_code))];
+    const busy = !!q || !!lv.f.st || !!lv.f.grp || !!lv.sort;
+    const head = k => { const C = LCOLS[k], srt = sort.col === k && !!lv.sort, flt = C.list && lv.f[k];
+      return `<th><button class="fh ${srt || flt ? "on" : ""}" data-lcol="${k}" aria-haspopup="true">${C.t}<span class="fh-i">${sort.col === k ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button></th>`; };
+    const allChecked = shownSel.length && shownSel.every(k => lvSel.has(k));
+    const TABN = { all: "الكل", pend: "معلّق", pres: "حاضر", rej: "محاولات مرفوضة", abs: "غايب" };
+    const manCodes = Array.isArray(manFor) ? manFor : null;
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كلها"}${s.ended ? " · منتهية" : ""}</div><h2>الحضور${s.ended ? "" : " لايف"}</h2></div>
-      <div class="tabs" role="group">${[["all", "الكل"], ["pend", "معلّق"], ["pres", "حاضر"], ["rej", "محاولات مرفوضة"], ["abs", "غايب"]].map(([k, t]) => `<button data-lt="${k}" aria-pressed="${liveTab === k}">${t}</button>`).join("")}</div></div>
-      <div class="stats"><div class="stat"><b>${pres.length}</b><span>حاضر</span></div><div class="stat"><b>${pend.length}</b><span>محتاج موافقة</span></div><div class="stat"><b>${rej.length}</b><span>محاولة مرفوضة</span></div><div class="stat"><b>${abs.length}</b><span>${regDone(s) ? "غايب" : "لسه ماسجلش"}</span></div></div>
-      <div class="rs-bar"><input type="search" id="lvQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(liveQ)}" autocomplete="off">${lq ? `<span class="small muted">${shown.length} نتيجة في «${{ all: "الكل", pend: "معلّق", pres: "حاضر", rej: "محاولات مرفوضة", abs: "غايب" }[liveTab]}»</span>` : ""}</div>
-      <div class="list">${shown.length ? shown.map(it => `<div class="li ${it.k}">
-        <span class="chip ${it.k}">${it.chip}</span>
-        <div class="who"><b>${esc(it.e.name)}</b><small><span class="mono">${esc(it.e.student_code)}</span>${it.e.grp ? " · مجموعة " + esc(it.e.grp) : ""}${it.r ? " · " + CM.fmtT(it.r.at) : ""}${it.r && it.r.dist != null ? " · على بعد " + CM.dist(it.r.dist) : ""}${it.r && it.r.reason ? " · " + esc(it.r.reason) : ""}</small></div>
-        <div class="acts">${!editable || it.log ? "" : it.k === "warn" ? `<button class="btn sm" data-ap="${esc(it.e.student_code)}">موافقة</button><button class="btn sm danger" data-rj="${esc(it.e.student_code)}">رفض</button>` : it.k === "none" ? (manFor === it.e.student_code ? "" : `<button class="btn sm" data-man="${esc(it.e.student_code)}">تسجيل يدوي</button>`) : `<button class="btn sm ghost" data-rm="${esc(it.e.student_code)}">${confirmKey === "rm:" + it.e.student_code ? "متأكد؟" : "إلغاء"}</button>`}</div>
-        ${manFor === it.e.student_code && it.k === "none" ? `<div class="manbox">
-          <label class="f"><span>سبب التسجيل اليدوي (بيتسجل في سجل التعديلات)</span><input type="text" id="manReason" maxlength="200" value="${esc(manDraft)}" placeholder="مثلا: موبايله فاضي شحن"></label>
-          <div class="quick">${MAN_REASONS.map(t => `<button class="btn sm ghost" data-mq="${esc(t)}">${esc(t)}</button>`).join("")}</div>
-          <div class="row"><button class="btn sm primary" id="manSave">سجّله حاضر</button><button class="btn sm ghost" id="manCancel">إلغاء</button></div>
-        </div>` : ""}
-      </div>`).join("") : lq ? `<div class="empty">مفيش طالب بالاسم أو الكود ده في التبويب ده.${liveTab !== "all" ? " جرّب تبويب «الكل» أو «غايب»." : ""}</div>` : `<div class="empty">${liveTab === "rej" ? "مفيش محاولات مرفوضة." : liveTab === "pend" ? "مفيش طلبات معلقة." : liveTab === "abs" ? "كل الطلبة سجلوا." : "لسه محدش سجل. الطلبة بيكتبوا الكود اللي على الشاشة من موبايلاتهم."}</div>`}</div>`;
-    el.querySelectorAll("[data-lt]").forEach(b => b.onclick = () => { liveTab = b.dataset.lt; renderLive(); });
-    const lv = $("#lvQ"); if (lv) { lv.oninput = () => { liveQ = lv.value; renderLive(); }; if (keepQ) { lv.focus(); try { lv.setSelectionRange(selA, selB); } catch (e) {} } }
+      <div class="tabs" role="group">${Object.entries(TABN).map(([k, t]) => `<button data-lt="${k}" aria-pressed="${liveTab === k}">${t}${k === "pend" && pend.length ? ` <b class="cnt">${pend.length}</b>` : ""}</button>`).join("")}</div></div>
+      <div class="stats"><div class="stat"><b>${pres.length}</b><span>حاضر</span></div><div class="stat"><b>${pend.length}</b><span>محتاج موافقة</span></div><div class="stat"><b>${rej.length}</b><span>محاولة مرفوضة</span></div><div class="stat"><b>${abs.length}</b><span>${done ? "غايب" : "لسه ماسجلش"}</span></div></div>
+      <div class="rs-bar"><input type="search" id="lvQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(lv.q)}" autocomplete="off">
+        <span class="small muted">${shown.length === items.length ? items.length + " في «" + TABN[liveTab] + "»" : "عرض " + shown.length + " من " + items.length}</span>
+        ${busy ? `<button class="btn sm ghost" id="lvClear">مسح الترتيب والفلاتر</button>` : ""}</div>
+      ${editable && (shownPend.length || lvSel.size) ? `<div class="bulk">
+        ${lvSel.size ? `<b class="small">محدد ${lvSel.size}</b>` : ""}
+        ${selPend.length ? `<button class="btn sm primary" id="lvApSel">قبول المحدد (${selPend.length})</button><button class="btn sm danger" id="lvRjSel">${confirmKey === "rjsel" ? "متأكد؟ اضغط تاني" : "رفض المحدد (" + selPend.length + ")"}</button>` : ""}
+        ${selAbs.length ? `<button class="btn sm primary" id="lvManSel">تحضير المحدد (${selAbs.length})</button>` : ""}
+        ${!lvSel.size && shownPend.length ? `<button class="btn sm primary" id="lvApAll">${confirmKey === "apall" ? "متأكد؟ اضغط تاني" : "قبول الكل (" + shownPend.length + ")"}</button>` : ""}
+        ${lvSel.size ? `<button class="btn sm ghost" id="lvSelNone">إلغاء التحديد</button>` : ""}
+      </div>` : ""}
+      ${manCodes ? manBoxHtml(manCodes, "lvm") : ""}
+      ${shown.length ? `<div class="tbl-wrap" id="lvWrap" style="max-height:460px;overflow:auto"><table class="lvt"><thead><tr>
+        ${shownSel.length ? `<th class="cb"><input type="checkbox" id="lvAll" ${allChecked ? "checked" : ""} aria-label="تحديد الكل"></th>` : `<th class="cb"></th>`}
+        ${head("st")}${head("name")}<th></th>${head("code")}${head("grp")}${head("time")}<th>التفاصيل</th></tr></thead><tbody>
+        ${shown.map(it => { const code = it.e.student_code, can = editable && it.sel; return `<tr class="${lvSel.has(code) && can ? "sel" : ""}">
+          <td class="cb">${can ? `<input type="checkbox" data-sel="${esc(code)}" ${lvSel.has(code) ? "checked" : ""} aria-label="تحديد">` : ""}</td>
+          <td><span class="chip ${it.k}">${esc(it.chip)}</span></td>
+          <td>${esc(it.e.name)}</td>
+          <td><div class="row" style="flex-wrap:nowrap">${!editable ? "" : it.sel === "pend" ? `<button class="btn sm" data-ap="${esc(code)}">موافقة</button><button class="btn sm danger" data-rj="${esc(code)}">رفض</button>` : it.sel === "abs" ? `<button class="btn sm" data-man="${esc(code)}">تحضير</button>` : it.log ? "" : `<button class="btn sm ghost" data-rm="${esc(code)}">${confirmKey === "rm:" + code ? "متأكد؟" : "إلغاء"}</button>`}</div></td>
+          <td class="mono">${esc(code)}</td><td>${esc(it.e.grp || "—")}</td>
+          <td class="mono small">${it.r ? CM.fmtT(it.r.at) : ""}</td>
+          <td class="small muted">${[it.r && it.r.dist != null ? "على بعد " + CM.dist(it.r.dist) : "", it.r && it.r.reason ? esc(it.r.reason) : ""].filter(Boolean).join(" · ")}</td>
+        </tr>`; }).join("")}
+      </tbody></table></div>` : q || lv.f.st || lv.f.grp ? `<div class="empty">مفيش طالب مطابق للبحث أو الفلتر في «${TABN[liveTab]}».${liveTab !== "all" ? " جرّب تبويب «الكل» أو «غايب»." : ""}</div>` : `<div class="empty">${liveTab === "rej" ? "مفيش محاولات مرفوضة." : liveTab === "pend" ? "مفيش طلبات معلقة." : liveTab === "abs" ? "كل الطلبة سجلوا." : "لسه محدش سجل. الطلبة بيكتبوا الكود اللي على الشاشة من موبايلاتهم."}</div>`}`;
     const after = async () => { if (running()) await refreshLive(); else await loadCourse(); };
+    el.querySelectorAll("[data-lt]").forEach(b => b.onclick = () => { liveTab = b.dataset.lt; lv.sort = null; lv.f = { st: null, grp: null }; lvSel.clear(); confirmKey = null; renderLive(); });
+    const lq = $("#lvQ"); if (lq) { lq.oninput = () => { lv.q = lq.value; renderLive(); }; if (keepQ) { lq.focus(); try { lq.setSelectionRange(selA, selB); } catch (e) {} } }
+    const lc = $("#lvClear"); if (lc) lc.onclick = () => { lv.q = ""; lv.sort = null; lv.f = { st: null, grp: null }; closeFpop(); renderLive(); };
+    el.querySelectorAll("[data-lcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === "l:" + b.dataset.lcol ? closeFpop() : openFpop(b, LG, "l:"); });
+    const lw = $("#lvWrap"); if (lw) lw.onscroll = closeFpop;
+    const la = $("#lvAll"); if (la) la.onchange = () => { shownSel.forEach(k => la.checked ? lvSel.add(k) : lvSel.delete(k)); renderLive(); };
+    el.querySelectorAll("[data-sel]").forEach(cb => cb.onchange = () => { cb.checked ? lvSel.add(cb.dataset.sel) : lvSel.delete(cb.dataset.sel); renderLive(); });
+    const sn = $("#lvSelNone"); if (sn) sn.onclick = () => { lvSel.clear(); confirmKey = null; renderLive(); };
+    const two = (key, fn) => () => { if (confirmKey !== key) { confirmKey = key; renderLive(); setTimeout(() => { if (confirmKey === key) { confirmKey = null; renderLive(); } }, 4000); return; } confirmKey = null; fn(); };
+    const aps = $("#lvApSel"); if (aps) aps.onclick = () => act(async () => { await rpc("approve_many", { sid: s.id, codes: selPend }); selPend.forEach(k => lvSel.delete(k)); }, after);
+    const rjs = $("#lvRjSel"); if (rjs) rjs.onclick = two("rjsel", () => act(async () => { await rpc("reject_many", { sid: s.id, codes: selPend }); selPend.forEach(k => lvSel.delete(k)); }, after));
+    const apa = $("#lvApAll"); if (apa) apa.onclick = two("apall", () => act(() => rpc("approve_many", { sid: s.id, codes: shownPend }), after));
+    const ms = $("#lvManSel"); if (ms) ms.onclick = () => { manFor = selAbs.slice(); manDraft = ""; renderLive(); const i = $("#lvmReason"); if (i) i.focus(); };
     el.querySelectorAll("[data-ap]").forEach(b => b.onclick = () => act(() => rpc("approve_attendance", { sid: s.id, code: b.dataset.ap }), after));
     el.querySelectorAll("[data-rj]").forEach(b => b.onclick = () => act(() => rpc("reject_attendance", { sid: s.id, code: b.dataset.rj }), after));
-    el.querySelectorAll("[data-man]").forEach(b => b.onclick = () => { manFor = b.dataset.man; manDraft = ""; renderLive(); const i = $("#manReason"); if (i) i.focus(); });
-    const mr = $("#manReason"); if (mr) mr.oninput = () => { manDraft = mr.value; };
-    el.querySelectorAll("[data-mq]").forEach(b => b.onclick = () => { manDraft = b.dataset.mq; const i = $("#manReason"); if (i) { i.value = manDraft; i.focus(); } });
-    const mc = $("#manCancel"); if (mc) mc.onclick = () => { manFor = null; manDraft = ""; renderLive(); };
-    const ms = $("#manSave"); if (ms) ms.onclick = () => {
-      const reason = ($("#manReason").value || "").trim(), code = manFor;
-      if (reason.length < 3) return showErr({ message: "reason_required" });
-      act(async () => { await rpc("mark_manual", { sid: s.id, code, p_reason: reason }); manFor = null; manDraft = ""; }, after);
-    };
+    el.querySelectorAll("[data-man]").forEach(b => b.onclick = () => { manFor = [b.dataset.man]; manDraft = ""; renderLive(); const i = $("#lvmReason"); if (i) { i.focus(); if (i.scrollIntoView) i.scrollIntoView({ block: "nearest" }); } });
+    if (manCodes) wireManBox(el, "lvm", manCodes, s.id, ok => { manFor = null; if (ok) manCodes.forEach(k => lvSel.delete(k)); renderLive(); });
     el.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => {
       const k = "rm:" + b.dataset.rm; if (confirmKey !== k) { confirmKey = k; return renderLive(); }
       confirmKey = null; act(() => rpc("cancel_attendance", { sid: s.id, code: b.dataset.rm }), after);
@@ -569,9 +640,12 @@
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[Math.min(absences(e), 4)]++);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.length} محاضرة · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
       <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}<button class="btn sm" id="exp" ${D.enroll.length ? "" : "disabled"}>تصدير شيت إكسيل</button></div></div>
+      ${msgHtml("reg")}
+      ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات قبل البرنامج؟</span><button class="btn sm ghost" id="tplBtn">نزّل شيت التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات قديمة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden></div>` : ""}
+      ${impBoxHtml()}
       ${dsBox()}
       ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.warnChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">مفيش إنذارات لحد دلوقتي.</span>`}</div>
-      <div class="tbl-wrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الطالب</th>${ss.map(s => { const lab = `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`; return `<th class="c ${delSess === s.id ? "th-on" : ""}">${lab}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="مسح المحاضرة ${s.n}" aria-label="مسح المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">النسبة</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
+      <div class="tbl-wrap" id="regWrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الطالب</th>${ss.map(s => { const lab = `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`; return `<th class="c ${delSess === s.id ? "th-on" : ""}">${lab}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="مسح المحاضرة ${s.n}" aria-label="مسح المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">النسبة</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
       ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${ab >= 4 ? "withdrawn" : ""}"><td><div>${esc(e.name)}</div><div class="mono muted small">${esc(e.student_code)}${e.grp ? " · مج " + esc(e.grp) : ""}</div></td>${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
       </tbody></table></div>
       <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة تانية · م معلّق · غ غايب · النقطة يعني المحاضرة مش لمجموعته.${mng ? " لو عملت محاضرة بالغلط، دوس «حذف» تحت رقمها." : ""} الغياب بيتحسب أول ما التسجيل في المحاضرة يتقفل، ولو سجّلت الطالب بعدها يدوي أو بمسح كوده الغياب بيتشال. وكل حضور تعويضي بيلغي غياب: مرة إنذار أول، مرتين إنذار ثاني، 3 إنذار ثالث ونهائي، 4 انسحاب إجباري.</p>`
@@ -585,19 +659,200 @@
       act(() => rpc("delete_session", { sid }), loadCourse);
     };
     $("#exp").onclick = exportXlsx;
+    const tb = $("#tplBtn"); if (tb) tb.onclick = exportTemplate;
+    const px = $("#pastX"); if (px) px.onchange = ev => { importPast(ev.target.files[0]); ev.target.value = ""; };
+    wireImp(el);
   }
-  function exportXlsx() {
-    const c = course(), ss = D.sessions, lab = { present: "حاضر", manual: "يدوي", pending: "معلّق" };
-    const aoa = [["كود الطالب", "الاسم", "المجموعة", ...ss.map(s => "محاضرة " + s.n + (s.grp ? " - مجموعة " + s.grp : "") + " (" + new Date(s.started_at).toLocaleDateString("en-GB") + ")"), "عدد الحضور", "النسبة", "عدد الغياب", "الحالة"]];
-    D.enroll.forEach(e => {
-      const row = ss.map(s => { const r = (D.att[s.id] || {})[e.student_code]; if (!isOwn(s, e)) return r ? (r.status === "pending" ? "معلّق" : "تعويض") : "—"; return r ? lab[r.status] : (regDone(s) ? "غايب" : "—"); });
-      const a = attendance(e), ab = absences(e);
-      aoa.push([e.student_code, e.name, e.grp || "-", ...row, a.att, a.own ? a.pct + "%" : "-", ab, CM.warnOf(ab).t]);
+  /* ---------- Excel: professional export, template for past lectures, import of ح / غ ---------- */
+  const loadExcelJS = () => window.ExcelJS ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"; sc.onload = ok; sc.onerror = () => bad({ message: "معرفناش نحمّل أداة الإكسيل. اتأكد من النت وجرّب تاني." }); document.head.appendChild(sc); });
+  const GORD = g => { const i = ["أ", "ب", "ج", "د"].indexOf(g); return g ? (i < 0 ? 10 : i) : 99; };
+  const byGroupName = (a, b) => GORD(a.grp) - GORD(b.grp) || String(a.grp || "").localeCompare(String(b.grp || ""), "ar") || a.name.localeCompare(b.name, "ar", { sensitivity: "base" }) || a.student_code.localeCompare(b.student_code, "en", { numeric: true });
+  const cairoDay = t => new Date(t).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
+  const XC = { head: "FF16382F", headInk: "FFFFFFFF", line: "FFD5DDDA", band: "FFF6F8F7", title: "FF16382F", muted: "FF5A6A66",
+    p: ["FFDFF0E3", "FF1F6B3A"], m: ["FFDCEEF0", "FF155E6B"], t: ["FFE3E9F7", "FF2B4C8C"], w: ["FFF6EAD3", "FF8A5800"], a: ["FFF7E0DD", "FFB0281F"], x: [null, "FF9AA7A3"] };
+  const WARNX = [["FFDFF0E3", "FF1F6B3A"], ["FFFBF1DC", "FF8A5800"], ["FFF6EAD3", "FF8A5800"], ["FFF7E0DD", "FFB0281F"], ["FFB0281F", "FFFFFFFF"]];
+  const fill = argb => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+  const thin = { style: "thin", color: { argb: XC.line } }, box = { top: thin, left: thin, bottom: thin, right: thin };
+  function xlCell(s, e) {
+    const r = (D.att[s.id] || {})[e.student_code];
+    if (!isOwn(s, e)) return r && r.status !== "pending" ? ["ت", "t"] : r ? ["م", "w"] : ["—", "x"];
+    if (!r) return regDone(s) ? ["غ", "a"] : ["…", "x"];
+    return r.status === "manual" ? ["ي", "m"] : r.status === "pending" ? ["م", "w"] : ["ح", "p"];
+  }
+  async function saveWb(wb, name) {
+    const buf = await wb.xlsx.writeBuffer(), url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  function sheetTitle(ws, cols, title, sub) {
+    ws.mergeCells(1, 1, 1, cols); ws.mergeCells(2, 1, 2, cols);
+    Object.assign(ws.getCell(1, 1), { value: title }); ws.getCell(1, 1).font = { name: "Arial", size: 15, bold: true, color: { argb: XC.title } };
+    Object.assign(ws.getCell(2, 1), { value: sub }); ws.getCell(2, 1).font = { name: "Arial", size: 10, color: { argb: XC.muted } };
+    ws.getRow(1).height = 26; ws.getRow(2).height = 18;
+    [1, 2].forEach(r => ws.getCell(r, 1).alignment = { horizontal: "right", vertical: "middle", readingOrder: "rtl" });
+  }
+  function headRow(ws, r, vals, wrap) {
+    const row = ws.getRow(r); vals.forEach((v, j) => { row.getCell(j + 1).value = v; }); row.height = wrap ? 46 : 22;
+    row.eachCell(cl => { cl.fill = fill(XC.head); cl.font = { name: "Arial", bold: true, size: 10, color: { argb: XC.headInk } }; cl.alignment = { horizontal: "center", vertical: "middle", wrapText: true, readingOrder: "rtl" }; cl.border = box; });
+  }
+  function courseSub(c) { return [c.name, clsLabel(c), "اتصدّر " + new Date().toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" })].filter(Boolean).join(" · "); }
+  function registerSheet(wb, name, rows, ss, c) {
+    const ws = wb.addWorksheet(name, { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 5 }], properties: { defaultRowHeight: 18 } });
+    const N = 3 + ss.length + 5;
+    sheetTitle(ws, N, "كشف حضور " + c.name, courseSub(c));
+    const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[Math.min(absences(e), 4)]++);
+    ws.mergeCells(3, 1, 3, N);
+    ws.getCell(3, 1).value = rows.length + " طالب · " + ss.length + " محاضرة · " + [1, 2, 3, 4].map(i => CM.warnOf(i).t + ": " + cnt[i]).join(" · ") + "   |   ح حاضر · ي يدوي · ت تعويض · م معلّق · غ غايب · — مش لمجموعته";
+    ws.getCell(3, 1).font = { name: "Arial", size: 9, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
+    headRow(ws, 5, ["الكود", "الاسم", "المجموعة", ...ss.map(s => "م" + s.n + (s.grp ? "\nمج " + s.grp : "") + "\n" + new Date(s.started_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Africa/Cairo" })), "حضر", "غاب", "النسبة", "الحالة", "ملاحظة"], true);
+    rows.forEach((e, i) => {
+      const a = attendance(e), ab = absences(e), w = Math.min(ab, 4), cells = ss.map(s => xlCell(s, e));
+      const row = ws.getRow(6 + i);
+      [isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", ...cells.map(x => x[0]), a.att, ab, a.own ? a.pct / 100 : null, CM.warnOf(ab).t, ""].forEach((v, j) => { row.getCell(j + 1).value = v; });
+      row.eachCell({ includeEmpty: true }, (cl, j) => {
+        cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: j === 2 ? "right" : "center", vertical: "middle", readingOrder: "rtl" };
+        if (i % 2) cl.fill = fill(XC.band);
+      });
+      cells.forEach(([, k], j) => { const cl = row.getCell(4 + j); if (XC[k][0]) cl.fill = fill(XC[k][0]); cl.font = { name: "Arial", size: 10, bold: k !== "x", color: { argb: XC[k][1] } }; });
+      const pc = row.getCell(4 + ss.length + 2); pc.numFmt = "0%";
+      const stc = row.getCell(4 + ss.length + 3); stc.fill = fill(WARNX[w][0]); stc.font = { name: "Arial", size: 10, bold: true, color: { argb: WARNX[w][1] } };
     });
-    const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = [{ wch: 12 }, { wch: 26 }, { wch: 9 }, ...ss.map(() => ({ wch: 18 })), { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 18 }];
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "الحضور"); wb.Workbook = { Views: [{ RTL: true }] };
-    XLSX.writeFile(wb, "حضور " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
+    ws.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5 + rows.length, column: N } };
+    ws.columns.forEach((col, j) => { col.width = j === 0 ? 12 : j === 1 ? 30 : j === 2 ? 9 : j < 3 + ss.length ? 7 : j === N - 2 ? 16 : j === N - 1 ? 18 : 8; });
+    ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "5:5" };
   }
+  async function exportXlsx() {
+    const btn = $("#exp"); if (btn) { btn.disabled = true; btn.textContent = "بيجهّز الشيت…"; }
+    try {
+      await loadExcelJS();
+      const c = course(), gs = groupsOf(), wb = new ExcelJS.Workbook(); wb.creator = "Classmate"; wb.created = new Date();
+      const all = D.enroll.slice().sort(byGroupName);
+      registerSheet(wb, "الكل", all, D.sessions, c);
+      if (gs.length > 1) gs.forEach(g => { const rows = all.filter(e => e.grp === g); registerSheet(wb, "مجموعة " + g, rows, D.sessions.filter(s => !s.grp || s.grp === g || rows.some(e => (D.att[s.id] || {})[e.student_code])), c); });
+      await saveWb(wb, "حضور " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
+    } catch (e) { showErr(e); }
+    if (btn) { btn.disabled = false; btn.textContent = "تصدير شيت إكسيل"; }
+  }
+  async function exportTemplate() {
+    const btn = $("#tplBtn"); if (btn) btn.disabled = true;
+    try {
+      await loadExcelJS();
+      const c = course(), wb = new ExcelJS.Workbook(), rows = D.enroll.slice().sort(byGroupName), K = 8;
+      const ws = wb.addWorksheet("التحضير", { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 4 }] });
+      sheetTitle(ws, 3 + K, "تحضير محاضرات قديمة · " + c.name, "اكتب تاريخ المحاضرة مكان «تاريخ المحاضرة» (مثلا 03-أكتوبر-2026)، وتحت التاريخ اكتب ح للحاضر وغ للغايب. سيب الخانة فاضية لو المحاضرة مش لمجموعته. وبعدين ارفع الشيت من «رفع حضور محاضرات قديمة».");
+      ws.getCell(2, 1).alignment = { horizontal: "right", vertical: "middle", wrapText: true, readingOrder: "rtl" }; ws.getRow(2).height = 52;
+      headRow(ws, 4, ["الكود", "الاسم", "المجموعة", ...Array.from({ length: K }, () => "تاريخ المحاضرة")], false);
+      for (let j = 0; j < K; j++) { const h = ws.getCell(4, 4 + j); h.numFmt = "@"; h.fill = fill("FF1F6B57"); }
+      rows.forEach((e, i) => {
+        const row = ws.getRow(5 + i);
+        [e.student_code, e.name, e.grp || "—"].forEach((v, j) => { row.getCell(j + 1).value = v; });
+        for (let j = 1; j <= 3 + K; j++) { const cl = row.getCell(j); cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: j === 2 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (j <= 3) cl.numFmt = "@"; if (i % 2) cl.fill = fill(XC.band); }
+        for (let j = 0; j < K; j++) row.getCell(4 + j).dataValidation = { type: "list", allowBlank: true, formulae: ['"ح,غ"'], showErrorMessage: true, errorTitle: "ح أو غ", error: "اكتب ح للحاضر أو غ للغايب، أو سيبها فاضية." };
+      });
+      ws.columns.forEach((col, j) => { col.width = j === 0 ? 13 : j === 1 ? 30 : j === 2 ? 10 : 16; });
+      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + rows.length, column: 3 } };
+      const hw = wb.addWorksheet("طريقة الاستخدام", { views: [{ rightToLeft: true }] });
+      [["إزاي تحضّر محاضرات قديمة"], [""], ["1. في شيت «التحضير»، اكتب تاريخ المحاضرة في أول السطر مكان «تاريخ المحاضرة». كل عمود = محاضرة واحدة."],
+       ["   أشكال التاريخ اللي بنفهمها: 03-أكتوبر-2026 أو 3/10/2026 (اليوم الأول) أو 2026-10-03."],
+       ["2. تحت التاريخ اكتب ح للطالب الحاضر وغ للغايب (فيه قايمة تختار منها)."],
+       ["3. لو المحاضرة كانت لمجموعة واحدة، علّم طلبة المجموعة دي بس وسيب الباقي فاضي. البرنامج بيعرف المجموعة لوحده."],
+       ["4. ارفع الشيت من كشف الحضور ← «رفع حضور محاضرات قديمة». هتشوف ملخص لكل محاضرة قبل ما يتسجل."],
+       ["5. المحاضرات القديمة بتترتب بتاريخها قبل محاضرات البرنامج، والإنذارات بتتحسب عليها."],
+       ["6. لو رفعت نفس التاريخ تاني، الحضور بيتحدث ومش بيتكرر. والطالب اللي اتسجل في البرنامج نفسه مش بيتشال."],
+       [""], ["متغيّرش عمود الكود. الأسماء والمجموعة للقراية بس."]].forEach((r, i) => { const cl = hw.getCell(1 + i, 1); cl.value = r[0]; cl.font = { name: "Arial", size: i ? 11 : 14, bold: !i, color: { argb: i ? "FF15211E" : XC.title } }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
+      hw.getColumn(1).width = 110;
+      await saveWb(wb, "تحضير محاضرات قديمة - " + c.name + ".xlsx");
+    } catch (e) { showErr(e); }
+    if (btn) btn.disabled = false;
+  }
+
+  /* import: header row with a code column; every other column whose header is a date and that has ح / غ marks is one lecture */
+  const AR_MONTHS = [["يناير", "jan"], ["فبراير", "feb"], ["مارس", "mar"], ["ابريل", "apr", "إبريل", "أبريل"], ["مايو", "may"], ["يونيو", "jun", "يونية"], ["يوليو", "jul", "يولية"], ["اغسطس", "aug", "أغسطس"], ["سبتمبر", "sep"], ["اكتوبر", "oct", "أكتوبر"], ["نوفمبر", "nov"], ["ديسمبر", "dec"]];
+  const digits = s => String(s).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d));
+  function parseDay(v) {
+    const ok = (y, m, d) => { if (y < 100) y += 2000; const t = new Date(Date.UTC(y, m - 1, d)); return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d && y > 2000 && y < 2100 ? t.toISOString().slice(0, 10) : null; };
+    if (typeof v === "number" && v > 30000 && v < 80000) { const t = new Date(Math.round((v - 25569) * 864e5)); return ok(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate()); }
+    if (v instanceof Date && !isNaN(v)) return ok(v.getFullYear(), v.getMonth() + 1, v.getDate());
+    const s = digits(v).trim().toLowerCase().replace(/[ً-ْـ]/g, ""); let m;
+    if ((m = s.match(/^(\d{1,2})[\s\-\/.,]*([^\d\s\-\/.,]+)[\s\-\/.,]*(\d{2,4})$/))) {
+      const mi = AR_MONTHS.findIndex(names => names.some(n => m[2].replace(/[أإآ]/g, "ا").startsWith(n.replace(/[أإآ]/g, "ا"))));
+      return mi < 0 ? null : ok(+m[3], mi + 1, +m[1]);
+    }
+    if ((m = s.match(/^(\d{4})[\-\/.](\d{1,2})[\-\/.](\d{1,2})$/))) return ok(+m[1], +m[2], +m[3]);
+    if ((m = s.match(/^(\d{1,2})[\-\/.](\d{1,2})[\-\/.](\d{2,4})$/))) return ok(+m[3], +m[2], +m[1]);
+    return null;
+  }
+  const markOf = v => { const s = digits(v).trim().toLowerCase().replace(/[ً-ْـ\s]/g, ""); if (!s) return ""; if (/^(ح|حاضر|حاضره|حاضرة|حضر|ي|ت|✓|✔|1|p|present)$/.test(s)) return "p"; if (/^(غ|غايب|غائب|غياب|غايبه|غائبة|x|✗|✘|0|a|absent)$/.test(s)) return "a"; return "?"; };
+  let imp = null;
+  function importPast(file) {
+    if (!file) return;
+    const fr = new FileReader();
+    fr.onload = ev => {
+      try {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array" });
+        const sn = wb.SheetNames.find(n => n.trim() === "التحضير") || wb.SheetNames[0];
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: "", raw: true });
+        const hr = rows.findIndex((r, i) => i < 15 && r.some(v => /^(ال)?كود|code/i.test(String(v).trim())));
+        if (hr < 0) throw { message: "معرفناش نلاقي عمود «الكود» في الشيت." };
+        const h = rows[hr], ci = h.findIndex(v => /^(ال)?كود|code/i.test(String(v).trim()));
+        const skip = new Set([ci, h.findIndex(v => /اسم|name/i.test(String(v))), h.findIndex(v => /مجموع|group/i.test(String(v)))]);
+        const enr = new Map(D.enroll.map(e => [e.student_code, e])), body = rows.slice(hr + 1).filter(r => String(r[ci] ?? "").trim());
+        const cols = [];
+        h.forEach((hv, j) => {
+          if (skip.has(j)) return;
+          const marks = body.map(r => [digits(r[ci]).trim(), markOf(r[j])]).filter(x => x[1]);
+          if (!marks.length) return;
+          const day = parseDay(hv), present = [], absent = [], notIn = [], odd = [];
+          marks.forEach(([code, m]) => { if (m === "?") return odd.push(code); if (!enr.has(code)) return notIn.push(code); (m === "p" ? present : absent).push(code); });
+          const gset = [...new Set([...present, ...absent].map(k => enr.get(k).grp).filter(Boolean))];
+          cols.push({ head: String(hv instanceof Date ? hv.toLocaleDateString() : hv).trim() || "(من غير عنوان)", day, present, absent, notIn, odd, grp: gset.length === 1 ? gset[0] : "", on: !!day && day <= cairoDay(Date.now()) && present.length + absent.length > 0 });
+        });
+        if (!cols.length) throw { message: "مفيش أعمدة فيها ح أو غ في الشيت." };
+        imp = { file: file.name, cols: cols.sort((a, b) => String(a.day).localeCompare(String(b.day))) };
+      } catch (e) { imp = null; showErr(e); }
+      renderRegister();
+      const b = $("#impBox"); if (b && b.scrollIntoView) b.scrollIntoView({ block: "nearest" });
+    };
+    fr.readAsArrayBuffer(file);
+  }
+  function impBoxHtml() {
+    if (!imp) return "";
+    const today = cairoDay(Date.now()), gs = groupsOf();
+    const line = (x, i) => {
+      const bad = !x.day ? "التاريخ مش مفهوم" : x.day > today ? "تاريخ في المستقبل" : !(x.present.length + x.absent.length) ? "مفيش طلبة من المادة" : "";
+      const ex = x.day && D.sessions.find(s => cairoDay(s.started_at) === x.day && (s.grp || "") === (x.grp || ""));
+      const marked = new Set([...x.present, ...x.absent]), blanks = D.enroll.filter(e => (!x.grp || e.grp === x.grp) && !marked.has(e.student_code)).length;
+      const notes = [ex ? `<span class="chip warn">موجودة بالفعل (م${ex.n})، هيتحدث حضورها</span>` : "", blanks ? `${blanks} طالب من ${x.grp ? "مجموعة " + esc(x.grp) : "الدفعة"} من غير علامة هيتحسبوا غياب` : "", x.notIn.length ? `${x.notIn.length} كود مش في المادة هيتجاهلوا` : "", x.odd.length ? `${x.odd.length} خانة مكتوب فيها حاجة غير ح أو غ هتتجاهل` : ""].filter(Boolean).join(" · ");
+      return `<tr class="${bad ? "bad-row" : ""}"><td class="cb"><input type="checkbox" data-ion="${i}" ${x.on && !bad ? "checked" : ""} ${bad ? "disabled" : ""}></td>
+        <td><b>${x.day ? new Date(x.day + "T12:00:00Z").toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : esc(x.head)}</b>${bad ? `<div class="small" style="color:var(--bad)">${bad}: «${esc(x.head)}»</div>` : ""}</td>
+        <td><select data-igrp="${i}" ${bad ? "disabled" : ""}><option value="">الدفعة كلها</option>${gs.map(g => `<option value="${esc(g)}" ${x.grp === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></td>
+        <td class="c"><span class="chip ok">${x.present.length}</span></td><td class="c"><span class="chip bad">${x.absent.length}</span></td>
+        <td class="small muted">${notes}</td></tr>`;
+    };
+    const n = imp.cols.filter(x => x.on && x.day && x.day <= today).length;
+    return `<div class="note-box imp" id="impBox"><b>شيت «${esc(imp.file)}»: لقينا ${imp.cols.length} محاضرة</b>
+      <span class="small">راجع التاريخ والمجموعة لكل محاضرة. اللي عليها علامة ✓ بس هي اللي هتترفع.</span>
+      <div class="tbl-wrap"><table><thead><tr><th class="cb"></th><th>المحاضرة</th><th>المجموعة</th><th class="c">ح</th><th class="c">غ</th><th>ملاحظات</th></tr></thead><tbody>${imp.cols.map(line).join("")}</tbody></table></div>
+      <div class="row"><button class="btn sm primary" id="impGo" ${n ? "" : "disabled"}>${imp.busy ? "بيرفع…" : "ارفع حضور " + n + " محاضرة"}</button><button class="btn sm ghost" id="impNo">إلغاء</button></div></div>`;
+  }
+  function wireImp(el) {
+    if (!imp) return;
+    el.querySelectorAll("[data-ion]").forEach(cb => cb.onchange = () => { imp.cols[+cb.dataset.ion].on = cb.checked; renderRegister(); });
+    el.querySelectorAll("[data-igrp]").forEach(sel => sel.onchange = () => { imp.cols[+sel.dataset.igrp].grp = sel.value; renderRegister(); });
+    $("#impNo").onclick = () => { imp = null; renderRegister(); };
+    $("#impGo").onclick = async () => {
+      if (imp.busy) return;
+      const c = course(), today = cairoDay(Date.now()), todo = imp.cols.filter(x => x.on && x.day && x.day <= today);
+      imp.busy = true; renderRegister();
+      let made = 0, upd = 0;
+      try {
+        for (const x of todo) { const r = await rpc("import_lecture", { cid: c.id, p_date: x.day, p_grp: x.grp, p_present: x.present, p_absent: x.absent }); r.created ? made++ : upd++; }
+        say("reg", "اترفع حضور " + todo.length + " محاضرة من «" + imp.file + "»" + (made ? "، منهم " + made + " محاضرة جديدة" : "") + (upd ? "، و" + upd + " اتحدّث حضورها" : "") + ". المحاضرات اترتبت بتاريخها.");
+        imp = null;
+      } catch (e) { imp.busy = false; say("reg", "!" + errText(e) + (made + upd ? " (اترفع " + (made + upd) + " محاضرة قبل الغلطة)" : "")); }
+      await loadCourse().catch(showErr);
+    };
+  }
+
 
   /* ---------- roster ---------- */
   function renderRoster() {
@@ -641,7 +896,7 @@
       } catch (e) { say("roster", "!" + errText(e)); renderRoster(); }
     };
     const rq = $("#rsQ"); if (rq) rq.oninput = () => { rv.q = rq.value; renderRosterTable(); };
-    const rc = $("#rsClear"); if (rc) rc.onclick = () => { rv.q = ""; rv.sort = { col: "code", dir: 1 }; rv.f = { grp: null, acc: null }; if (rq) rq.value = ""; closeFpop(); renderRosterTable(); };
+    const rc = $("#rsClear"); if (rc) rc.onclick = () => { rv.q = ""; rv.sort = { col: "code", dir: 1 }; rv.f = { grp: null, acc: null, now: null }; if (rq) rq.value = ""; closeFpop(); renderRosterTable(); };
     const rw = $("#rsWrap"); if (rw) rw.onscroll = closeFpop;
     renderRosterTable();
   }
@@ -651,64 +906,88 @@
   const ACC = { bound: "مربوط بموبايل", reg: "مستني يربط موبايل", none: "ماعملش حساب" };
   const accOf = e => { const b = D.bindings[e.student_code] || {}; return b.device_bound ? "bound" : b.registered ? "reg" : "none"; };
   const grpOf = e => e.grp || "";
+  const NOWL = { p: "حاضر", w: "معلّق", n: "لسه ماتسجلش" };
+  const markSess = () => { const s = D && running(), c = course(); return s && !s.ended && canRun(c) ? s : null; };
+  const nowOf = e => { const s = markSess(), r = s && (D.att[s.id] || {})[e.student_code]; return counted(r) ? "p" : r ? "w" : "n"; };
+  let rosterMan = null;
   const RCOLS = {
     code: { t: "الكود", v: e => e.student_code, num: true, up: "من الأصغر للأكبر", down: "من الأكبر للأصغر" },
     name: { t: "الاسم", v: e => e.name, up: "أ ← ي", down: "ي ← أ" },
     grp: { t: "المجموعة", v: grpOf, list: true, lab: g => g ? "مجموعة " + g : "من غير مجموعة", up: "أ ← ي", down: "ي ← أ" },
-    acc: { t: "الحساب", v: accOf, list: true, lab: a => ACC[a], key: e => ["none", "reg", "bound"].indexOf(accOf(e)), up: "اللي ماعملوش حساب الأول", down: "المربوطين الأول" }
+    acc: { t: "الحساب", v: accOf, list: true, ord: ["none", "reg", "bound"], lab: a => ACC[a], key: e => ["none", "reg", "bound"].indexOf(accOf(e)), up: "اللي ماعملوش حساب الأول", down: "المربوطين الأول" },
+    now: { t: "حضور المحاضرة", v: e => nowOf(e), list: true, ord: ["n", "w", "p"], lab: x => NOWL[x], key: e => ["n", "w", "p"].indexOf(nowOf(e)), up: "اللي لسه الأول", down: "الحاضرين الأول" }
   };
   const normAr = x => String(x || "").toLowerCase().replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/\s+/g, " ").trim();
   function rosterRows() {
-    if (rv.cid !== D.cid) rv = { cid: D.cid, q: "", sort: { col: "code", dir: 1 }, f: { grp: null, acc: null } };
+    if (rv.cid !== D.cid) rv = { cid: D.cid, q: "", sort: { col: "code", dir: 1 }, f: { grp: null, acc: null, now: null } };
+    if (!markSess()) { rv.f.now = null; if (rv.sort.col === "now") rv.sort = { col: "code", dir: 1 }; }
     const q = normAr(rv.q);
     const rows = D.enroll.filter(e => (!q || normAr(e.name).includes(q) || e.student_code.toLowerCase().includes(q))
-      && (!rv.f.grp || rv.f.grp.has(grpOf(e))) && (!rv.f.acc || rv.f.acc.has(accOf(e))));
+      && (!rv.f.grp || rv.f.grp.has(grpOf(e))) && (!rv.f.acc || rv.f.acc.has(accOf(e))) && (!rv.f.now || rv.f.now.has(nowOf(e))));
     const col = RCOLS[rv.sort.col], d = rv.sort.dir;
     const cmp = (a, b) => col.key ? col.key(a) - col.key(b) : String(col.v(a)).localeCompare(String(col.v(b)), col.num ? "en" : "ar", { numeric: true, sensitivity: "base" });
     return rows.sort((a, b) => d * cmp(a, b) || a.student_code.localeCompare(b.student_code, "en", { numeric: true }));
   }
   function renderRosterTable() {
     const tb = $("#rsTbl"); if (!tb || !D) return;
-    const c = course(), mng = canManage(c), rows = rosterRows();
+    const c = course(), mng = canManage(c), rows = rosterRows(), ms = markSess(), ncol = 4 + (ms ? 1 : 0) + (mng ? 1 : 0);
+    if (rosterMan && (!ms || counted((D.att[ms.id] || {})[rosterMan]))) rosterMan = null;
     const head = k => { const C = RCOLS[k], srt = rv.sort.col === k, flt = C.list && rv.f[k];
-      return `<th><button class="fh ${srt || flt ? "on" : ""}" data-fcol="${k}" aria-haspopup="true">${C.t}<span class="fh-i">${srt ? (rv.sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button></th>`; };
-    tb.innerHTML = `<thead><tr>${head("code")}${head("name")}${head("grp")}${head("acc")}${mng ? "<th></th>" : ""}</tr></thead><tbody>
-      ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td>${esc(e.name)}</td>
+      return `<th><button class="fh ${srt || flt ? "on" : ""}" data-fcol="${k}" aria-haspopup="true">${k === "now" && ms ? "المحاضرة " + ms.n : C.t}<span class="fh-i">${srt ? (rv.sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button></th>`; };
+    const nowCell = e => { const r = (D.att[ms.id] || {})[e.student_code], code = esc(e.student_code);
+      if (counted(r)) return `<span class="chip ${r.status === "manual" || r.makeup ? "man" : "ok"}">${r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · QR" : "حاضر"}</span>`;
+      if (r) return `<span class="chip warn">معلّق</span> <button class="btn sm" data-rap="${code}">موافقة</button>`;
+      return `<button class="btn sm primary" data-rman="${code}" ${rosterMan === e.student_code ? "aria-pressed=\"true\"" : ""}>تحضير${isOwn(ms, e) ? "" : " (تعويض)"}</button>`; };
+    tb.innerHTML = `<thead><tr>${head("code")}${head("name")}${ms ? head("now") : ""}${head("grp")}${head("acc")}${mng ? "<th></th>" : ""}</tr></thead><tbody>
+      ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td>${esc(e.name)}</td>${ms ? `<td style="white-space:nowrap">${nowCell(e)}</td>` : ""}
         <td>${mng ? `<select data-grp="${esc(e.student_code)}" style="width:auto;padding:3px 6px">${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${esc(g) || "—"}</option>`).join("")}</select>` : esc(e.grp || "—")}</td>
         <td>${b.device_bound ? `<span class="chip ok">مربوط بموبايل</span>` : b.registered ? `<span class="chip warn">مستني يربط موبايل</span>` : `<span class="chip none">ماعملش حساب</span>`}</td>
-        ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الموبايل"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "مسح الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "شيل من المادة"}</button></div></td>` : ""}</tr>`; }).join("")
-        : `<tr><td colspan="${mng ? 5 : 4}"><div class="empty">مفيش طلبة مطابقين للبحث أو الفلتر.</div></td></tr>`}
+        ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الموبايل"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "مسح الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "شيل من المادة"}</button></div></td>` : ""}</tr>
+        ${ms && rosterMan === e.student_code ? `<tr class="manrow"><td colspan="${ncol}">${manBoxHtml([e.student_code], "rsm")}<span class="small muted">دوس على سبب من الأسباب وهيتسجل على طول، أو اكتب سبب ودوس «سجّله حاضر».</span></td></tr>` : ""}`; }).join("")
+        : `<tr><td colspan="${ncol}"><div class="empty">مفيش طلبة مطابقين للبحث أو الفلتر.</div></td></tr>`}
       </tbody>`;
-    const busy = !!rv.q.trim() || !!rv.f.grp || !!rv.f.acc || rv.sort.col !== "code" || rv.sort.dir !== 1;
+    const busy = !!rv.q.trim() || !!rv.f.grp || !!rv.f.acc || !!rv.f.now || rv.sort.col !== "code" || rv.sort.dir !== 1;
     const cnt = $("#rsCount"); if (cnt) cnt.textContent = rows.length === D.enroll.length ? D.enroll.length + " طالب" : "عرض " + rows.length + " من " + D.enroll.length;
     const rc = $("#rsClear"); if (rc) rc.hidden = !busy;
-    tb.querySelectorAll("[data-fcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === b.dataset.fcol ? closeFpop() : openFpop(b); });
+    tb.querySelectorAll("[data-fcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === b.dataset.fcol ? closeFpop() : openFpop(b, RG, ""); });
     const again = () => { renderRosterTable(); };
+    if (ms) {
+      const afterMark = async () => { await refreshLive(); keepScroll("#rosterPanel", renderRosterTable); };
+      tb.querySelectorAll("[data-rman]").forEach(b => b.onclick = () => { rosterMan = rosterMan === b.dataset.rman ? null : b.dataset.rman; manDraft = ""; keepScroll("#rosterPanel", renderRosterTable); const i = $("#rsmReason"); if (i) { i.focus({ preventScroll: true }); } });
+      tb.querySelectorAll("[data-rap]").forEach(b => b.onclick = () => act(() => rpc("approve_attendance", { sid: ms.id, code: b.dataset.rap }), afterMark));
+      if (rosterMan) {
+        const code = rosterMan;
+        wireManBox(tb, "rsm", [code], ms.id, ok => { rosterMan = null; if (ok) say("roster", "اتسجل " + nameOf(code) + " حاضر في المحاضرة " + ms.n + "."); keepScroll("#rosterPanel", renderRoster); });
+        tb.querySelectorAll("[data-mq]").forEach(q => q.onclick = () => { const inp = $("#rsmReason"); inp.value = q.dataset.mq; manDraft = q.dataset.mq; $("#rsmSave").click(); });
+      }
+    }
     tb.querySelectorAll("[data-rmst]").forEach(b => b.onclick = () => { const k = "rmst:" + b.dataset.rmst; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; const nm = nameOf(b.dataset.rmst); act(async () => { await rpc("remove_student", { cid: c.id, code: b.dataset.rmst }); say("roster", "اتشال " + nm + " من المادة."); }, loadCourse); });
     tb.querySelectorAll("[data-grp]").forEach(sel => sel.onchange = () => act(() => rpc("set_group", { cid: c.id, code: sel.dataset.grp, p_grp: sel.value }), loadCourse));
     tb.querySelectorAll("[data-dev]").forEach(b => b.onclick = () => { const k = "dev:" + b.dataset.dev; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_device", { cid: c.id, code: b.dataset.dev }); say("roster", "اتفك ربط موبايل " + nameOf(b.dataset.dev) + ". أول دخول جاي هيربطه بالموبايل الجديد."); }, loadCourse); });
     tb.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => { const k = "acc:" + b.dataset.acc; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_account", { cid: c.id, code: b.dataset.acc }); say("roster", "اتمسح حساب " + nameOf(b.dataset.acc) + ". يقدر يعمل حساب جديد من «أول مرة»."); }, loadCourse); });
   }
   function closeFpop() { fpopCol = null; const p = $("#fpop"); if (p) p.hidden = true; }
-  function openFpop(btn) {
-    const k = btn.dataset.fcol, C = RCOLS[k];
+  const RG = { cols: RCOLS, st: () => rv, all: () => D.enroll, redraw: () => renderRosterTable() };
+  function openFpop(btn, G = RG, pre = "") {
+    const k = btn.dataset.fcol || btn.dataset.lcol, C = G.cols[k];
     let p = $("#fpop"); if (!p) { p = document.createElement("div"); p.id = "fpop"; p.className = "fpop"; document.body.appendChild(p); p.onclick = ev => ev.stopPropagation(); }
-    fpopCol = k;
+    fpopCol = pre + k;
     const draw = () => {
-      const vals = C.list ? [...new Set(D.enroll.map(C.v))].sort((a, b) => k === "acc" ? ["none", "reg", "bound"].indexOf(a) - ["none", "reg", "bound"].indexOf(b) : a.localeCompare(b, "ar")) : [];
-      const sel = C.list ? (rv.f[k] || new Set(vals)) : null, cntOf = v => D.enroll.filter(e => C.v(e) === v).length;
+      const st = G.st(), all = G.all(), cur = st.sort || (G.defSort && G.defSort()) || {};
+      const vals = C.list ? [...new Set(all.map(C.v))].sort((a, b) => C.ord ? C.ord.indexOf(a) - C.ord.indexOf(b) : String(a).localeCompare(String(b), "ar")) : [];
+      const sel = C.list ? (st.f[k] || new Set(vals)) : null, cntOf = v => all.filter(x => C.v(x) === v).length;
       p.innerHTML = `<div class="fp-h">${C.t}</div>
-        <button class="fp-i ${rv.sort.col === k && rv.sort.dir > 0 ? "on" : ""}" data-s="1">▲ ترتيب: ${C.up}</button>
-        <button class="fp-i ${rv.sort.col === k && rv.sort.dir < 0 ? "on" : ""}" data-s="-1">▼ ترتيب: ${C.down}</button>
+        <button class="fp-i ${cur.col === k && cur.dir > 0 ? "on" : ""}" data-s="1">▲ ترتيب: ${C.up}</button>
+        <button class="fp-i ${cur.col === k && cur.dir < 0 ? "on" : ""}" data-s="-1">▼ ترتيب: ${C.down}</button>
         ${C.list ? `<div class="fp-sep"></div>
           <label class="fp-c"><input type="checkbox" data-all ${sel.size === vals.length ? "checked" : ""}> <b>تحديد الكل</b></label>
           ${vals.map(v => `<label class="fp-c"><input type="checkbox" data-v="${esc(v)}" ${sel.has(v) ? "checked" : ""}> ${esc(C.lab(v))} <span class="muted">(${cntOf(v)})</span></label>`).join("")}
-          ${rv.f[k] ? `<button class="fp-i" data-clr>مسح فلتر «${C.t}»</button>` : ""}` : ""}`;
-      p.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { rv.sort = { col: k, dir: +b.dataset.s }; closeFpop(); renderRosterTable(); });
-      const setF = s2 => { rv.f[k] = s2.size === vals.length ? null : s2; renderRosterTable(); draw(); };
-      const all = p.querySelector("[data-all]"); if (all) all.onchange = () => setF(all.checked ? new Set(vals) : new Set());
-      p.querySelectorAll("[data-v]").forEach(cb => cb.onchange = () => { const s2 = new Set(rv.f[k] || vals); cb.checked ? s2.add(cb.dataset.v) : s2.delete(cb.dataset.v); setF(s2); });
-      const clr = p.querySelector("[data-clr]"); if (clr) clr.onclick = () => { rv.f[k] = null; renderRosterTable(); draw(); };
+          ${st.f[k] ? `<button class="fp-i" data-clr>مسح فلتر «${C.t}»</button>` : ""}` : ""}`;
+      p.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { st.sort = { col: k, dir: +b.dataset.s }; closeFpop(); G.redraw(); });
+      const setF = s2 => { st.f[k] = s2.size === vals.length ? null : s2; G.redraw(); draw(); };
+      const all2 = p.querySelector("[data-all]"); if (all2) all2.onchange = () => setF(all2.checked ? new Set(vals) : new Set());
+      p.querySelectorAll("[data-v]").forEach(cb => cb.onchange = () => { const s2 = new Set(st.f[k] || vals); cb.checked ? s2.add(cb.dataset.v) : s2.delete(cb.dataset.v); setF(s2); });
+      const clr = p.querySelector("[data-clr]"); if (clr) clr.onclick = () => { st.f[k] = null; G.redraw(); draw(); };
     };
     draw();
     p.hidden = false;

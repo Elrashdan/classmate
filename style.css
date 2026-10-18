@@ -171,3 +171,21 @@ tr.withdrawn td{background:var(--bad-soft)}
 th.th-on{background:var(--bad-soft)!important}
 .note-box{border-radius:10px;padding:12px 14px;display:grid;gap:6px;margin:8px 0}
 .note-box.bad{background:var(--bad-soft)} .note-box.bad>b{color:var(--bad)}
+/* live table: selection + bulk actions */
+th.cb,td.cb{width:34px;padding-inline:8px;text-align:center}
+th.cb input,td.cb input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+.lvt tr.sel td{background:var(--accent-soft)}
+.lvt td{white-space:nowrap}
+.lvt td:nth-child(3),.lvt td:nth-child(8){white-space:normal}
+.lvt td:nth-child(8){min-width:180px}
+.bulk{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;margin:8px 0;background:var(--sunk);border:1px solid var(--line);border-radius:8px}
+.tabs .cnt{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--warn);color:#fff;font-size:11px;line-height:18px;text-align:center}
+.note-box.manbox{background:var(--accent-soft);padding:12px 14px}
+tr.manrow td{background:var(--sunk)}
+tr.manrow .note-box{margin:0 0 6px}
+/* register: past lectures import */
+.past{align-items:center;gap:8px;margin:6px 0}
+.note-box.imp{background:var(--sunk);border:1px solid var(--line)}
+.note-box.imp select{width:auto;padding:3px 6px}
+tr.bad-row td{background:var(--bad-soft)}
+tr.manrow td>div{position:sticky;right:0;max-width:min(620px,calc(100vw - 72px))}
