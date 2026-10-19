@@ -1,3 +1,8 @@
+/*!
+ * Classmate · نظام تسجيل الحضور الإلكتروني
+ * © 2026 أحمد محمد راشد حامد (Ahmed Mohamed Rashed Hamed). جميع الحقوق محفوظة. All rights reserved.
+ * لا يجوز النسخ أو التعديل أو إعادة النشر إلا بإذن كتابي من صاحب الحق.
+ */
 // Classmate — shared helpers for the student and staff apps
 (function () {
   const cfg = window.CLASSMATE || {};
@@ -20,52 +25,52 @@
   };
 
   // absence warnings
-  CM.WARN = [{ t: "منتظم", k: "ok" }, { t: "إنذار أول", k: "warn" }, { t: "إنذار ثاني", k: "warn" }, { t: "إنذار ثالث ونهائي", k: "bad" }, { t: "انسحاب إجباري", k: "out" }];
+  CM.WARN = [{ t: "منتظم", k: "ok" }, { t: "إنذار أول", k: "warn" }, { t: "إنذار ثانٍ", k: "warn" }, { t: "إنذار ثالث ونهائي", k: "bad" }, { t: "انسحاب إجباري", k: "out" }];
   CM.warnOf = n => CM.WARN[Math.min(Math.max(n, 0), 4)];
   CM.warnChip = n => { const w = CM.warnOf(n); return `<span class="chip ${w.k}">${w.t}</span>`; };
 
   // server errors -> Arabic
   const ERR = {
-    not_allowed: "مش مسموحلك تعمل ده.",
-    not_found: "مش لاقيين البيانات دي، يمكن اتغيرت. حدّث الصفحة.",
-    session_running: "فيه محاضرة شغالة في المادة دي. أنهيها الأول.",
-    session_ended: "المحاضرة دي خلصت. التعديل عليها للمحاضر صاحب المادة بس.",
-    wrong_domain: "الإيميل لازم يكون على دومين الجامعة.",
-    bad_email: "الإيميل مش صحيح.",
+    not_allowed: "غير مسموح لك بهذا الإجراء.",
+    not_found: "تعذّر العثور على هذه البيانات، وربما تغيّرت. حدّث الصفحة.",
+    session_running: "توجد محاضرة جارية في هذه المادة. أنهِها أولًا.",
+    session_ended: "انتهت هذه المحاضرة. تعديلها متاح لصاحب المادة فقط.",
+    wrong_domain: "يجب أن يكون البريد على نطاق الجامعة.",
+    bad_email: "البريد الإلكتروني غير صحيح.",
     name_required: "اكتب الاسم.",
-    cannot_demote_self: "مينفعش تشيل صلاحية المسؤول من نفسك.",
-    cannot_change_self: "مينفعش توقف حسابك انت.",
-    domain_locks_you_out: "الدومين ده مش هيسمحلك انت نفسك تدخل. اكتب دومين إيميلك.",
-    empty_roster: "الشيت فاضي أو مفيهوش عمود للكود والاسم.",
-    bad_year: "العام الدراسي مش صحيح.",
-    bad_term: "اختار الترم.",
-    bad_level: "اختار المستوى.",
-    track_required: "المستوى ده لازم تختار له شعبة: عمارة داخلية أو سينوغرافيا.",
-    track_not_allowed: "المستوى الأول والتاني تخصص عام، من غير شعبة.",
-    reason_required: "اكتب سبب التسجيل اليدوي (3 حروف على الأقل).",
-    bad_date: "التاريخ مش مفهوم أو في المستقبل.",
-    bad_code: "كود الطالب لازم يكون أرقام أو حروف إنجليزي من غير مسافات.",
-    already_in_course: "الكود ده موجود في المادة قبل كده.",
-    already_owner: "ده صاحب المادة أصلا.",
-    confirm_mismatch: "الاسم اللي كتبته مش مطابق لاسم المادة.",
-    not_enrolled: "الكود ده مش موجود في شيت أي مادة. اتأكد منه أو كلّم المحاضر.",
-    already_registered: "الكود ده عليه حساب قبل كده. ادخل من «دخول». لو مش انت اللي عملته، كلّم المحاضر يمسح الحساب.",
-    weak_password: "كلمة السر لازم تكون 6 حروف أو أكتر.",
-    bad_pin: "رمز التفعيل غلط.",
-    not_registered: "مفيش حساب بالكود ده. اعمل حساب من «أول مرة».",
-    bad_password: "كلمة السر غلط.",
-    device_mismatch: "الحساب ده مربوط بموبايل تاني. لو غيرت موبايلك أو مسحت بيانات المتصفح، اطلب من المحاضر يفك ربط الجهاز.",
-    locked: "حاولت كتير. استنى ربع ساعة وجرب تاني.",
-    not_signed_in: "انتهت جلستك. ادخل تاني.",
-    bad_device: "المتصفح مش بيحفظ البيانات. اقفل وضع التصفح الخفي وجرب تاني."
+    cannot_demote_self: "لا يمكنك إزالة صلاحية المسؤول عن نفسك.",
+    cannot_change_self: "لا يمكنك إيقاف حسابك.",
+    domain_locks_you_out: "هذا النطاق لن يسمح لك أنت نفسك بالدخول. اكتب نطاق بريدك.",
+    empty_roster: "الملف فارغ أو لا يتضمن عمودًا للكود والاسم.",
+    bad_year: "العام الدراسي غير صحيح.",
+    bad_term: "اختر الفصل الدراسي.",
+    bad_level: "اختر المستوى.",
+    track_required: "يلزم اختيار شعبة لهذا المستوى: عمارة داخلية أو سينوغرافيا.",
+    track_not_allowed: "المستويان الأول والثاني تخصص عام، دون شعبة.",
+    reason_required: "اكتب سبب التسجيل اليدوي (3 أحرف على الأقل).",
+    bad_date: "التاريخ غير مفهوم أو في المستقبل.",
+    bad_code: "يجب أن يتكون كود الطالب من أرقام أو أحرف إنجليزية دون مسافات.",
+    already_in_course: "هذا الكود مسجَّل في المادة من قبل.",
+    already_owner: "هذا هو صاحب المادة بالفعل.",
+    confirm_mismatch: "الاسم المكتوب لا يطابق اسم المادة.",
+    not_enrolled: "هذا الكود غير موجود في ملف أي مادة. تأكّد منه أو تواصل مع المحاضر.",
+    already_registered: "يوجد حساب بهذا الكود من قبل. ادخل من «دخول». إذا لم تكن أنت من أنشأه، فاطلب من المحاضر حذف الحساب.",
+    weak_password: "يجب ألا تقل كلمة السر عن 6 أحرف.",
+    bad_pin: "رمز التفعيل غير صحيح.",
+    not_registered: "لا يوجد حساب بهذا الكود. أنشئ حسابًا من «إنشاء حساب».",
+    bad_password: "كلمة السر غير صحيحة.",
+    device_mismatch: "هذا الحساب مرتبط بهاتف آخر. إذا غيّرت هاتفك أو مسحت بيانات المتصفح، فاطلب من المحاضر فك ربط الجهاز.",
+    locked: "محاولات كثيرة. انتظر ربع ساعة ثم أعد المحاولة.",
+    not_signed_in: "انتهت جلستك. سجّل الدخول مرة أخرى.",
+    bad_device: "المتصفح لا يحفظ البيانات. أغلق وضع التصفح الخفي وأعد المحاولة."
   };
   CM.errText = e => {
     const m = (e && (e.message || e.error_description || e.msg)) || String(e || "");
     for (const k in ERR) if (m.includes(k)) return ERR[k];
-    if (/Failed to fetch|NetworkError|network/i.test(m)) return "مفيش اتصال بالإنترنت. اتأكد من الاتصال وجرب تاني.";
-    if (/rate limit|too many/i.test(m)) return "طلبات كتير ورا بعض. استنى دقيقة وجرب تاني.";
-    if (/Token has expired|invalid/i.test(m) && /otp|token/i.test(m)) return "الكود غلط أو انتهى. اطلب كود جديد.";
-    return "حصلت مشكلة: " + m;
+    if (/Failed to fetch|NetworkError|network/i.test(m)) return "لا يوجد اتصال بالإنترنت. تأكّد من الاتصال وأعد المحاولة.";
+    if (/rate limit|too many/i.test(m)) return "طلبات كثيرة متتالية. انتظر دقيقة ثم أعد المحاولة.";
+    if (/Token has expired|invalid/i.test(m) && /otp|token/i.test(m)) return "الرمز غير صحيح أو انتهت صلاحيته. اطلب رمزًا جديدًا.";
+    return "حدثت مشكلة: " + m;
   };
 
   CM.rpc = async (name, args) => {
@@ -109,7 +114,7 @@
 
 
   // theme: auto (follows the phone/computer) → light → dark. Saved per browser.
-  const THEMES = { auto: "تلقائي", light: "فاتح", dark: "غامق" };
+  const THEMES = { auto: "تلقائي", light: "فاتح", dark: "داكن" };
   const ICONS = {
     auto: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>',
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
@@ -121,9 +126,9 @@
     if (t === "auto") delete root.dataset.theme; else root.dataset.theme = t;
     const dark = t === "dark" || (t === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
     const mc = document.querySelector('meta[name="theme-color"]'); if (mc) mc.content = dark ? "#0e1513" : "#1d6b58";
-    document.querySelectorAll("[data-theme-btn]").forEach(b => { b.innerHTML = ICONS[t]; b.title = "الثيم: " + THEMES[t] + " (دوس للتغيير)"; b.setAttribute("aria-label", b.title); });
+    document.querySelectorAll("[data-theme-btn]").forEach(b => { b.innerHTML = ICONS[t]; b.title = "الثيم: " + THEMES[t] + " (اضغط للتغيير)"; b.setAttribute("aria-label", b.title); });
   };
-  CM.themeBtn = () => { const t = CM.theme(); return `<button class="btn sm ghost icon" data-theme-btn title="الثيم: ${THEMES[t]} (دوس للتغيير)" aria-label="الثيم: ${THEMES[t]}">${ICONS[t]}</button>`; };
+  CM.themeBtn = () => { const t = CM.theme(); return `<button class="btn sm ghost icon" data-theme-btn title="الثيم: ${THEMES[t]} (اضغط للتغيير)" aria-label="الثيم: ${THEMES[t]}">${ICONS[t]}</button>`; };
   document.addEventListener("click", ev => {
     const b = ev.target.closest && ev.target.closest("[data-theme-btn]"); if (!b) return;
     const next = { auto: "light", light: "dark", dark: "auto" }[CM.theme()];
@@ -133,6 +138,38 @@
   if (window.matchMedia) { try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme); } catch (e) {} }
   applyTheme();
 
-  CM.setupNotice = () => `<div class="panel setup"><h2>التطبيق لسه ما اتربطش بقاعدة البيانات</h2>
-    <p class="muted">افتح ملف <span class="mono">config.js</span> وحط فيه Project URL و anon key من Supabase، زي ما هو مشروح في دليل التشغيل.</p></div>`;
+
+  // ownership & copyright (shown on every page)
+  CM.APP = { name: "Classmate", title: "نظام تسجيل الحضور الإلكتروني", version: "1.0", released: "أكتوبر 2026", author: "أحمد محمد راشد حامد", year: "2026",
+    org: "قسم الديكور · كلية الفنون الجميلة · جامعة العاصمة" };
+  CM.copyright = () => `© ${CM.APP.year} ${CM.APP.author}. جميع الحقوق محفوظة.`;
+  function legal() {
+    if (document.querySelector("footer.legal")) return;
+    const A = CM.APP, f = document.createElement("footer");
+    f.className = "legal";
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version}</span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
+    const d = document.createElement("dialog");
+    d.className = "about"; d.id = "aboutDlg";
+    d.innerHTML = `<div class="about-in">
+      <div class="brand"><div class="mark">C</div><div><h2>${A.name}</h2><p class="muted small">${A.title} · الإصدار ${A.version} (${A.released})</p></div></div>
+      <dl>
+        <dt>الفكرة والتصميم والتطوير</dt><dd>${A.author}</dd>
+        <dt>الجهة</dt><dd>${A.org}</dd>
+        <dt>حقوق الملكية</dt><dd>${CM.copyright()}</dd>
+      </dl>
+      <p class="small">البرنامج بواجهاته وتصميمه وشفرته المصدرية وقواعد بياناته وأدلة استخدامه مصنَّف محمي بموجب قانون حماية حقوق الملكية الفكرية المصري رقم 82 لسنة 2002. ولا يجوز نسخه أو نسخ أي جزء منه أو تعديله أو إعادة نشره أو استخدامه في غير الغرض الذي أُتيح له، إلا بإذن كتابي مسبق من صاحب الحق.</p>
+      <p class="small muted">يُتاح استخدام البرنامج لأعضاء هيئة التدريس والطلبة المسجَّلين فيه لأغراض تسجيل الحضور داخل الكلية.</p>
+      <div class="row" style="justify-content:flex-end"><button type="button" class="btn sm" data-about-close>إغلاق</button></div>
+    </div>`;
+    document.body.appendChild(d);
+    document.addEventListener("click", ev => {
+      if (ev.target.closest && ev.target.closest("[data-about]")) { try { d.showModal(); } catch (e) { d.setAttribute("open", ""); } }
+      if (ev.target.closest && ev.target.closest("[data-about-close]") || ev.target === d) d.close ? d.close() : d.removeAttribute("open");
+    });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", legal); else legal();
+
+  CM.setupNotice = () => `<div class="panel setup"><h2>لم يُربط التطبيق بقاعدة البيانات بعد</h2>
+    <p class="muted">افتح ملف <span class="mono">config.js</span> وضع فيه Project URL و anon key من Supabase، كما هو موضّح في دليل التشغيل.</p></div>`;
 })();

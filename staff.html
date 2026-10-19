@@ -1,9 +1,16 @@
 <!doctype html>
+<!--
+  Classmate · نظام تسجيل الحضور الإلكتروني
+  © 2026 أحمد محمد راشد حامد (Ahmed Mohamed Rashed Hamed). جميع الحقوق محفوظة. All rights reserved.
+-->
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d6b58">
+<meta name="author" content="أحمد محمد راشد حامد">
+<meta name="copyright" content="© 2026 أحمد محمد راشد حامد. جميع الحقوق محفوظة.">
+<meta name="description" content="Classmate: نظام تسجيل الحضور الإلكتروني. تصميم وتطوير أحمد محمد راشد حامد.">
 <script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 <title>Classmate · المحاضرين</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -26,8 +33,8 @@
 <div class="scanov" id="scanOv" hidden>
   <video id="scanVid" playsinline muted autoplay></video>
   <div class="frame"><i></i></div>
-  <div class="res info" id="scanRes"><b>وجّه الكاميرا على كود الطالب</b><span>الطالب يفتح «كود الحضور» من موبايله.</span></div>
-  <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">قفل الكاميرا</button></div>
+  <div class="res info" id="scanRes"><b>وجّه الكاميرا نحو بطاقة الطالب</b><span>يفتح الطالب «بطاقة الحضور» على هاتفه.</span></div>
+  <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -41,8 +48,8 @@
   if (!CM.configured) { app.innerHTML = CM.setupNotice(); return; }
 
   const ROLE = { admin: "مسؤول", lecturer: "محاضر", ta: "معيد" };
-  const REASON = { wrong_code: "كود غلط", expired_code: "كود منتهي (غالبا اتبعت له)", device_used: "موبايل سجّل لطالب تاني", other_group: "من مجموعة تانية والتعويض مقفول", rejected_by_staff: "اترفض طلبه", bad_qr: "كود حضور (QR) مش صحيح", old_qr: "كود حضور (QR) قديم (غالبا صورة)" };
-  const reasonText = r => r.startsWith("too_far:") ? "برة نطاق القاعة (" + CM.dist(+r.split(":")[1]) + ")" : (REASON[r] || r);
+  const REASON = { wrong_code: "رمز خطأ", expired_code: "رمز منتهي الصلاحية (غالبًا أُرسل إليه)", device_used: "هاتف سُجِّل منه طالب آخر", other_group: "من مجموعة أخرى والتعويض غير متاح", rejected_by_staff: "رُفض طلبه", bad_qr: "بطاقة حضور غير صحيحة", old_qr: "بطاقة حضور قديمة (غالبًا صورة)" };
+  const reasonText = r => r.startsWith("too_far:") ? "خارج نطاق القاعة (" + CM.dist(+r.split(":")[1]) + ")" : (REASON[r] || r);
 
   let me = null, staff = [], settings = { domain: "" }, courses = [], tasAll = [], curId = store.get("cm_course"), view = "course";
   let D = null; // current course data
@@ -58,31 +65,31 @@
     app.innerHTML = `<header class="top"><div class="brand"><div class="mark">C</div><div><h1>Classmate</h1><p class="muted small">دخول المحاضرين والمعيدين</p></div></div>${CM.themeBtn()}</header>
       <section class="panel" style="max-width:480px">
       ${login.step === "email" ? `
-        <h2>ادخل بإيميل الجامعة</h2>
-        <p class="muted small">مفيش باسورد. هيوصلك كود على إيميلك تدخل بيه. لو إيميلك مش متسجل، اطلب من مسؤول القسم يضيفك.</p>
-        <label class="f"><span>إيميل الجامعة</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
+        <h2>الدخول بالبريد الجامعي</h2>
+        <p class="muted small">لا حاجة إلى كلمة مرور؛ سيصلك رمز على بريدك لتدخل به. وإن لم يكن بريدك مسجَّلًا، فاطلب من مسؤول القسم إضافتك.</p>
+        <label class="f"><span>البريد الجامعي</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
-        <button class="btn primary" id="lgSend" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "ابعت كود الدخول"}</button>
+        <button class="btn primary" id="lgSend" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "إرسال رمز الدخول"}</button>
       ` : `
         <div class="eyebrow mono" style="text-align:start">${esc(login.email)}</div>
-        <h2>بص على إيميلك</h2>
-        <p class="muted small">لو الإيميل فيه كود، اكتبه هنا. لو فيه لينك، افتحه من نفس الجهاز ده وهتدخل على طول. لو مالقيتهوش، بص في Spam أو Junk.</p>
-        <label class="f"><span>كود الدخول</span><input type="text" id="lgCode" class="codein" inputmode="numeric" maxlength="10" autocomplete="one-time-code"></label>
+        <h2>تحقّق من بريدك</h2>
+        <p class="muted small">إذا احتوت الرسالة على رمز فاكتبه هنا، وإذا احتوت على رابط فافتحه من الجهاز نفسه لتدخل مباشرة. وإن لم تجدها فراجع مجلد Spam أو Junk.</p>
+        <label class="f"><span>رمز الدخول</span><input type="text" id="lgCode" class="codein" inputmode="numeric" maxlength="10" autocomplete="one-time-code"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
-        <div class="row"><button class="btn primary" id="lgVerify" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button><button class="btn ghost" id="lgBack">إيميل تاني</button></div>
+        <div class="row"><button class="btn primary" id="lgVerify" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button><button class="btn ghost" id="lgBack">بريد آخر</button></div>
       `}</section>`;
     if (login.step === "email") {
       const send = async () => {
         const email = $("#lgEmail").value.trim().toLowerCase(); login.email = email; login.err = "";
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { login.err = "اكتب إيميل صحيح."; return renderLogin(); }
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { login.err = "اكتب بريدًا إلكترونيًّا صحيحًا."; return renderLogin(); }
         login.busy = true; renderLogin();
         try {
           const allowed = await rpc("staff_can_login", { p_email: email });
-          if (!allowed) throw { message: "الإيميل ده مش متسجل أو موقوف. اطلب من مسؤول القسم يضيفك." };
+          if (!allowed) throw { message: "هذا البريد غير مسجَّل أو موقوف. اطلب من مسؤول القسم إضافتك." };
           const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } });
           if (error) throw error;
           login.step = "code";
-        } catch (e) { login.err = e.message && e.message.startsWith("الإيميل") ? e.message : errText(e); }
+        } catch (e) { login.err = e.message && e.message.startsWith("البريد الإلكتروني") ? e.message : errText(e); }
         login.busy = false; renderLogin();
       };
       $("#lgSend").onclick = send; $("#lgEmail").onkeydown = e => { if (e.key === "Enter") send(); };
@@ -114,7 +121,7 @@
     app.innerHTML = `<div class="empty" style="margin-top:40px"><span class="spinner"></span></div>`;
     try {
       me = await rpc("staff_me");
-      if (!me) return signOut("الإيميل ده مش متسجل كمحاضر أو حسابه موقوف. كلّم مسؤول القسم.");
+      if (!me) return signOut("هذا البريد غير مسجَّل لمحاضر، أو أن حسابه موقوف. تواصل مع مسؤول القسم.");
       await loadBase();
       await loadCourse();
     } catch (e) { app.innerHTML = `<div class="msg bad">${esc(errText(e))}</div>`; }
@@ -137,13 +144,13 @@
 
   /* ---------- course classification: academic year, term, level, track ---------- */
   const LEVELS = ["", "المستوى الأول", "المستوى الثاني", "المستوى الثالث", "المستوى الرابع", "المستوى الخامس"];
-  const TERMS = { 1: "الترم الأول", 2: "الترم الثاني", 3: "الترم الصيفي" };
+  const TERMS = { 1: "الفصل الدراسي الأول", 2: "الفصل الدراسي الثاني", 3: "الفصل الصيفي" };
   const TRACKS = ["عمارة داخلية", "سينوغرافيا"];
   const nowYear = () => { const d = new Date(), y = d.getFullYear(); return d.getMonth() >= 7 ? `${y}/${y + 1}` : `${y - 1}/${y}`; };
   const nowTerm = () => { const m = new Date().getMonth() + 1; return m >= 9 || m === 1 ? 1 : m <= 6 ? 2 : 3; };
   const yearList = () => { const b = +nowYear().split("/")[0], ys = new Set(); for (let y = b - 2; y <= b + 1; y++) ys.add(`${y}/${y + 1}`); courses.forEach(c => c.academic_year && ys.add(c.academic_year)); return [...ys].sort().reverse(); };
-  const clsLabel = c => [LEVELS[c.level] || "", c.track || "", TERMS[c.term] || "", c.academic_year || ""].filter(Boolean).join(" · ") || "غير مصنفة";
-  const groupLabel = c => c.level ? LEVELS[c.level] + (c.track ? " · " + c.track : (c.level <= 2 ? " · تخصص عام" : "")) : "غير مصنفة";
+  const clsLabel = c => [LEVELS[c.level] || "", c.track || "", TERMS[c.term] || "", c.academic_year || ""].filter(Boolean).join(" · ") || "غير مصنَّفة";
+  const groupLabel = c => c.level ? LEVELS[c.level] + (c.track ? " · " + c.track : (c.level <= 2 ? " · تخصص عام" : "")) : "غير مصنَّفة";
   let fYear = store.get("cm_year") || nowYear(), fTerm = store.get("cm_term") || String(nowTerm());
   const inFilter = c => (fYear === "all" || !c.academic_year || c.academic_year === fYear) && (fTerm === "all" || !c.term || String(c.term) === fTerm);
   const filtered = () => courses.filter(inFilter).sort((a, b) => (a.level || 9) - (b.level || 9) || (a.track || "").localeCompare(b.track || "", "ar") || a.name.localeCompare(b.name, "ar"));
@@ -151,15 +158,15 @@
     c = c || {};
     const y = c.academic_year || (fYear !== "all" ? fYear : nowYear()), t = String(c.term || (fTerm !== "all" ? fTerm : nowTerm())), l = c.level || "";
     return `<label class="f"><span>العام الدراسي</span><select id="${p}Year">${yearList().map(v => `<option value="${v}" ${v === y ? "selected" : ""}>${v}</option>`).join("")}</select></label>
-      <label class="f"><span>الترم</span><select id="${p}Term">${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === t ? "selected" : ""}>${v}</option>`).join("")}</select></label>
-      <label class="f"><span>المستوى</span><select id="${p}Level"><option value="">اختار المستوى</option>${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${n === l ? "selected" : ""}>${LEVELS[n]}${n <= 2 ? " (تخصص عام)" : ""}</option>`).join("")}</select></label>
-      <label class="f" id="${p}TrackBox" ${l >= 3 ? "" : "hidden"}><span>الشعبة</span><select id="${p}Track"><option value="">اختار الشعبة</option>${TRACKS.map(v => `<option value="${v}" ${v === c.track ? "selected" : ""}>${v}</option>`).join("")}</select></label>`;
+      <label class="f"><span>الفصل الدراسي</span><select id="${p}Term">${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === t ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+      <label class="f"><span>المستوى</span><select id="${p}Level"><option value="">اختر المستوى</option>${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${n === l ? "selected" : ""}>${LEVELS[n]}${n <= 2 ? " (تخصص عام)" : ""}</option>`).join("")}</select></label>
+      <label class="f" id="${p}TrackBox" ${l >= 3 ? "" : "hidden"}><span>الشعبة</span><select id="${p}Track"><option value="">اختر الشعبة</option>${TRACKS.map(v => `<option value="${v}" ${v === c.track ? "selected" : ""}>${v}</option>`).join("")}</select></label>`;
   }
   function wireClass(p) { const l = $("#" + p + "Level"); if (l) l.onchange = () => { $("#" + p + "TrackBox").hidden = !(+l.value >= 3); }; }
   function readClass(p) {
     const level = +$("#" + p + "Level").value || null, track = level >= 3 ? $("#" + p + "Track").value : "";
-    if (!level) throw { message: "اختار المستوى." };
-    if (level >= 3 && !track) throw { message: "المستوى " + LEVELS[level].replace("المستوى ", "") + " لازم تختار له شعبة: عمارة داخلية أو سينوغرافيا." };
+    if (!level) throw { message: "اختر المستوى." };
+    if (level >= 3 && !track) throw { message: "المستوى " + LEVELS[level].replace("المستوى ", "") + " يلزم اختيار شعبة له: عمارة داخلية أو سينوغرافيا." };
     return { p_year: $("#" + p + "Year").value, p_term: +$("#" + p + "Term").value, p_level: level, p_track: track };
   }
   function role(c) {
@@ -273,11 +280,11 @@
     set("#bCode", code); set("#ovCode", code);
     const bar = $("#bBar"); if (bar) bar.style.width = pct + "%";
     $("#ovBar").style.width = pct + "%";
-    set("#bNext", "الكود الجاي بعد " + (left >= 60000 ? CM.mmss(left) : Math.max(0, Math.ceil(left / 1000)) + " ثانية"));
-    set("#bLeft", "التسجيل يقفل بعد " + CM.mmss(codeState.ends - Date.now()));
-    set("#ovLeft", "التسجيل يقفل بعد " + CM.mmss(codeState.ends - Date.now()));
+    set("#bNext", "الرمز التالي بعد " + (left >= 60000 ? CM.mmss(left) : Math.max(0, Math.ceil(left / 1000)) + " ثانية"));
+    set("#bLeft", "يُغلق التسجيل بعد " + CM.mmss(codeState.ends - Date.now()));
+    set("#ovLeft", "يُغلق التسجيل بعد " + CM.mmss(codeState.ends - Date.now()));
     set("#ovCount", "حضر " + pres + " من " + exp.length);
-    if (s && c) set("#ovTitle", c.name + " · المحاضرة " + s.n + (s.kind === "outdoor" ? " (خارجية)" : "") + " · " + (s.grp ? "مجموعة " + s.grp : "الدفعة كلها"));
+    if (s && c) set("#ovTitle", c.name + " · المحاضرة " + s.n + (s.kind === "outdoor" ? " (خارجية)" : "") + " · " + (s.grp ? "مجموعة " + s.grp : "الدفعة كاملة"));
     if (codeState.ends <= Date.now()) { codeState = null; clearTimeout(codeTimer); loadCourse(); }
   }
   setInterval(tick, 1000);
@@ -304,7 +311,7 @@
     if (!D || !$(".ctabs")) return;
     const s = running(), pend = s ? Object.values(D.att[s.id] || {}).filter(r => r.status === "pending").length : 0;
     const put = (k, html) => { const el = document.querySelector(`[data-tbx="${k}"]`); if (el) el.outerHTML = `<i class="tbx" data-tbx="${k}">${html}</i>`; };
-    put("live", s && !s.ended ? (pend ? `<b class="tb" title="${pend} طلب معلّق">${pend}</b>` : `<b class="live-dot" title="فيه محاضرة شغالة"></b>`) : "");
+    put("live", s && !s.ended ? (pend ? `<b class="tb" title="${pend} طلب معلّق">${pend}</b>` : `<b class="live-dot" title="توجد محاضرة جارية"></b>`) : "");
     put("students", "");
   }
   function render() {
@@ -321,19 +328,19 @@
       </header>
       <div id="newCForm" class="panel" hidden style="margin-bottom:16px">
         <h3>مادة جديدة</h3>
-        <div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="ncName" placeholder="مثلا: التشريح الفني"></label>${classFields("nc")}</div>
-        <div class="row"><button class="btn primary" id="ncSave">أضف المادة</button><span class="muted small">المستوى الأول والثاني تخصص عام. الثالث والرابع والخامس لازم تختار الشعبة.</span></div>
+        <div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="ncName" placeholder="مثلًا: التشريح الفني"></label>${classFields("nc")}</div>
+        <div class="row"><button class="btn primary" id="ncSave">أضف المادة</button><span class="muted small">المستويان الأول والثاني تخصص عام، أما المستويات الثالث والرابع والخامس فيلزم اختيار الشعبة لها.</span></div>
       </div>
       ${view === "course" ? `<div class="panel filters">
         <div class="settings" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
           <label class="f"><span>العام الدراسي</span><select id="fYear"><option value="all" ${fYear === "all" ? "selected" : ""}>كل الأعوام</option>${yearList().map(v => `<option value="${v}" ${v === fYear ? "selected" : ""}>${v}${v === nowYear() ? " (الحالي)" : ""}</option>`).join("")}</select></label>
-          <label class="f"><span>الترم</span><select id="fTerm"><option value="all" ${fTerm === "all" ? "selected" : ""}>كل الترمات</option>${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === fTerm ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+          <label class="f"><span>الفصل الدراسي</span><select id="fTerm"><option value="all" ${fTerm === "all" ? "selected" : ""}>كل الفصول الدراسية</option>${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === fTerm ? "selected" : ""}>${v}</option>`).join("")}</select></label>
           ${filtered().length ? `<label class="f" style="grid-column:span 2"><span>المادة</span><select id="pick">${(() => { const groups = new Map(); filtered().forEach(x => { const g = groupLabel(x); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(x); });
             return [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(x => { const r = role(x); return `<option value="${x.id}" ${x.id === curId ? "selected" : ""}>${esc(x.name)}${x.archived ? " (أرشيف)" : ""}${r === "ta" ? " · معيد" : r === "co" ? " · محاضر مشارك" : r === "viewer" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`; }).join("")}</optgroup>`).join(""); })()}</select></label>` : ""}
         </div></div>` : ""}
-      ${view === "admin" ? `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "مفيش مواد في الفترة دي" : "مفيش مواد لسه"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الترم من فوق، أو اعمل مادة جديدة." : me.role === "ta" ? "لما محاضر يضيفك كمعيد في مادة، هتظهر هنا." : "اضغط «مادة جديدة» فوق، وبعدين ارفع شيت الطلبة."}</div></div>` : `
+      ${view === "admin" ? `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "لا توجد مواد في هذه الفترة" : "لا توجد مواد بعد"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الفصل من الأعلى، أو أنشئ مادة جديدة." : me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "اضغط «مادة جديدة» في الأعلى، ثم ارفع ملف الطلبة."}</div></div>` : `
       <div class="course-h"><div><h2>${esc(c.name)}</h2><p class="muted small">${esc(clsLabel(c))}${c.archived ? " · مؤرشفة" : ""}</p></div></div>
-      ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `انت محاضر مشارك في المادة دي مع ${esc(staffName(c.owner_email))}. تقدر تعمل كل حاجة في المحاضرات والطلبة والكشف. مسح المادة وتعديل بياناتها والفريق لصاحب المادة.` : role(c) === "ta" ? `انت معيد في المادة دي. تقدر تبدأ المحاضرات وتوافق على الطلبات وتسجل يدوي وتضيف طالب. رفع الشيت والفريق للمحاضر ${esc(staffName(c.owner_email))}.` : `دي مادة ${esc(staffName(c.owner_email))}. انت شايفها كمسؤول للقراءة والتصدير بس.`}</div>` : ""}
+      ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `أنت محاضر مشارك في هذه المادة مع ${esc(staffName(c.owner_email))}. يمكنك القيام بكل ما يتعلق بالمحاضرات والطلبة والكشف، أما حذف المادة وتعديل بياناتها وإدارة الفريق فهي لصاحب المادة.` : role(c) === "ta" ? `أنت معيد في هذه المادة. يمكنك بدء المحاضرات والموافقة على الطلبات والتسجيل اليدوي وإضافة طالب، أما رفع ملف الطلبة وإدارة الفريق فهما للمحاضر ${esc(staffName(c.owner_email))}.` : `هذه مادة ${esc(staffName(c.owner_email))}. تطّلع عليها بصفتك مسؤولًا، للقراءة والتصدير فقط.`}</div>` : ""}
       <nav class="ctabs" role="tablist" aria-label="أقسام المادة">${CTABS.map(([k, t, ic]) => `<button role="tab" data-ct="${k}" aria-selected="${ctab === k}" aria-controls="pane-${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
       <div class="tabpane" id="pane-live" role="tabpanel" ${ctab === "live" ? "" : "hidden"}><div id="sessionArea"></div><section class="panel" id="livePanel"></section></div>
       <div class="tabpane" id="pane-students" role="tabpanel" ${ctab === "students" ? "" : "hidden"}><section class="panel" id="rosterPanel"></section></div>
@@ -355,7 +362,7 @@
         const cls = readClass("nc");
         curId = await rpc("create_course", { p_name: n, ...cls });
         fYear = cls.p_year; fTerm = String(cls.p_term); store.set("cm_year", fYear); store.set("cm_term", fTerm);
-        await loadBase(); say("roster", "اتضافت المادة. ارفع شيت الطلبة بتوعها."); await loadCourse();
+        await loadBase(); say("roster", "أُضيفت المادة. ارفع ملف طلبتها."); await loadCourse();
       } catch (e) { showErr(e); }
     };
     const onFilter = () => {
@@ -369,20 +376,20 @@
     if (!c) return;
     renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit(); renderReport();
   }
-  const MAN_REASONS = ["مفيش نت ولا GPS", "موبايله فاضي شحن", "موبايله مش معاه", "مشكلة في حسابه", "حاضر وأنا شايفه"];
+  const MAN_REASONS = ["لا يوجد إنترنت ولا GPS", "نفدت بطارية هاتفه", "هاتفه ليس معه", "مشكلة في حسابه", "حاضر وأراه بنفسي"];
   let kindPick = "hall";
 
   /* ---------- scanner: staff scans the student's personal QR ---------- */
   let scan = null; // { sid, stream, timer, busy, last, lastAt, detector }
   const SCAN_MSG = {
-    present: r => ["ok", r.name, (r.makeup ? "اتسجل حضور تعويضي" : "اتسجل حاضر") + (r.grp ? " · مجموعة " + r.grp : "")],
-    already: r => ["info", r.name, "متسجل حاضر قبل كده"],
-    expired: r => ["warn", r.name || "كود قديم", "الكود ده قديم، غالبا صورة (سكرين شوت). خلّي الطالب يفتح «كود الحضور» من موبايله قدامك."],
-    invalid: r => ["bad", r.name || "كود مش صحيح", "الكود مش مطابق لموبايل الطالب. لو غيّر موبايله، يدخل بالنت مرة ويفتح الكود تاني."],
-    not_enrolled: r => ["bad", "الطالب ده مش في المادة", "كود " + (r.code || "") + " مش في شيت المادة."],
-    other_group: r => ["warn", r.name, "من مجموعة " + r.grp + "، والمحاضرة لمجموعة " + r.session_grp + " والتعويض مقفول."],
-    not_ours: () => ["bad", "ده مش كود حضور", "الطالب يفتح «كود الحضور» من صفحة الطلبة في Classmate."],
-    ended: () => ["bad", "المحاضرة خلصت", "مينفعش تمسح بعد إنهاء المحاضرة."]
+    present: r => ["ok", r.name, (r.makeup ? "سُجِّل حضورًا تعويضيًّا" : "سُجِّل حاضرًا") + (r.grp ? " · مجموعة " + r.grp : "")],
+    already: r => ["info", r.name, "مسجَّل حاضرًا من قبل"],
+    expired: r => ["warn", r.name || "بطاقة قديمة", "هذه البطاقة قديمة، والأرجح أنها صورة للشاشة. اطلب من الطالب فتح «بطاقة الحضور» على هاتفه أمامك."],
+    invalid: r => ["bad", r.name || "بطاقة غير صحيحة", "البطاقة لا تطابق هاتف الطالب. إذا غيّر هاتفه، فعليه الدخول مرة واحدة وهو متصل بالإنترنت ثم فتح البطاقة من جديد."],
+    not_enrolled: r => ["bad", "هذا الطالب غير مسجَّل في المادة", "كود " + (r.code || "") + " غير موجود في ملف المادة."],
+    other_group: r => ["warn", r.name, "من مجموعة " + r.grp + "، والمحاضرة للمجموعة " + r.session_grp + " والتعويض غير متاح."],
+    not_ours: () => ["bad", "هذه ليست بطاقة حضور", "يفتح الطالب «بطاقة الحضور» من صفحة الطلبة في Classmate."],
+    ended: () => ["bad", "انتهت المحاضرة", "لا يمكن المسح بعد إنهاء المحاضرة."]
   };
   function scanCount() {
     const s = running(), el = $("#scanCount"); if (!el || !s || !D) return;
@@ -399,7 +406,7 @@
     closeScanner();
     scan = { sid: s.id, busy: false, last: "", lastAt: 0 };
     $("#scanOv").hidden = false; scanCount();
-    scanShow("info", "بنفتح الكاميرا…", "لو المتصفح سأل، اسمح بالكاميرا.");
+    scanShow("info", "جارٍ فتح الكاميرا…", "إذا طلب المتصفح الإذن، فاسمح باستخدام الكاميرا.");
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw { name: "NotSupported" };
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
@@ -408,10 +415,10 @@
       const v = $("#scanVid"); v.srcObject = stream; await v.play().catch(() => {});
       if ("BarcodeDetector" in window) { try { scan.detector = new window.BarcodeDetector({ formats: ["qr_code"] }); } catch (e) {} }
       if (!scan.detector) await loadJsQR();
-      scanShow("info", "وجّه الكاميرا على كود الطالب", "الطالب يفتح «كود الحضور» من موبايله ويقرّبه.");
+      scanShow("info", "وجّه الكاميرا نحو بطاقة الطالب", "يفتح الطالب «بطاقة الحضور» على هاتفه ويقرّبها.");
       scan.timer = setInterval(scanFrame, 200);
     } catch (e) {
-      scanShow("bad", "الكاميرا مش شغالة", e && e.name === "NotAllowedError" ? "اسمح للمتصفح يستخدم الكاميرا من إعدادات الموقع وجرب تاني." : "جرب من الموبايل بمتصفح Chrome أو Safari.");
+      scanShow("bad", "الكاميرا لا تعمل", e && e.name === "NotAllowedError" ? "اسمح للمتصفح باستخدام الكاميرا من إعدادات الموقع، ثم أعد المحاولة." : "جرّب من الهاتف بمتصفح Chrome أو Safari.");
     }
   }
   function closeScanner() {
@@ -440,10 +447,10 @@
     scan.busy = true; scan.last = text; scan.lastAt = Date.now();
     try {
       const r = await rpc("scan_student", { sid: scan.sid, p_payload: text });
-      const [k, title, sub] = (SCAN_MSG[r.result] || (() => ["bad", "حصلت مشكلة", r.result]))(r);
+      const [k, title, sub] = (SCAN_MSG[r.result] || (() => ["bad", "حدثت مشكلة", r.result]))(r);
       if (r.result === "present" && D && running()) { (D.att[scan.sid] = D.att[scan.sid] || {})[r.code] = { session_id: scan.sid, student_code: r.code, status: "present", via: "scan", makeup: r.makeup, reason: "", at: new Date().toISOString() }; scanCount(); }
       scanShow(k, title, sub); beep(k === "ok" || k === "info");
-    } catch (e) { scanShow("bad", "معرفناش نسجل", errText(e)); beep(false); }
+    } catch (e) { scanShow("bad", "تعذّر التسجيل", errText(e)); beep(false); }
     if (scan) scan.busy = false;
   }
 
@@ -455,31 +462,31 @@
   function renderSession() {
     const c = course(), s = running(), el = $("#sessionArea");
     if (!canRun(c)) {
-      if (!s) { el.innerHTML = `<section class="panel"><h2>مفيش محاضرة شغالة</h2><p class="muted small">المحاضرات بيبدأها المحاضر أو المعيد بتوع المادة.</p></section>`; return; }
+      if (!s) { el.innerHTML = `<section class="panel"><h2>لا توجد محاضرة جارية</h2><p class="muted small">يبدأ المحاضرات المحاضرُ أو المعيد المسؤول عن المادة.</p></section>`; return; }
       const exp = D.enroll.filter(e => isOwn(s, e));
-      el.innerHTML = `<section class="panel"><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كلها"}</div><h2>${isOpen(s) ? "التسجيل مفتوح دلوقتي" : "التسجيل اتقفل"}</h2><p class="muted small">حضر ${exp.filter(e => counted((D.att[s.id] || {})[e.student_code])).length} من ${exp.length}. الكود بيظهر للمحاضر والمعيد بس.</p></section>`;
+      el.innerHTML = `<section class="panel"><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كاملة"}</div><h2>${isOpen(s) ? "التسجيل مفتوح الآن" : "أُغلق التسجيل"}</h2><p class="muted small">حضر ${exp.filter(e => counted((D.att[s.id] || {})[e.student_code])).length} من ${exp.length}. يظهر الرمز للمحاضر والمعيد فقط.</p></section>`;
       return;
     }
     if (!s) {
       const n = (D.sessions[D.sessions.length - 1] || { n: 0 }).n + 1, gs = groupsOf();
       let sugg = "", why = "";
-      if (gs.length > 1) { const last = [...D.sessions].reverse().find(x => x.grp); sugg = last ? gs[(gs.indexOf(last.grp) + 1) % gs.length] : gs[0]; why = last ? `آخر محاضرة كانت لمجموعة ${last.grp}، فالدور على مجموعة ${sugg}.` : ""; }
+      if (gs.length > 1) { const last = [...D.sessions].reverse().find(x => x.grp); sugg = last ? gs[(gs.indexOf(last.grp) + 1) % gs.length] : gs[0]; why = last ? `كانت آخر محاضرة للمجموعة ${last.grp}، فالدور الآن على المجموعة ${sugg}.` : ""; }
       el.innerHTML = `<section class="panel">
         <div><div class="eyebrow">المحاضرة ${n}</div><h2>ابدأ محاضرة جديدة</h2></div>
-        ${!D.enroll.length ? `<div class="msg warn">ارفع شيت الطلبة الأول من «طلبة المادة».</div>` : ""}
+        ${!D.enroll.length ? `<div class="msg warn">ارفع ملف الطلبة أولًا من تبويب «الطلبة».</div>` : ""}
         <div class="settings">
-          ${gs.length > 1 ? `<label class="f"><span>المحاضرة دي لـ</span><select id="sGrp">${gs.map(g => `<option value="${esc(g)}" ${g === sugg ? "selected" : ""}>مجموعة ${esc(g)} (${D.enroll.filter(e => e.grp === g).length} طالب)</option>`).join("")}<option value="">الدفعة كلها</option></select></label>` : ""}
+          ${gs.length > 1 ? `<label class="f"><span>هذه المحاضرة لـ</span><select id="sGrp">${gs.map(g => `<option value="${esc(g)}" ${g === sugg ? "selected" : ""}>مجموعة ${esc(g)} (${D.enroll.filter(e => e.grp === g).length} طالب)</option>`).join("")}<option value="">الدفعة كاملة</option></select></label>` : ""}
           <label class="f"><span>نوع المحاضرة</span><select id="sKind"><option value="hall" ${kindPick === "hall" ? "selected" : ""}>في القاعة</option><option value="outdoor" ${kindPick === "outdoor" ? "selected" : ""}>خارجية (رسم خارجي، زيارة…)</option></select></label>
-          <label class="f"><span>مدة فتح التسجيل (دقايق)</span><input type="number" id="sMin" min="1" max="120" value="${esc(store.get(kindPick === "outdoor" ? "cm_min_out" : "cm_min") || (kindPick === "outdoor" ? 30 : 10))}"></label>
-          <label class="f"><span>${kindPick === "outdoor" ? "النطاق حوالين مكانك (متر)" : "نطاق القاعة (متر)"}</span><input type="number" id="sRad" min="20" max="500" value="${esc(store.get(kindPick === "outdoor" ? "cm_rad_out" : "cm_rad") || (kindPick === "outdoor" ? 200 : 80))}"></label>
-          <button class="btn primary" id="sStart" ${startState === "locating" || !D.enroll.length ? "disabled" : ""}>${startState === "locating" ? `<span class="spinner"></span> بنحدد موقعك…` : "ابدأ المحاضرة " + n}</button>
+          <label class="f"><span>مدة فتح التسجيل (دقائق)</span><input type="number" id="sMin" min="1" max="120" value="${esc(store.get(kindPick === "outdoor" ? "cm_min_out" : "cm_min") || (kindPick === "outdoor" ? 30 : 10))}"></label>
+          <label class="f"><span>${kindPick === "outdoor" ? "النطاق حول موقعك (متر)" : "نطاق القاعة (متر)"}</span><input type="number" id="sRad" min="20" max="500" value="${esc(store.get(kindPick === "outdoor" ? "cm_rad_out" : "cm_rad") || (kindPick === "outdoor" ? 200 : 80))}"></label>
+          <button class="btn primary" id="sStart" ${startState === "locating" || !D.enroll.length ? "disabled" : ""}>${startState === "locating" ? `<span class="spinner"></span> جارٍ تحديد موقعك…` : "ابدأ المحاضرة " + n}</button>
         </div>
-        ${gs.length > 1 ? `<label class="row small"><input type="checkbox" id="sMk"> اسمح بالحضور التعويضي لطلبة المجموعة التانية</label><p class="muted small">${why} الحضور التعويضي بيلغي غياب واحد من غيابات الطالب في مجموعته.</p>` : ""}
-        ${startState && startState.geoFail ? `<div class="msg warn">${startState.geoFail === "denied" ? "المتصفح رفض صلاحية الموقع. فعّلها من إعدادات المتصفح لموقع Classmate وجرب تاني." : "معرفناش نحدد موقعك. جرب جنب شباك أو من الموبايل."}
-          <div class="row" style="margin-top:8px"><button class="btn sm" id="sRetry">جرب تاني</button><button class="btn sm ghost" id="sNoGeo">ابدأ من غير تحقق موقع</button></div></div>` : ""}
+        ${gs.length > 1 ? `<label class="row small"><input type="checkbox" id="sMk"> السماح بالحضور التعويضي لطلبة المجموعة الأخرى</label><p class="muted small">${why} يُلغي الحضور التعويضي غيابًا واحدًا من غيابات الطالب في مجموعته.</p>` : ""}
+        ${startState && startState.geoFail ? `<div class="msg warn">${startState.geoFail === "denied" ? "رفض المتصفح إذن الموقع. فعّله من إعدادات المتصفح لموقع Classmate، ثم أعد المحاولة." : "تعذّر تحديد موقعك. جرّب بالقرب من نافذة أو من الهاتف."}
+          <div class="row" style="margin-top:8px"><button class="btn sm" id="sRetry">أعد المحاولة</button><button class="btn sm ghost" id="sNoGeo">ابدأ دون التحقق من الموقع</button></div></div>` : ""}
         <p class="muted small">${kindPick === "outdoor"
-          ? "المحاضرة الخارجية: موقعك وانت بتبدأ بيبقى مركز المكان، والكود بيظهر على موبايلك تعرضه ملء الشاشة. الطلبة اللي مش قادرين يوصلوا للكود أو مفيش عندهم نت، امسح «كود الحضور» بتاعهم من زرار «امسح كود الطلبة»."
-          : "عند البدء، موقعك الحالي بيبقى مركز القاعة، والسيرفر بيولّد سر جديد للكود بتاع المحاضرة دي بس. ابدأ المحاضرة وانت في القاعة."}</p>
+          ? "المحاضرة الخارجية: يصبح موقعك عند البدء مركز المكان، ويظهر الرمز على هاتفك لتعرضه ملء الشاشة. أما الطلبة الذين يتعذّر عليهم الوصول إلى الرمز أو لا يتوفر لديهم إنترنت، فامسح بطاقات حضورهم من زر «مسح بطاقات الطلبة»."
+          : "عند البدء، يصبح موقعك الحالي مركز القاعة، ويولّد الخادم مفتاحًا جديدًا لرمز هذه المحاضرة وحدها. لذا ابدأ المحاضرة وأنت داخل القاعة."}</p>
       </section>`;
       $("#sKind").onchange = () => { kindPick = $("#sKind").value; renderSession(); };
       const start = async (geo) => {
@@ -499,11 +506,11 @@
     }
     const open = isOpen(s);
     el.innerHTML = `<section class="board">
-      <div class="row between"><div><div class="lbl">${esc(c.name)} · المحاضرة ${s.n}${s.kind === "outdoor" ? " · خارجية" : ""} · ${s.grp ? "مجموعة " + esc(s.grp) + (s.allow_makeup ? " · التعويض مفتوح" : " · التعويض مقفول") : "الدفعة كلها"}</div><h2>${open ? "كود الحضور" : "التسجيل مقفول"}</h2></div>
-        <div class="row"><button class="btn sm" id="bScan">امسح كود الطلبة</button>${open ? `<button class="btn sm" id="bProj">${s.kind === "outdoor" ? "اعرض الكود ملء الشاشة" : "اعرض على البروجكتور"}</button><button class="btn sm" id="bClose">اقفل التسجيل</button>` : ""}<button class="btn sm" id="bEnd">${confirmKey === "end" ? "متأكد؟ اضغط تاني" : "إنهاء المحاضرة"}</button></div></div>
+      <div class="row between"><div><div class="lbl">${esc(c.name)} · المحاضرة ${s.n}${s.kind === "outdoor" ? " · خارجية" : ""} · ${s.grp ? "مجموعة " + esc(s.grp) + (s.allow_makeup ? " · التعويض متاح" : " · التعويض غير متاح") : "الدفعة كاملة"}</div><h2>${open ? "رمز الحضور" : "التسجيل مغلق"}</h2></div>
+        <div class="row"><button class="btn sm" id="bScan">مسح بطاقات الطلبة</button>${open ? `<button class="btn sm" id="bProj">${s.kind === "outdoor" ? "عرض الرمز ملء الشاشة" : "العرض على جهاز العرض"}</button><button class="btn sm" id="bClose">إغلاق التسجيل</button>` : ""}<button class="btn sm" id="bEnd">${confirmKey === "end" ? "متأكد؟ اضغط مرة أخرى" : "إنهاء المحاضرة"}</button></div></div>
       ${open ? `<div class="code" id="bCode">··· ···</div><div class="bar"><i id="bBar"></i></div><div class="row between lbl"><span id="bNext"></span><span id="bLeft"></span></div>`
-        : `<p class="lbl">اتقفل التسجيل بالكود ${s.closed_at ? "الساعة " + CM.fmtT(s.closed_at) : ""}. لسه تقدر تمسح «كود الحضور» من موبايلات الطلبة، أو توافق على الطلبات المعلقة، أو تسجل يدوي. بعدين أنهي المحاضرة. الطلبات المعلقة وقت الإنهاء بتتحسب غياب.</p>`}
-      <div class="lbl">${s.lat == null ? "من غير تحقق موقع" : "النطاق " + s.radius + " متر حوالين مكان بدء المحاضرة"} · الطالب اللي مفيش عنده نت أو GPS: امسح «كود الحضور» من موبايله · بدأها ${esc(staffName(s.started_by))} الساعة ${CM.fmtT(s.started_at)}</div>
+        : `<p class="lbl">أُغلق التسجيل بالرمز ${s.closed_at ? "الساعة " + CM.fmtT(s.closed_at) : ""}. ما زال بإمكانك مسح بطاقات حضور الطلبة، أو الموافقة على الطلبات المعلّقة، أو التسجيل اليدوي، ثم إنهاء المحاضرة. تُحتسب الطلبات المعلّقة غيابًا عند الإنهاء.</p>`}
+      <div class="lbl">${s.lat == null ? "دون التحقق من الموقع" : "النطاق " + s.radius + " متر حول مكان بدء المحاضرة"} · الطالب الذي لا يتوفر لديه إنترنت أو GPS: امسح بطاقة حضوره من هاتفه · بدأها ${esc(staffName(s.started_by))} الساعة ${CM.fmtT(s.started_at)}</div>
     </section>`;
     if (open) {
       $("#bProj").onclick = () => { $("#overlay").hidden = false; tick(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); };
@@ -531,8 +538,8 @@
     st: { t: "الحالة", v: it => it.chip, list: true, lab: x => x, up: "أ ← ي", down: "ي ← أ" },
     code: { t: "الكود", v: it => it.e.student_code, num: true, up: "من الأصغر للأكبر", down: "من الأكبر للأصغر" },
     name: { t: "الاسم", v: it => it.e.name || "", up: "أ ← ي", down: "ي ← أ" },
-    grp: { t: "المجموعة", v: it => it.e.grp || "", list: true, lab: g => g ? "مجموعة " + g : "من غير مجموعة", up: "أ ← ي", down: "ي ← أ" },
-    time: { t: "الوقت", v: it => it.r ? it.r.at : "", key: it => it.r ? new Date(it.r.at).getTime() : 0, up: "الأقدم الأول", down: "الأحدث الأول" }
+    grp: { t: "المجموعة", v: it => it.e.grp || "", list: true, lab: g => g ? "مجموعة " + g : "دون مجموعة", up: "أ ← ي", down: "ي ← أ" },
+    time: { t: "الوقت", v: it => it.r ? it.r.at : "", key: it => it.r ? new Date(it.r.at).getTime() : 0, up: "الأقدم أولًا", down: "الأحدث أولًا" }
   };
   const LDEF = { all: { col: "time", dir: -1 }, pend: { col: "time", dir: 1 }, pres: { col: "time", dir: -1 }, rej: { col: "time", dir: -1 }, abs: { col: "code", dir: 1 } };
   let lvItems = [];
@@ -546,10 +553,10 @@
     const names = codes.map(nameOf);
     return `<div class="manbox note-box">
       <b>تحضير يدوي: ${codes.length === 1 ? esc(names[0]) : codes.length + " طالب"}</b>
-      ${codes.length > 1 ? `<span class="small muted">${esc(names.slice(0, 8).join("، "))}${names.length > 8 ? " و" + (names.length - 8) + " كمان" : ""}</span>` : ""}
-      <label class="f"><span>السبب (بيتسجل في سجل التعديلات)</span><input type="text" id="${ids}Reason" maxlength="200" value="${esc(manDraft)}" placeholder="مثلا: مفيش نت ولا GPS"></label>
+      ${codes.length > 1 ? `<span class="small muted">${esc(names.slice(0, 8).join("، "))}${names.length > 8 ? " و" + (names.length - 8) + " آخرون" : ""}</span>` : ""}
+      <label class="f"><span>السبب (يُسجَّل في سجل التعديلات)</span><input type="text" id="${ids}Reason" maxlength="200" value="${esc(manDraft)}" placeholder="مثلًا: لا يوجد إنترنت ولا GPS"></label>
       <div class="quick">${MAN_REASONS.map(t => `<button class="btn sm ghost" data-mq="${esc(t)}">${esc(t)}</button>`).join("")}</div>
-      <div class="row"><button class="btn sm primary" id="${ids}Save">${codes.length === 1 ? "سجّله حاضر" : "سجّلهم حاضر (" + codes.length + ")"}</button><button class="btn sm ghost" id="${ids}Cancel">إلغاء</button></div>
+      <div class="row"><button class="btn sm primary" id="${ids}Save">${codes.length === 1 ? "تسجيله حاضرًا" : "تسجيلهم حاضرين (" + codes.length + ")"}</button><button class="btn sm ghost" id="${ids}Cancel">إلغاء</button></div>
     </div>`;
   }
   function wireManBox(root, ids, codes, sid, done) {
@@ -567,7 +574,7 @@
     const el = $("#livePanel"); if (!el) return;
     const ae = document.activeElement, keepQ = ae && ae.id === "lvQ", selA = keepQ ? ae.selectionStart : 0, selB = keepQ ? ae.selectionEnd : 0;
     const c = course(), s = running() || D.sessions[D.sessions.length - 1];
-    if (!s) { el.innerHTML = `<h2>الحضور</h2><div class="empty">ابدأ أول محاضرة وهيظهر هنا كل طالب أول ما يسجل.</div>`; return; }
+    if (!s) { el.innerHTML = `<h2>الحضور</h2><div class="empty">ابدأ أول محاضرة، وسيظهر هنا كل طالب فور تسجيله.</div>`; return; }
     if (lv.sid !== s.id) { lv = { sid: s.id, q: lv.q, sort: null, f: { st: null, grp: null } }; lvSel.clear(); }
     const recs = D.att[s.id] || {};
     const pres = D.enroll.filter(e => counted(recs[e.student_code]));
@@ -577,9 +584,9 @@
     const editable = canRun(c) && (!s.ended || canManage(c)), done = regDone(s);
     const items = [];
     if (liveTab === "all" || liveTab === "pend") pend.forEach(e => items.push({ e, k: "warn", chip: recs[e.student_code].makeup ? "تعويض معلّق" : "معلّق", r: recs[e.student_code], sel: "pend" }));
-    if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · QR" : r.via === "import" ? "حاضر · شيت" : "حاضر", r }); });
+    if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · QR" : r.via === "import" ? "حاضر · ملف" : "حاضر", r }); });
     if (liveTab === "rej") rej.forEach(a => { const e = D.enroll.find(x => x.student_code === a.student_code) || { student_code: a.student_code, name: nameOf(a.student_code), grp: "" }; items.push({ e, k: "bad", chip: "مرفوض", r: { at: a.at, reason: reasonText(a.reason) }, log: true, sel: !recs[a.student_code] && D.enroll.includes(e) ? "abs" : null }); });
-    if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: done ? "غايب" : "لسه ماسجلش", r: null, sel: "abs" }));
+    if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: done ? "غائب" : "لم يسجّل بعد", r: null, sel: "abs" }));
     lvItems = items;
     const selectable = new Map(); items.forEach(it => { if (editable && it.sel) selectable.set(it.e.student_code, it.sel); });
     [...lvSel].forEach(k => { if (!selectable.has(k)) lvSel.delete(k); });
@@ -593,19 +600,19 @@
     const head = k => { const C = LCOLS[k], srt = sort.col === k && !!lv.sort, flt = C.list && lv.f[k];
       return `<th><button class="fh ${srt || flt ? "on" : ""}" data-lcol="${k}" aria-haspopup="true">${C.t}<span class="fh-i">${sort.col === k ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button></th>`; };
     const allChecked = shownSel.length && shownSel.every(k => lvSel.has(k));
-    const TABN = { all: "الكل", pend: "معلّق", pres: "حاضر", rej: "محاولات مرفوضة", abs: "غايب" };
+    const TABN = { all: "الكل", pend: "معلّق", pres: "حاضر", rej: "محاولات مرفوضة", abs: "غائب" };
     const manCodes = Array.isArray(manFor) ? manFor : null;
-    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كلها"}${s.ended ? " · منتهية" : ""}</div><h2>الحضور${s.ended ? "" : " لايف"}</h2></div>
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كاملة"}${s.ended ? " · منتهية" : ""}</div><h2>الحضور${s.ended ? "" : " المباشر"}</h2></div>
       <div class="tabs" role="group">${Object.entries(TABN).map(([k, t]) => `<button data-lt="${k}" aria-pressed="${liveTab === k}">${t}${k === "pend" && pend.length ? ` <b class="cnt">${pend.length}</b>` : ""}</button>`).join("")}</div></div>
-      <div class="stats"><div class="stat"><b>${pres.length}</b><span>حاضر</span></div><div class="stat"><b>${pend.length}</b><span>محتاج موافقة</span></div><div class="stat"><b>${rej.length}</b><span>محاولة مرفوضة</span></div><div class="stat"><b>${abs.length}</b><span>${done ? "غايب" : "لسه ماسجلش"}</span></div></div>
-      <div class="rs-bar"><input type="search" id="lvQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(lv.q)}" autocomplete="off">
+      <div class="stats"><div class="stat"><b>${pres.length}</b><span>حاضر</span></div><div class="stat"><b>${pend.length}</b><span>بحاجة إلى موافقة</span></div><div class="stat"><b>${rej.length}</b><span>محاولة مرفوضة</span></div><div class="stat"><b>${abs.length}</b><span>${done ? "غائب" : "لم يسجّل بعد"}</span></div></div>
+      <div class="rs-bar"><input type="search" id="lvQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(lv.q)}" autocomplete="off">
         <span class="small muted">${shown.length === items.length ? items.length + " في «" + TABN[liveTab] + "»" : "عرض " + shown.length + " من " + items.length}</span>
-        ${busy ? `<button class="btn sm ghost" id="lvClear">مسح الترتيب والفلاتر</button>` : ""}</div>
+        ${busy ? `<button class="btn sm ghost" id="lvClear">إلغاء الترتيب والتصفية</button>` : ""}</div>
       ${editable && (shownPend.length || lvSel.size) ? `<div class="bulk">
         ${lvSel.size ? `<b class="small">محدد ${lvSel.size}</b>` : ""}
-        ${selPend.length ? `<button class="btn sm primary" id="lvApSel">قبول المحدد (${selPend.length})</button><button class="btn sm danger" id="lvRjSel">${confirmKey === "rjsel" ? "متأكد؟ اضغط تاني" : "رفض المحدد (" + selPend.length + ")"}</button>` : ""}
+        ${selPend.length ? `<button class="btn sm primary" id="lvApSel">قبول المحدد (${selPend.length})</button><button class="btn sm danger" id="lvRjSel">${confirmKey === "rjsel" ? "متأكد؟ اضغط مرة أخرى" : "رفض المحدد (" + selPend.length + ")"}</button>` : ""}
         ${selAbs.length ? `<button class="btn sm primary" id="lvManSel">تحضير المحدد (${selAbs.length})</button>` : ""}
-        ${!lvSel.size && shownPend.length ? `<button class="btn sm primary" id="lvApAll">${confirmKey === "apall" ? "متأكد؟ اضغط تاني" : "قبول الكل (" + shownPend.length + ")"}</button>` : ""}
+        ${!lvSel.size && shownPend.length ? `<button class="btn sm primary" id="lvApAll">${confirmKey === "apall" ? "متأكد؟ اضغط مرة أخرى" : "قبول الكل (" + shownPend.length + ")"}</button>` : ""}
         ${lvSel.size ? `<button class="btn sm ghost" id="lvSelNone">إلغاء التحديد</button>` : ""}
       </div>` : ""}
       ${manCodes ? manBoxHtml(manCodes, "lvm") : ""}
@@ -621,7 +628,7 @@
           <td class="mono small">${it.r ? CM.fmtT(it.r.at) : ""}</td>
           <td class="small muted">${[it.r && it.r.dist != null ? "على بعد " + CM.dist(it.r.dist) : "", it.r && it.r.reason ? esc(it.r.reason) : ""].filter(Boolean).join(" · ")}</td>
         </tr>`; }).join("")}
-      </tbody></table></div>` : q || lv.f.st || lv.f.grp ? `<div class="empty">مفيش طالب مطابق للبحث أو الفلتر في «${TABN[liveTab]}».${liveTab !== "all" ? " جرّب تبويب «الكل» أو «غايب»." : ""}</div>` : `<div class="empty">${liveTab === "rej" ? "مفيش محاولات مرفوضة." : liveTab === "pend" ? "مفيش طلبات معلقة." : liveTab === "abs" ? "كل الطلبة سجلوا." : "لسه محدش سجل. الطلبة بيكتبوا الكود اللي على الشاشة من موبايلاتهم."}</div>`}`;
+      </tbody></table></div>` : q || lv.f.st || lv.f.grp ? `<div class="empty">لا يوجد طالب مطابق للبحث أو التصفية في «${TABN[liveTab]}».${liveTab !== "all" ? " جرّب تبويب «الكل» أو «غائب»." : ""}</div>` : `<div class="empty">${liveTab === "rej" ? "لا توجد محاولات مرفوضة." : liveTab === "pend" ? "لا توجد طلبات معلّقة." : liveTab === "abs" ? "سجّل جميع الطلبة." : "لم يسجّل أحد بعد. يكتب الطلبة الرمز الظاهر على الشاشة من هواتفهم."}</div>`}`;
     const after = async () => { if (running()) await refreshLive(); else await loadCourse(); };
     el.querySelectorAll("[data-lt]").forEach(b => b.onclick = () => { liveTab = b.dataset.lt; lv.sort = null; lv.f = { st: null, grp: null }; lvSel.clear(); confirmKey = null; renderLive(); });
     const lq = $("#lvQ"); if (lq) { lq.oninput = () => { lv.q = lq.value; renderLive(); }; if (keepQ) { lq.focus(); try { lq.setSelectionRange(selA, selB); } catch (e) {} } }
@@ -657,22 +664,22 @@
     const s = delSess && D.sessions.find(x => x.id === delSess); if (!s) return "";
     const rec = D.att[s.id] || {}, pres = Object.values(rec).filter(counted).length, later = D.sessions.filter(x => x.n > s.n).length;
     return `<div class="note-box bad">
-      <b>تمسح المحاضرة ${s.n}${s.grp ? " (مجموعة " + esc(s.grp) + ")" : ""} بتاريخ ${CM.fmtD(s.started_at)}؟</b>
-      <span class="small">فيها ${pres} حاضر. حضورها وغيابها هيتمسحوا من الكشف${s.ended ? "" : "، والمحاضرة هتقف"}${later ? "، والمحاضرات اللي بعدها هتترقم من جديد" : ""}. المسح بيتسجل في سجل التعديلات ومينفعش يترجع.</span>
-      <div class="row"><button class="btn sm danger" id="dsGo">${confirmKey === "ds" ? "متأكد؟ اضغط تاني" : "امسح المحاضرة"}</button><button class="btn sm ghost" id="dsNo">إلغاء</button></div></div>`;
+      <b>هل تريد حذف المحاضرة ${s.n}${s.grp ? " (مجموعة " + esc(s.grp) + ")" : ""} بتاريخ ${CM.fmtD(s.started_at)}؟</b>
+      <span class="small">فيها ${pres} حاضر. سيُحذف حضورها وغيابها من الكشف${s.ended ? "" : "، وستتوقف المحاضرة"}${later ? "، وسيُعاد ترقيم المحاضرات التالية لها" : ""}. يُسجَّل الحذف في سجل التعديلات، ولا يمكن التراجع عنه.</span>
+      <div class="row"><button class="btn sm danger" id="dsGo">${confirmKey === "ds" ? "متأكد؟ اضغط مرة أخرى" : "حذف المحاضرة"}</button><button class="btn sm ghost" id="dsNo">إلغاء</button></div></div>`;
   }
   function renderRegister() { keepScroll("#regPanel", _renderRegister); }
   /* register table: search + Excel-style sort & filter on every column (including each lecture) */
   let rg = { cid: null, q: "", sort: null, f: {} }, rgRows = [];
-  const SYM = { "ح": "حاضر", "ي": "يدوي", "ت": "تعويض", "م": "معلّق", "غ": "غايب", "…": "لسه", "—": "مش لمجموعته" }, SYMORD = ["غ", "م", "…", "ي", "ت", "ح", "—"];
+  const SYM = { "ح": "حاضر", "ي": "يدوي", "ت": "تعويض", "م": "معلّق", "غ": "غائب", "…": "لم يُحتسب بعد", "—": "ليست لمجموعته" }, SYMORD = ["غ", "م", "…", "ي", "ت", "ح", "—"];
   const symOf = (s, e) => { const r = (D.att[s.id] || {})[e.student_code]; if (!isOwn(s, e)) return r && r.status !== "pending" ? "ت" : r ? "م" : "—"; if (!r) return regDone(s) ? "غ" : "…"; return r.status === "present" ? "ح" : r.status === "manual" ? "ي" : "م"; };
   const RGBASE = {
     code: { t: "الكود", v: e => e.student_code, num: true, up: "من الأصغر للأكبر", down: "من الأكبر للأصغر" },
     name: { t: "الاسم", v: e => e.name, up: "أ ← ي", down: "ي ← أ" },
-    grp: { t: "المجموعة", v: e => e.grp || "", list: true, lab: g => g ? "مجموعة " + g : "من غير مجموعة", up: "أ ← ي", down: "ي ← أ" },
-    pct: { t: "النسبة", v: e => attendance(e).pct, key: e => attendance(e).pct, up: "الأقل الأول", down: "الأعلى الأول" },
-    abs: { t: "الغياب", v: e => String(absences(e)), key: e => absences(e), list: true, ord: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"], lab: n => n === "0" ? "مفيش غياب" : n + " غياب", up: "الأقل الأول", down: "الأكتر الأول" },
-    st: { t: "الحالة", v: e => CM.warnOf(absences(e)).t, key: e => Math.min(absences(e), 4), list: true, ord: [0, 1, 2, 3, 4].map(i => CM.WARN[i].t), lab: x => x, up: "المنتظم الأول", down: "الانسحاب الأول" }
+    grp: { t: "المجموعة", v: e => e.grp || "", list: true, lab: g => g ? "مجموعة " + g : "دون مجموعة", up: "أ ← ي", down: "ي ← أ" },
+    pct: { t: "النسبة", v: e => attendance(e).pct, key: e => attendance(e).pct, up: "الأقل أولًا", down: "الأعلى أولًا" },
+    abs: { t: "الغياب", v: e => String(absences(e)), key: e => absences(e), list: true, ord: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"], lab: n => n === "0" ? "دون غياب" : n + " غياب", up: "الأقل أولًا", down: "الأكثر أولًا" },
+    st: { t: "الحالة", v: e => CM.warnOf(absences(e)).t, key: e => Math.min(absences(e), 4), list: true, ord: [0, 1, 2, 3, 4].map(i => CM.WARN[i].t), lab: x => x, up: "المنتظم أولًا", down: "الانسحاب أولًا" }
   };
   let RGC = RGBASE;
   const RGG = { cols: null, st: () => rg, all: () => rgRows, redraw: () => renderRegister(), defSort: () => ({ col: "code", dir: 1 }) };
@@ -683,29 +690,29 @@
     if (rg.cid !== D.cid) rg = { cid: D.cid, q: "", sort: null, f: {} };
     const base = regGroup === "all" ? D.enroll : D.enroll.filter(e => e.grp === regGroup);
     const ss = regGroup === "all" ? D.sessions : D.sessions.filter(s => !s.grp || s.grp === regGroup || base.some(e => (D.att[s.id] || {})[e.student_code]));
-    RGC = Object.assign({}, RGBASE); ss.forEach(s => { RGC["s" + s.n] = { t: "م" + s.n + (s.grp ? " · مج " + s.grp : "") + " · " + CM.fmtD(s.started_at), v: e => symOf(s, e), key: e => SYMORD.indexOf(symOf(s, e)), list: true, ord: SYMORD, lab: x => x + " · " + SYM[x], up: "الغايب الأول", down: "الحاضر الأول" }; });
+    RGC = Object.assign({}, RGBASE); ss.forEach(s => { RGC["s" + s.n] = { t: "م" + s.n + (s.grp ? " · مج " + s.grp : "") + " · " + CM.fmtD(s.started_at), v: e => symOf(s, e), key: e => SYMORD.indexOf(symOf(s, e)), list: true, ord: SYMORD, lab: x => x + " · " + SYM[x], up: "الغائب أولًا", down: "الحاضر أولًا" }; });
     RGG.cols = RGC; rgRows = base;
     Object.keys(rg.f).forEach(k => { if (!RGC[k]) delete rg.f[k]; }); if (rg.sort && !RGC[rg.sort.col]) rg.sort = null;
     const q = normAr(rg.q), sort = rg.sort || RGG.defSort();
     const rows = sortRows(base.filter(e => (!q || normAr(e.name).includes(q) || e.student_code.toLowerCase().includes(q)) && Object.entries(rg.f).every(([k, set]) => !set || set.has(RGC[k].v(e)))).map(e => ({ e })), Object.fromEntries(Object.entries(RGC).map(([k, C]) => [k, Object.assign({}, C, { v: x => C.v(x.e), key: C.key ? x => C.key(x.e) : null })])), sort).map(x => x.e);
     const busy = !!q || Object.values(rg.f).some(Boolean) || !!rg.sort;
     const rh = (k, extra) => { const C = RGC[k], srt = sort.col === k, flt = !!rg.f[k];
-      return `<button class="fh ${(srt && rg.sort) || flt ? "on" : ""}" data-rcol="${k}" aria-haspopup="true" title="ترتيب وفلترة">${extra || C.t}<span class="fh-i">${srt ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button>`; };
+      return `<button class="fh ${(srt && rg.sort) || flt ? "on" : ""}" data-rcol="${k}" aria-haspopup="true" title="ترتيب وتصفية">${extra || C.t}<span class="fh-i">${srt ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button>`; };
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[Math.min(absences(e), 4)]++);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.length} محاضرة · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
-      <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}<button class="btn sm" id="exp" ${D.enroll.length ? "" : "disabled"}>تصدير شيت إكسيل</button></div></div>
+      <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}<button class="btn sm" id="exp" ${D.enroll.length ? "" : "disabled"}>تصدير إلى إكسل</button></div></div>
       ${msgHtml("reg")}
-      ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات قبل البرنامج؟</span><button class="btn sm ghost" id="tplBtn">نزّل شيت التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات قديمة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden></div>` : ""}
+      ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات سبقت البرنامج؟</span><button class="btn sm ghost" id="tplBtn">تنزيل ملف التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات سابقة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden></div>` : ""}
       ${impBoxHtml()}
       ${dsBox()}
-      ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.warnChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">مفيش إنذارات لحد دلوقتي.</span>`}</div>
-      <div class="rs-bar"><input type="search" id="rgQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(rg.q)}" autocomplete="off"><span class="small muted">${rows.length === base.length ? base.length + " طالب" : "عرض " + rows.length + " من " + base.length}</span>${busy ? `<button class="btn sm ghost" id="rgClear">مسح الترتيب والفلاتر</button>` : ""}</div>
-      <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => { const lab = rh("s" + s.n, `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`); return `<th class="c ${delSess === s.id ? "th-on" : ""}">${lab}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="مسح المحاضرة ${s.n}" aria-label="مسح المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
-      ${rows.length ? "" : `<tr><td colspan="${ss.length + 6}"><div class="empty">مفيش طلبة مطابقين للبحث أو الفلتر.</div></td></tr>`}
+      ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.warnChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">لا توجد إنذارات حتى الآن.</span>`}</div>
+      <div class="rs-bar"><input type="search" id="rgQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rg.q)}" autocomplete="off"><span class="small muted">${rows.length === base.length ? base.length + " طالب" : "عرض " + rows.length + " من " + base.length}</span>${busy ? `<button class="btn sm ghost" id="rgClear">إلغاء الترتيب والتصفية</button>` : ""}</div>
+      <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => { const lab = rh("s" + s.n, `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`); return `<th class="c ${delSess === s.id ? "th-on" : ""}">${lab}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="حذف المحاضرة ${s.n}" aria-label="حذف المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
+      ${rows.length ? "" : `<tr><td colspan="${ss.length + 6}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
       ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${ab >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
       </tbody></table></div>
-      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة تانية · م معلّق · غ غايب · النقطة يعني المحاضرة مش لمجموعته.${mng ? " لو عملت محاضرة بالغلط، دوس «حذف» تحت رقمها." : ""} الغياب بيتحسب أول ما التسجيل في المحاضرة يتقفل، ولو سجّلت الطالب بعدها يدوي أو بمسح كوده الغياب بيتشال. وكل حضور تعويضي بيلغي غياب: مرة إنذار أول، مرتين إنذار ثاني، 3 إنذار ثالث ونهائي، 4 انسحاب إجباري.</p>`
-      : `<div class="empty">الكشف هيتملى أول ما تبدأ محاضرات.</div>`}`;
+      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة أخرى · م معلّق · غ غائب · النقطة تعني أن المحاضرة ليست لمجموعته.${mng ? " إذا أنشأت محاضرة بالخطأ، فاضغط «حذف» أسفل رقمها." : ""} يُحتسب الغياب فور إغلاق التسجيل في المحاضرة، وإذا سُجِّل الطالب بعد ذلك يدويًّا أو بمسح بطاقته أُلغي الغياب. ويُلغي كل حضور تعويضي غيابًا واحدًا. الغياب مرة واحدة إنذار أول، ومرتين إنذار ثانٍ، و3 مرات إنذار ثالث ونهائي، و4 مرات انسحاب إجباري.</p>`
+      : `<div class="empty">سيمتلئ الكشف بمجرد بدء المحاضرات.</div>`}`;
     el.querySelectorAll("[data-rg]").forEach(b => b.onclick = () => { regGroup = b.dataset.rg; renderRegister(); });
     el.querySelectorAll("[data-rcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === "r:" + b.dataset.rcol ? closeFpop() : openFpop(b, RGG, "r:"); });
     const rq = $("#rgQ"); if (rq) { rq.oninput = () => { rg.q = rq.value; renderRegister(); }; if (keepQ) { rq.focus(); try { rq.setSelectionRange(selA, selB); } catch (e) {} } }
@@ -724,7 +731,7 @@
     wireImp(el);
   }
   /* ---------- Excel: professional export, template for past lectures, import of ح / غ ---------- */
-  const loadExcelJS = () => window.ExcelJS ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"; sc.onload = ok; sc.onerror = () => bad({ message: "معرفناش نحمّل أداة الإكسيل. اتأكد من النت وجرّب تاني." }); document.head.appendChild(sc); });
+  const loadExcelJS = () => window.ExcelJS ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"; sc.onload = ok; sc.onerror = () => bad({ message: "تعذّر تحميل أداة إكسل. تأكّد من الاتصال بالإنترنت وأعد المحاولة." }); document.head.appendChild(sc); });
   const GORD = g => { const i = ["أ", "ب", "ج", "د"].indexOf(g); return g ? (i < 0 ? 10 : i) : 99; };
   const byGroupName = (a, b) => GORD(a.grp) - GORD(b.grp) || String(a.grp || "").localeCompare(String(b.grp || ""), "ar") || a.name.localeCompare(b.name, "ar", { sensitivity: "base" }) || a.student_code.localeCompare(b.student_code, "en", { numeric: true });
   const cairoDay = t => new Date(t).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
@@ -740,6 +747,8 @@
     return r.status === "manual" ? ["ي", "m"] : r.status === "pending" ? ["م", "w"] : ["ح", "p"];
   }
   async function saveWb(wb, name) {
+    wb.creator = CM.APP.author; wb.lastModifiedBy = CM.APP.author; wb.company = CM.APP.org; wb.title = name.replace(/\.xlsx$/, "");
+    wb.eachSheet(ws => { ws.headerFooter = { oddFooter: "&L&8" + "Classmate · " + CM.copyright() + "&R&8&P / &N" }; });
     const buf = await wb.xlsx.writeBuffer(), url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
     const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
@@ -754,14 +763,14 @@
     const row = ws.getRow(r); vals.forEach((v, j) => { row.getCell(j + 1).value = v; }); row.height = wrap ? 46 : 22;
     row.eachCell(cl => { cl.fill = fill(XC.head); cl.font = { name: "Arial", bold: true, size: 10, color: { argb: XC.headInk } }; cl.alignment = { horizontal: "center", vertical: "middle", wrapText: true, readingOrder: "rtl" }; cl.border = box; });
   }
-  function courseSub(c) { return [c.name, clsLabel(c), "اتصدّر " + new Date().toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" })].filter(Boolean).join(" · "); }
+  function courseSub(c) { return [c.name, clsLabel(c), "تاريخ التصدير " + new Date().toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" })].filter(Boolean).join(" · "); }
   function registerSheet(wb, name, rows, ss, c) {
     const ws = wb.addWorksheet(name, { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 5 }], properties: { defaultRowHeight: 18 } });
     const N = 3 + ss.length + 5;
     sheetTitle(ws, N, "كشف حضور " + c.name, courseSub(c));
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[Math.min(absences(e), 4)]++);
     ws.mergeCells(3, 1, 3, N);
-    ws.getCell(3, 1).value = rows.length + " طالب · " + ss.length + " محاضرة · " + [1, 2, 3, 4].map(i => CM.warnOf(i).t + ": " + cnt[i]).join(" · ") + "   |   ح حاضر · ي يدوي · ت تعويض · م معلّق · غ غايب · — مش لمجموعته";
+    ws.getCell(3, 1).value = rows.length + " طالب · " + ss.length + " محاضرة · " + [1, 2, 3, 4].map(i => CM.warnOf(i).t + ": " + cnt[i]).join(" · ") + "   |   ح حاضر · ي يدوي · ت تعويض · م معلّق · غ غائب · — ليست لمجموعته";
     ws.getCell(3, 1).font = { name: "Arial", size: 9, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
     headRow(ws, 5, ["الكود", "الاسم", "المجموعة", ...ss.map(s => "م" + s.n + (s.grp ? "\nمج " + s.grp : "") + "\n" + new Date(s.started_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Africa/Cairo" })), "حضر", "غاب", "النسبة", "الحالة", "ملاحظة"], true);
     rows.forEach((e, i) => {
@@ -781,16 +790,16 @@
     ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "5:5" };
   }
   async function exportXlsx() {
-    const btn = $("#exp"); if (btn) { btn.disabled = true; btn.textContent = "بيجهّز الشيت…"; }
+    const btn = $("#exp"); if (btn) { btn.disabled = true; btn.textContent = "جارٍ تجهيز الملف…"; }
     try {
       await loadExcelJS();
-      const c = course(), gs = groupsOf(), wb = new ExcelJS.Workbook(); wb.creator = "Classmate"; wb.created = new Date();
+      const c = course(), gs = groupsOf(), wb = new ExcelJS.Workbook(); wb.created = new Date();
       const all = D.enroll.slice().sort(byGroupName);
       registerSheet(wb, "الكل", all, D.sessions, c);
       if (gs.length > 1) gs.forEach(g => { const rows = all.filter(e => e.grp === g); registerSheet(wb, "مجموعة " + g, rows, D.sessions.filter(s => !s.grp || s.grp === g || rows.some(e => (D.att[s.id] || {})[e.student_code])), c); });
       await saveWb(wb, "حضور " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
     } catch (e) { showErr(e); }
-    if (btn) { btn.disabled = false; btn.textContent = "تصدير شيت إكسيل"; }
+    if (btn) { btn.disabled = false; btn.textContent = "تصدير إلى إكسل"; }
   }
   async function exportTemplate() {
     const btn = $("#tplBtn"); if (btn) btn.disabled = true;
@@ -798,7 +807,7 @@
       await loadExcelJS();
       const c = course(), wb = new ExcelJS.Workbook(), rows = D.enroll.slice().sort(byGroupName), K = 8;
       const ws = wb.addWorksheet("التحضير", { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 4 }] });
-      sheetTitle(ws, 3 + K, "تحضير محاضرات قديمة · " + c.name, "اكتب التاريخ مكان «تاريخ المحاضرة»، وتحته ح للحاضر وغ للغايب. التفاصيل في شيت «طريقة الاستخدام».");
+      sheetTitle(ws, 3 + K, "تحضير محاضرات سابقة · " + c.name, "اكتب التاريخ مكان «تاريخ المحاضرة»، وتحته «ح» للحاضر و«غ» للغائب. التفاصيل في ورقة «طريقة الاستخدام».");
       ws.getCell(2, 1).alignment = { horizontal: "right", vertical: "middle", wrapText: true, readingOrder: "rtl" }; ws.getRow(2).height = 52;
       headRow(ws, 4, ["الكود", "الاسم", "المجموعة", ...Array.from({ length: K }, () => "تاريخ المحاضرة")], false);
       for (let j = 0; j < K; j++) { const h = ws.getCell(4, 4 + j); h.numFmt = "@"; h.fill = fill("FF1F6B57"); }
@@ -806,21 +815,21 @@
         const row = ws.getRow(5 + i);
         [e.student_code, e.name, e.grp || "—"].forEach((v, j) => { row.getCell(j + 1).value = v; });
         for (let j = 1; j <= 3 + K; j++) { const cl = row.getCell(j); cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: j === 2 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (j <= 3) cl.numFmt = "@"; if (i % 2) cl.fill = fill(XC.band); }
-        for (let j = 0; j < K; j++) row.getCell(4 + j).dataValidation = { type: "list", allowBlank: true, formulae: ['"ح,غ"'], showErrorMessage: true, errorTitle: "ح أو غ", error: "اكتب ح للحاضر أو غ للغايب، أو سيبها فاضية." };
+        for (let j = 0; j < K; j++) row.getCell(4 + j).dataValidation = { type: "list", allowBlank: true, formulae: ['"ح,غ"'], showErrorMessage: true, errorTitle: "ح أو غ", error: "اكتب «ح» للحاضر أو «غ» للغائب، أو اترك الخانة فارغة." };
       });
       ws.columns.forEach((col, j) => { col.width = j === 0 ? 13 : j === 1 ? 30 : j === 2 ? 10 : 16; });
       ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + rows.length, column: 3 } };
       const hw = wb.addWorksheet("طريقة الاستخدام", { views: [{ rightToLeft: true }] });
-      [["إزاي تحضّر محاضرات قديمة"], [""], ["1. في شيت «التحضير»، اكتب تاريخ المحاضرة في أول السطر مكان «تاريخ المحاضرة». كل عمود = محاضرة واحدة."],
-       ["   أشكال التاريخ اللي بنفهمها: 03-أكتوبر-2026 أو 3/10/2026 (اليوم الأول) أو 2026-10-03."],
-       ["2. تحت التاريخ اكتب ح للطالب الحاضر وغ للغايب (فيه قايمة تختار منها)."],
-       ["3. لو المحاضرة كانت لمجموعة واحدة، علّم طلبة المجموعة دي بس وسيب الباقي فاضي. البرنامج بيعرف المجموعة لوحده."],
-       ["4. ارفع الشيت من كشف الحضور ← «رفع حضور محاضرات قديمة». هتشوف ملخص لكل محاضرة قبل ما يتسجل."],
-       ["5. المحاضرات القديمة بتترتب بتاريخها قبل محاضرات البرنامج، والإنذارات بتتحسب عليها."],
-       ["6. لو رفعت نفس التاريخ تاني، الحضور بيتحدث ومش بيتكرر. والطالب اللي اتسجل في البرنامج نفسه مش بيتشال."],
-       [""], ["متغيّرش عمود الكود. الأسماء والمجموعة للقراية بس."]].forEach((r, i) => { const cl = hw.getCell(1 + i, 1); cl.value = r[0]; cl.font = { name: "Arial", size: i ? 11 : 14, bold: !i, color: { argb: i ? "FF15211E" : XC.title } }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
+      [["طريقة تحضير المحاضرات السابقة"], [""], ["1. في ورقة «التحضير»، اكتب تاريخ المحاضرة في الصف الأول مكان عبارة «تاريخ المحاضرة». يمثّل كل عمود محاضرة واحدة."],
+       ["   صيغ التاريخ المقبولة: 03-أكتوبر-2026 أو 3/10/2026 (اليوم أولًا) أو 2026-10-03."],
+       ["2. تحت التاريخ اكتب «ح» للطالب الحاضر و«غ» للغائب (تتوفر قائمة للاختيار منها)."],
+       ["3. إذا كانت المحاضرة لمجموعة واحدة، فعلّم على طلبة تلك المجموعة فقط واترك الباقين دون علامة؛ إذ يتعرّف البرنامج على المجموعة تلقائيًّا."],
+       ["4. ارفع الملف من كشف الحضور ← «رفع حضور محاضرات سابقة». سيظهر لك ملخص لكل محاضرة قبل تسجيلها."],
+       ["5. تُرتَّب المحاضرات السابقة حسب تاريخها قبل محاضرات البرنامج، وتُحتسب الإنذارات بناءً عليها."],
+       ["6. إذا رفعت التاريخ نفسه مرة أخرى، يُحدَّث الحضور دون تكرار، ولا يُحذف حضور طالب سُجِّل من خلال البرنامج نفسه."],
+       [""], ["لا تغيّر عمود الكود. الأسماء والمجموعة للاطلاع فقط."]].forEach((r, i) => { const cl = hw.getCell(1 + i, 1); cl.value = r[0]; cl.font = { name: "Arial", size: i ? 11 : 14, bold: !i, color: { argb: i ? "FF15211E" : XC.title } }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
       hw.getColumn(1).width = 110;
-      await saveWb(wb, "تحضير محاضرات قديمة - " + c.name + ".xlsx");
+      await saveWb(wb, "تحضير محاضرات سابقة - " + c.name + ".xlsx");
     } catch (e) { showErr(e); }
     if (btn) btn.disabled = false;
   }
@@ -852,7 +861,7 @@
         const sn = wb.SheetNames.find(n => n.trim() === "التحضير") || wb.SheetNames[0];
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: "", raw: true });
         const hr = rows.findIndex((r, i) => i < 15 && r.some(v => /^(ال)?كود|code/i.test(String(v).trim())));
-        if (hr < 0) throw { message: "معرفناش نلاقي عمود «الكود» في الشيت." };
+        if (hr < 0) throw { message: "تعذّر العثور على عمود «الكود» في الملف." };
         const h = rows[hr], ci = h.findIndex(v => /^(ال)?كود|code/i.test(String(v).trim()));
         const skip = new Set([ci, h.findIndex(v => /اسم|name/i.test(String(v))), h.findIndex(v => /مجموع|group/i.test(String(v)))]);
         const enr = new Map(D.enroll.map(e => [e.student_code, e])), body = rows.slice(hr + 1).filter(r => String(r[ci] ?? "").trim());
@@ -864,9 +873,9 @@
           const day = parseDay(hv), present = [], absent = [], notIn = [], odd = [];
           marks.forEach(([code, m]) => { if (m === "?") return odd.push(code); if (!enr.has(code)) return notIn.push(code); (m === "p" ? present : absent).push(code); });
           const gset = [...new Set([...present, ...absent].map(k => enr.get(k).grp).filter(Boolean))];
-          cols.push({ head: String(hv instanceof Date ? hv.toLocaleDateString() : hv).trim() || "(من غير عنوان)", day, present, absent, notIn, odd, grp: gset.length === 1 ? gset[0] : "", on: !!day && day <= cairoDay(Date.now()) && present.length + absent.length > 0 });
+          cols.push({ head: String(hv instanceof Date ? hv.toLocaleDateString() : hv).trim() || "(دون عنوان)", day, present, absent, notIn, odd, grp: gset.length === 1 ? gset[0] : "", on: !!day && day <= cairoDay(Date.now()) && present.length + absent.length > 0 });
         });
-        if (!cols.length) throw { message: "مفيش أعمدة فيها ح أو غ في الشيت." };
+        if (!cols.length) throw { message: "لا توجد في الملف أعمدة تحتوي على «ح» أو «غ»." };
         imp = { file: file.name, cols: cols.sort((a, b) => String(a.day).localeCompare(String(b.day))) };
       } catch (e) { imp = null; showErr(e); }
       renderRegister();
@@ -878,21 +887,21 @@
     if (!imp) return "";
     const today = cairoDay(Date.now()), gs = groupsOf();
     const line = (x, i) => {
-      const bad = !x.day ? "التاريخ مش مفهوم" : x.day > today ? "تاريخ في المستقبل" : !(x.present.length + x.absent.length) ? "مفيش طلبة من المادة" : "";
+      const bad = !x.day ? "تاريخ غير مفهوم" : x.day > today ? "تاريخ في المستقبل" : !(x.present.length + x.absent.length) ? "لا يوجد طلبة من المادة" : "";
       const ex = x.day && D.sessions.find(s => cairoDay(s.started_at) === x.day && (s.grp || "") === (x.grp || ""));
       const marked = new Set([...x.present, ...x.absent]), blanks = D.enroll.filter(e => (!x.grp || e.grp === x.grp) && !marked.has(e.student_code)).length;
-      const notes = [ex ? `<span class="chip warn">موجودة بالفعل (م${ex.n})، هيتحدث حضورها</span>` : "", blanks ? `${blanks} طالب من ${x.grp ? "مجموعة " + esc(x.grp) : "الدفعة"} من غير علامة هيتحسبوا غياب` : "", x.notIn.length ? `${x.notIn.length} كود مش في المادة هيتجاهلوا` : "", x.odd.length ? `${x.odd.length} خانة مكتوب فيها حاجة غير ح أو غ هتتجاهل` : ""].filter(Boolean).join(" · ");
+      const notes = [ex ? `<span class="chip warn">موجودة بالفعل (م${ex.n})، سيُحدَّث حضورها</span>` : "", blanks ? `${blanks} طالب من ${x.grp ? "مجموعة " + esc(x.grp) : "الدفعة"} دون علامة سيُحتسبون غائبين` : "", x.notIn.length ? `${x.notIn.length} كود غير مسجَّل في المادة وسيُتجاهَل` : "", x.odd.length ? `${x.odd.length} خانة تحتوي على قيمة غير «ح» أو «غ» وستُتجاهَل` : ""].filter(Boolean).join(" · ");
       return `<tr class="${bad ? "bad-row" : ""}"><td class="cb"><input type="checkbox" data-ion="${i}" ${x.on && !bad ? "checked" : ""} ${bad ? "disabled" : ""}></td>
         <td><b>${x.day ? new Date(x.day + "T12:00:00Z").toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : esc(x.head)}</b>${bad ? `<div class="small" style="color:var(--bad)">${bad}: «${esc(x.head)}»</div>` : ""}</td>
-        <td><select data-igrp="${i}" ${bad ? "disabled" : ""}><option value="">الدفعة كلها</option>${gs.map(g => `<option value="${esc(g)}" ${x.grp === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></td>
+        <td><select data-igrp="${i}" ${bad ? "disabled" : ""}><option value="">الدفعة كاملة</option>${gs.map(g => `<option value="${esc(g)}" ${x.grp === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></td>
         <td class="c"><span class="chip ok">${x.present.length}</span></td><td class="c"><span class="chip bad">${x.absent.length}</span></td>
         <td class="small muted">${notes}</td></tr>`;
     };
     const n = imp.cols.filter(x => x.on && x.day && x.day <= today).length;
-    return `<div class="note-box imp" id="impBox"><b>شيت «${esc(imp.file)}»: لقينا ${imp.cols.length} محاضرة</b>
-      <span class="small">راجع التاريخ والمجموعة لكل محاضرة. اللي عليها علامة ✓ بس هي اللي هتترفع.</span>
+    return `<div class="note-box imp" id="impBox"><b>ملف «${esc(imp.file)}»: وُجدت ${imp.cols.length} محاضرة</b>
+      <span class="small">راجع التاريخ والمجموعة لكل محاضرة. لن تُرفع إلا المحاضرات المحددة بعلامة ✓.</span>
       <div class="tbl-wrap"><table><thead><tr><th class="cb"></th><th>المحاضرة</th><th>المجموعة</th><th class="c">ح</th><th class="c">غ</th><th>ملاحظات</th></tr></thead><tbody>${imp.cols.map(line).join("")}</tbody></table></div>
-      <div class="row"><button class="btn sm primary" id="impGo" ${n ? "" : "disabled"}>${imp.busy ? "بيرفع…" : "ارفع حضور " + n + " محاضرة"}</button><button class="btn sm ghost" id="impNo">إلغاء</button></div></div>`;
+      <div class="row"><button class="btn sm primary" id="impGo" ${n ? "" : "disabled"}>${imp.busy ? "جارٍ الرفع…" : "ارفع حضور " + n + " محاضرة"}</button><button class="btn sm ghost" id="impNo">إلغاء</button></div></div>`;
   }
   function wireImp(el) {
     if (!imp) return;
@@ -906,9 +915,9 @@
       let made = 0, upd = 0;
       try {
         for (const x of todo) { const r = await rpc("import_lecture", { cid: c.id, p_date: x.day, p_grp: x.grp, p_present: x.present, p_absent: x.absent }); r.created ? made++ : upd++; }
-        say("reg", "اترفع حضور " + todo.length + " محاضرة من «" + imp.file + "»" + (made ? "، منهم " + made + " محاضرة جديدة" : "") + (upd ? "، و" + upd + " اتحدّث حضورها" : "") + ". المحاضرات اترتبت بتاريخها.");
+        say("reg", "رُفع حضور " + todo.length + " محاضرة من «" + imp.file + "»" + (made ? "، منهم " + made + " محاضرة جديدة" : "") + (upd ? "، و" + upd + " حُدِّث حضورها" : "") + ". رُتِّبت المحاضرات حسب تاريخها.");
         imp = null;
-      } catch (e) { imp.busy = false; say("reg", "!" + errText(e) + (made + upd ? " (اترفع " + (made + upd) + " محاضرة قبل الغلطة)" : "")); }
+      } catch (e) { imp.busy = false; say("reg", "!" + errText(e) + (made + upd ? " (رُفع " + (made + upd) + " محاضرة قبل حدوث الخطأ)" : "")); }
       await loadCourse().catch(showErr);
     };
   }
@@ -926,7 +935,7 @@
   }
   function missedIn(e) { return D.sessions.filter(s => regDone(s) && isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).map(s => s.n); }
   function lecChart(st) {
-    if (!st.length) return `<div class="empty">لسه مفيش محاضرات اتقفل تسجيلها.</div>`;
+    if (!st.length) return `<div class="empty">لا توجد محاضرات أُغلق تسجيلها حتى الآن.</div>`;
     const avg = Math.round(st.reduce((a, b) => a + b.pct, 0) / st.length), cols = `repeat(${st.length},minmax(40px,1fr))`;
     return `<div class="bchart" role="img" aria-label="نسبة الحضور في كل محاضرة، المتوسط ${avg}%"><div class="bin" style="min-width:${st.length * 48}px">
       <div class="bplot">
@@ -952,30 +961,30 @@
       .sort((a, b) => b.ab - a.ab || a.a.pct - b.a.pct || a.e.name.localeCompare(b.e.name, "ar"));
     const KS = ["ok", "w1", "w2", "w3", "w4"];
     const seg = [0, 1, 2, 3, 4].filter(i => lv[i]).map(i => `<button class="seg ${KS[i]} ${rpLevel === i ? "on" : ""}" style="flex:${lv[i]}" data-lvl="${i}" title="${CM.WARN[i].t}: ${lv[i]} طالب"><span>${lv[i]}</span></button>`).join("");
-    const next = ab => ab >= 4 ? "" : ab === 3 ? "غياب كمان = انسحاب إجباري" : "غياب كمان = " + CM.WARN[ab + 1].t;
-    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${rows.length} طالب · ${st.length} محاضرة اتحسبت</div><h2>تقرير الغياب والإنذارات</h2></div>
+    const next = ab => ab >= 4 ? "" : ab === 3 ? "غياب آخر = انسحاب إجباري" : "غياب آخر = " + CM.WARN[ab + 1].t;
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${rows.length} طالب · ${st.length} محاضرة محتسبة</div><h2>تقرير الغياب والإنذارات</h2></div>
       <div class="row no-print">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rpg="${esc(k)}" aria-pressed="${rpGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}
-        <button class="btn sm" id="rpXls">تصدير التقرير إكسيل</button><button class="btn sm ghost" id="rpPrint">طباعة</button></div></div>
+        <button class="btn sm" id="rpXls">تصدير التقرير إلى إكسل</button><button class="btn sm ghost" id="rpPrint">طباعة</button></div></div>
       <div class="kpis">
         <div class="kpi"><b>${avg}%</b><span>متوسط الحضور</span></div>
-        <div class="kpi"><b>${warned}</b><span>طالب عندهم إنذار</span></div>
+        <div class="kpi"><b>${warned}</b><span>طالب لديهم إنذار</span></div>
         <div class="kpi"><b>${lv[3]}</b><span>إنذار ثالث ونهائي</span></div>
         <div class="kpi bad"><b>${lv[4]}</b><span>انسحاب إجباري</span></div>
       </div>
       <div class="rp-sec"><h3>توزيع الطلبة على الحالات</h3>
-        <div class="segbar" role="group" aria-label="توزيع الحالات">${seg || `<div class="empty">مفيش طلبة.</div>`}</div>
+        <div class="segbar" role="group" aria-label="توزيع الحالات">${seg || `<div class="empty">لا يوجد طلبة.</div>`}</div>
         <div class="legend">${[0, 1, 2, 3, 4].map(i => `<button class="lg ${rpLevel === i ? "on" : ""}" data-lvl="${i}"><i class="sw ${KS[i]}"></i>${CM.WARN[i].t} <b>${lv[i]}</b></button>`).join("")}</div>
       </div>
-      <div class="rp-sec"><h3>نسبة الحضور في كل محاضرة</h3><p class="small muted">من طلبة المجموعة اللي المحاضرة ليها. العمود الأحمر يعني الحضور أقل من النص.</p>${lecChart(st)}</div>
+      <div class="rp-sec"><h3>نسبة الحضور في كل محاضرة</h3><p class="small muted">محسوبة من طلبة المجموعة التي تخصّها المحاضرة. العمود الأحمر يعني أن الحضور أقل من النصف.</p>${lecChart(st)}</div>
       ${gs.length > 1 && rpGroup === "all" ? `<div class="rp-sec"><h3>مقارنة المجموعات</h3><div class="tbl-wrap"><table><thead><tr><th>المجموعة</th><th class="c">طلبة</th><th class="c">متوسط الحضور</th>${[1, 2, 3, 4].map(i => `<th class="c">${CM.WARN[i].t}</th>`).join("")}</tr></thead><tbody>
         ${gs.map(g => { const r2 = D.enroll.filter(e => e.grp === g), l2 = [0, 0, 0, 0, 0]; r2.forEach(e => l2[Math.min(absences(e), 4)]++); const s2 = lectureStats(D.sessions.filter(s => !s.grp || s.grp === g), r2), a2 = s2.length ? Math.round(s2.reduce((a, b) => a + b.pct, 0) / s2.length) : 0;
           return `<tr><td>مجموعة ${esc(g)}</td><td class="c mono">${r2.length}</td><td class="c"><span class="chip ${a2 >= 75 ? "ok" : a2 >= 50 ? "warn" : "bad"}">${a2}%</span></td>${[1, 2, 3, 4].map(i => `<td class="c mono">${l2[i] || "—"}</td>`).join("")}</tr>`; }).join("")}
       </tbody></table></div></div>` : ""}
-      <div class="rp-sec"><div class="panel-h"><h3>الطلبة اللي عندهم غياب${rpLevel !== null ? " · " + CM.WARN[rpLevel].t : ""}</h3>${rpLevel !== null ? `<button class="btn sm ghost no-print" id="rpAll">اعرض الكل</button>` : ""}</div>
-        <div class="rs-bar no-print"><input type="search" id="rpQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(rpQ)}" autocomplete="off"><span class="small muted">${list.length} طالب</span></div>
-        ${list.length ? `<div class="tbl-wrap" id="rpWrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">الغياب</th><th class="c">الحضور</th><th>الحالة</th><th>غاب في</th><th>الجاي</th></tr></thead><tbody>
+      <div class="rp-sec"><div class="panel-h"><h3>الطلبة الذين لديهم غياب${rpLevel !== null ? " · " + CM.WARN[rpLevel].t : ""}</h3>${rpLevel !== null ? `<button class="btn sm ghost no-print" id="rpAll">عرض الكل</button>` : ""}</div>
+        <div class="rs-bar no-print"><input type="search" id="rpQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rpQ)}" autocomplete="off"><span class="small muted">${list.length} طالب</span></div>
+        ${list.length ? `<div class="tbl-wrap" id="rpWrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">الغياب</th><th class="c">الحضور</th><th>الحالة</th><th>غاب في</th><th>التالي</th></tr></thead><tbody>
           ${list.map(x => `<tr class="${x.ab >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(x.e.student_code)}</td><td>${esc(x.e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(x.e.grp || "—")}</td>` : ""}<td class="c mono"><b>${x.ab}</b></td><td class="c"><span class="chip ${x.a.pct >= 75 ? "ok" : x.a.pct >= 50 ? "warn" : "bad"}">${x.a.pct}%</span></td><td>${CM.warnChip(x.ab)}</td><td class="small muted">${x.miss.map(n => "م" + n).join("، ")}</td><td class="small">${next(x.ab)}</td></tr>`).join("")}
-        </tbody></table></div>` : `<div class="empty">${q ? "مفيش طالب بالاسم أو الكود ده." : "مفيش طلبة عندهم غياب هنا."}</div>`}
+        </tbody></table></div>` : `<div class="empty">${q ? "لا يوجد طالب بهذا الاسم أو الكود." : "لا يوجد طلبة لديهم غياب هنا."}</div>`}
       </div>`;
     const ae = document.activeElement;
     el.querySelectorAll("[data-rpg]").forEach(b => b.onclick = () => { rpGroup = b.dataset.rpg; renderReport(); });
@@ -986,30 +995,30 @@
     $("#rpXls").onclick = () => exportReport(rows, info, st, lv, avg);
   }
   async function exportReport(rows, info, st, lv, avg) {
-    const btn = $("#rpXls"); if (btn) { btn.disabled = true; btn.textContent = "بيجهّز…"; }
+    const btn = $("#rpXls"); if (btn) { btn.disabled = true; btn.textContent = "جارٍ التجهيز…"; }
     try {
       await loadExcelJS();
       const c = course(), wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet("التقرير", { views: [{ rightToLeft: true }] });
       sheetTitle(ws, 8, "تقرير الغياب والإنذارات · " + c.name, courseSub(c) + (rpGroup !== "all" ? " · مجموعة " + rpGroup : ""));
-      const kv = [["عدد الطلبة", rows.length], ["المحاضرات اللي اتحسبت", st.length], ["متوسط الحضور", avg / 100], ...[0, 1, 2, 3, 4].map(i => [CM.WARN[i].t, lv[i]])];
+      const kv = [["عدد الطلبة", rows.length], ["المحاضرات المحتسبة", st.length], ["متوسط الحضور", avg / 100], ...[0, 1, 2, 3, 4].map(i => [CM.WARN[i].t, lv[i]])];
       kv.forEach(([k, v], i) => { const r = ws.getRow(4 + i); r.getCell(1).value = k; r.getCell(2).value = v; r.getCell(1).font = { name: "Arial", bold: true, size: 10 }; r.getCell(2).font = { name: "Arial", size: 10 }; if (k === "متوسط الحضور") r.getCell(2).numFmt = "0%"; if (i >= 3) { const w = WARNX[i - 3]; r.getCell(1).fill = fill(w[0]); r.getCell(1).font = { name: "Arial", bold: true, size: 10, color: { argb: w[1] } }; } [1, 2].forEach(j => { r.getCell(j).border = box; r.getCell(j).alignment = { horizontal: "right", readingOrder: "rtl" }; }); });
       let r0 = 4 + kv.length + 2;
       headRow(ws, r0, ["المحاضرة", "التاريخ", "المجموعة", "عدد الطلبة", "حضر", "النسبة", "تعويض"], false);
       st.forEach((x, i) => { const r = ws.getRow(r0 + 1 + i); ["م" + x.s.n, new Date(x.s.started_at).toLocaleDateString("en-GB", { timeZone: "Africa/Cairo" }), x.s.grp || "الكل", x.own, x.pres, x.pct / 100, x.mk].forEach((v, j) => { const cl = r.getCell(j + 1); cl.value = v; cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: "center", readingOrder: "rtl" }; }); r.getCell(6).numFmt = "0%"; if (x.pct < 50) r.getCell(6).fill = fill("FFF7E0DD"); });
-      const ws2 = wb.addWorksheet("الطلبة اللي عندهم غياب", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
-      sheetTitle(ws2, 8, "الطلبة اللي عندهم غياب · " + c.name, courseSub(c));
-      headRow(ws2, 4, ["الكود", "الاسم", "المجموعة", "الغياب", "نسبة الحضور", "الحالة", "غاب في", "الجاي"], false);
+      const ws2 = wb.addWorksheet("الطلبة الذين لديهم غياب", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
+      sheetTitle(ws2, 8, "الطلبة الذين لديهم غياب · " + c.name, courseSub(c));
+      headRow(ws2, 4, ["الكود", "الاسم", "المجموعة", "الغياب", "نسبة الحضور", "الحالة", "غاب في", "التالي"], false);
       const lst = info.filter(x => x.ab > 0).sort((a, b) => b.ab - a.ab || a.e.name.localeCompare(b.e.name, "ar"));
       lst.forEach((x, i) => { const r = ws2.getRow(5 + i), w = WARNX[Math.min(x.ab, 4)];
-        [x.e.student_code, x.e.name, x.e.grp || "—", x.ab, x.a.pct / 100, CM.warnOf(x.ab).t, x.miss.map(n => "م" + n).join("، "), x.ab >= 4 ? "" : x.ab === 3 ? "غياب كمان = انسحاب" : "غياب كمان = " + CM.WARN[x.ab + 1].t].forEach((v, j) => { const cl = r.getCell(j + 1); cl.value = v; cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: j === 1 || j >= 6 ? "right" : "center", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
+        [x.e.student_code, x.e.name, x.e.grp || "—", x.ab, x.a.pct / 100, CM.warnOf(x.ab).t, x.miss.map(n => "م" + n).join("، "), x.ab >= 4 ? "" : x.ab === 3 ? "غياب آخر = انسحاب" : "غياب آخر = " + CM.WARN[x.ab + 1].t].forEach((v, j) => { const cl = r.getCell(j + 1); cl.value = v; cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: j === 1 || j >= 6 ? "right" : "center", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
         r.getCell(5).numFmt = "0%"; r.getCell(6).fill = fill(w[0]); r.getCell(6).font = { name: "Arial", size: 10, bold: true, color: { argb: w[1] } }; });
       ws2.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + lst.length, column: 8 } };
       [13, 30, 10, 9, 12, 18, 26, 24].forEach((wd, j) => { ws2.getColumn(j + 1).width = wd; });
       [26, 14, 12, 12, 9, 10, 9, 9].forEach((wd, j) => { ws.getColumn(j + 1).width = wd; });
       await saveWb(wb, "تقرير الغياب - " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
     } catch (e) { showErr(e); }
-    if (btn) { btn.disabled = false; btn.textContent = "تصدير التقرير إكسيل"; }
+    if (btn) { btn.disabled = false; btn.textContent = "تصدير التقرير إلى إكسل"; }
   }
 
   /* ---------- roster ---------- */
@@ -1017,25 +1026,25 @@
     const c = course(), el = $("#rosterPanel"), mng = canManage(c), add = canRun(c);
     const gOpts = [...new Set(["أ", "ب", "ج", ...groupsOf()])].sort();
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.enroll.length} طالب</div><h2>طلبة المادة</h2></div>
-      <div class="row">${add ? `<button class="btn sm ${addOpen ? "primary" : ""}" id="stAddT">إضافة طالب</button>` : ""}${mng ? `<label class="btn sm" for="xls">رفع شيت إكسيل</label><input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
+      <div class="row">${add ? `<button class="btn sm ${addOpen ? "primary" : ""}" id="stAddT">إضافة طالب</button>` : ""}${mng ? `<label class="btn sm" for="xls">رفع ملف إكسل</label><input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
       ${msgHtml("roster")}
       ${add && addOpen ? `<div class="manbox" style="background:var(--sunk);border-radius:8px;padding:12px">
         <div class="settings" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
           <label class="f"><span>كود الطالب</span><input type="text" id="stCode" class="mono" style="text-align:start" inputmode="numeric" value="${esc(addDraft.code)}"></label>
           <label class="f" style="grid-column:span 2"><span>الاسم</span><input type="text" id="stName" value="${esc(addDraft.name)}"></label>
-          <label class="f"><span>المجموعة</span><select id="stGrp"><option value="">من غير مجموعة</option>${gOpts.map(g => `<option value="${esc(g)}" ${addDraft.grp === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>
+          <label class="f"><span>المجموعة</span><select id="stGrp"><option value="">دون مجموعة</option>${gOpts.map(g => `<option value="${esc(g)}" ${addDraft.grp === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>
           <label class="f"><span>رمز التفعيل (اختياري)</span><input type="text" id="stPin" class="mono" style="text-align:start" inputmode="numeric" value="${esc(addDraft.pin)}"></label>
         </div>
-        <div class="row"><button class="btn sm primary" id="stSave">أضف الطالب</button><button class="btn sm ghost" id="stCancel">إلغاء</button><span class="muted small">الطالب بيظهر في الكشف من دلوقتي، ويقدر يعمل حساب بكوده.</span></div>
+        <div class="row"><button class="btn sm primary" id="stSave">أضف الطالب</button><button class="btn sm ghost" id="stCancel">إلغاء</button><span class="muted small">يظهر الطالب في الكشف من الآن، ويمكنه إنشاء حساب بكوده.</span></div>
       </div>` : ""}
-      ${mng ? `<p class="muted small">الشيت فيه عمود للكود وعمود للاسم، واختياري عمود «المجموعة» (أ / ب) وعمود «رمز التفعيل». رفع شيت جديد بيستبدل القائمة كلها (أي طالب مش في الشيت الجديد بيتشال)، والحضور القديم بيفضل محفوظ. لطالب واحد استخدم «إضافة طالب».</p>` : ""}
+      ${mng ? `<p class="muted small">يتضمن الملف عمودًا للكود وعمودًا للاسم، ويمكن إضافة عمودَي «المجموعة» (أ / ب) و«رمز التفعيل». رفع ملف جديد يستبدل القائمة كلها (يُزال أي طالب غير موجود في الملف الجديد)، ويبقى الحضور السابق محفوظًا. لإضافة طالب واحد استخدم «إضافة طالب».</p>` : ""}
       ${D.enroll.length ? `<div class="rs-bar">
-          <input type="search" id="rsQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(rv.q)}" autocomplete="off">
+          <input type="search" id="rsQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rv.q)}" autocomplete="off">
           <span class="small muted" id="rsCount"></span>
-          <button class="btn sm ghost" id="rsClear" hidden>مسح الترتيب والفلاتر</button>
+          <button class="btn sm ghost" id="rsClear" hidden>إلغاء الترتيب والتصفية</button>
         </div>
-        <div class="tbl-wrap" id="rsWrap" style="max-height:480px;overflow:auto"><table id="rsTbl"></table></div>` : `<div class="empty">${mng ? "ارفع شيت إكسيل فيه أكواد وأسماء الطلبة." : "المحاضر لسه مارفعش شيت الطلبة."}</div>`}
-      ${mng && D.enroll.length ? `<p class="muted small">«فك ربط الموبايل» لو الطالب غيّر موبايله، فيدخل من الجديد بنفس كلمة السر. «مسح الحساب» لو نسي كلمة السر أو حد عمل حساب بكوده، فيعمل حساب من الأول. «شيل من المادة» بيشيله من الكشف، ولو رجعته تاني حضوره القديم بيرجع.</p>` : ""}`;
+        <div class="tbl-wrap" id="rsWrap" style="max-height:480px;overflow:auto"><table id="rsTbl"></table></div>` : `<div class="empty">${mng ? "ارفع ملف إكسل يتضمن أكواد الطلبة وأسماءهم." : "لم يرفع المحاضر ملف الطلبة بعد."}</div>`}
+      ${mng && D.enroll.length ? `<p class="muted small">«فك ربط الهاتف» إذا غيّر الطالب هاتفه، فيدخل من الهاتف الجديد بكلمة السر نفسها. «حذف الحساب» إذا نسي كلمة السر أو أنشأ شخص آخر حسابًا بكوده، فينشئ حسابًا جديدًا. «إزالة من المادة» تحذفه من الكشف، وإذا أعدته لاحقًا عاد حضوره السابق.</p>` : ""}`;
     const x = $("#xls"); if (x) x.onchange = ev => importFile(ev.target.files[0]);
     const at = $("#stAddT"); if (at) at.onclick = () => { addOpen = !addOpen; renderRoster(); const i = $("#stCode"); if (i) i.focus(); };
     const keep = () => { addDraft = { code: $("#stCode").value, name: $("#stName").value, grp: $("#stGrp").value, pin: $("#stPin").value }; };
@@ -1048,7 +1057,7 @@
       if (!d.code || !d.name) { say("roster", "!اكتب كود الطالب واسمه."); return renderRoster(); }
       try {
         await rpc("add_student", { cid: c.id, p_code: d.code, p_name: d.name, p_grp: d.grp, p_pin: d.pin });
-        say("roster", "اتضاف " + d.name + " (" + d.code + ")" + (d.grp ? " في مجموعة " + d.grp : "") + ".");
+        say("roster", "أُضيف " + d.name + " (" + d.code + ")" + (d.grp ? " في مجموعة " + d.grp : "") + ".");
         addDraft = { code: "", name: "", grp: d.grp, pin: "" };
         await loadCourse();
       } catch (e) { say("roster", "!" + errText(e)); renderRoster(); }
@@ -1061,19 +1070,19 @@
 
   /* ---------- roster table: search + Excel-style sort & filter per column ---------- */
   let rv = { cid: null, q: "", sort: { col: "code", dir: 1 }, f: { grp: null, acc: null } }, fpopCol = null;
-  const ACC = { bound: "مربوط بموبايل", reg: "مستني يربط موبايل", none: "ماعملش حساب" };
+  const ACC = { bound: "مرتبط بهاتف", reg: "بانتظار ربط هاتف", none: "لم ينشئ حسابًا" };
   const accOf = e => { const b = D.bindings[e.student_code] || {}; return b.device_bound ? "bound" : b.registered ? "reg" : "none"; };
   const grpOf = e => e.grp || "";
-  const NOWL = { p: "حاضر", w: "معلّق", n: "لسه ماتسجلش" };
+  const NOWL = { p: "حاضر", w: "معلّق", n: "لم يُسجَّل بعد" };
   const markSess = () => { const s = D && running(), c = course(); return s && !s.ended && canRun(c) ? s : null; };
   const nowOf = e => { const s = markSess(), r = s && (D.att[s.id] || {})[e.student_code]; return counted(r) ? "p" : r ? "w" : "n"; };
   let rosterMan = null;
   const RCOLS = {
     code: { t: "الكود", v: e => e.student_code, num: true, up: "من الأصغر للأكبر", down: "من الأكبر للأصغر" },
     name: { t: "الاسم", v: e => e.name, up: "أ ← ي", down: "ي ← أ" },
-    grp: { t: "المجموعة", v: grpOf, list: true, lab: g => g ? "مجموعة " + g : "من غير مجموعة", up: "أ ← ي", down: "ي ← أ" },
-    acc: { t: "الحساب", v: accOf, list: true, ord: ["none", "reg", "bound"], lab: a => ACC[a], key: e => ["none", "reg", "bound"].indexOf(accOf(e)), up: "اللي ماعملوش حساب الأول", down: "المربوطين الأول" },
-    now: { t: "حضور المحاضرة", v: e => nowOf(e), list: true, ord: ["n", "w", "p"], lab: x => NOWL[x], key: e => ["n", "w", "p"].indexOf(nowOf(e)), up: "اللي لسه الأول", down: "الحاضرين الأول" }
+    grp: { t: "المجموعة", v: grpOf, list: true, lab: g => g ? "مجموعة " + g : "دون مجموعة", up: "أ ← ي", down: "ي ← أ" },
+    acc: { t: "الحساب", v: accOf, list: true, ord: ["none", "reg", "bound"], lab: a => ACC[a], key: e => ["none", "reg", "bound"].indexOf(accOf(e)), up: "من لم ينشئوا حسابًا أولًا", down: "المرتبطون بهاتف أولًا" },
+    now: { t: "حضور المحاضرة", v: e => nowOf(e), list: true, ord: ["n", "w", "p"], lab: x => NOWL[x], key: e => ["n", "w", "p"].indexOf(nowOf(e)), up: "غير المسجَّلين أولًا", down: "الحاضرون أولًا" }
   };
   const normAr = x => String(x || "").toLowerCase().replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/\s+/g, " ").trim();
   function rosterRows() {
@@ -1099,10 +1108,10 @@
     tb.innerHTML = `<thead><tr>${head("code")}${head("name")}${ms ? head("now") : ""}${head("grp")}${head("acc")}${mng ? "<th></th>" : ""}</tr></thead><tbody>
       ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td>${esc(e.name)}</td>${ms ? `<td style="white-space:nowrap">${nowCell(e)}</td>` : ""}
         <td>${mng ? `<select data-grp="${esc(e.student_code)}" style="width:auto;padding:3px 6px">${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${esc(g) || "—"}</option>`).join("")}</select>` : esc(e.grp || "—")}</td>
-        <td>${b.device_bound ? `<span class="chip ok">مربوط بموبايل</span>` : b.registered ? `<span class="chip warn">مستني يربط موبايل</span>` : `<span class="chip none">ماعملش حساب</span>`}</td>
-        ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الموبايل"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "مسح الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "شيل من المادة"}</button></div></td>` : ""}</tr>
-        ${ms && rosterMan === e.student_code ? `<tr class="manrow"><td colspan="${ncol}">${manBoxHtml([e.student_code], "rsm")}<span class="small muted">دوس على سبب من الأسباب وهيتسجل على طول، أو اكتب سبب ودوس «سجّله حاضر».</span></td></tr>` : ""}`; }).join("")
-        : `<tr><td colspan="${ncol}"><div class="empty">مفيش طلبة مطابقين للبحث أو الفلتر.</div></td></tr>`}
+        <td>${b.device_bound ? `<span class="chip ok">مرتبط بهاتف</span>` : b.registered ? `<span class="chip warn">بانتظار ربط هاتف</span>` : `<span class="chip none">لم ينشئ حسابًا</span>`}</td>
+        ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الهاتف"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "حذف الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "إزالة من المادة"}</button></div></td>` : ""}</tr>
+        ${ms && rosterMan === e.student_code ? `<tr class="manrow"><td colspan="${ncol}">${manBoxHtml([e.student_code], "rsm")}<span class="small muted">اضغط أحد الأسباب ليُسجَّل الحضور مباشرة، أو اكتب سببًا واضغط «تسجيله حاضرًا».</span></td></tr>` : ""}`; }).join("")
+        : `<tr><td colspan="${ncol}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
       </tbody>`;
     const busy = !!rv.q.trim() || !!rv.f.grp || !!rv.f.acc || !!rv.f.now || rv.sort.col !== "code" || rv.sort.dir !== 1;
     const cnt = $("#rsCount"); if (cnt) cnt.textContent = rows.length === D.enroll.length ? D.enroll.length + " طالب" : "عرض " + rows.length + " من " + D.enroll.length;
@@ -1115,14 +1124,14 @@
       tb.querySelectorAll("[data-rap]").forEach(b => b.onclick = () => act(() => rpc("approve_attendance", { sid: ms.id, code: b.dataset.rap }), afterMark));
       if (rosterMan) {
         const code = rosterMan;
-        wireManBox(tb, "rsm", [code], ms.id, ok => { rosterMan = null; if (ok) say("roster", "اتسجل " + nameOf(code) + " حاضر في المحاضرة " + ms.n + "."); keepScroll("#rosterPanel", renderRoster); });
+        wireManBox(tb, "rsm", [code], ms.id, ok => { rosterMan = null; if (ok) say("roster", "سُجِّل " + nameOf(code) + " حاضر في المحاضرة " + ms.n + "."); keepScroll("#rosterPanel", renderRoster); });
         tb.querySelectorAll("[data-mq]").forEach(q => q.onclick = () => { const inp = $("#rsmReason"); inp.value = q.dataset.mq; manDraft = q.dataset.mq; $("#rsmSave").click(); });
       }
     }
-    tb.querySelectorAll("[data-rmst]").forEach(b => b.onclick = () => { const k = "rmst:" + b.dataset.rmst; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; const nm = nameOf(b.dataset.rmst); act(async () => { await rpc("remove_student", { cid: c.id, code: b.dataset.rmst }); say("roster", "اتشال " + nm + " من المادة."); }, loadCourse); });
+    tb.querySelectorAll("[data-rmst]").forEach(b => b.onclick = () => { const k = "rmst:" + b.dataset.rmst; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; const nm = nameOf(b.dataset.rmst); act(async () => { await rpc("remove_student", { cid: c.id, code: b.dataset.rmst }); say("roster", "أُزيل " + nm + " من المادة."); }, loadCourse); });
     tb.querySelectorAll("[data-grp]").forEach(sel => sel.onchange = () => act(() => rpc("set_group", { cid: c.id, code: sel.dataset.grp, p_grp: sel.value }), loadCourse));
-    tb.querySelectorAll("[data-dev]").forEach(b => b.onclick = () => { const k = "dev:" + b.dataset.dev; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_device", { cid: c.id, code: b.dataset.dev }); say("roster", "اتفك ربط موبايل " + nameOf(b.dataset.dev) + ". أول دخول جاي هيربطه بالموبايل الجديد."); }, loadCourse); });
-    tb.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => { const k = "acc:" + b.dataset.acc; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_account", { cid: c.id, code: b.dataset.acc }); say("roster", "اتمسح حساب " + nameOf(b.dataset.acc) + ". يقدر يعمل حساب جديد من «أول مرة»."); }, loadCourse); });
+    tb.querySelectorAll("[data-dev]").forEach(b => b.onclick = () => { const k = "dev:" + b.dataset.dev; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_device", { cid: c.id, code: b.dataset.dev }); say("roster", "فُكّ ربط هاتف " + nameOf(b.dataset.dev) + ". سيرتبط الحساب بالهاتف الجديد عند أول تسجيل دخول."); }, loadCourse); });
+    tb.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => { const k = "acc:" + b.dataset.acc; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_account", { cid: c.id, code: b.dataset.acc }); say("roster", "حُذف حساب " + nameOf(b.dataset.acc) + ". يمكنه إنشاء حساب جديد من «إنشاء حساب»."); }, loadCourse); });
   }
   let fpopAt = 0;
   const scrollClose = () => { if (Date.now() - fpopAt > 400) closeFpop(); };
@@ -1142,7 +1151,7 @@
         ${C.list ? `<div class="fp-sep"></div>
           <label class="fp-c"><input type="checkbox" data-all ${sel.size === vals.length ? "checked" : ""}> <b>تحديد الكل</b></label>
           ${vals.map(v => `<label class="fp-c"><input type="checkbox" data-v="${esc(v)}" ${sel.has(v) ? "checked" : ""}> ${esc(C.lab(v))} <span class="muted">(${cntOf(v)})</span></label>`).join("")}
-          ${st.f[k] ? `<button class="fp-i" data-clr>مسح فلتر «${C.t}»</button>` : ""}` : ""}`;
+          ${st.f[k] ? `<button class="fp-i" data-clr>إلغاء تصفية «${C.t}»</button>` : ""}` : ""}`;
       p.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { st.sort = { col: k, dir: +b.dataset.s }; closeFpop(); G.redraw(); });
       const setF = s2 => { st.f[k] = s2.size === vals.length ? null : s2; G.redraw(); draw(); };
       const all2 = p.querySelector("[data-all]"); if (all2) all2.onchange = () => setF(all2.checked ? new Set(vals) : new Set());
@@ -1183,8 +1192,8 @@
         if (!list.length) throw { message: "empty_roster" };
         const n = await rpc("replace_roster", { cid: c.id, rows: list, p_file: file.name });
         const gs = [...new Set(list.map(x => x.grp).filter(Boolean))].sort();
-        say("roster", "اتضاف " + n + " طالب من «" + file.name + "»" + (gs.length > 1 ? "، مقسمين على " + gs.map(g => "مجموعة " + g + " (" + list.filter(x => x.grp === g).length + ")").join(" و") : "") + (list.some(x => x.pin) ? "، ومعاهم رمز تفعيل" : "") + ".");
-      } catch (e) { say("roster", "!" + (e.message === "empty_roster" ? errText(e) : "معرفناش نقرا الشيت. اتأكد إن فيه عمود للكود وعمود للاسم. " + errText(e))); }
+        say("roster", "أُضيف " + n + " طالب من «" + file.name + "»" + (gs.length > 1 ? "، موزّعين على " + gs.map(g => "مجموعة " + g + " (" + list.filter(x => x.grp === g).length + ")").join(" و") : "") + (list.some(x => x.pin) ? "، ومعهم رموز تفعيل" : "") + ".");
+      } catch (e) { say("roster", "!" + (e.message === "empty_roster" ? errText(e) : "تعذّرت قراءة الملف. تأكّد من وجود عمود للكود وعمود للاسم. " + errText(e))); }
       await loadCourse().catch(showErr);
     };
     fr.readAsArrayBuffer(file);
@@ -1195,26 +1204,26 @@
     const c = course(), el = $("#teamPanel"), mng = isOwner(c);
     const cands = staff.filter(u => u.status !== "suspended" && u.email !== c.owner_email && !D.tas.some(t => t.email === u.email));
     const team = [...D.tas].sort((a, b) => (a.kind === "co" ? 0 : 1) - (b.kind === "co" ? 0 : 1));
-    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">مين شغال على المادة</div><h2>فريق المادة</h2></div></div>
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">القائمون على المادة</div><h2>فريق المادة</h2></div></div>
       ${msgHtml("team")}
       <div class="list" style="max-height:none">
         <div class="li man"><span class="chip man">صاحب المادة</span><div class="who"><b>${esc(staffName(c.owner_email))}</b><small class="mono">${esc(c.owner_email)}</small></div><span></span></div>
-        ${team.map(t => `<div class="li ${t.kind === "co" ? "man" : ""}"><span class="chip ${t.kind === "co" ? "man" : "none"}">${t.kind === "co" ? "محاضر مشارك" : "معيد"}</span><div class="who"><b>${esc(staffName(t.email))}</b><small class="mono">${esc(t.email)}</small></div><div class="acts">${mng ? `<button class="btn sm ghost" data-kind="${esc(t.email)}" data-to="${t.kind === "co" ? "ta" : "co"}">${t.kind === "co" ? "خليه معيد" : "خليه محاضر مشارك"}</button><button class="btn sm ghost danger" data-rmta="${esc(t.email)}">شيل</button>` : ""}</div></div>`).join("")}
+        ${team.map(t => `<div class="li ${t.kind === "co" ? "man" : ""}"><span class="chip ${t.kind === "co" ? "man" : "none"}">${t.kind === "co" ? "محاضر مشارك" : "معيد"}</span><div class="who"><b>${esc(staffName(t.email))}</b><small class="mono">${esc(t.email)}</small></div><div class="acts">${mng ? `<button class="btn sm ghost" data-kind="${esc(t.email)}" data-to="${t.kind === "co" ? "ta" : "co"}">${t.kind === "co" ? "تحويله إلى معيد" : "تحويله إلى محاضر مشارك"}</button><button class="btn sm ghost danger" data-rmta="${esc(t.email)}">إزالة</button>` : ""}</div></div>`).join("")}
       </div>
-      ${mng ? (cands.length ? `<div class="settings"><label class="f"><span>ضيف للفريق</span><select id="taPick">${cands.map(u => `<option value="${esc(u.email)}">${esc(u.name)} (${ROLE[u.role]})</option>`).join("")}</select></label><label class="f"><span>بصفته</span><select id="taKind"><option value="co">محاضر مشارك</option><option value="ta" selected>معيد</option></select></label><button class="btn" id="taAdd">أضف</button></div>` : `<p class="muted small">مفيش حسابات تانية تضيفها. لو المحاضر أو المعيد مش موجود، اطلب من مسؤول القسم يضيفه.</p>`)
-        + `<p class="muted small"><b>المحاضر المشارك</b> بيعمل كل اللي انت بتعمله في المحاضرات والطلبة والكشف (حتى تعديل المحاضرات المنتهية)، ماعدا مسح المادة وتعديل بياناتها والفريق. <b>المعيد</b> يبدأ المحاضرات ويوافق على الطلبات ويسجل يدوي ويضيف طالب، لكن مايرفعش شيت ولا يعدّل المحاضرات بعد ما تخلص.</p>` : ""}
+      ${mng ? (cands.length ? `<div class="settings"><label class="f"><span>إضافة إلى الفريق</span><select id="taPick">${cands.map(u => `<option value="${esc(u.email)}">${esc(u.name)} (${ROLE[u.role]})</option>`).join("")}</select></label><label class="f"><span>بصفته</span><select id="taKind"><option value="co">محاضر مشارك</option><option value="ta" selected>معيد</option></select></label><button class="btn" id="taAdd">أضف</button></div>` : `<p class="muted small">لا توجد حسابات أخرى لإضافتها. إن لم يكن المحاضر أو المعيد موجودًا، فاطلب من مسؤول القسم إضافته.</p>`)
+        + `<p class="muted small"><b>المحاضر المشارك</b> يقوم بكل ما تقوم به في المحاضرات والطلبة والكشف (ومنه تعديل المحاضرات المنتهية)، باستثناء حذف المادة وتعديل بياناتها وإدارة الفريق. <b>المعيد</b> يبدأ المحاضرات، ويوافق على الطلبات، ويسجّل يدويًّا، ويضيف طالبًا، لكنه لا يرفع ملف الطلبة ولا يعدّل المحاضرات بعد انتهائها.</p>` : ""}
       ${mng || me.role === "admin" ? `<div style="border-top:1px solid var(--line);padding-top:12px;display:grid;gap:10px">
         <h3>إعدادات المادة</h3>
         ${msgHtml("course")}
-        ${mng ? `${c.level ? "" : `<div class="msg bad small">المادة دي لسه مش متصنفة. اختار العام والترم والمستوى واضغط حفظ.</div>`}
+        ${mng ? `${c.level ? "" : `<div class="msg bad small">هذه المادة غير مصنَّفة بعد. اختر العام والفصل الدراسي والمستوى، ثم اضغط «حفظ».</div>`}
         <div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="cName" value="${esc(c.name)}"></label>${classFields("e", c)}<button class="btn" id="cRename">حفظ بيانات المادة</button></div>
-        <div class="row"><button class="btn sm ghost" id="arch">${c.archived ? "رجّع المادة من الأرشيف" : "أرشف المادة (آخر الترم)"}</button><span class="muted small">الأرشفة بتخفي المادة عند الطلبة وبتحفظ الكشف.</span></div>` : ""}
+        <div class="row"><button class="btn sm ghost" id="arch">${c.archived ? "إعادة المادة من الأرشيف" : "أرشفة المادة (نهاية الفصل الدراسي)"}</button><span class="muted small">الأرشفة تُخفي المادة عن الطلبة وتحتفظ بالكشف.</span></div>` : ""}
         ${confirmKey === "delcourse" ? `<div class="msg bad" style="display:grid;gap:8px">
-            <b>المسح نهائي ومفيش رجوع.</b>
-            <span class="small">هيتمسح ${D.sessions.length} محاضرة وكل الحضور والإنذارات بتاعتها، وطلبة المادة. لو محتاج الكشف، صدّر شيت الإكسيل الأول. للتأكيد اكتب اسم المادة زي ما هو: <b>${esc(c.name)}</b></span>
+            <b>الحذف نهائي ولا يمكن التراجع عنه.</b>
+            <span class="small">سيُحذف ${D.sessions.length} محاضرة بما فيها من حضور وإنذارات، وطلبة المادة. إذا احتجت الكشف فصدّره إلى إكسل أولًا. للتأكيد اكتب اسم المادة كما هو: <b>${esc(c.name)}</b></span>
             <input type="text" id="delName" autocomplete="off">
-            <div class="row"><button class="btn sm danger" id="delGo">امسح المادة نهائي</button><button class="btn sm ghost" id="delCancel">إلغاء</button></div>
-          </div>` : `<div class="row"><button class="btn sm ghost danger" id="delAsk">مسح المادة</button></div>`}
+            <div class="row"><button class="btn sm danger" id="delGo">حذف المادة نهائيًّا</button><button class="btn sm ghost" id="delCancel">إلغاء</button></div>
+          </div>` : `<div class="row"><button class="btn sm ghost danger" id="delAsk">حذف المادة</button></div>`}
       </div>` : ""}`;
     el.querySelectorAll("[data-rmta]").forEach(b => b.onclick = () => act(() => rpc("remove_ta", { cid: c.id, p_email: b.dataset.rmta }), async () => { await loadBase(); await loadCourse(); }));
     const ta = $("#taAdd"); if (ta) ta.onclick = () => act(() => rpc("add_member", { cid: c.id, p_email: $("#taPick").value, p_kind: $("#taKind").value }), async () => { await loadBase(); await loadCourse(); });
@@ -1227,7 +1236,7 @@
       act(async () => {
         await rpc("update_course_info", { cid: c.id, p_name: n, ...cls });
         fYear = cls.p_year; fTerm = String(cls.p_term); store.set("cm_year", fYear); store.set("cm_term", fTerm);
-        say("course", "اتحفظت بيانات المادة.");
+        say("course", "حُفظت بيانات المادة.");
       }, async () => { await loadBase(); await loadCourse(); });
     };
     wireClass("e");
@@ -1235,24 +1244,24 @@
     const dc = $("#delCancel"); if (dc) dc.onclick = () => { confirmKey = null; renderTeam(); };
     const dg = $("#delGo"); if (dg) dg.onclick = async () => {
       const typed = $("#delName").value.trim();
-      if (typed !== c.name.trim()) { say("course", "!الاسم اللي كتبته مش مطابق لاسم المادة."); return renderTeam(); }
+      if (typed !== c.name.trim()) { say("course", "!الاسم المكتوب لا يطابق اسم المادة."); return renderTeam(); }
       try {
         await rpc("delete_course", { cid: c.id, p_confirm: typed });
         confirmKey = null; flash = {}; curId = null; store.del("cm_course");
         await loadBase(); await loadCourse();
-        toast("اتمسحت المادة «" + c.name + "».");
+        toast("حُذفت المادة «" + c.name + "».");
       } catch (e) { say("course", "!" + errText(e)); renderTeam(); }
     };
   }
 
   function auditList(items, showCourse) {
-    if (!items.length) return `<div class="empty">مفيش تعديلات لحد دلوقتي.</div>`;
+    if (!items.length) return `<div class="empty">لا توجد تعديلات حتى الآن.</div>`;
     return `<div class="list">${items.map(a => { const c = courses.find(x => x.id === a.course_id);
       return `<div class="li"><span class="small muted mono">${CM.fmtD(a.at)} ${CM.fmtT(a.at)}</span><div class="who"><b>${esc(staffName(a.actor))}</b><small>${esc(a.action)}${showCourse && c ? " · " + esc(c.name) : ""}</small></div><span></span></div>`; }).join("")}</div>`;
   }
   function renderAudit() {
-    $("#auditPanel").innerHTML = `<div class="panel-h"><div><div class="eyebrow">مين عمل إيه وإمتى</div><h2>سجل تعديلات المادة</h2></div></div>
-      <p class="muted small">أي تسجيل يدوي، أو موافقة أو رفض، أو إلغاء حضور، أو فك ربط موبايل، أو نقل طالب بين المجموعات بيتسجل هنا، ومحدش يقدر يمسحه.</p>${auditList(D.audit, false)}`;
+    $("#auditPanel").innerHTML = `<div class="panel-h"><div><div class="eyebrow">من فعل ماذا ومتى</div><h2>سجل تعديلات المادة</h2></div></div>
+      <p class="muted small">يُسجَّل هنا كل تسجيل يدوي، وكل موافقة أو رفض، وكل إلغاء حضور أو فك ربط هاتف أو نقل طالب بين المجموعات، ولا يمكن لأحد حذفه.</p>${auditList(D.audit, false)}`;
   }
 
   /* ======================= admin ======================= */
@@ -1265,42 +1274,42 @@
       <section class="panel" data-apane="staff" ${atab === "staff" ? "" : "hidden"}>
         <div class="panel-h"><div><div class="eyebrow">${staff.length} حساب</div><h2>المحاضرين والمعيدين</h2></div></div>
         ${msgHtml("admin")}
-        <div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الدور</th><th>المواد</th><th>الحالة</th><th></th></tr></thead><tbody>
+        <div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>البريد الإلكتروني</th><th>الدور</th><th>المواد</th><th>الحالة</th><th></th></tr></thead><tbody>
         ${staff.map(u => { const o = courses.filter(c => c.owner_email === u.email).length, t = tasAll.filter(x => x.email === u.email).length;
           return `<tr><td>${esc(u.name)}</td><td class="mono small">${esc(u.email)}</td><td>${u.email === me.email ? ROLE[u.role] : `<select data-role="${esc(u.email)}" style="width:auto;padding:3px 6px">${["ta", "lecturer", "admin"].map(r => `<option value="${r}" ${u.role === r ? "selected" : ""}>${ROLE[r]}</option>`).join("")}</select>`}</td><td class="small">${o ? o + " مادة" : ""}${o && t ? " · " : ""}${t ? "معيد في " + t : ""}${!o && !t ? `<span class="muted">—</span>` : ""}</td>
-          <td>${u.status === "active" ? `<span class="chip ok">مفعّل</span>` : u.status === "invited" ? `<span class="chip warn">مادخلش لسه</span>` : `<span class="chip bad">موقوف</span>`}</td>
-          <td>${u.email === me.email ? `<span class="small muted">انت</span>` : `<button class="btn sm ghost ${u.status === "suspended" ? "" : "danger"}" data-sus="${esc(u.email)}" data-to="${u.status === "suspended" ? "active" : "suspended"}">${u.status === "suspended" ? "تفعيل" : "إيقاف"}</button>`}</td></tr>`; }).join("")}
+          <td>${u.status === "active" ? `<span class="chip ok">مفعّل</span>` : u.status === "invited" ? `<span class="chip warn">لم يدخل بعد</span>` : `<span class="chip bad">موقوف</span>`}</td>
+          <td>${u.email === me.email ? `<span class="small muted">أنت</span>` : `<button class="btn sm ghost ${u.status === "suspended" ? "" : "danger"}" data-sus="${esc(u.email)}" data-to="${u.status === "suspended" ? "active" : "suspended"}">${u.status === "suspended" ? "تفعيل" : "إيقاف"}</button>`}</td></tr>`; }).join("")}
         </tbody></table></div>
         <h3>إضافة محاضر أو معيد</h3>
         <div class="settings">
           <label class="f"><span>الاسم</span><input type="text" id="invName"></label>
-          <label class="f"><span>إيميل الجامعة</span><input type="email" id="invEmail" dir="ltr" placeholder="name@${esc(settings.domain || "university.edu.eg")}"></label>
+          <label class="f"><span>البريد الجامعي</span><input type="email" id="invEmail" dir="ltr" placeholder="name@${esc(settings.domain || "university.edu.eg")}"></label>
           <label class="f"><span>الدور</span><select id="invRole"><option value="lecturer">محاضر</option><option value="ta">معيد</option><option value="admin">مسؤول</option></select></label>
           <button class="btn primary" id="invBtn">أضف</button>
         </div>
-        <p class="muted small">بعد ما تضيفه، ابعتله لينك صفحة المحاضرين. أول ما يدخل بإيميله والكود اللي هيوصله، حسابه بيتفعّل. الموقوف مايقدرش يدخل، ومواده وكشوفه بتفضل محفوظة.</p>
-        <label class="row small" style="gap:8px"><input type="checkbox" id="taCreate" ${settings.ta_can_create ? "checked" : ""}> المعيدين يقدروا يعملوا مواد بنفسهم (المعيد اللي يعمل مادة بيبقى صاحبها، ويضيف طلبتها وفريقها ويعمل فيها كل حاجة)</label>
-        <p class="muted small">تغيير الدور من الجدول بيتطبق على طول: المحاضر يقدر يعمل مواد، والمعيد لأ إلا لو فعّلت الاختيار ده، والمسؤول بيشوف كل المواد ويدير الحسابات. صلاحيات الشخص جوه أي مادة بتتحدد من فريق المادة نفسها.</p>
-        <div class="settings"><label class="f"><span>دومين إيميل الجامعة (فاضي = أي دومين)</span><input type="text" id="domIn" dir="ltr" value="${esc(settings.domain || "")}"></label><button class="btn" id="domSave">حفظ الدومين</button></div>
+        <p class="muted small">بعد إضافته، أرسل إليه رابط صفحة المحاضرين. يُفعَّل حسابه بمجرد دخوله ببريده والرمز الذي سيصله. ولا يستطيع صاحب الحساب الموقوف الدخول، وتبقى مواده وكشوفه محفوظة.</p>
+        <label class="row small" style="gap:8px"><input type="checkbox" id="taCreate" ${settings.ta_can_create ? "checked" : ""}> يمكن للمعيدين إنشاء مواد بأنفسهم (يصبح المعيد الذي ينشئ مادة صاحبَها، فيضيف طلبتها وفريقها ويدير كل شيء فيها)</label>
+        <p class="muted small">يُطبَّق تغيير الدور من الجدول فورًا: يستطيع المحاضر إنشاء مواد، ولا يستطيع المعيد ذلك إلا إذا فعّلت هذا الخيار، ويطّلع المسؤول على جميع المواد ويدير الحسابات. أما صلاحيات الشخص داخل أي مادة فتحدّدها عضويته في فريق تلك المادة.</p>
+        <div class="settings"><label class="f"><span>نطاق البريد الجامعي (فارغ = أي نطاق)</span><input type="text" id="domIn" dir="ltr" value="${esc(settings.domain || "")}"></label><button class="btn" id="domSave">حفظ النطاق</button></div>
       </section>
       <section class="panel" data-apane="report" ${atab === "report" ? "" : "hidden"}>
-        <div class="panel-h"><div><div class="eyebrow">كل مواد القسم · ${fYear === "all" ? "كل الأعوام" : esc(fYear)} · ${fTerm === "all" ? "كل الترمات" : TERMS[fTerm]}</div><h2>طلبة عندهم إنذار ثالث أو انسحاب</h2></div><button class="btn sm" id="repBtn">${report === "loading" ? `<span class="spinner"></span>` : report ? "تحديث" : "احسب التقرير"}</button></div>
+        <div class="panel-h"><div><div class="eyebrow">كل مواد القسم · ${fYear === "all" ? "كل الأعوام" : esc(fYear)} · ${fTerm === "all" ? "كل الفصول الدراسية" : TERMS[fTerm]}</div><h2>طلبة لديهم إنذار ثالث أو انسحاب</h2></div><button class="btn sm" id="repBtn">${report === "loading" ? `<span class="spinner"></span>` : report ? "تحديث" : "إعداد التقرير"}</button></div>
         ${Array.isArray(report) ? (report.length ? `<div class="tbl-wrap"><table><thead><tr><th>الطالب</th><th>المادة</th><th>المحاضر</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
           ${report.map(x => `<tr><td>${esc(x.e.name)}<div class="mono muted small">${esc(x.e.student_code)}</div></td><td>${esc(x.c.name)}<div class="muted small">${esc(clsLabel(x.c))}</div></td><td>${esc(staffName(x.c.owner_email))}</td><td class="c mono">${x.ab}</td><td>${CM.warnChip(x.ab)}</td></tr>`).join("")}
-          </tbody></table></div>` : `<div class="empty">مفيش طلبة عندهم إنذار ثالث أو انسحاب.</div>`) : `<p class="muted small">التقرير بيلف على كل المواد، فبيتحسب لما تطلبه.</p>`}
+          </tbody></table></div>` : `<div class="empty">لا يوجد طلبة لديهم إنذار ثالث أو انسحاب.</div>`) : `<p class="muted small">يشمل التقرير جميع المواد، لذا يُحسب عند الطلب.</p>`}
       </section>
       <section class="panel" data-apane="log" ${atab === "log" ? "" : "hidden"}><div class="panel-h"><div><div class="eyebrow">آخر التعديلات في كل المواد</div><h2>سجل التعديلات</h2></div></div>${auditList(au.data || [], true)}</section>`;
     document.body.classList.add("has-ctabs");
     el.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { atab = b.dataset.at; store.set("cm_atab", atab); el.querySelectorAll("[data-at]").forEach(x => x.setAttribute("aria-selected", x.dataset.at === atab)); el.querySelectorAll("[data-apane]").forEach(p => p.hidden = p.dataset.apane !== atab); });
-    el.querySelectorAll("[data-sus]").forEach(b => b.onclick = () => act(async () => { await rpc("admin_set_status", { p_email: b.dataset.sus, p_status: b.dataset.to }); say("admin", (b.dataset.to === "suspended" ? "اتوقف حساب " : "اتفعّل حساب ") + staffName(b.dataset.sus) + "."); }, async () => { await loadBase(); renderAdmin(); }));
+    el.querySelectorAll("[data-sus]").forEach(b => b.onclick = () => act(async () => { await rpc("admin_set_status", { p_email: b.dataset.sus, p_status: b.dataset.to }); say("admin", (b.dataset.to === "suspended" ? "أُوقف حساب " : "فُعِّل حساب ") + staffName(b.dataset.sus) + "."); }, async () => { await loadBase(); renderAdmin(); }));
     $("#invBtn").onclick = () => act(async () => {
       const n = $("#invName").value.trim(), e = $("#invEmail").value.trim().toLowerCase(), r = $("#invRole").value;
       await rpc("admin_save_staff", { p_email: e, p_name: n, p_role: r });
-      say("admin", "اتضاف " + n + ". ابعتله لينك صفحة المحاضرين: " + location.href.split("#")[0]);
+      say("admin", "أُضيف " + n + ". أرسل إليه رابط صفحة المحاضرين: " + location.href.split("#")[0]);
     }, async () => { await loadBase(); renderAdmin(); });
-    el.querySelectorAll("[data-role]").forEach(sel => sel.onchange = () => act(async () => { await rpc("admin_set_role", { p_email: sel.dataset.role, p_role: sel.value }); say("admin", "اتغيّر دور " + staffName(sel.dataset.role) + " لـ" + ROLE[sel.value] + "."); }, async () => { await loadBase(); renderAdmin(); }));
-    $("#taCreate").onchange = ev => act(async () => { await rpc("admin_set_ta_create", { p_on: ev.target.checked }); say("admin", ev.target.checked ? "المعيدين بقوا يقدروا يعملوا مواد." : "المعيدين مش هيقدروا يعملوا مواد."); }, async () => { await loadBase(); render(); });
-    $("#domSave").onclick = () => act(async () => { await rpc("admin_set_domain", { p_domain: $("#domIn").value }); say("admin", "اتحفظ الدومين."); }, async () => { await loadBase(); renderAdmin(); });
+    el.querySelectorAll("[data-role]").forEach(sel => sel.onchange = () => act(async () => { await rpc("admin_set_role", { p_email: sel.dataset.role, p_role: sel.value }); say("admin", "تغيّر دور " + staffName(sel.dataset.role) + " لـ" + ROLE[sel.value] + "."); }, async () => { await loadBase(); renderAdmin(); }));
+    $("#taCreate").onchange = ev => act(async () => { await rpc("admin_set_ta_create", { p_on: ev.target.checked }); say("admin", ev.target.checked ? "أصبح بإمكان المعيدين إنشاء مواد." : "لن يتمكن المعيدون من إنشاء مواد."); }, async () => { await loadBase(); render(); });
+    $("#domSave").onclick = () => act(async () => { await rpc("admin_set_domain", { p_domain: $("#domIn").value }); say("admin", "حُفظ النطاق."); }, async () => { await loadBase(); renderAdmin(); });
     $("#repBtn").onclick = async () => {
       report = "loading"; renderAdmin();
       try {

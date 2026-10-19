@@ -1,9 +1,16 @@
 <!doctype html>
+<!--
+  Classmate · نظام تسجيل الحضور الإلكتروني
+  © 2026 أحمد محمد راشد حامد (Ahmed Mohamed Rashed Hamed). جميع الحقوق محفوظة. All rights reserved.
+-->
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#1d6b58">
+<meta name="author" content="أحمد محمد راشد حامد">
+<meta name="copyright" content="© 2026 أحمد محمد راشد حامد. جميع الحقوق محفوظة.">
+<meta name="description" content="Classmate: نظام تسجيل الحضور الإلكتروني. تصميم وتطوير أحمد محمد راشد حامد.">
 <script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
 <title>Classmate</title>
 <link rel="manifest" href="manifest.json">
@@ -43,24 +50,24 @@
   function renderAuth() {
     app.innerHTML = header() + `
       <section class="panel">
-        <div class="tabs" role="group"><button id="tLogin" aria-pressed="${authTab === "login"}">دخول</button><button id="tReg" aria-pressed="${authTab === "reg"}">أول مرة</button></div>
+        <div class="tabs" role="group"><button id="tLogin" aria-pressed="${authTab === "login"}">دخول</button><button id="tReg" aria-pressed="${authTab === "reg"}">إنشاء حساب</button></div>
         ${authTab === "login" ? `
-          <h2>ادخل بكود الطالب</h2>
+          <h2>الدخول بكود الطالب</h2>
           <label class="f"><span>كود الطالب</span><input type="text" id="code" inputmode="numeric" autocomplete="username" class="mono" style="text-align:start" value="${esc(store.get("cm_last_code") || "")}"></label>
           <label class="f"><span>كلمة السر</span><input type="password" id="pass" autocomplete="current-password"></label>
         ` : `
-          <h2>اعمل حسابك</h2>
-          <p class="muted small">الحساب هيترتبط بالموبايل ده، ومش هتقدر تسجل حضور من موبايل تاني. ماتستخدمش وضع التصفح الخفي.</p>
+          <h2>أنشئ حسابك</h2>
+          <p class="muted small">سيرتبط الحساب بهذا الهاتف، ولن تتمكن من تسجيل الحضور من هاتف آخر. لا تستخدم وضع التصفح الخفي.</p>
           <label class="f"><span>كود الطالب</span><input type="text" id="code" inputmode="numeric" autocomplete="username" class="mono" style="text-align:start"></label>
-          <label class="f"><span>كلمة سر (6 حروف أو أكتر)</span><input type="password" id="pass" autocomplete="new-password"></label>
-          <label class="f"><span>اكتب كلمة السر تاني</span><input type="password" id="pass2" autocomplete="new-password"></label>
-          <label class="f"><span>رمز التفعيل (لو المحاضر اداكم رمز، زي آخر 4 أرقام من الرقم القومي)</span><input type="text" id="pin" inputmode="numeric" class="mono" style="text-align:start"></label>
+          <label class="f"><span>كلمة السر (6 أحرف على الأقل)</span><input type="password" id="pass" autocomplete="new-password"></label>
+          <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="pass2" autocomplete="new-password"></label>
+          <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا، مثل آخر 4 أرقام من الرقم القومي)</span><input type="text" id="pin" inputmode="numeric" class="mono" style="text-align:start"></label>
         `}
         ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
-        ${!device ? `<div class="msg warn">المتصفح ده مش بيحفظ البيانات (غالبا وضع التصفح الخفي). افتح الموقع في متصفح عادي.</div>` : ""}
-        <button class="btn primary block" id="go" ${busy || !device ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : authTab === "login" ? "دخول" : "اعمل الحساب"}</button>
+        ${!device ? `<div class="msg warn">هذا المتصفح لا يحفظ البيانات (غالبًا بسبب وضع التصفح الخفي). افتح الموقع في متصفح عادي.</div>` : ""}
+        <button class="btn primary block" id="go" ${busy || !device ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : authTab === "login" ? "دخول" : "إنشاء الحساب"}</button>
       </section>
-      <p class="muted small" style="margin-top:14px;text-align:center">نسيت كلمة السر أو غيرت موبايلك؟ كلّم المحاضر يفك ربط الجهاز أو يمسح حسابك تعمله من جديد.</p>`;
+      <p class="muted small" style="margin-top:14px;text-align:center">نسيت كلمة السر أو غيّرت هاتفك؟ اطلب من المحاضر فك ربط الجهاز أو حذف حسابك لتنشئه من جديد.</p>`;
     $("#tLogin").onclick = () => { authTab = "login"; authMsg = ""; renderAuth(); };
     $("#tReg").onclick = () => { authTab = "reg"; authMsg = ""; renderAuth(); };
     $("#go").onclick = submitAuth;
@@ -72,10 +79,10 @@
     // read every field before re-rendering (re-render clears the inputs)
     const code = $("#code").value.trim(), pass = $("#pass").value, pass2 = $("#pass2") ? $("#pass2").value : "", pin = $("#pin") ? $("#pin").value.trim() : "";
     authMsg = "";
-    if (!code || !pass) { authMsg = "اكتب الكود وكلمة السر."; return renderAuth(); }
+    if (!code || !pass) { authMsg = "اكتب كود الطالب وكلمة السر."; return renderAuth(); }
     if (authTab === "reg") {
-      if (pass.length < 6) { authMsg = "كلمة السر لازم تكون 6 حروف أو أكتر."; return renderAuth(); }
-      if (pass !== pass2) { authMsg = "كلمتين السر مش زي بعض."; return renderAuth(); }
+      if (pass.length < 6) { authMsg = "يجب ألا تقل كلمة السر عن 6 أحرف."; return renderAuth(); }
+      if (pass !== pass2) { authMsg = "كلمتا السر غير متطابقتين."; return renderAuth(); }
     }
     busy = true; renderAuth();
     try {
@@ -102,9 +109,9 @@
       if (silent && home) return;
       const net = /Failed to fetch|NetworkError|network|Load failed/i.test(m);
       app.innerHTML = header() + `<section class="col">
-        <div class="msg ${net ? "warn" : "bad"}">${net ? "مفيش اتصال بالنت دلوقتي." : esc(errText(e))}</div>
+        <div class="msg ${net ? "warn" : "bad"}">${net ? "لا يوجد اتصال بالإنترنت الآن." : esc(errText(e))}</div>
         ${qrCta()}
-        <p><button class="btn" id="retry">جرب تاني</button></p></section>`;
+        <p><button class="btn" id="retry">أعد المحاولة</button></p></section>`;
       $("#retry").onclick = () => loadHome();
       wireQrCta();
     }
@@ -118,7 +125,7 @@
       store.set("cm_qr", JSON.stringify({ code: r.code, name: r.name, key: r.key, off: Number(r.now_ms) - Date.now() }));
     } catch (e) {}
   }
-  const qrCta = () => `<div class="qrcta"><div><b>مفيش نت أو الـ GPS مش لاقط؟</b><span class="small muted">وري المحاضر أو المعيد كود الحضور بتاعك يمسحه من موبايله. بيشتغل من غير نت.</span></div><button class="btn primary" id="qrBtn">كود الحضور</button></div>`;
+  const qrCta = () => `<div class="qrcta"><div><b>لا يوجد إنترنت أو إشارة GPS؟</b><span class="small muted">اعرض بطاقة حضورك على المحاضر أو المعيد ليمسحها من هاتفه، وهي تعمل دون إنترنت.</span></div><button class="btn primary" id="qrBtn">بطاقة الحضور</button></div>`;
   const wireQrCta = () => { const b = $("#qrBtn"); if (b) b.onclick = openQr; };
   let qrTimer = null, qrStep = null, wake = null;
   function qrMsg(title, body) {
@@ -128,13 +135,13 @@
   function openQr() {
     const q = qrGet();
     $("#qrOv").hidden = false;
-    if (!q || !q.key) return qrMsg("كود الحضور مش جاهز لسه", "افتح التطبيق مرة وانت متصل بالنت، وبعدها الكود هيشتغل حتى من غير نت.");
-    if (typeof window.qrcode !== "function") return qrMsg("الكود مش راضي يظهر", "افتح التطبيق مرة وانت متصل بالنت عشان يتحمّل، وبعدها هيشتغل من غير نت.");
+    if (!q || !q.key) return qrMsg("بطاقة الحضور ليست جاهزة بعد", "افتح التطبيق مرة واحدة وأنت متصل بالإنترنت، وبعدها تعمل البطاقة حتى دون إنترنت.");
+    if (typeof window.qrcode !== "function") return qrMsg("تعذّر عرض البطاقة", "افتح التطبيق مرة واحدة وأنت متصل بالإنترنت ليُحمَّل، وبعدها يعمل دون إنترنت.");
     $("#qrIn").innerHTML = `<div><div class="hint mono">${esc(q.code)}</div><h2>${esc(q.name || "")}</h2></div>
       <div class="qrbox" id="qrBox"></div>
       <div class="live"><span class="dot"></span><span id="qrClock"></span></div>
       <div class="qbar"><i id="qrBar"></i></div>
-      <p class="hint">وري الشاشة دي للمحاضر أو المعيد يمسحها. الكود بيتغير كل 15 ثانية، فالصورة (سكرين شوت) مش بتشتغل. لو المسح صعب، علّي سطوع الشاشة.</p>
+      <p class="hint">اعرض هذه الشاشة على المحاضر أو المعيد ليمسحها. تتغيّر البطاقة كل 15 ثانية، لذا لا تصلح صورة الشاشة. وإذا تعذّر المسح فارفع سطوع الشاشة.</p>
       <button class="btn" id="qrClose">رجوع</button>`;
     $("#qrClose").onclick = closeQr;
     qrStep = null; clearInterval(qrTimer); qrTick(); qrTimer = setInterval(qrTick, 500);
@@ -155,13 +162,13 @@
       const p = await CM.qrPayload(q.code, q.key, step);
       const box = $("#qrBox"); if (!box || step !== qrStep) return;
       box.dataset.p = p; box.innerHTML = qrSvg(p);
-    } catch (e) { qrMsg("الموبايل ده مش قادر يعمل الكود", "اطلب من المحاضر يسجلك يدوي، وجرب تحدّث المتصفح."); clearInterval(qrTimer); }
+    } catch (e) { qrMsg("تعذّر على هذا الهاتف إنشاء البطاقة", "اطلب من المحاضر تسجيلك يدويًّا، وجرّب تحديث المتصفح."); clearInterval(qrTimer); }
   }
   function qrSvg(text) {
     const qr = window.qrcode(0, "M"); qr.addData(text); qr.make();
     const n = qr.getModuleCount(), m = 4, size = n + m * 2; let d = "";
     for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + m} ${r + m}h1v1h-1z`;
-    return `<svg viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" role="img" aria-label="كود الحضور"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+    return `<svg viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" role="img" aria-label="بطاقة الحضور"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
   }
 
   function signOut() {
@@ -171,21 +178,21 @@
 
   function sessionBlock(c) {
     const s = c.session, res = results[c.id];
-    if (!s) return `<p class="muted small">مفيش محاضرة شغالة دلوقتي. لما المحاضر يبدأ، هيظهر هنا مكان الكود.</p>`;
+    if (!s) return `<p class="muted small">لا توجد محاضرة جارية الآن. عندما يبدأ المحاضر، ستظهر هنا خانة الرمز.</p>`;
     const mine = s.mine;
     let body = "";
-    if (mine && mine.status !== "pending") body = `<div class="result ok"><b>${mine.makeup ? "حضورك التعويضي متسجل" : "حضورك متسجل"}</b><span class="small">المحاضرة ${s.n} · ${CM.fmtT(mine.at)}${mine.status === "manual" ? " · سجّلك المحاضر يدوي" : mine.via === "scan" ? " · بمسح كود الحضور" : ""}</span></div>`;
-    else if (mine) body = `<div class="result warn"><b>طلبك مستني موافقة المحاضر</b><span class="small">${esc(mine.reason)}</span></div>`;
-    else if (!s.open) body = `<div class="result bad"><b>التسجيل بالكود اتقفل</b><span class="small">لو كنت موجود فعلا، وري المحاضر أو المعيد «كود الحضور» بتاعك يمسحه.</span></div>`;
-    else if (!s.own && !s.allow_makeup) body = `<div class="result warn"><b>النهارده محاضرة مجموعة ${esc(s.grp)}</b><span class="small">انت في ${c.grp ? "مجموعة " + esc(c.grp) : "مجموعة تانية"}، ومحاضرتك في أسبوعها. لو محتاج تعوض، كلّم المحاضر يفتح الحضور التعويضي.</span></div>`;
-    else if (s.tries_left <= 0) body = `<div class="result bad"><b>اتقفلت محاولاتك في المحاضرة دي</b><span class="small">كتبت الكود غلط 5 مرات. كلّم المحاضر.</span></div>`;
+    if (mine && mine.status !== "pending") body = `<div class="result ok"><b>${mine.makeup ? "سُجِّل حضورك التعويضي" : "سُجِّل حضورك"}</b><span class="small">المحاضرة ${s.n} · ${CM.fmtT(mine.at)}${mine.status === "manual" ? " · سجّلك المحاضر يدويًّا" : mine.via === "scan" ? " · بمسح بطاقة الحضور" : ""}</span></div>`;
+    else if (mine) body = `<div class="result warn"><b>طلبك بانتظار موافقة المحاضر</b><span class="small">${esc(mine.reason)}</span></div>`;
+    else if (!s.open) body = `<div class="result bad"><b>أُغلق التسجيل بالرمز</b><span class="small">إذا كنت موجودًا فعلًا، فاعرض «بطاقة الحضور» على المحاضر أو المعيد ليمسحها.</span></div>`;
+    else if (!s.own && !s.allow_makeup) body = `<div class="result warn"><b>محاضرة اليوم للمجموعة ${esc(s.grp)}</b><span class="small">أنت في ${c.grp ? "مجموعة " + esc(c.grp) : "مجموعة أخرى"}، ومحاضرتك في موعدها الخاص. إذا احتجت إلى التعويض، فاطلب من المحاضر إتاحة الحضور التعويضي.</span></div>`;
+    else if (s.tries_left <= 0) body = `<div class="result bad"><b>استُنفدت محاولاتك في هذه المحاضرة</b><span class="small">أدخلت الرمز خطأً 5 مرات. تواصل مع المحاضر.</span></div>`;
     else body = `
-      ${!s.own ? `<div class="msg">دي محاضرة مجموعة ${esc(s.grp)}، فهتتسجل حضور تعويضي.</div>` : ""}
-      ${s.kind === "outdoor" ? `<div class="msg">محاضرة خارجية: الكود ظاهر على موبايل المحاضر أو المعيد. لو مش قادر توصله أو مفيش نت، وريه «كود الحضور» بتاعك يمسحه.</div>` : ""}
-      <label class="f"><span>${s.kind === "outdoor" ? "اكتب الكود اللي على موبايل المحاضر" : "اكتب الكود اللي على الشاشة"}</span><input type="text" class="codein" id="ci-${c.id}" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="000000" value="${esc(drafts[c.id] || "")}"></label>
-      <button class="btn primary block" data-ci="${c.id}" ${busy ? "disabled" : ""}>${busy === c.id ? `<span class="spinner"></span> بنحدد مكانك…` : "سجّل حضوري"}</button>
-      <p class="muted small">التطبيق هيطلب صلاحية الموقع عشان يتأكد إنك ${s.kind === "outdoor" ? "في مكان المحاضرة" : "في القاعة"}.${s.tries_left < 5 ? ` فاضلك ${s.tries_left} محاولات.` : ""}</p>`;
-    return `<div class="row between"><span class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كلها"}</span>${s.open ? `<span class="chip ok">التسجيل مفتوح</span>` : ""}</div>${body}
+      ${!s.own ? `<div class="msg">هذه محاضرة المجموعة ${esc(s.grp)}، وسيُسجَّل حضورك تعويضيًّا.</div>` : ""}
+      ${s.kind === "outdoor" ? `<div class="msg">محاضرة خارجية: يظهر الرمز على هاتف المحاضر أو المعيد. إذا تعذّر عليك الوصول إليه أو لم يتوفر لديك إنترنت، فاعرض عليه «بطاقة الحضور» ليمسحها.</div>` : ""}
+      <label class="f"><span>${s.kind === "outdoor" ? "اكتب الرمز الظاهر على هاتف المحاضر" : "اكتب الرمز الظاهر على الشاشة"}</span><input type="text" class="codein" id="ci-${c.id}" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="000000" value="${esc(drafts[c.id] || "")}"></label>
+      <button class="btn primary block" data-ci="${c.id}" ${busy ? "disabled" : ""}>${busy === c.id ? `<span class="spinner"></span> جارٍ تحديد موقعك…` : "سجّل حضوري"}</button>
+      <p class="muted small">سيطلب التطبيق إذن الوصول إلى الموقع للتأكد من أنك ${s.kind === "outdoor" ? "في مكان المحاضرة" : "في القاعة"}.${s.tries_left < 5 ? ` متبقٍّ لك ${s.tries_left} محاولات.` : ""}</p>`;
+    return `<div class="row between"><span class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كاملة"}</span>${s.open ? `<span class="chip ok">التسجيل مفتوح</span>` : ""}</div>${body}
       ${res ? `<div class="result ${res.k}"><b>${esc(res.title)}</b>${res.checks.length ? `<ul class="checks">${res.checks.map(ch => `<li class="${ch[0]}">${esc(ch[1])}</li>`).join("")}</ul>` : ""}</div>` : ""}`;
   }
 
@@ -193,7 +200,7 @@
     const active = document.activeElement && document.activeElement.id;
     app.innerHTML = header(`<div class="row"><button class="btn sm ghost" id="pwBtn">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button></div>`) + `
       <section class="col">
-        <div><div class="eyebrow mono" style="text-align:start">${esc(home.code)}</div><h2>أهلا ${esc((home.name || "").split(" ")[0])}</h2></div>
+        <div><div class="eyebrow mono" style="text-align:start">${esc(home.code)}</div><h2>أهلًا ${esc((home.name || "").split(" ")[0])}</h2></div>
         ${home.courses.length ? qrCta() : ""}
         ${pwOpen ? `<div class="panel"><h3>تغيير كلمة السر</h3>
           <label class="f"><span>كلمة السر الحالية</span><input type="password" id="pwOld" autocomplete="current-password"></label>
@@ -203,14 +210,14 @@
         ${home.courses.length ? home.courses.map(c => `
           <article class="course">
             <div class="row between"><div><h2>${esc(c.name)}</h2>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ""}${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
-            ${c.absences ? `<p class="small muted">غبت ${c.absences} ${c.absences === 1 ? "مرة" : c.absences === 2 ? "مرتين" : "مرات"}.${c.absences === 3 ? " أي غياب تاني هيبقى انسحاب إجباري." : c.absences >= 4 ? " راجع المحاضر أو شؤون الطلاب." : ""}</p>` : ""}
+            ${c.absences ? `<p class="small muted">غبت ${c.absences} ${c.absences === 1 ? "مرة" : c.absences === 2 ? "مرتين" : "مرات"}.${c.absences === 3 ? " أي غياب آخر يعني انسحابًا إجباريًّا." : c.absences >= 4 ? " راجع المحاضر أو شؤون الطلاب." : ""}</p>` : ""}
             ${sessionBlock(c)}
-          </article>`).join("") : `<div class="empty">كودك مش موجود في أي مادة حاليا. كلّم المحاضر.</div>`}
+          </article>`).join("") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. تواصل مع المحاضر.</div>`}
       </section>`;
     $("#out").onclick = signOut;
     $("#pwBtn").onclick = () => { pwOpen = !pwOpen; pwMsg = ""; renderHome(); };
     const ps = $("#pwSave"); if (ps) ps.onclick = async () => {
-      try { await rpc("student_change_password", { p_token: token, p_old: $("#pwOld").value, p_new: $("#pwNew").value }); pwMsg = "اتغيرت كلمة السر."; }
+      try { await rpc("student_change_password", { p_token: token, p_old: $("#pwOld").value, p_new: $("#pwNew").value }); pwMsg = "تم تغيير كلمة السر."; }
       catch (e) { pwMsg = "!" + errText(e); }
       renderHome();
     };
@@ -229,7 +236,7 @@
     if (busy) return;
     const c = home.courses.find(x => x.id === cid); if (!c || !c.session) return;
     const code = (drafts[cid] || "").trim();
-    if (code.length !== 6) { results[cid] = { k: "bad", title: "الكود 6 أرقام", checks: [["x", "اكتب الكود كامل زي ما هو على الشاشة"]] }; return renderHome(); }
+    if (code.length !== 6) { results[cid] = { k: "bad", title: "الرمز من 6 أرقام", checks: [["x", "اكتب الرمز كاملًا كما يظهر على الشاشة"]] }; return renderHome(); }
     busy = cid; results[cid] = null; renderHome();
     const pos = await CM.getPosition();
     try {
@@ -240,37 +247,37 @@
       else if (r.reason === "wrong_code" || r.reason === "expired_code") drafts[cid] = "";
     } catch (e) {
       if (String(e.message || "").includes("not_signed_in")) { busy = false; return signOut(); }
-      results[cid] = { k: "bad", title: "معرفناش نسجل", checks: [["x", errText(e)]] };
+      results[cid] = { k: "bad", title: "تعذّر التسجيل", checks: [["x", errText(e)]] };
     }
     busy = false; await loadHome(true);
   }
 
   function describe(r, pos, kind) {
-    const QR = ["q", "لو انت موجود فعلا، وري المحاضر أو المعيد «كود الحضور» بتاعك يمسحه"];
+    const QR = ["q", "إذا كنت موجودًا فعلًا، فاعرض «بطاقة الحضور» على المحاضر أو المعيد ليمسحها"];
     const ch = [];
     switch (r.result) {
       case "present":
-        ch.push(["", "الحساب مربوط بالموبايل ده"], ["", "الكود صح وفي وقته"]);
-        if (r.no_geo) ch.push(["q", "المحاضر بدأ المحاضرة من غير تحقق موقع"]); else ch.push(["", (kind === "outdoor" ? "في نطاق مكان المحاضرة (" : "في نطاق القاعة (") + CM.dist(r.dist) + ")"]);
+        ch.push(["", "الحساب مرتبط بهذا الهاتف"], ["", "الرمز صحيح وفي وقته"]);
+        if (r.no_geo) ch.push(["q", "بدأ المحاضر المحاضرة دون التحقق من الموقع"]); else ch.push(["", (kind === "outdoor" ? "في نطاق مكان المحاضرة (" : "في نطاق القاعة (") + CM.dist(r.dist) + ")"]);
         return { k: "ok", title: r.makeup ? "تم تسجيل حضورك التعويضي" : "تم تسجيل حضورك", checks: ch };
-      case "already": return { k: "ok", title: "حضورك متسجل قبل كده", checks: [] };
+      case "already": return { k: "ok", title: "سُجِّل حضورك من قبل", checks: [] };
       case "pending":
-        if (r.reason === "no_location") ch.push(["q", pos.error === "denied" ? "رفضت صلاحية الموقع. فعّلها للمتصفح من إعدادات الموبايل المرة الجاية" : "الموبايل ماقدرش يحدد مكانك"]);
-        else ch.push(["q", "دقة الموقع " + r.acc + " م، أضعف من المسموح. جرب جنب شباك المرة الجاية"]);
-        ch.push(["q", "عشان تتسجل على طول، وري المحاضر أو المعيد «كود الحضور» بتاعك يمسحه"]);
-        return { k: "warn", title: "الكود صح، وطلبك اتبعت للمحاضر يوافق", checks: ch };
-      case "locked": return { k: "bad", title: "اتقفلت محاولاتك في المحاضرة دي", checks: [["x", "كلّم المحاضر"]] };
-      case "closed": return { k: "bad", title: "التسجيل اتقفل", checks: [] };
+        if (r.reason === "no_location") ch.push(["q", pos.error === "denied" ? "رفضتَ إذن الموقع. فعّله للمتصفح من إعدادات الهاتف في المرة القادمة" : "تعذّر على الهاتف تحديد موقعك"]);
+        else ch.push(["q", "دقة الموقع " + r.acc + " م، وهي أضعف من المسموح به. جرّب بالقرب من نافذة في المرة القادمة"]);
+        ch.push(["q", "لتسجيل حضورك فورًا، اعرض «بطاقة الحضور» على المحاضر أو المعيد ليمسحها"]);
+        return { k: "warn", title: "الرمز صحيح، وأُرسل طلبك إلى المحاضر للموافقة", checks: ch };
+      case "locked": return { k: "bad", title: "استُنفدت محاولاتك في هذه المحاضرة", checks: [["x", "تواصل مع المحاضر"]] };
+      case "closed": return { k: "bad", title: "أُغلق التسجيل", checks: [] };
       default: {
-        const left = r.tries_left != null ? (r.tries_left > 0 ? [["q", "فاضلك " + r.tries_left + " محاولات"]] : [["x", "اتقفلت محاولاتك"]]) : [];
+        const left = r.tries_left != null ? (r.tries_left > 0 ? [["q", "متبقٍّ لك " + r.tries_left + " محاولات"]] : [["x", "استُنفدت محاولاتك"]]) : [];
         const m = {
-          wrong_code: ["الكود غلط", [["x", "اكتب الكود اللي على الشاشة بالظبط"], ...left]],
-          expired_code: ["الكود ده انتهى", [["x", "الكود بيتغير كل 3 دقايق. اكتب الكود اللي على الشاشة دلوقتي"], ...left]],
-          too_far: [kind === "outdoor" ? "انت بعيد عن مكان المحاضرة" : "انت مش في القاعة", [["x", "انت على بعد " + CM.dist(r.dist) + (kind === "outdoor" ? " من المحاضر" : " من القاعة") + "، والمسموح " + r.radius + " م"], QR]],
-          device_used: ["مينفعش تسجل من الموبايل ده", [["x", "الموبايل ده سجّل حضور طالب تاني في المحاضرة دي"]]],
-          other_group: ["مش محاضرة مجموعتك", [["x", "المحاضرة دي لمجموعة " + r.session_grp]]],
-          not_enrolled: ["انت مش في شيت المادة دي", []]
-        }[r.reason] || ["معرفناش نسجل", []];
+          wrong_code: ["الرمز غير صحيح", [["x", "اكتب الرمز الظاهر على الشاشة كما هو"], ...left]],
+          expired_code: ["انتهت صلاحية هذا الرمز", [["x", "يتغيّر الرمز كل 3 دقائق. اكتب الرمز الظاهر على الشاشة الآن"], ...left]],
+          too_far: [kind === "outdoor" ? "أنت بعيد عن مكان المحاضرة" : "أنت لست في القاعة", [["x", "تبعد مسافة " + CM.dist(r.dist) + (kind === "outdoor" ? " عن المحاضر" : " عن القاعة") + "، والمسموح به " + r.radius + " م"], QR]],
+          device_used: ["لا يمكنك التسجيل من هذا الهاتف", [["x", "سُجِّل من هذا الهاتف حضور طالب آخر في هذه المحاضرة"]]],
+          other_group: ["ليست محاضرة مجموعتك", [["x", "هذه المحاضرة للمجموعة " + r.session_grp]]],
+          not_enrolled: ["أنت غير مسجَّل في ملف هذه المادة", []]
+        }[r.reason] || ["تعذّر التسجيل", []];
         return { k: "bad", title: m[0], checks: m[1] };
       }
     }

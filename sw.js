@@ -1,6 +1,9 @@
+/*!
+ * Classmate · © 2026 أحمد محمد راشد حامد (Ahmed Mohamed Rashed Hamed). جميع الحقوق محفوظة. All rights reserved.
+ */
 // Classmate offline cache: the student page (and its QR) must open with no internet.
 // Network first (so updates arrive), cache as fallback. Never touches Supabase API calls.
-const CACHE = "classmate-v9";
+const CACHE = "classmate-v10";
 const CDN = [
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js",
   "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"
