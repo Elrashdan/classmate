@@ -240,6 +240,7 @@
     if (i >= 0) D.sessions[i] = ss.data;
     if (!manFor) renderLive();
     renderRegister();
+    if (ctab === "report" && !(document.activeElement && document.activeElement.id === "rpQ")) keepScroll("#reportPanel", renderReport);
     tabBadges();
     if (!rosterMan && !fpopCol && !(document.activeElement && document.activeElement.closest && document.activeElement.closest("#rsTbl"))) keepScroll("#rosterPanel", renderRosterTable);
     scanCount();
@@ -288,10 +289,11 @@
     ["live", "المحاضرة", ICO('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>')],
     ["students", "الطلبة", ICO('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/>')],
     ["reg", "الكشف", ICO('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>')],
+    ["report", "التقرير", ICO('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')],
     ["team", "الفريق", ICO('<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/><path d="M19 3.5v3M20.5 5h-3"/>')],
     ["log", "السجل", ICO('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>')]
   ];
-  let ctab = ["live", "students", "reg", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live";
+  let ctab = ["live", "students", "reg", "report", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live";
   function showTab(k) {
     ctab = k; store.set("cm_tab", k); closeFpop();
     document.querySelectorAll("[data-ct]").forEach(b => b.setAttribute("aria-selected", b.dataset.ct === k));
@@ -336,6 +338,7 @@
       <div class="tabpane" id="pane-live" role="tabpanel" ${ctab === "live" ? "" : "hidden"}><div id="sessionArea"></div><section class="panel" id="livePanel"></section></div>
       <div class="tabpane" id="pane-students" role="tabpanel" ${ctab === "students" ? "" : "hidden"}><section class="panel" id="rosterPanel"></section></div>
       <div class="tabpane" id="pane-reg" role="tabpanel" ${ctab === "reg" ? "" : "hidden"}><section class="panel" id="regPanel"></section></div>
+      <div class="tabpane" id="pane-report" role="tabpanel" ${ctab === "report" ? "" : "hidden"}><section class="panel" id="reportPanel"></section></div>
       <div class="tabpane" id="pane-team" role="tabpanel" ${ctab === "team" ? "" : "hidden"}><section class="panel" id="teamPanel"></section></div>
       <div class="tabpane" id="pane-log" role="tabpanel" ${ctab === "log" ? "" : "hidden"}><section class="panel" id="auditPanel"></section></div>`}`;
     document.body.classList.toggle("has-ctabs", !!$(".ctabs"));
@@ -364,7 +367,7 @@
     const ft = $("#fTerm"); if (ft) ft.onchange = onFilter;
     if (view === "admin") return renderAdmin();
     if (!c) return;
-    renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit();
+    renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit(); renderReport();
   }
   const MAN_REASONS = ["مفيش نت ولا GPS", "موبايله فاضي شحن", "موبايله مش معاه", "مشكلة في حسابه", "حاضر وأنا شايفه"];
   let kindPick = "hall";
@@ -624,7 +627,7 @@
     const lq = $("#lvQ"); if (lq) { lq.oninput = () => { lv.q = lq.value; renderLive(); }; if (keepQ) { lq.focus(); try { lq.setSelectionRange(selA, selB); } catch (e) {} } }
     const lc = $("#lvClear"); if (lc) lc.onclick = () => { lv.q = ""; lv.sort = null; lv.f = { st: null, grp: null }; closeFpop(); renderLive(); };
     el.querySelectorAll("[data-lcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === "l:" + b.dataset.lcol ? closeFpop() : openFpop(b, LG, "l:"); });
-    const lw = $("#lvWrap"); if (lw) lw.onscroll = closeFpop;
+    const lw = $("#lvWrap"); if (lw) lw.onscroll = scrollClose;
     const la = $("#lvAll"); if (la) la.onchange = () => { shownSel.forEach(k => la.checked ? lvSel.add(k) : lvSel.delete(k)); renderLive(); };
     el.querySelectorAll("[data-sel]").forEach(cb => cb.onchange = () => { cb.checked ? lvSel.add(cb.dataset.sel) : lvSel.delete(cb.dataset.sel); renderLive(); });
     const sn = $("#lvSelNone"); if (sn) sn.onclick = () => { lvSel.clear(); confirmKey = null; renderLive(); };
@@ -659,11 +662,35 @@
       <div class="row"><button class="btn sm danger" id="dsGo">${confirmKey === "ds" ? "متأكد؟ اضغط تاني" : "امسح المحاضرة"}</button><button class="btn sm ghost" id="dsNo">إلغاء</button></div></div>`;
   }
   function renderRegister() { keepScroll("#regPanel", _renderRegister); }
+  /* register table: search + Excel-style sort & filter on every column (including each lecture) */
+  let rg = { cid: null, q: "", sort: null, f: {} }, rgRows = [];
+  const SYM = { "ح": "حاضر", "ي": "يدوي", "ت": "تعويض", "م": "معلّق", "غ": "غايب", "…": "لسه", "—": "مش لمجموعته" }, SYMORD = ["غ", "م", "…", "ي", "ت", "ح", "—"];
+  const symOf = (s, e) => { const r = (D.att[s.id] || {})[e.student_code]; if (!isOwn(s, e)) return r && r.status !== "pending" ? "ت" : r ? "م" : "—"; if (!r) return regDone(s) ? "غ" : "…"; return r.status === "present" ? "ح" : r.status === "manual" ? "ي" : "م"; };
+  const RGBASE = {
+    code: { t: "الكود", v: e => e.student_code, num: true, up: "من الأصغر للأكبر", down: "من الأكبر للأصغر" },
+    name: { t: "الاسم", v: e => e.name, up: "أ ← ي", down: "ي ← أ" },
+    grp: { t: "المجموعة", v: e => e.grp || "", list: true, lab: g => g ? "مجموعة " + g : "من غير مجموعة", up: "أ ← ي", down: "ي ← أ" },
+    pct: { t: "النسبة", v: e => attendance(e).pct, key: e => attendance(e).pct, up: "الأقل الأول", down: "الأعلى الأول" },
+    abs: { t: "الغياب", v: e => String(absences(e)), key: e => absences(e), list: true, ord: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"], lab: n => n === "0" ? "مفيش غياب" : n + " غياب", up: "الأقل الأول", down: "الأكتر الأول" },
+    st: { t: "الحالة", v: e => CM.warnOf(absences(e)).t, key: e => Math.min(absences(e), 4), list: true, ord: [0, 1, 2, 3, 4].map(i => CM.WARN[i].t), lab: x => x, up: "المنتظم الأول", down: "الانسحاب الأول" }
+  };
+  let RGC = RGBASE;
+  const RGG = { cols: null, st: () => rg, all: () => rgRows, redraw: () => renderRegister(), defSort: () => ({ col: "code", dir: 1 }) };
   function _renderRegister() {
     const el = $("#regPanel"), gs = groupsOf(), mng = canManage(course());
+    const ae = document.activeElement, keepQ = ae && ae.id === "rgQ", selA = keepQ ? ae.selectionStart : 0, selB = keepQ ? ae.selectionEnd : 0;
     if (regGroup !== "all" && !gs.includes(regGroup)) regGroup = "all";
-    const rows = regGroup === "all" ? D.enroll : D.enroll.filter(e => e.grp === regGroup);
-    const ss = regGroup === "all" ? D.sessions : D.sessions.filter(s => !s.grp || s.grp === regGroup || rows.some(e => (D.att[s.id] || {})[e.student_code]));
+    if (rg.cid !== D.cid) rg = { cid: D.cid, q: "", sort: null, f: {} };
+    const base = regGroup === "all" ? D.enroll : D.enroll.filter(e => e.grp === regGroup);
+    const ss = regGroup === "all" ? D.sessions : D.sessions.filter(s => !s.grp || s.grp === regGroup || base.some(e => (D.att[s.id] || {})[e.student_code]));
+    RGC = Object.assign({}, RGBASE); ss.forEach(s => { RGC["s" + s.n] = { t: "م" + s.n + (s.grp ? " · مج " + s.grp : "") + " · " + CM.fmtD(s.started_at), v: e => symOf(s, e), key: e => SYMORD.indexOf(symOf(s, e)), list: true, ord: SYMORD, lab: x => x + " · " + SYM[x], up: "الغايب الأول", down: "الحاضر الأول" }; });
+    RGG.cols = RGC; rgRows = base;
+    Object.keys(rg.f).forEach(k => { if (!RGC[k]) delete rg.f[k]; }); if (rg.sort && !RGC[rg.sort.col]) rg.sort = null;
+    const q = normAr(rg.q), sort = rg.sort || RGG.defSort();
+    const rows = sortRows(base.filter(e => (!q || normAr(e.name).includes(q) || e.student_code.toLowerCase().includes(q)) && Object.entries(rg.f).every(([k, set]) => !set || set.has(RGC[k].v(e)))).map(e => ({ e })), Object.fromEntries(Object.entries(RGC).map(([k, C]) => [k, Object.assign({}, C, { v: x => C.v(x.e), key: C.key ? x => C.key(x.e) : null })])), sort).map(x => x.e);
+    const busy = !!q || Object.values(rg.f).some(Boolean) || !!rg.sort;
+    const rh = (k, extra) => { const C = RGC[k], srt = sort.col === k, flt = !!rg.f[k];
+      return `<button class="fh ${(srt && rg.sort) || flt ? "on" : ""}" data-rcol="${k}" aria-haspopup="true" title="ترتيب وفلترة">${extra || C.t}<span class="fh-i">${srt ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button>`; };
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[Math.min(absences(e), 4)]++);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.length} محاضرة · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
       <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}<button class="btn sm" id="exp" ${D.enroll.length ? "" : "disabled"}>تصدير شيت إكسيل</button></div></div>
@@ -672,12 +699,18 @@
       ${impBoxHtml()}
       ${dsBox()}
       ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.warnChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">مفيش إنذارات لحد دلوقتي.</span>`}</div>
-      <div class="tbl-wrap" id="regWrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الطالب</th>${ss.map(s => { const lab = `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`; return `<th class="c ${delSess === s.id ? "th-on" : ""}">${lab}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="مسح المحاضرة ${s.n}" aria-label="مسح المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">النسبة</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
-      ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${ab >= 4 ? "withdrawn" : ""}"><td><div>${esc(e.name)}</div><div class="mono muted small">${esc(e.student_code)}${e.grp ? " · مج " + esc(e.grp) : ""}</div></td>${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
+      <div class="rs-bar"><input type="search" id="rgQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(rg.q)}" autocomplete="off"><span class="small muted">${rows.length === base.length ? base.length + " طالب" : "عرض " + rows.length + " من " + base.length}</span>${busy ? `<button class="btn sm ghost" id="rgClear">مسح الترتيب والفلاتر</button>` : ""}</div>
+      <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => { const lab = rh("s" + s.n, `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`); return `<th class="c ${delSess === s.id ? "th-on" : ""}">${lab}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="مسح المحاضرة ${s.n}" aria-label="مسح المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
+      ${rows.length ? "" : `<tr><td colspan="${ss.length + 6}"><div class="empty">مفيش طلبة مطابقين للبحث أو الفلتر.</div></td></tr>`}
+      ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${ab >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
       </tbody></table></div>
       <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة تانية · م معلّق · غ غايب · النقطة يعني المحاضرة مش لمجموعته.${mng ? " لو عملت محاضرة بالغلط، دوس «حذف» تحت رقمها." : ""} الغياب بيتحسب أول ما التسجيل في المحاضرة يتقفل، ولو سجّلت الطالب بعدها يدوي أو بمسح كوده الغياب بيتشال. وكل حضور تعويضي بيلغي غياب: مرة إنذار أول، مرتين إنذار ثاني، 3 إنذار ثالث ونهائي، 4 انسحاب إجباري.</p>`
       : `<div class="empty">الكشف هيتملى أول ما تبدأ محاضرات.</div>`}`;
     el.querySelectorAll("[data-rg]").forEach(b => b.onclick = () => { regGroup = b.dataset.rg; renderRegister(); });
+    el.querySelectorAll("[data-rcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === "r:" + b.dataset.rcol ? closeFpop() : openFpop(b, RGG, "r:"); });
+    const rq = $("#rgQ"); if (rq) { rq.oninput = () => { rg.q = rq.value; renderRegister(); }; if (keepQ) { rq.focus(); try { rq.setSelectionRange(selA, selB); } catch (e) {} } }
+    const rc = $("#rgClear"); if (rc) rc.onclick = () => { rg.q = ""; rg.sort = null; rg.f = {}; closeFpop(); renderRegister(); };
+    const rw = $("#regWrap"); if (rw) rw.onscroll = scrollClose;
     el.querySelectorAll("[data-ds]").forEach(b => b.onclick = () => { delSess = delSess === b.dataset.ds ? null : b.dataset.ds; confirmKey = null; renderRegister(); const x = $("#dsGo"); if (x) x.scrollIntoView({ block: "nearest" }); });
     const dn = $("#dsNo"); if (dn) dn.onclick = () => { delSess = null; confirmKey = null; renderRegister(); };
     const dg = $("#dsGo"); if (dg) dg.onclick = () => {
@@ -881,6 +914,104 @@
   }
 
 
+  /* ---------- report tab: absences & warnings for this course ---------- */
+  let rpGroup = "all", rpLevel = null, rpQ = "";
+  function lectureStats(ss, rows) {
+    return ss.filter(regDone).map(s => {
+      const own = rows.filter(e => isOwn(s, e)), rec = D.att[s.id] || {};
+      const pres = own.filter(e => counted(rec[e.student_code])).length;
+      const mk = rows.filter(e => !isOwn(s, e) && counted(rec[e.student_code])).length;
+      return { s, own: own.length, pres, mk, pct: own.length ? Math.round(pres / own.length * 100) : 0 };
+    });
+  }
+  function missedIn(e) { return D.sessions.filter(s => regDone(s) && isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).map(s => s.n); }
+  function lecChart(st) {
+    if (!st.length) return `<div class="empty">لسه مفيش محاضرات اتقفل تسجيلها.</div>`;
+    const avg = Math.round(st.reduce((a, b) => a + b.pct, 0) / st.length), cols = `repeat(${st.length},minmax(40px,1fr))`;
+    return `<div class="bchart" role="img" aria-label="نسبة الحضور في كل محاضرة، المتوسط ${avg}%"><div class="bin" style="min-width:${st.length * 48}px">
+      <div class="bplot">
+        ${[100, 50, 0].map(p => `<i class="gl" style="bottom:${p}%"><em>${p}%</em></i>`).join("")}
+        <i class="gl avg" style="bottom:${avg}%"><em>المتوسط <span dir="ltr">${avg}%</span></em></i>
+        <div class="bcols" style="grid-template-columns:${cols}">${st.map(r => `<div class="bcol" title="محاضرة ${r.s.n}${r.s.grp ? " · مجموعة " + esc(r.s.grp) : ""} · ${CM.fmtD(r.s.started_at)}&#10;حضر ${r.pres} من ${r.own} (${r.pct}%)${r.mk ? "&#10;+ " + r.mk + " تعويض" : ""}"><span class="bv">${r.pct}%</span><i class="b ${r.pct < 50 ? "low" : ""}" style="height:${Math.max(r.pct, 1)}%"></i></div>`).join("")}</div>
+      </div>
+      <div class="blabels" style="grid-template-columns:${cols}">${st.map(r => `<span><b>م${r.s.n}${r.s.grp ? " " + esc(r.s.grp) : ""}</b>${CM.fmtD(r.s.started_at)}</span>`).join("")}</div>
+    </div></div>`;
+  }
+  function renderReport() {
+    const el = $("#reportPanel"); if (!el || !D) return;
+    const c = course(), gs = groupsOf();
+    if (rpGroup !== "all" && !gs.includes(rpGroup)) rpGroup = "all";
+    const rows = rpGroup === "all" ? D.enroll : D.enroll.filter(e => e.grp === rpGroup);
+    const ss = D.sessions.filter(s => rpGroup === "all" || !s.grp || s.grp === rpGroup);
+    const st = lectureStats(ss, rows), lv = [0, 0, 0, 0, 0];
+    const info = rows.map(e => { const ab = absences(e), a = attendance(e); lv[Math.min(ab, 4)]++; return { e, ab, a, miss: missedIn(e) }; });
+    const avg = st.length ? Math.round(st.reduce((a, b) => a + b.pct, 0) / st.length) : 0;
+    const warned = lv[1] + lv[2] + lv[3] + lv[4];
+    const q = normAr(rpQ);
+    const list = info.filter(x => x.ab > 0 && (rpLevel === null || Math.min(x.ab, 4) === rpLevel) && (!q || normAr(x.e.name).includes(q) || x.e.student_code.includes(q)))
+      .sort((a, b) => b.ab - a.ab || a.a.pct - b.a.pct || a.e.name.localeCompare(b.e.name, "ar"));
+    const KS = ["ok", "w1", "w2", "w3", "w4"];
+    const seg = [0, 1, 2, 3, 4].filter(i => lv[i]).map(i => `<button class="seg ${KS[i]} ${rpLevel === i ? "on" : ""}" style="flex:${lv[i]}" data-lvl="${i}" title="${CM.WARN[i].t}: ${lv[i]} طالب"><span>${lv[i]}</span></button>`).join("");
+    const next = ab => ab >= 4 ? "" : ab === 3 ? "غياب كمان = انسحاب إجباري" : "غياب كمان = " + CM.WARN[ab + 1].t;
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${rows.length} طالب · ${st.length} محاضرة اتحسبت</div><h2>تقرير الغياب والإنذارات</h2></div>
+      <div class="row no-print">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rpg="${esc(k)}" aria-pressed="${rpGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}
+        <button class="btn sm" id="rpXls">تصدير التقرير إكسيل</button><button class="btn sm ghost" id="rpPrint">طباعة</button></div></div>
+      <div class="kpis">
+        <div class="kpi"><b>${avg}%</b><span>متوسط الحضور</span></div>
+        <div class="kpi"><b>${warned}</b><span>طالب عندهم إنذار</span></div>
+        <div class="kpi"><b>${lv[3]}</b><span>إنذار ثالث ونهائي</span></div>
+        <div class="kpi bad"><b>${lv[4]}</b><span>انسحاب إجباري</span></div>
+      </div>
+      <div class="rp-sec"><h3>توزيع الطلبة على الحالات</h3>
+        <div class="segbar" role="group" aria-label="توزيع الحالات">${seg || `<div class="empty">مفيش طلبة.</div>`}</div>
+        <div class="legend">${[0, 1, 2, 3, 4].map(i => `<button class="lg ${rpLevel === i ? "on" : ""}" data-lvl="${i}"><i class="sw ${KS[i]}"></i>${CM.WARN[i].t} <b>${lv[i]}</b></button>`).join("")}</div>
+      </div>
+      <div class="rp-sec"><h3>نسبة الحضور في كل محاضرة</h3><p class="small muted">من طلبة المجموعة اللي المحاضرة ليها. العمود الأحمر يعني الحضور أقل من النص.</p>${lecChart(st)}</div>
+      ${gs.length > 1 && rpGroup === "all" ? `<div class="rp-sec"><h3>مقارنة المجموعات</h3><div class="tbl-wrap"><table><thead><tr><th>المجموعة</th><th class="c">طلبة</th><th class="c">متوسط الحضور</th>${[1, 2, 3, 4].map(i => `<th class="c">${CM.WARN[i].t}</th>`).join("")}</tr></thead><tbody>
+        ${gs.map(g => { const r2 = D.enroll.filter(e => e.grp === g), l2 = [0, 0, 0, 0, 0]; r2.forEach(e => l2[Math.min(absences(e), 4)]++); const s2 = lectureStats(D.sessions.filter(s => !s.grp || s.grp === g), r2), a2 = s2.length ? Math.round(s2.reduce((a, b) => a + b.pct, 0) / s2.length) : 0;
+          return `<tr><td>مجموعة ${esc(g)}</td><td class="c mono">${r2.length}</td><td class="c"><span class="chip ${a2 >= 75 ? "ok" : a2 >= 50 ? "warn" : "bad"}">${a2}%</span></td>${[1, 2, 3, 4].map(i => `<td class="c mono">${l2[i] || "—"}</td>`).join("")}</tr>`; }).join("")}
+      </tbody></table></div></div>` : ""}
+      <div class="rp-sec"><div class="panel-h"><h3>الطلبة اللي عندهم غياب${rpLevel !== null ? " · " + CM.WARN[rpLevel].t : ""}</h3>${rpLevel !== null ? `<button class="btn sm ghost no-print" id="rpAll">اعرض الكل</button>` : ""}</div>
+        <div class="rs-bar no-print"><input type="search" id="rpQ" placeholder="دوّر باسم الطالب أو الكود" value="${esc(rpQ)}" autocomplete="off"><span class="small muted">${list.length} طالب</span></div>
+        ${list.length ? `<div class="tbl-wrap" id="rpWrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">الغياب</th><th class="c">الحضور</th><th>الحالة</th><th>غاب في</th><th>الجاي</th></tr></thead><tbody>
+          ${list.map(x => `<tr class="${x.ab >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(x.e.student_code)}</td><td>${esc(x.e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(x.e.grp || "—")}</td>` : ""}<td class="c mono"><b>${x.ab}</b></td><td class="c"><span class="chip ${x.a.pct >= 75 ? "ok" : x.a.pct >= 50 ? "warn" : "bad"}">${x.a.pct}%</span></td><td>${CM.warnChip(x.ab)}</td><td class="small muted">${x.miss.map(n => "م" + n).join("، ")}</td><td class="small">${next(x.ab)}</td></tr>`).join("")}
+        </tbody></table></div>` : `<div class="empty">${q ? "مفيش طالب بالاسم أو الكود ده." : "مفيش طلبة عندهم غياب هنا."}</div>`}
+      </div>`;
+    const ae = document.activeElement;
+    el.querySelectorAll("[data-rpg]").forEach(b => b.onclick = () => { rpGroup = b.dataset.rpg; renderReport(); });
+    el.querySelectorAll("[data-lvl]").forEach(b => b.onclick = () => { const v = +b.dataset.lvl; rpLevel = rpLevel === v || v === 0 ? null : v; renderReport(); });
+    const ra = $("#rpAll"); if (ra) ra.onclick = () => { rpLevel = null; renderReport(); };
+    const rq = $("#rpQ"); if (rq) rq.oninput = () => { rpQ = rq.value; renderReport(); const r2 = $("#rpQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
+    $("#rpPrint").onclick = () => window.print();
+    $("#rpXls").onclick = () => exportReport(rows, info, st, lv, avg);
+  }
+  async function exportReport(rows, info, st, lv, avg) {
+    const btn = $("#rpXls"); if (btn) { btn.disabled = true; btn.textContent = "بيجهّز…"; }
+    try {
+      await loadExcelJS();
+      const c = course(), wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("التقرير", { views: [{ rightToLeft: true }] });
+      sheetTitle(ws, 8, "تقرير الغياب والإنذارات · " + c.name, courseSub(c) + (rpGroup !== "all" ? " · مجموعة " + rpGroup : ""));
+      const kv = [["عدد الطلبة", rows.length], ["المحاضرات اللي اتحسبت", st.length], ["متوسط الحضور", avg / 100], ...[0, 1, 2, 3, 4].map(i => [CM.WARN[i].t, lv[i]])];
+      kv.forEach(([k, v], i) => { const r = ws.getRow(4 + i); r.getCell(1).value = k; r.getCell(2).value = v; r.getCell(1).font = { name: "Arial", bold: true, size: 10 }; r.getCell(2).font = { name: "Arial", size: 10 }; if (k === "متوسط الحضور") r.getCell(2).numFmt = "0%"; if (i >= 3) { const w = WARNX[i - 3]; r.getCell(1).fill = fill(w[0]); r.getCell(1).font = { name: "Arial", bold: true, size: 10, color: { argb: w[1] } }; } [1, 2].forEach(j => { r.getCell(j).border = box; r.getCell(j).alignment = { horizontal: "right", readingOrder: "rtl" }; }); });
+      let r0 = 4 + kv.length + 2;
+      headRow(ws, r0, ["المحاضرة", "التاريخ", "المجموعة", "عدد الطلبة", "حضر", "النسبة", "تعويض"], false);
+      st.forEach((x, i) => { const r = ws.getRow(r0 + 1 + i); ["م" + x.s.n, new Date(x.s.started_at).toLocaleDateString("en-GB", { timeZone: "Africa/Cairo" }), x.s.grp || "الكل", x.own, x.pres, x.pct / 100, x.mk].forEach((v, j) => { const cl = r.getCell(j + 1); cl.value = v; cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: "center", readingOrder: "rtl" }; }); r.getCell(6).numFmt = "0%"; if (x.pct < 50) r.getCell(6).fill = fill("FFF7E0DD"); });
+      const ws2 = wb.addWorksheet("الطلبة اللي عندهم غياب", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
+      sheetTitle(ws2, 8, "الطلبة اللي عندهم غياب · " + c.name, courseSub(c));
+      headRow(ws2, 4, ["الكود", "الاسم", "المجموعة", "الغياب", "نسبة الحضور", "الحالة", "غاب في", "الجاي"], false);
+      const lst = info.filter(x => x.ab > 0).sort((a, b) => b.ab - a.ab || a.e.name.localeCompare(b.e.name, "ar"));
+      lst.forEach((x, i) => { const r = ws2.getRow(5 + i), w = WARNX[Math.min(x.ab, 4)];
+        [x.e.student_code, x.e.name, x.e.grp || "—", x.ab, x.a.pct / 100, CM.warnOf(x.ab).t, x.miss.map(n => "م" + n).join("، "), x.ab >= 4 ? "" : x.ab === 3 ? "غياب كمان = انسحاب" : "غياب كمان = " + CM.WARN[x.ab + 1].t].forEach((v, j) => { const cl = r.getCell(j + 1); cl.value = v; cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: j === 1 || j >= 6 ? "right" : "center", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
+        r.getCell(5).numFmt = "0%"; r.getCell(6).fill = fill(w[0]); r.getCell(6).font = { name: "Arial", size: 10, bold: true, color: { argb: w[1] } }; });
+      ws2.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + lst.length, column: 8 } };
+      [13, 30, 10, 9, 12, 18, 26, 24].forEach((wd, j) => { ws2.getColumn(j + 1).width = wd; });
+      [26, 14, 12, 12, 9, 10, 9, 9].forEach((wd, j) => { ws.getColumn(j + 1).width = wd; });
+      await saveWb(wb, "تقرير الغياب - " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
+    } catch (e) { showErr(e); }
+    if (btn) { btn.disabled = false; btn.textContent = "تصدير التقرير إكسيل"; }
+  }
+
   /* ---------- roster ---------- */
   function renderRoster() {
     const c = course(), el = $("#rosterPanel"), mng = canManage(c), add = canRun(c);
@@ -924,7 +1055,7 @@
     };
     const rq = $("#rsQ"); if (rq) rq.oninput = () => { rv.q = rq.value; renderRosterTable(); };
     const rc = $("#rsClear"); if (rc) rc.onclick = () => { rv.q = ""; rv.sort = { col: "code", dir: 1 }; rv.f = { grp: null, acc: null, now: null }; if (rq) rq.value = ""; closeFpop(); renderRosterTable(); };
-    const rw = $("#rsWrap"); if (rw) rw.onscroll = closeFpop;
+    const rw = $("#rsWrap"); if (rw) rw.onscroll = scrollClose;
     renderRosterTable();
   }
 
@@ -993,12 +1124,14 @@
     tb.querySelectorAll("[data-dev]").forEach(b => b.onclick = () => { const k = "dev:" + b.dataset.dev; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_device", { cid: c.id, code: b.dataset.dev }); say("roster", "اتفك ربط موبايل " + nameOf(b.dataset.dev) + ". أول دخول جاي هيربطه بالموبايل الجديد."); }, loadCourse); });
     tb.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => { const k = "acc:" + b.dataset.acc; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_account", { cid: c.id, code: b.dataset.acc }); say("roster", "اتمسح حساب " + nameOf(b.dataset.acc) + ". يقدر يعمل حساب جديد من «أول مرة»."); }, loadCourse); });
   }
+  let fpopAt = 0;
+  const scrollClose = () => { if (Date.now() - fpopAt > 400) closeFpop(); };
   function closeFpop() { fpopCol = null; const p = $("#fpop"); if (p) p.hidden = true; }
   const RG = { cols: RCOLS, st: () => rv, all: () => D.enroll, redraw: () => renderRosterTable() };
   function openFpop(btn, G = RG, pre = "") {
-    const k = btn.dataset.fcol || btn.dataset.lcol, C = G.cols[k];
+    const k = btn.dataset.fcol || btn.dataset.lcol || btn.dataset.rcol, C = G.cols[k];
     let p = $("#fpop"); if (!p) { p = document.createElement("div"); p.id = "fpop"; p.className = "fpop"; document.body.appendChild(p); p.onclick = ev => ev.stopPropagation(); }
-    fpopCol = pre + k;
+    fpopCol = pre + k; fpopAt = Date.now();
     const draw = () => {
       const st = G.st(), all = G.all(), cur = st.sort || (G.defSort && G.defSort()) || {};
       const vals = C.list ? [...new Set(all.map(C.v))].sort((a, b) => C.ord ? C.ord.indexOf(a) - C.ord.indexOf(b) : String(a).localeCompare(String(b), "ar")) : [];
@@ -1127,7 +1260,7 @@
   async function renderAdmin() {
     const el = $("#adminArea");
     const au = await sb.from("audit").select("*").order("at", { ascending: false }).limit(40);
-    const AT = [["staff", "الحسابات", CTABS[3][2]], ["report", "تقرير الإنذارات", CTABS[2][2]], ["log", "السجل", CTABS[4][2]]];
+    const AT = [["staff", "الحسابات", CTABS[4][2]], ["report", "تقرير الإنذارات", CTABS[3][2]], ["log", "السجل", CTABS[5][2]]];
     el.innerHTML = `<nav class="ctabs admin" role="tablist" aria-label="لوحة المسؤول">${AT.map(([k, t, ic]) => `<button role="tab" data-at="${k}" aria-selected="${atab === k}">${ic}<span class="l">${t}</span></button>`).join("")}</nav>
       <section class="panel" data-apane="staff" ${atab === "staff" ? "" : "hidden"}>
         <div class="panel-h"><div><div class="eyebrow">${staff.length} حساب</div><h2>المحاضرين والمعيدين</h2></div></div>

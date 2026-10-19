@@ -217,7 +217,7 @@ tr.manrow td>div{position:sticky;right:0;max-width:min(620px,calc(100vw - 72px))
 .filters{margin-bottom:12px;padding-block:10px}
 @media (max-width:760px){
   body.has-ctabs{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
-  .ctabs{position:fixed;inset:auto 0 0 0;margin:0;padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));border-bottom:0;border-top:1px solid var(--line);background:var(--surface);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;overflow:visible;box-shadow:0 -4px 16px rgba(0,0,0,.06)}
+  .ctabs{position:fixed;inset:auto 0 0 0;margin:0;padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));border-bottom:0;border-top:1px solid var(--line);background:var(--surface);display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;overflow:visible;box-shadow:0 -4px 16px rgba(0,0,0,.06)}
   .ctabs button{flex-direction:column;gap:2px;padding:6px 2px;font-size:.7rem;border-radius:8px;min-width:0}
   .ctabs button span.l{overflow:hidden;text-overflow:ellipsis;max-width:100%}
   .ctabs button[aria-selected=true]{background:var(--accent-soft);border-color:transparent}
@@ -225,3 +225,47 @@ tr.manrow td>div{position:sticky;right:0;max-width:min(620px,calc(100vw - 72px))
   .ctabs .tb{height:16px;line-height:16px;min-width:16px;font-size:10px;padding:0 4px}
 }
 @media (max-width:760px){.ctabs.admin{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.regt td.nm{min-width:150px}
+.regt th .fh{text-align:center;line-height:1.35}
+.regt th.c .fh{margin-inline:auto}
+/* report tab */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.kpi{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.kpi b{display:block;font-family:var(--f-display);font-size:1.6rem;font-variant-numeric:tabular-nums;line-height:1.2}
+.kpi span{font-size:.8rem;color:var(--muted)}
+.kpi.bad b{color:var(--bad)}
+.rp-sec{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+.segbar{display:flex;gap:2px;height:30px;border-radius:8px;overflow:hidden}
+.seg{all:unset;cursor:pointer;min-width:26px;display:grid;place-items:center;font-size:.78rem;font-weight:700;color:#fff}
+.seg span{padding:0 4px}
+.seg.on{outline:3px solid var(--ink);outline-offset:-3px}
+.seg.ok,.sw.ok{background:var(--ok)} .seg.w1,.sw.w1{background:#c99a2e} .seg.w2,.sw.w2{background:var(--warn)} .seg.w3,.sw.w3{background:#d4652a} .seg.w4,.sw.w4{background:var(--bad)}
+.legend{display:flex;flex-wrap:wrap;gap:6px}
+.lg{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:2px 10px;font-size:.8rem;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.lg.on{border-color:var(--ink)}
+.lg b{font-variant-numeric:tabular-nums}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+.bchart{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:22px 12px 8px 44px}
+.bin{display:grid;gap:6px}
+.bplot{position:relative;height:170px}
+.gl{position:absolute;inset-inline:0;border-top:1px solid var(--line);height:0}
+.gl em{position:absolute;inset-inline-end:-40px;top:-8px;font-style:normal;font-size:10.5px;color:var(--muted);width:36px;text-align:end}
+.gl.avg{border-top:1.5px dashed var(--muted);z-index:2;pointer-events:none}
+.gl.avg em{inset-inline-end:auto;inset-inline-start:0;top:-17px;width:auto;font-weight:600;background:var(--surface);padding:0 4px;border-radius:4px}
+.bcols{position:absolute;inset:0;display:grid;gap:8px}
+.bcol{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;cursor:default}
+.bcol .b{display:block;width:min(28px,70%);background:var(--accent);border-radius:4px 4px 0 0}
+.bcol .b.low{background:var(--bad)}
+.bcol .bv{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;margin-bottom:3px}
+.bcol:hover .b{opacity:.8}
+.blabels{display:grid;gap:8px;text-align:center}
+.blabels span{display:grid;font-size:10.5px;color:var(--muted);line-height:1.35}
+.blabels b{color:var(--ink);font-weight:600;font-size:11.5px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media print{
+  body{background:#fff;padding:0} .top,.filters,.ctabs,.no-print,.msg.warn,.course-h + .msg{display:none!important}
+  .tabpane:not(#pane-report){display:none!important} #pane-report{display:grid!important}
+  .panel{border:0;padding:0} .tbl-wrap{max-height:none!important;overflow:visible!important}
+}
+.seg.w1,.seg.w2{color:#2a1e00}
+.seg.ok,.seg.w4{color:var(--surface)}
