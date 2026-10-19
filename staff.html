@@ -665,7 +665,7 @@
     const rec = D.att[s.id] || {}, pres = Object.values(rec).filter(counted).length, later = D.sessions.filter(x => x.n > s.n).length;
     return `<div class="note-box bad">
       <b>هل تريد حذف المحاضرة ${s.n}${s.grp ? " (مجموعة " + esc(s.grp) + ")" : ""} بتاريخ ${CM.fmtD(s.started_at)}؟</b>
-      <span class="small">فيها ${pres} حاضر. سيُحذف حضورها وغيابها من الكشف${s.ended ? "" : "، وستتوقف المحاضرة"}${later ? "، وسيُعاد ترقيم المحاضرات التالية لها" : ""}. يُسجَّل الحذف في سجل التعديلات، ولا يمكن التراجع عنه.</span>
+      <span class="small">عدد الحاضرين فيها: ${pres}. سيُحذف حضورها وغيابها من الكشف${s.ended ? "" : "، وستتوقف المحاضرة"}${later ? "، وسيُعاد ترقيم المحاضرات التالية لها" : ""}. يُسجَّل الحذف في سجل التعديلات، ولا يمكن التراجع عنه.</span>
       <div class="row"><button class="btn sm danger" id="dsGo">${confirmKey === "ds" ? "متأكد؟ اضغط مرة أخرى" : "حذف المحاضرة"}</button><button class="btn sm ghost" id="dsNo">إلغاء</button></div></div>`;
   }
   function renderRegister() { keepScroll("#regPanel", _renderRegister); }
