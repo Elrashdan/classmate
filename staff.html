@@ -798,7 +798,7 @@
       await loadExcelJS();
       const c = course(), wb = new ExcelJS.Workbook(), rows = D.enroll.slice().sort(byGroupName), K = 8;
       const ws = wb.addWorksheet("التحضير", { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 4 }] });
-      sheetTitle(ws, 3 + K, "تحضير محاضرات قديمة · " + c.name, "اكتب تاريخ المحاضرة مكان «تاريخ المحاضرة» (مثلا 03-أكتوبر-2026)، وتحت التاريخ اكتب ح للحاضر وغ للغايب. سيب الخانة فاضية لو المحاضرة مش لمجموعته. وبعدين ارفع الشيت من «رفع حضور محاضرات قديمة».");
+      sheetTitle(ws, 3 + K, "تحضير محاضرات قديمة · " + c.name, "اكتب التاريخ مكان «تاريخ المحاضرة»، وتحته ح للحاضر وغ للغايب. التفاصيل في شيت «طريقة الاستخدام».");
       ws.getCell(2, 1).alignment = { horizontal: "right", vertical: "middle", wrapText: true, readingOrder: "rtl" }; ws.getRow(2).height = 52;
       headRow(ws, 4, ["الكود", "الاسم", "المجموعة", ...Array.from({ length: K }, () => "تاريخ المحاضرة")], false);
       for (let j = 0; j < K; j++) { const h = ws.getCell(4, 4 + j); h.numFmt = "@"; h.fill = fill("FF1F6B57"); }
