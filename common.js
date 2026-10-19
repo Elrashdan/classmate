@@ -26,8 +26,14 @@
 
   // absence warnings
   CM.WARN = [{ t: "منتظم", k: "ok" }, { t: "إنذار أول", k: "warn" }, { t: "إنذار ثانٍ", k: "warn" }, { t: "إنذار ثالث ونهائي", k: "bad" }, { t: "انسحاب إجباري", k: "out" }];
-  CM.warnOf = n => CM.WARN[Math.min(Math.max(n, 0), 4)];
+  // حدود الإنذارات بعدد مرات الغياب: غيابان إنذار أول، 3 إنذار ثانٍ، 4 إنذار ثالث ونهائي، 5 انسحاب إجباري
+  CM.THR = [2, 3, 4, 5];
+  CM.lvl = n => CM.THR.filter(t => (n || 0) >= t).length;
+  CM.warnOf = n => CM.WARN[CM.lvl(n)];
   CM.warnChip = n => { const w = CM.warnOf(n); return `<span class="chip ${w.k}">${w.t}</span>`; };
+  CM.times = n => n === 1 ? "مرة واحدة" : n === 2 ? "مرتين" : n <= 10 ? n + " مرات" : n + " مرة";
+  CM.lvlChip = i => `<span class="chip ${CM.WARN[i].k}">${CM.WARN[i].t}</span>`;
+  CM.nextWarn = n => { const l = CM.lvl(n); return l >= 4 ? "" : (CM.THR[l] - n === 1 ? "غياب آخر = " : `بعد ${CM.THR[l] - n} غيابات: `) + CM.WARN[l + 1].t; };
 
   // server errors -> Arabic
   const ERR = {

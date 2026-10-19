@@ -196,11 +196,42 @@
       ${res ? `<div class="result ${res.k}"><b>${esc(res.title)}</b>${res.checks.length ? `<ul class="checks">${res.checks.map(ch => `<li class="${ch[0]}">${esc(ch[1])}</li>`).join("")}</ul>` : ""}</div>` : ""}`;
   }
 
+  /* ---------------- إشعار الإنذار ---------------- */
+  const missedTxt = c => (c.missed || []).length ? "، في " + (c.missed.length > 1 ? "المحاضرات " : "المحاضرة ") + c.missed.map(m => m.n + " (" + CM.fmtD(m.at) + ")").join("، ") : "";
+  function afterTxt(ab) {
+    const l = CM.lvl(ab);
+    if (l >= 4) return "بلغت حد الانسحاب الإجباري؛ راجع المحاضر أو شؤون الطلاب.";
+    if (l === 3) return "هذا إنذار نهائي، وأي غياب آخر يعني انسحابًا إجباريًّا من المادة.";
+    return "الغياب مرة أخرى يعني " + CM.WARN[l + 1].t + ".";
+  }
+  function noticeHtml(c) {
+    const l = c.level, w = CM.WARN[l];
+    return `<div class="notice lv${l}" role="alert">
+      <div class="eyebrow">إشعار بإنذار غياب</div>
+      <h3>${w.t} · ${esc(c.name)}</h3>
+      <p>بلغ عدد مرات غيابك في هذه المادة ${CM.times(c.absences)}، ولذلك صدر لك ${w.t}. ${afterTxt(c.absences)}</p>
+      ${(c.missed || []).length ? `<p class="small">المحاضرات التي غبت عنها: ${c.missed.map(m => `${m.n} (${CM.fmtD(m.at)})`).join("، ")}.</p>` : ""}
+      <p class="small">إذا كنت حاضرًا في إحدى هذه المحاضرات وسُجّلت غائبًا، فراجع المحاضر لتصحيح الكشف.</p>
+      ${ackErr[c.id] ? `<div class="msg bad">${esc(ackErr[c.id])}</div>` : ""}
+      <button class="btn primary" data-ack="${c.id}">اطّلعت على الإنذار</button>
+      <p class="small muted">يُسجَّل اطّلاعك على الإنذار ويظهر لفريق المادة.</p>
+    </div>`;
+  }
+  const ackErr = {};
+  async function ackWarning(cid, btn) {
+    const c = home.courses.find(x => x.id === cid); if (!c) return;
+    btn.disabled = true; ackErr[cid] = "";
+    try { c.seen = await rpc("student_ack_warning", { p_token: token, cid }); }
+    catch (e) { ackErr[cid] = errText(e); }
+    renderHome();
+  }
+
   function renderHome() {
     const active = document.activeElement && document.activeElement.id;
     app.innerHTML = header(`<div class="row"><button class="btn sm ghost" id="pwBtn">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button></div>`) + `
       <section class="col">
         <div><div class="eyebrow mono" style="text-align:start">${esc(home.code)}</div><h2>أهلًا ${esc((home.name || "").split(" ")[0])}</h2></div>
+        ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
         ${home.courses.length ? qrCta() : ""}
         ${pwOpen ? `<div class="panel"><h3>تغيير كلمة السر</h3>
           <label class="f"><span>كلمة السر الحالية</span><input type="password" id="pwOld" autocomplete="current-password"></label>
@@ -210,7 +241,7 @@
         ${home.courses.length ? home.courses.map(c => `
           <article class="course">
             <div class="row between"><div><h2>${esc(c.name)}</h2>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ""}${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
-            ${c.absences ? `<p class="small muted">غبت ${c.absences} ${c.absences === 1 ? "مرة" : c.absences === 2 ? "مرتين" : "مرات"}.${c.absences === 3 ? " أي غياب آخر يعني انسحابًا إجباريًّا." : c.absences >= 4 ? " راجع المحاضر أو شؤون الطلاب." : ""}</p>` : ""}
+            ${c.absences ? `<p class="small muted">غبت ${CM.times(c.absences)}${missedTxt(c)}. ${afterTxt(c.absences)}</p>` : ""}
             ${sessionBlock(c)}
           </article>`).join("") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. تواصل مع المحاضر.</div>`}
       </section>`;
@@ -227,6 +258,7 @@
       inp.onkeydown = e => { if (e.key === "Enter") checkIn(cid); };
     });
     app.querySelectorAll("[data-ci]").forEach(b => b.onclick = () => checkIn(b.dataset.ci));
+    app.querySelectorAll("[data-ack]").forEach(b => b.onclick = () => ackWarning(b.dataset.ack, b));
     wireQrCta();
     if (active && $("#" + CSS.escape(active))) { const el = $("#" + CSS.escape(active)); el.focus(); }
   }

@@ -256,7 +256,8 @@ tr.manrow td>div{position:sticky;right:0;max-width:min(620px,calc(100vw - 72px))
 .gl.avg{border-top:1.5px dashed var(--muted);z-index:2;pointer-events:none}
 .gl.avg em{inset-inline-end:auto;inset-inline-start:0;top:-17px;width:auto;font-weight:600;background:var(--surface);padding:0 4px;border-radius:4px}
 .bcols{position:absolute;inset:0;display:grid;gap:8px}
-.bcol{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;cursor:default}
+.bcol{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;cursor:pointer;border-radius:6px}
+.bcol:hover{background:var(--sunk)} .bcol.on{background:var(--accent-soft, var(--sunk));outline:1.5px solid var(--accent)}
 .bcol .b{display:block;width:min(28px,70%);background:var(--accent);border-radius:4px 4px 0 0}
 .bcol .b.low{background:var(--bad)}
 .bcol .bv{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;margin-bottom:3px}
@@ -283,3 +284,14 @@ dialog.about::backdrop{background:rgba(10,20,18,.45)}
 .about dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:.88rem}
 .about dt{color:var(--muted)} .about dd{margin:0;font-weight:600}
 @media print{footer.legal{display:flex!important;border:0;margin-top:12px}}
+
+/* إشعار الإنذار للطالب */
+.notice{border-radius:14px;padding:16px 16px 14px;display:grid;gap:8px;border:1.5px solid var(--warn);background:var(--warn-soft);color:var(--ink)}
+.notice h3{margin:0;font-size:1.08rem;color:var(--warn)}
+.notice p{margin:0;line-height:1.7}
+.notice .eyebrow{color:var(--warn)}
+.notice.lv3,.notice.lv4{border-color:var(--bad);background:var(--bad-soft)}
+.notice.lv3 h3,.notice.lv4 h3,.notice.lv3 .eyebrow,.notice.lv4 .eyebrow{color:var(--bad)}
+.notice .btn{justify-self:start;margin-top:4px}
+.seen-ok{color:var(--ok)} .seen-no{color:var(--muted)}
+#rpLecSel{width:auto;max-width:100%}

@@ -225,7 +225,9 @@
     if (focus) { const r = await sb.from("attempts").select("*").eq("session_id", focus.id).order("at", { ascending: false }).limit(300); if (r.error) throw r.error; attempts = r.data; }
     let bindings = {};
     try { (await rpc("course_bindings", { cid: c.id })).forEach(b => bindings[b.student_code] = b); } catch (e) {}
-    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings };
+    const notices = {};
+    try { const nr = await sb.from("warning_notices").select("student_code,level,seen_at").eq("course_id", c.id); if (!nr.error) nr.data.forEach(n => { (notices[n.student_code] = notices[n.student_code] || {})[n.level] = n.seen_at; }); } catch (e) {}
+    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices };
     if (scan && !sessions.some(x => x.id === scan.sid && !x.ended)) closeScanner();
     render();
     startLoops();
@@ -679,7 +681,7 @@
     grp: { t: "المجموعة", v: e => e.grp || "", list: true, lab: g => g ? "مجموعة " + g : "دون مجموعة", up: "أ ← ي", down: "ي ← أ" },
     pct: { t: "النسبة", v: e => attendance(e).pct, key: e => attendance(e).pct, up: "الأقل أولًا", down: "الأعلى أولًا" },
     abs: { t: "الغياب", v: e => String(absences(e)), key: e => absences(e), list: true, ord: ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"], lab: n => n === "0" ? "دون غياب" : n + " غياب", up: "الأقل أولًا", down: "الأكثر أولًا" },
-    st: { t: "الحالة", v: e => CM.warnOf(absences(e)).t, key: e => Math.min(absences(e), 4), list: true, ord: [0, 1, 2, 3, 4].map(i => CM.WARN[i].t), lab: x => x, up: "المنتظم أولًا", down: "الانسحاب أولًا" }
+    st: { t: "الحالة", v: e => CM.warnOf(absences(e)).t, key: e => CM.lvl(absences(e)), list: true, ord: [0, 1, 2, 3, 4].map(i => CM.WARN[i].t), lab: x => x, up: "المنتظم أولًا", down: "الانسحاب أولًا" }
   };
   let RGC = RGBASE;
   const RGG = { cols: null, st: () => rg, all: () => rgRows, redraw: () => renderRegister(), defSort: () => ({ col: "code", dir: 1 }) };
@@ -698,20 +700,20 @@
     const busy = !!q || Object.values(rg.f).some(Boolean) || !!rg.sort;
     const rh = (k, extra) => { const C = RGC[k], srt = sort.col === k, flt = !!rg.f[k];
       return `<button class="fh ${(srt && rg.sort) || flt ? "on" : ""}" data-rcol="${k}" aria-haspopup="true" title="ترتيب وتصفية">${extra || C.t}<span class="fh-i">${srt ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button>`; };
-    const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[Math.min(absences(e), 4)]++);
+    const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[CM.lvl(absences(e))]++);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.length} محاضرة · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
       <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}<button class="btn sm" id="exp" ${D.enroll.length ? "" : "disabled"}>تصدير إلى إكسل</button></div></div>
       ${msgHtml("reg")}
       ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات سبقت البرنامج؟</span><button class="btn sm ghost" id="tplBtn">تنزيل ملف التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات سابقة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden></div>` : ""}
       ${impBoxHtml()}
       ${dsBox()}
-      ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.warnChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">لا توجد إنذارات حتى الآن.</span>`}</div>
+      ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.lvlChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">لا توجد إنذارات حتى الآن.</span>`}</div>
       <div class="rs-bar"><input type="search" id="rgQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rg.q)}" autocomplete="off"><span class="small muted">${rows.length === base.length ? base.length + " طالب" : "عرض " + rows.length + " من " + base.length}</span>${busy ? `<button class="btn sm ghost" id="rgClear">إلغاء الترتيب والتصفية</button>` : ""}</div>
       <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => { const lab = rh("s" + s.n, `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`); return `<th class="c ${delSess === s.id ? "th-on" : ""}">${lab}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="حذف المحاضرة ${s.n}" aria-label="حذف المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
       ${rows.length ? "" : `<tr><td colspan="${ss.length + 6}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
-      ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${ab >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
+      ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${CM.lvl(ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
       </tbody></table></div>
-      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة أخرى · م معلّق · غ غائب · النقطة تعني أن المحاضرة ليست لمجموعته.${mng ? " إذا أنشأت محاضرة بالخطأ، فاضغط «حذف» أسفل رقمها." : ""} يُحتسب الغياب فور إغلاق التسجيل في المحاضرة، وإذا سُجِّل الطالب بعد ذلك يدويًّا أو بمسح بطاقته أُلغي الغياب. ويُلغي كل حضور تعويضي غيابًا واحدًا. الغياب مرة واحدة إنذار أول، ومرتين إنذار ثانٍ، و3 مرات إنذار ثالث ونهائي، و4 مرات انسحاب إجباري.</p>`
+      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة أخرى · م معلّق · غ غائب · النقطة تعني أن المحاضرة ليست لمجموعته.${mng ? " إذا أنشأت محاضرة بالخطأ، فاضغط «حذف» أسفل رقمها." : ""} يُحتسب الغياب فور إغلاق التسجيل في المحاضرة، وإذا سُجِّل الطالب بعد ذلك يدويًّا أو بمسح بطاقته أُلغي الغياب. ويُلغي كل حضور تعويضي غيابًا واحدًا. الغياب مرتين إنذار أول، و3 مرات إنذار ثانٍ، و4 مرات إنذار ثالث ونهائي، و5 مرات انسحاب إجباري.</p>`
       : `<div class="empty">سيمتلئ الكشف بمجرد بدء المحاضرات.</div>`}`;
     el.querySelectorAll("[data-rg]").forEach(b => b.onclick = () => { regGroup = b.dataset.rg; renderRegister(); });
     el.querySelectorAll("[data-rcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === "r:" + b.dataset.rcol ? closeFpop() : openFpop(b, RGG, "r:"); });
@@ -768,13 +770,13 @@
     const ws = wb.addWorksheet(name, { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 5 }], properties: { defaultRowHeight: 18 } });
     const N = 3 + ss.length + 5;
     sheetTitle(ws, N, "كشف حضور " + c.name, courseSub(c));
-    const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[Math.min(absences(e), 4)]++);
+    const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[CM.lvl(absences(e))]++);
     ws.mergeCells(3, 1, 3, N);
-    ws.getCell(3, 1).value = rows.length + " طالب · " + ss.length + " محاضرة · " + [1, 2, 3, 4].map(i => CM.warnOf(i).t + ": " + cnt[i]).join(" · ") + "   |   ح حاضر · ي يدوي · ت تعويض · م معلّق · غ غائب · — ليست لمجموعته";
+    ws.getCell(3, 1).value = rows.length + " طالب · " + ss.length + " محاضرة · " + [1, 2, 3, 4].map(i => CM.WARN[i].t + ": " + cnt[i]).join(" · ") + "   |   ح حاضر · ي يدوي · ت تعويض · م معلّق · غ غائب · — ليست لمجموعته";
     ws.getCell(3, 1).font = { name: "Arial", size: 9, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
     headRow(ws, 5, ["الكود", "الاسم", "المجموعة", ...ss.map(s => "م" + s.n + (s.grp ? "\nمج " + s.grp : "") + "\n" + new Date(s.started_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Africa/Cairo" })), "حضر", "غاب", "النسبة", "الحالة", "ملاحظة"], true);
     rows.forEach((e, i) => {
-      const a = attendance(e), ab = absences(e), w = Math.min(ab, 4), cells = ss.map(s => xlCell(s, e));
+      const a = attendance(e), ab = absences(e), w = CM.lvl(ab), cells = ss.map(s => xlCell(s, e));
       const row = ws.getRow(6 + i);
       [isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", ...cells.map(x => x[0]), a.att, ab, a.own ? a.pct / 100 : null, CM.warnOf(ab).t, ""].forEach((v, j) => { row.getCell(j + 1).value = v; });
       row.eachCell({ includeEmpty: true }, (cl, j) => {
@@ -924,7 +926,7 @@
 
 
   /* ---------- report tab: absences & warnings for this course ---------- */
-  let rpGroup = "all", rpLevel = null, rpQ = "";
+  let rpGroup = "all", rpLevel = null, rpQ = "", rpLec = null;
   function lectureStats(ss, rows) {
     return ss.filter(regDone).map(s => {
       const own = rows.filter(e => isOwn(s, e)), rec = D.att[s.id] || {};
@@ -933,6 +935,14 @@
       return { s, own: own.length, pres, mk, pct: own.length ? Math.round(pres / own.length * 100) : 0 };
     });
   }
+  // هل اطّلع الطالب على إشعار إنذاره الحالي؟
+  function seenOf(e, ab) {
+    const l = CM.lvl(ab); if (!l) return null;
+    const t = ((D.notices || {})[e.student_code] || {})[l];
+    return t ? { ok: true, t: "اطّلع " + CM.fmtD(t) } : { ok: false, t: "لم يطّلع بعد" };
+  }
+  // الغائبون في محاضرة من بين الطلبة المعروضين
+  const absentIn = (s, rows) => rows.filter(e => isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).sort(byGroupName);
   function missedIn(e) { return D.sessions.filter(s => regDone(s) && isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).map(s => s.n); }
   function lecChart(st) {
     if (!st.length) return `<div class="empty">لا توجد محاضرات أُغلق تسجيلها حتى الآن.</div>`;
@@ -941,10 +951,20 @@
       <div class="bplot">
         ${[100, 50, 0].map(p => `<i class="gl" style="bottom:${p}%"><em>${p}%</em></i>`).join("")}
         <i class="gl avg" style="bottom:${avg}%"><em>المتوسط <span dir="ltr">${avg}%</span></em></i>
-        <div class="bcols" style="grid-template-columns:${cols}">${st.map(r => `<div class="bcol" title="محاضرة ${r.s.n}${r.s.grp ? " · مجموعة " + esc(r.s.grp) : ""} · ${CM.fmtD(r.s.started_at)}&#10;حضر ${r.pres} من ${r.own} (${r.pct}%)${r.mk ? "&#10;+ " + r.mk + " تعويض" : ""}"><span class="bv">${r.pct}%</span><i class="b ${r.pct < 50 ? "low" : ""}" style="height:${Math.max(r.pct, 1)}%"></i></div>`).join("")}</div>
+        <div class="bcols" style="grid-template-columns:${cols}">${st.map(r => `<div class="bcol ${rpLec === r.s.id ? "on" : ""}" data-lec="${r.s.id}" title="محاضرة ${r.s.n}${r.s.grp ? " · مجموعة " + esc(r.s.grp) : ""} · ${CM.fmtD(r.s.started_at)}&#10;حضر ${r.pres} من ${r.own} (${r.pct}%)${r.mk ? "&#10;+ " + r.mk + " تعويض" : ""}"><span class="bv">${r.pct}%</span><i class="b ${r.pct < 50 ? "low" : ""}" style="height:${Math.max(r.pct, 1)}%"></i></div>`).join("")}</div>
       </div>
       <div class="blabels" style="grid-template-columns:${cols}">${st.map(r => `<span><b>م${r.s.n}${r.s.grp ? " " + esc(r.s.grp) : ""}</b>${CM.fmtD(r.s.started_at)}</span>`).join("")}</div>
     </div></div>`;
+  }
+  function absSection(st, rows, gs) {
+    if (!st.length) return "";
+    if (!st.some(r => r.s.id === rpLec)) rpLec = st[st.length - 1].s.id;
+    const r = st.find(x => x.s.id === rpLec), ab = absentIn(r.s, rows);
+    return `<div class="rp-sec" id="rpAbs"><div class="panel-h"><h3>الغائبون في المحاضرة</h3>
+        <select id="rpLecSel" aria-label="اختر المحاضرة">${st.map(x => `<option value="${x.s.id}" ${x.s.id === rpLec ? "selected" : ""}>المحاضرة ${x.s.n}${x.s.grp ? " · مجموعة " + esc(x.s.grp) : ""} · ${CM.fmtD(x.s.started_at)} · ${x.own - x.pres} غائب</option>`).join("")}</select></div>
+      ${ab.length ? `<p class="small muted">غاب ${ab.length} من ${r.own} طالب.</p><div class="tbl-wrap" style="max-height:360px;overflow:auto"><table><thead><tr><th class="c">#</th><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">مجموع غيابه</th><th>الحالة</th></tr></thead><tbody>
+        ${ab.map((e, i) => { const n = absences(e); return `<tr><td class="c mono muted">${i + 1}</td><td class="mono">${esc(e.student_code)}</td><td>${esc(e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}<td class="c mono">${n}</td><td>${CM.warnChip(n)}</td></tr>`; }).join("")}
+      </tbody></table></div>` : `<div class="empty">لم يغب أحد في هذه المحاضرة.</div>`}</div>`;
   }
   function renderReport() {
     const el = $("#reportPanel"); if (!el || !D) return;
@@ -953,37 +973,40 @@
     const rows = rpGroup === "all" ? D.enroll : D.enroll.filter(e => e.grp === rpGroup);
     const ss = D.sessions.filter(s => rpGroup === "all" || !s.grp || s.grp === rpGroup);
     const st = lectureStats(ss, rows), lv = [0, 0, 0, 0, 0];
-    const info = rows.map(e => { const ab = absences(e), a = attendance(e); lv[Math.min(ab, 4)]++; return { e, ab, a, miss: missedIn(e) }; });
+    const info = rows.map(e => { const ab = absences(e), a = attendance(e); lv[CM.lvl(ab)]++; return { e, ab, a, miss: missedIn(e) }; });
     const avg = st.length ? Math.round(st.reduce((a, b) => a + b.pct, 0) / st.length) : 0;
     const warned = lv[1] + lv[2] + lv[3] + lv[4];
+    const unseen = info.filter(x => { const sn = seenOf(x.e, x.ab); return sn && !sn.ok; }).length;
     const q = normAr(rpQ);
-    const list = info.filter(x => x.ab > 0 && (rpLevel === null || Math.min(x.ab, 4) === rpLevel) && (!q || normAr(x.e.name).includes(q) || x.e.student_code.includes(q)))
+    const list = info.filter(x => x.ab > 0 && (rpLevel === null || CM.lvl(x.ab) === rpLevel) && (!q || normAr(x.e.name).includes(q) || x.e.student_code.includes(q)))
       .sort((a, b) => b.ab - a.ab || a.a.pct - b.a.pct || a.e.name.localeCompare(b.e.name, "ar"));
     const KS = ["ok", "w1", "w2", "w3", "w4"];
     const seg = [0, 1, 2, 3, 4].filter(i => lv[i]).map(i => `<button class="seg ${KS[i]} ${rpLevel === i ? "on" : ""}" style="flex:${lv[i]}" data-lvl="${i}" title="${CM.WARN[i].t}: ${lv[i]} طالب"><span>${lv[i]}</span></button>`).join("");
-    const next = ab => ab >= 4 ? "" : ab === 3 ? "غياب آخر = انسحاب إجباري" : "غياب آخر = " + CM.WARN[ab + 1].t;
+    const next = CM.nextWarn;
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${rows.length} طالب · ${st.length} محاضرة محتسبة</div><h2>تقرير الغياب والإنذارات</h2></div>
       <div class="row no-print">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rpg="${esc(k)}" aria-pressed="${rpGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}
-        <button class="btn sm" id="rpXls">تصدير التقرير إلى إكسل</button><button class="btn sm ghost" id="rpPrint">طباعة</button></div></div>
+        <button class="btn sm" id="rpXls" title="ملف فيه: الملخص، والإنذارات، والغائبون في كل محاضرة">تصدير التقرير إلى إكسل</button><button class="btn sm ghost" id="rpPrint">طباعة</button></div></div>
       <div class="kpis">
         <div class="kpi"><b>${avg}%</b><span>متوسط الحضور</span></div>
         <div class="kpi"><b>${warned}</b><span>طالب لديهم إنذار</span></div>
         <div class="kpi"><b>${lv[3]}</b><span>إنذار ثالث ونهائي</span></div>
         <div class="kpi bad"><b>${lv[4]}</b><span>انسحاب إجباري</span></div>
       </div>
+      ${warned ? `<p class="small muted">حدود الإنذارات: غيابان إنذار أول، و3 إنذار ثانٍ، و4 إنذار ثالث ونهائي، و5 انسحاب إجباري. يظهر للطالب إشعار بالإنذار عند فتح البرنامج، ${unseen ? `ولم يطّلع ${unseen} من ${warned} على إشعار إنذاره الحالي بعد.` : "وقد اطّلع الجميع على إشعاراتهم."}</p>` : ""}
       <div class="rp-sec"><h3>توزيع الطلبة على الحالات</h3>
         <div class="segbar" role="group" aria-label="توزيع الحالات">${seg || `<div class="empty">لا يوجد طلبة.</div>`}</div>
         <div class="legend">${[0, 1, 2, 3, 4].map(i => `<button class="lg ${rpLevel === i ? "on" : ""}" data-lvl="${i}"><i class="sw ${KS[i]}"></i>${CM.WARN[i].t} <b>${lv[i]}</b></button>`).join("")}</div>
       </div>
-      <div class="rp-sec"><h3>نسبة الحضور في كل محاضرة</h3><p class="small muted">محسوبة من طلبة المجموعة التي تخصّها المحاضرة. العمود الأحمر يعني أن الحضور أقل من النصف.</p>${lecChart(st)}</div>
+      <div class="rp-sec"><h3>نسبة الحضور في كل محاضرة</h3><p class="small muted">محسوبة من طلبة المجموعة التي تخصّها المحاضرة. العمود الأحمر يعني أن الحضور أقل من النصف. اضغط على أي عمود لعرض الغائبين في المحاضرة.</p>${lecChart(st)}</div>
+      ${absSection(st, rows, gs)}
       ${gs.length > 1 && rpGroup === "all" ? `<div class="rp-sec"><h3>مقارنة المجموعات</h3><div class="tbl-wrap"><table><thead><tr><th>المجموعة</th><th class="c">طلبة</th><th class="c">متوسط الحضور</th>${[1, 2, 3, 4].map(i => `<th class="c">${CM.WARN[i].t}</th>`).join("")}</tr></thead><tbody>
-        ${gs.map(g => { const r2 = D.enroll.filter(e => e.grp === g), l2 = [0, 0, 0, 0, 0]; r2.forEach(e => l2[Math.min(absences(e), 4)]++); const s2 = lectureStats(D.sessions.filter(s => !s.grp || s.grp === g), r2), a2 = s2.length ? Math.round(s2.reduce((a, b) => a + b.pct, 0) / s2.length) : 0;
+        ${gs.map(g => { const r2 = D.enroll.filter(e => e.grp === g), l2 = [0, 0, 0, 0, 0]; r2.forEach(e => l2[CM.lvl(absences(e))]++); const s2 = lectureStats(D.sessions.filter(s => !s.grp || s.grp === g), r2), a2 = s2.length ? Math.round(s2.reduce((a, b) => a + b.pct, 0) / s2.length) : 0;
           return `<tr><td>مجموعة ${esc(g)}</td><td class="c mono">${r2.length}</td><td class="c"><span class="chip ${a2 >= 75 ? "ok" : a2 >= 50 ? "warn" : "bad"}">${a2}%</span></td>${[1, 2, 3, 4].map(i => `<td class="c mono">${l2[i] || "—"}</td>`).join("")}</tr>`; }).join("")}
       </tbody></table></div></div>` : ""}
       <div class="rp-sec"><div class="panel-h"><h3>الطلبة الذين لديهم غياب${rpLevel !== null ? " · " + CM.WARN[rpLevel].t : ""}</h3>${rpLevel !== null ? `<button class="btn sm ghost no-print" id="rpAll">عرض الكل</button>` : ""}</div>
         <div class="rs-bar no-print"><input type="search" id="rpQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rpQ)}" autocomplete="off"><span class="small muted">${list.length} طالب</span></div>
-        ${list.length ? `<div class="tbl-wrap" id="rpWrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">الغياب</th><th class="c">الحضور</th><th>الحالة</th><th>غاب في</th><th>التالي</th></tr></thead><tbody>
-          ${list.map(x => `<tr class="${x.ab >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(x.e.student_code)}</td><td>${esc(x.e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(x.e.grp || "—")}</td>` : ""}<td class="c mono"><b>${x.ab}</b></td><td class="c"><span class="chip ${x.a.pct >= 75 ? "ok" : x.a.pct >= 50 ? "warn" : "bad"}">${x.a.pct}%</span></td><td>${CM.warnChip(x.ab)}</td><td class="small muted">${x.miss.map(n => "م" + n).join("، ")}</td><td class="small">${next(x.ab)}</td></tr>`).join("")}
+        ${list.length ? `<div class="tbl-wrap" id="rpWrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">الغياب</th><th class="c">الحضور</th><th>الحالة</th><th>الإشعار</th><th>غاب في</th><th>التالي</th></tr></thead><tbody>
+          ${list.map(x => `<tr class="${CM.lvl(x.ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(x.e.student_code)}</td><td>${esc(x.e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(x.e.grp || "—")}</td>` : ""}<td class="c mono"><b>${x.ab}</b></td><td class="c"><span class="chip ${x.a.pct >= 75 ? "ok" : x.a.pct >= 50 ? "warn" : "bad"}">${x.a.pct}%</span></td><td>${CM.warnChip(x.ab)}</td><td class="small">${(sn => sn ? `<span class="${sn.ok ? "seen-ok" : "seen-no"}">${sn.t}</span>` : "—")(seenOf(x.e, x.ab))}</td><td class="small muted">${x.miss.map(n => "م" + n).join("، ")}</td><td class="small">${next(x.ab)}</td></tr>`).join("")}
         </tbody></table></div>` : `<div class="empty">${q ? "لا يوجد طالب بهذا الاسم أو الكود." : "لا يوجد طلبة لديهم غياب هنا."}</div>`}
       </div>`;
     const ae = document.activeElement;
@@ -992,6 +1015,8 @@
     const ra = $("#rpAll"); if (ra) ra.onclick = () => { rpLevel = null; renderReport(); };
     const rq = $("#rpQ"); if (rq) rq.oninput = () => { rpQ = rq.value; renderReport(); const r2 = $("#rpQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
     $("#rpPrint").onclick = () => window.print();
+    el.querySelectorAll("[data-lec]").forEach(b => b.onclick = () => { rpLec = b.dataset.lec; renderReport(); const t = $("#rpAbs"); if (t) t.scrollIntoView({ block: "nearest", behavior: "smooth" }); });
+    const ls = $("#rpLecSel"); if (ls) ls.onchange = () => { rpLec = ls.value; renderReport(); };
     $("#rpXls").onclick = () => exportReport(rows, info, st, lv, avg);
   }
   async function exportReport(rows, info, st, lv, avg) {
@@ -1006,15 +1031,45 @@
       let r0 = 4 + kv.length + 2;
       headRow(ws, r0, ["المحاضرة", "التاريخ", "المجموعة", "عدد الطلبة", "حضر", "النسبة", "تعويض"], false);
       st.forEach((x, i) => { const r = ws.getRow(r0 + 1 + i); ["م" + x.s.n, new Date(x.s.started_at).toLocaleDateString("en-GB", { timeZone: "Africa/Cairo" }), x.s.grp || "الكل", x.own, x.pres, x.pct / 100, x.mk].forEach((v, j) => { const cl = r.getCell(j + 1); cl.value = v; cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: "center", readingOrder: "rtl" }; }); r.getCell(6).numFmt = "0%"; if (x.pct < 50) r.getCell(6).fill = fill("FFF7E0DD"); });
-      const ws2 = wb.addWorksheet("الطلبة الذين لديهم غياب", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
-      sheetTitle(ws2, 8, "الطلبة الذين لديهم غياب · " + c.name, courseSub(c));
-      headRow(ws2, 4, ["الكود", "الاسم", "المجموعة", "الغياب", "نسبة الحضور", "الحالة", "غاب في", "التالي"], false);
-      const lst = info.filter(x => x.ab > 0).sort((a, b) => b.ab - a.ab || a.e.name.localeCompare(b.e.name, "ar"));
-      lst.forEach((x, i) => { const r = ws2.getRow(5 + i), w = WARNX[Math.min(x.ab, 4)];
-        [x.e.student_code, x.e.name, x.e.grp || "—", x.ab, x.a.pct / 100, CM.warnOf(x.ab).t, x.miss.map(n => "م" + n).join("، "), x.ab >= 4 ? "" : x.ab === 3 ? "غياب آخر = انسحاب" : "غياب آخر = " + CM.WARN[x.ab + 1].t].forEach((v, j) => { const cl = r.getCell(j + 1); cl.value = v; cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: j === 1 || j >= 6 ? "right" : "center", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
-        r.getCell(5).numFmt = "0%"; r.getCell(6).fill = fill(w[0]); r.getCell(6).font = { name: "Arial", size: 10, bold: true, color: { argb: w[1] } }; });
-      ws2.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + lst.length, column: 8 } };
-      [13, 30, 10, 9, 12, 18, 26, 24].forEach((wd, j) => { ws2.getColumn(j + 1).width = wd; });
+      const cellsRow = (ws, r, vals, i, rightCols) => { const row = ws.getRow(r); vals.forEach((v, j) => { const cl = row.getCell(j + 1); cl.value = v; cl.border = box; cl.font = { name: "Arial", size: 10 }; cl.alignment = { horizontal: rightCols.includes(j) ? "right" : "center", vertical: "middle", readingOrder: "rtl", wrapText: true }; if (i % 2) cl.fill = fill(XC.band); }); return row; };
+      const codeVal = c0 => isNaN(+c0) ? c0 : +c0;
+      const day = t => new Date(t).toLocaleDateString("en-GB", { timeZone: "Africa/Cairo" });
+      // الإنذارات
+      const wsW = wb.addWorksheet("الإنذارات", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
+      sheetTitle(wsW, 9, "الطلبة الذين لديهم إنذارات · " + c.name, courseSub(c) + " · غيابان إنذار أول، 3 إنذار ثانٍ، 4 إنذار ثالث ونهائي، 5 انسحاب إجباري");
+      headRow(wsW, 4, ["الكود", "الاسم", "المجموعة", "الغياب", "نسبة الحضور", "الحالة", "اطّلاع الطالب على الإشعار", "غاب في", "التالي"], false);
+      const wl = info.filter(x => CM.lvl(x.ab) > 0).sort((a, b) => b.ab - a.ab || byGroupName(a.e, b.e));
+      wl.forEach((x, i) => { const w = WARNX[CM.lvl(x.ab)], sn = seenOf(x.e, x.ab);
+        const row = cellsRow(wsW, 5 + i, [codeVal(x.e.student_code), x.e.name, x.e.grp || "—", x.ab, x.a.pct / 100, CM.warnOf(x.ab).t, sn ? sn.t : "", x.miss.map(n => "م" + n).join("، "), CM.nextWarn(x.ab)], i, [1, 6, 7, 8]);
+        row.getCell(5).numFmt = "0%"; row.getCell(6).fill = fill(w[0]); row.getCell(6).font = { name: "Arial", size: 10, bold: true, color: { argb: w[1] } };
+        if (sn && !sn.ok) row.getCell(7).font = { name: "Arial", size: 10, color: { argb: XC.muted } }; });
+      if (!wl.length) wsW.getCell(5, 1).value = "لا يوجد طلبة لديهم إنذارات.";
+      wsW.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + Math.max(wl.length, 1), column: 9 } };
+      [13, 30, 10, 8, 11, 18, 20, 22, 24].forEach((wd, j) => { wsW.getColumn(j + 1).width = wd; });
+      // الغائبون في كل محاضرة
+      const wsA = wb.addWorksheet("الغائبون لكل محاضرة", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
+      sheetTitle(wsA, 7, "الغائبون في كل محاضرة · " + c.name, courseSub(c));
+      headRow(wsA, 4, ["المحاضرة", "التاريخ", "مجموعة المحاضرة", "الكود", "الاسم", "مجموع غياب الطالب", "الحالة"], false);
+      let ra = 5, band = 0;
+      st.forEach(x => {
+        const ab = absentIn(x.s, rows);
+        const hr = wsA.getRow(ra++); wsA.mergeCells(hr.number, 1, hr.number, 7);
+        hr.getCell(1).value = "المحاضرة " + x.s.n + " · " + day(x.s.started_at) + " · " + (x.s.grp ? "مجموعة " + x.s.grp : "الدفعة كاملة") + " · غاب " + ab.length + " من " + x.own;
+        hr.getCell(1).font = { name: "Arial", size: 10.5, bold: true, color: { argb: XC.title } }; hr.getCell(1).fill = fill("FFE3F1EC"); hr.getCell(1).alignment = { horizontal: "right", readingOrder: "rtl" }; hr.height = 20;
+        ab.forEach((e, i) => { const n = absences(e), w = WARNX[CM.lvl(n)];
+          const row = cellsRow(wsA, ra++, ["م" + x.s.n, day(x.s.started_at), x.s.grp || "الكل", codeVal(e.student_code), e.name, n, CM.warnOf(n).t], i, [4, 6]);
+          row.getCell(7).fill = fill(w[0]); row.getCell(7).font = { name: "Arial", size: 10, bold: true, color: { argb: w[1] } }; });
+        if (!ab.length) { const row = wsA.getRow(ra++); wsA.mergeCells(row.number, 1, row.number, 7); row.getCell(1).value = "لم يغب أحد."; row.getCell(1).font = { name: "Arial", size: 10, color: { argb: XC.muted } }; row.getCell(1).alignment = { horizontal: "right", readingOrder: "rtl" }; }
+      });
+      if (!st.length) wsA.getCell(5, 1).value = "لا توجد محاضرات أُغلق تسجيلها حتى الآن.";
+      [11, 12, 14, 13, 30, 14, 18].forEach((wd, j) => { wsA.getColumn(j + 1).width = wd; });
+      // قائمة مسطّحة قابلة للتصفية
+      const wsF = wb.addWorksheet("قائمة الغياب", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
+      sheetTitle(wsF, 6, "قائمة الغياب لكل المحاضرات (للتصفية) · " + c.name, courseSub(c));
+      headRow(wsF, 4, ["المحاضرة", "التاريخ", "مجموعة المحاضرة", "الكود", "الاسم", "مجموعة الطالب"], false);
+      let rf = 5; st.forEach(x => absentIn(x.s, rows).forEach(e => { cellsRow(wsF, rf, ["م" + x.s.n, day(x.s.started_at), x.s.grp || "الكل", codeVal(e.student_code), e.name, e.grp || "—"], rf - 5, [4]); rf++; }));
+      wsF.autoFilter = { from: { row: 4, column: 1 }, to: { row: Math.max(rf - 1, 5), column: 6 } };
+      [11, 12, 14, 13, 30, 13].forEach((wd, j) => { wsF.getColumn(j + 1).width = wd; });
       [26, 14, 12, 12, 9, 10, 9, 9].forEach((wd, j) => { ws.getColumn(j + 1).width = wd; });
       await saveWb(wb, "تقرير الغياب - " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
     } catch (e) { showErr(e); }
@@ -1326,7 +1381,7 @@
             const own = s => !s.grp || s.grp === e.grp;
             const missed = ss.filter(s => s.ended && own(s) && !att.has(s.id + "|" + e.student_code)).length;
             const made = ss.filter(s => !own(s) && att.has(s.id + "|" + e.student_code)).length;
-            const ab = Math.max(0, missed - made); if (ab >= 3) out.push({ c, e, ab });
+            const ab = Math.max(0, missed - made); if (CM.lvl(ab) >= 3) out.push({ c, e, ab });
           });
         });
         report = out.sort((a, b) => b.ab - a.ab);
