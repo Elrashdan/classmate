@@ -146,28 +146,52 @@
   const LEVELS = ["", "المستوى الأول", "المستوى الثاني", "المستوى الثالث", "المستوى الرابع", "المستوى الخامس"];
   const TERMS = { 1: "الفصل الدراسي الأول", 2: "الفصل الدراسي الثاني", 3: "الفصل الصيفي" };
   const TRACKS = ["عمارة داخلية", "سينوغرافيا"];
+  // البرنامج العام: المستويات 1–5 (الشعبة من الثالث). البرنامج الخاص: عمارة داخلية فقط، المستويات 1–4
+  const PROGRAMS = { "عام": "البرنامج العام", "خاص": "البرنامج الخاص" };
+  const progOf = c => c.program === "خاص" ? "خاص" : "عام";
+  const levelsOf = prog => prog === "خاص" ? [1, 2, 3, 4] : [1, 2, 3, 4, 5];
   const nowYear = () => { const d = new Date(), y = d.getFullYear(); return d.getMonth() >= 7 ? `${y}/${y + 1}` : `${y - 1}/${y}`; };
   const nowTerm = () => { const m = new Date().getMonth() + 1; return m >= 9 || m === 1 ? 1 : m <= 6 ? 2 : 3; };
   const yearList = () => { const b = +nowYear().split("/")[0], ys = new Set(); for (let y = b - 2; y <= b + 1; y++) ys.add(`${y}/${y + 1}`); courses.forEach(c => c.academic_year && ys.add(c.academic_year)); return [...ys].sort().reverse(); };
-  const clsLabel = c => [LEVELS[c.level] || "", c.track || "", TERMS[c.term] || "", c.academic_year || ""].filter(Boolean).join(" · ") || "غير مصنَّفة";
-  const groupLabel = c => c.level ? LEVELS[c.level] + (c.track ? " · " + c.track : (c.level <= 2 ? " · تخصص عام" : "")) : "غير مصنَّفة";
+  const clsLabel = c => [progOf(c) === "خاص" ? PROGRAMS["خاص"] : "", LEVELS[c.level] || "", c.track || "", TERMS[c.term] || "", c.academic_year || ""].filter(Boolean).join(" · ") || "غير مصنَّفة";
+  const groupLabel = c => c.level ? (progOf(c) === "خاص" || courses.some(x => progOf(x) === "خاص") ? PROGRAMS[progOf(c)] + " · " : "") + LEVELS[c.level] + (c.track ? " · " + c.track : (c.level <= 2 ? " · تخصص عام" : "")) : "غير مصنَّفة";
   let fYear = store.get("cm_year") || nowYear(), fTerm = store.get("cm_term") || String(nowTerm());
   const inFilter = c => (fYear === "all" || !c.academic_year || c.academic_year === fYear) && (fTerm === "all" || !c.term || String(c.term) === fTerm);
-  const filtered = () => courses.filter(inFilter).sort((a, b) => (a.level || 9) - (b.level || 9) || (a.track || "").localeCompare(b.track || "", "ar") || a.name.localeCompare(b.name, "ar"));
+  const filtered = () => courses.filter(inFilter).sort((a, b) => (progOf(a) === "خاص") - (progOf(b) === "خاص") || (a.level || 9) - (b.level || 9) || (a.track || "").localeCompare(b.track || "", "ar") || a.name.localeCompare(b.name, "ar"));
+  function levelOpts(prog, l) {
+    return `<option value="">اختر المستوى</option>` + levelsOf(prog).map(n => `<option value="${n}" ${n === l ? "selected" : ""}>${LEVELS[n]}${prog === "عام" && n <= 2 ? " (تخصص عام)" : ""}</option>`).join("");
+  }
+  function trackOpts(prog, tr) {
+    return prog === "خاص" ? `<option value="عمارة داخلية" selected>عمارة داخلية</option>`
+      : `<option value="">اختر الشعبة</option>` + TRACKS.map(v => `<option value="${v}" ${v === tr ? "selected" : ""}>${v}</option>`).join("");
+  }
   function classFields(p, c) {
     c = c || {};
-    const y = c.academic_year || (fYear !== "all" ? fYear : nowYear()), t = String(c.term || (fTerm !== "all" ? fTerm : nowTerm())), l = c.level || "";
-    return `<label class="f"><span>العام الدراسي</span><select id="${p}Year">${yearList().map(v => `<option value="${v}" ${v === y ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+    const y = c.academic_year || (fYear !== "all" ? fYear : nowYear()), t = String(c.term || (fTerm !== "all" ? fTerm : nowTerm())), l = c.level || "", prog = c.id ? progOf(c) : "عام";
+    return `<label class="f"><span>القسم</span><select id="${p}Dept"><option value="الديكور" selected>الديكور</option></select></label>
+      <label class="f"><span>البرنامج</span><select id="${p}Prog">${Object.entries(PROGRAMS).map(([k, v]) => `<option value="${k}" ${k === prog ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+      <label class="f"><span>العام الدراسي</span><select id="${p}Year">${yearList().map(v => `<option value="${v}" ${v === y ? "selected" : ""}>${v}</option>`).join("")}</select></label>
       <label class="f"><span>الفصل الدراسي</span><select id="${p}Term">${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === t ? "selected" : ""}>${v}</option>`).join("")}</select></label>
-      <label class="f"><span>المستوى</span><select id="${p}Level"><option value="">اختر المستوى</option>${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${n === l ? "selected" : ""}>${LEVELS[n]}${n <= 2 ? " (تخصص عام)" : ""}</option>`).join("")}</select></label>
-      <label class="f" id="${p}TrackBox" ${l >= 3 ? "" : "hidden"}><span>الشعبة</span><select id="${p}Track"><option value="">اختر الشعبة</option>${TRACKS.map(v => `<option value="${v}" ${v === c.track ? "selected" : ""}>${v}</option>`).join("")}</select></label>`;
+      <label class="f"><span>المستوى</span><select id="${p}Level">${levelOpts(prog, l)}</select></label>
+      <label class="f" id="${p}TrackBox" ${prog === "خاص" || l >= 3 ? "" : "hidden"}><span>الشعبة</span><select id="${p}Track">${trackOpts(prog, c.track)}</select></label>`;
   }
-  function wireClass(p) { const l = $("#" + p + "Level"); if (l) l.onchange = () => { $("#" + p + "TrackBox").hidden = !(+l.value >= 3); }; }
+  function wireClass(p) {
+    const l = $("#" + p + "Level"), g = $("#" + p + "Prog"), tb = $("#" + p + "TrackBox"), tr = $("#" + p + "Track");
+    if (!l || !g) return;
+    const sync = () => { tb.hidden = !(g.value === "خاص" || +l.value >= 3); };
+    l.onchange = sync;
+    g.onchange = () => {
+      const keep = +l.value && levelsOf(g.value).includes(+l.value) ? +l.value : "";
+      l.innerHTML = levelOpts(g.value, keep); tr.innerHTML = trackOpts(g.value, tr.value); sync();
+    };
+  }
   function readClass(p) {
-    const level = +$("#" + p + "Level").value || null, track = level >= 3 ? $("#" + p + "Track").value : "";
+    const prog = ($("#" + p + "Prog") || {}).value || "عام", level = +$("#" + p + "Level").value || null;
+    const track = prog === "خاص" ? "عمارة داخلية" : level >= 3 ? $("#" + p + "Track").value : "";
     if (!level) throw { message: "اختر المستوى." };
+    if (prog === "خاص" && level > 4) throw { message: "البرنامج الخاص من أربعة مستويات فقط." };
     if (level >= 3 && !track) throw { message: "المستوى " + LEVELS[level].replace("المستوى ", "") + " يلزم اختيار شعبة له: عمارة داخلية أو سينوغرافيا." };
-    return { p_year: $("#" + p + "Year").value, p_term: +$("#" + p + "Term").value, p_level: level, p_track: track };
+    return { p_year: $("#" + p + "Year").value, p_term: +$("#" + p + "Term").value, p_level: level, p_track: track, p_program: prog };
   }
   function role(c) {
     if (!c || !me) return null;
@@ -331,7 +355,7 @@
       <div id="newCForm" class="panel" hidden style="margin-bottom:16px">
         <h3>مادة جديدة</h3>
         <div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="ncName" placeholder="مثلًا: التشريح الفني"></label>${classFields("nc")}</div>
-        <div class="row"><button class="btn primary" id="ncSave">أضف المادة</button><span class="muted small">المستويان الأول والثاني تخصص عام، أما المستويات الثالث والرابع والخامس فيلزم اختيار الشعبة لها.</span></div>
+        <div class="row"><button class="btn primary" id="ncSave">أضف المادة</button><span class="muted small">البرنامج العام: المستويان الأول والثاني تخصص عام، والمستويات من الثالث إلى الخامس تلزمها شعبة. البرنامج الخاص: شعبة العمارة الداخلية، أربعة مستويات.</span></div>
       </div>
       ${view === "course" ? `<div class="panel filters">
         <div class="settings" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
