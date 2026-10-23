@@ -1,9 +1,9 @@
 /*!
- * Classmate · نظام تسجيل الحضور الإلكتروني
+ * Hadro · نظام إدارة الحضور
  * © 2026 أحمد محمد راشد حامد (Ahmed Mohamed Rashed Hamed). جميع الحقوق محفوظة. All rights reserved.
  * لا يجوز النسخ أو التعديل أو إعادة النشر إلا بإذن كتابي من صاحب الحق.
  */
-// Classmate — shared helpers for the student and staff apps
+// Hadro — shared helpers for the student and staff apps
 (function () {
   const cfg = window.CLASSMATE || {};
   const configured = cfg.SUPABASE_URL && !cfg.SUPABASE_URL.includes("YOUR-PROJECT") && cfg.SUPABASE_ANON_KEY && !cfg.SUPABASE_ANON_KEY.includes("YOUR-ANON");
@@ -149,8 +149,10 @@
 
 
   // ownership & copyright (shown on every page)
-  CM.APP = { name: "Classmate", title: "نظام تسجيل الحضور الإلكتروني", version: "1.0", released: "أكتوبر 2026", author: "أحمد محمد راشد حامد", year: "2026",
+  CM.APP = { name: "Hadro", title: "نظام إدارة الحضور", tagline: "Attendance Manager", version: "1.0", released: "أكتوبر 2026", author: "أحمد محمد راشد حامد", year: "2026",
     org: "قسم الديكور · كلية الفنون الجميلة · جامعة العاصمة" };
+  // علامة Hadro: حرف h كطالب يرفع يده (الساق ذراع مائلة، والقوس الكتفان، والنقطة الرأس)
+  CM.markHtml = () => `<div class="mark" aria-hidden="true"><svg viewBox="0 0 200 200"><g transform="translate(-14 -6)"><path d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle cx="122" cy="60" r="17" fill="var(--logo-dot)"/></g></svg></div>`;
   CM.copyright = () => `© ${CM.APP.year} ${CM.APP.author}. جميع الحقوق محفوظة.`;
   function legal() {
     if (document.querySelector("footer.legal")) return;
@@ -161,7 +163,7 @@
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
     d.innerHTML = `<div class="about-in">
-      <div class="brand"><div class="mark">C</div><div><h2>${A.name}</h2><p class="muted small">${A.title} · الإصدار ${A.version} (${A.released})</p></div></div>
+      <div class="brand">${CM.markHtml()}<div><h2>${A.name} <span class="muted small" style="font-weight:500;letter-spacing:.08em">${A.tagline.toUpperCase()}</span></h2><p class="muted small">${A.title} · الإصدار ${A.version} (${A.released})</p></div></div>
       <dl>
         <dt>الفكرة والتصميم والتطوير</dt><dd>${A.author}</dd>
         <dt>الجهة</dt><dd>${A.org}</dd>

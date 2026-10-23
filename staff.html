@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Classmate · نظام تسجيل الحضور الإلكتروني
+  Hadro · نظام إدارة الحضور
   © 2026 أحمد محمد راشد حامد (Ahmed Mohamed Rashed Hamed). جميع الحقوق محفوظة. All rights reserved.
 -->
 <html lang="ar" dir="rtl">
@@ -10,10 +10,13 @@
 <meta name="theme-color" content="#1d6b58">
 <meta name="author" content="أحمد محمد راشد حامد">
 <meta name="copyright" content="© 2026 أحمد محمد راشد حامد. جميع الحقوق محفوظة.">
-<meta name="description" content="Classmate: نظام تسجيل الحضور الإلكتروني. تصميم وتطوير أحمد محمد راشد حامد.">
+<meta name="description" content="Hadro: نظام إدارة الحضور. تصميم وتطوير أحمد محمد راشد حامد.">
 <script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
-<title>Classmate · المحاضرين</title>
+<title>Hadro · المحاضرين</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
 <link rel="stylesheet" href="style.css">
@@ -62,7 +65,7 @@
   /* ======================= auth ======================= */
   function renderLogin() {
     stopLoops();
-    app.innerHTML = `<header class="top"><div class="brand"><div class="mark">C</div><div><h1>Classmate</h1><p class="muted small">دخول المحاضرين والمعيدين</p></div></div>${CM.themeBtn()}</header>
+    app.innerHTML = `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول المحاضرين والمعيدين</p></div></div>${CM.themeBtn()}</header>
       <section class="panel" style="max-width:480px">
       ${login.step === "email" ? `
         <h2>الدخول بالبريد الجامعي</h2>
@@ -345,7 +348,7 @@
     const owned = courses.filter(x => x.owner_email === me.email).length;
     app.innerHTML = `
       <header class="top">
-        <div class="brand"><div class="mark">C</div><div><h1>Classmate</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}${owned ? " · " + owned + " مادة" : ""}</p></div></div>
+        <div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}${owned ? " · " + owned + " مادة" : ""}</p></div></div>
         <div class="row">
           ${canCreate() && view === "course" ? `<button class="btn sm" id="newC">مادة جديدة</button>` : ""}
           ${me.role === "admin" ? `<button class="btn sm ${view === "admin" ? "primary" : ""}" id="admin">${view === "admin" ? "رجوع للمواد" : "لوحة المسؤول"}</button>` : ""}
@@ -414,7 +417,7 @@
     invalid: r => ["bad", r.name || "بطاقة غير صحيحة", "البطاقة لا تطابق هاتف الطالب. إذا غيّر هاتفه، فعليه الدخول مرة واحدة وهو متصل بالإنترنت ثم فتح البطاقة من جديد."],
     not_enrolled: r => ["bad", "هذا الطالب غير مسجَّل في المادة", "كود " + (r.code || "") + " غير موجود في ملف المادة."],
     other_group: r => ["warn", r.name, "من مجموعة " + r.grp + "، والمحاضرة للمجموعة " + r.session_grp + " والتعويض غير متاح."],
-    not_ours: () => ["bad", "هذه ليست بطاقة حضور", "يفتح الطالب «بطاقة الحضور» من صفحة الطلبة في Classmate."],
+    not_ours: () => ["bad", "هذه ليست بطاقة حضور", "يفتح الطالب «بطاقة الحضور» من صفحة الطلبة في Hadro."],
     ended: () => ["bad", "انتهت المحاضرة", "لا يمكن المسح بعد إنهاء المحاضرة."]
   };
   function scanCount() {
@@ -508,7 +511,7 @@
           <button class="btn primary" id="sStart" ${startState === "locating" || !D.enroll.length ? "disabled" : ""}>${startState === "locating" ? `<span class="spinner"></span> جارٍ تحديد موقعك…` : "ابدأ المحاضرة " + n}</button>
         </div>
         ${gs.length > 1 ? `<label class="row small"><input type="checkbox" id="sMk"> السماح بالحضور التعويضي لطلبة المجموعة الأخرى</label><p class="muted small">${why} يُلغي الحضور التعويضي غيابًا واحدًا من غيابات الطالب في مجموعته.</p>` : ""}
-        ${startState && startState.geoFail ? `<div class="msg warn">${startState.geoFail === "denied" ? "رفض المتصفح إذن الموقع. فعّله من إعدادات المتصفح لموقع Classmate، ثم أعد المحاولة." : "تعذّر تحديد موقعك. جرّب بالقرب من نافذة أو من الهاتف."}
+        ${startState && startState.geoFail ? `<div class="msg warn">${startState.geoFail === "denied" ? "رفض المتصفح إذن الموقع. فعّله من إعدادات المتصفح لموقع Hadro، ثم أعد المحاولة." : "تعذّر تحديد موقعك. جرّب بالقرب من نافذة أو من الهاتف."}
           <div class="row" style="margin-top:8px"><button class="btn sm" id="sRetry">أعد المحاولة</button><button class="btn sm ghost" id="sNoGeo">ابدأ دون التحقق من الموقع</button></div></div>` : ""}
         <p class="muted small">${kindPick === "outdoor"
           ? "المحاضرة الخارجية: يصبح موقعك عند البدء مركز المكان، ويظهر الرمز على هاتفك لتعرضه ملء الشاشة. أما الطلبة الذين يتعذّر عليهم الوصول إلى الرمز أو لا يتوفر لديهم إنترنت، فامسح بطاقات حضورهم من زر «مسح بطاقات الطلبة»."
@@ -774,7 +777,7 @@
   }
   async function saveWb(wb, name) {
     wb.creator = CM.APP.author; wb.lastModifiedBy = CM.APP.author; wb.company = CM.APP.org; wb.title = name.replace(/\.xlsx$/, "");
-    wb.eachSheet(ws => { ws.headerFooter = { oddFooter: "&L&8" + "Classmate · " + CM.copyright() + "&R&8&P / &N" }; });
+    wb.eachSheet(ws => { ws.headerFooter = { oddFooter: "&L&8" + "Hadro · " + CM.copyright() + "&R&8&P / &N" }; });
     const buf = await wb.xlsx.writeBuffer(), url = URL.createObjectURL(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
     const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
