@@ -57,7 +57,7 @@
   let me = null, staff = [], settings = { domain: "" }, courses = [], tasAll = [], curId = store.get("cm_course"), view = "course";
   let D = null; // current course data
   let flash = {}; // per-panel messages
-  let liveTab = "all", regGroup = "all", delSess = null, confirmKey = null, startState = null, report = null;
+  let liveTab = "all", regGroup = "all", delSess = null, pastMark = null, confirmKey = null, startState = null, report = null;
   let codeState = null, codeTimer = null, liveTimer = null, manFor = null, manDraft = "";
   let addOpen = false, addDraft = { code: "", name: "", grp: "", pin: "" };
   let login = { step: "email", email: "", err: "", busy: false };
@@ -686,7 +686,7 @@
   function cell(s, e) {
     const r = (D.att[s.id] || {})[e.student_code];
     if (!isOwn(s, e)) return r && r.status !== "pending" ? `<span class="chip man">ت</span>` : r ? `<span class="chip warn">م</span>` : `<span class="muted">·</span>`;
-    if (!r) return regDone(s) ? `<span class="chip none">غ</span>` : `<span class="muted">…</span>`;
+    if (!r) return regDone(s) ? (canManage(course()) ? `<button class="chip none pm-cell" data-pc="${esc(e.student_code)}" data-ps="${s.id}" title="تحضير ${esc(e.name)} في المحاضرة ${s.n}">غ</button>` : `<span class="chip none">غ</span>`) : `<span class="muted">…</span>`;
     return r.status === "present" ? `<span class="chip ok">ح</span>` : r.status === "manual" ? `<span class="chip man">ي</span>` : `<span class="chip warn">م</span>`;
   }
   function dsBox() {
@@ -696,6 +696,49 @@
       <b>هل تريد حذف المحاضرة ${s.n}${s.grp ? " (مجموعة " + esc(s.grp) + ")" : ""} بتاريخ ${CM.fmtD(s.started_at)}؟</b>
       <span class="small">عدد الحاضرين فيها: ${pres}. سيُحذف حضورها وغيابها من الكشف${s.ended ? "" : "، وستتوقف المحاضرة"}${later ? "، وسيُعاد ترقيم المحاضرات التالية لها" : ""}. يُسجَّل الحذف في سجل التعديلات، ولا يمكن التراجع عنه.</span>
       <div class="row"><button class="btn sm danger" id="dsGo">${confirmKey === "ds" ? "متأكد؟ اضغط مرة أخرى" : "حذف المحاضرة"}</button><button class="btn sm ghost" id="dsNo">إلغاء</button></div></div>`;
+  }
+  // تحضير طالب في محاضرات سابقة غاب عنها (مثل طالب انضم إلى المادة متأخرًا وكان يحضر)
+  const PAST_REASONS = ["انضم إلى المادة بعد بدء المحاضرات وكان يحضر", "كان حاضرًا ولم يُسجَّل", "مسجَّل حاضرًا في الكشف الورقي", "عذر مقبول"];
+  const missedSess = e => D.sessions.filter(s => regDone(s) && isOwn(s, e) && !(D.att[s.id] || {})[e.student_code]).sort((a, b) => a.n - b.n);
+  function pmBox() {
+    if (!pastMark) return "";
+    const e = D.enroll.find(x => x.student_code === pastMark.code); if (!e) return "";
+    const ms = missedSess(e); if (!ms.length) return "";
+    const sel = pastMark.sel, k = ms.filter(s => sel.has(s.id)).length;
+    return `<div class="manbox note-box" id="pmBox">
+      <b>تحضير في محاضرات سابقة: ${esc(e.name)} <span class="mono muted small">${esc(e.student_code)}</span></b>
+      <span class="small muted">حدّد المحاضرات التي كان حاضرًا فيها. يُسجَّل حضوره يدويًّا مع السبب واسمك في سجل التعديلات، ويُخصم غيابه منها.</span>
+      <div class="pm-list">${ms.map(s => `<label class="pm-it"><input type="checkbox" data-pmk="${s.id}" ${sel.has(s.id) ? "checked" : ""}> المحاضرة ${s.n}${s.grp ? " · مجموعة " + esc(s.grp) : ""} · ${CM.fmtD(s.started_at)}</label>`).join("")}</div>
+      ${ms.length > 1 ? `<div class="row small"><button class="linkish" id="pmAll">تحديد الكل</button><button class="linkish" id="pmNone">إلغاء التحديد</button></div>` : ""}
+      <label class="f"><span>السبب</span><input type="text" id="pmReason" maxlength="200" value="${esc(pastMark.reason)}" placeholder="مثلًا: انضم إلى المادة بعد بدء المحاضرات وكان يحضر"></label>
+      <div class="quick">${PAST_REASONS.map(t => `<button class="btn sm ghost" data-pmq="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+      <div class="row"><button class="btn sm primary" id="pmSave" ${k ? "" : "disabled"}>تسجيله حاضرًا في ${k === 1 ? "محاضرة واحدة" : k === 2 ? "محاضرتين" : k + " محاضرات"}</button><button class="btn sm ghost" id="pmCancel">إلغاء</button></div>
+    </div>`;
+  }
+  function openPast(code, sid) {
+    const e = D.enroll.find(x => x.student_code === code); if (!e) return;
+    const ms = missedSess(e);
+    pastMark = { code, sel: new Set(sid ? [sid] : ms.map(s => s.id)), reason: pastMark && pastMark.code === code ? pastMark.reason : "" };
+    renderRegister(); const b = $("#pmBox"); if (b) b.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  function wirePast(el) {
+    el.querySelectorAll("[data-pm]").forEach(b => b.onclick = () => pastMark && pastMark.code === b.dataset.pm ? (pastMark = null, renderRegister()) : openPast(b.dataset.pm));
+    el.querySelectorAll("[data-pc]").forEach(b => b.onclick = () => openPast(b.dataset.pc, b.dataset.ps));
+    if (!pastMark || !$("#pmBox")) return;
+    el.querySelectorAll("[data-pmk]").forEach(c => c.onchange = () => { c.checked ? pastMark.sel.add(c.dataset.pmk) : pastMark.sel.delete(c.dataset.pmk); renderRegister(); });
+    const all = $("#pmAll"); if (all) all.onclick = () => { const e = D.enroll.find(x => x.student_code === pastMark.code); pastMark.sel = new Set(missedSess(e).map(s => s.id)); renderRegister(); };
+    const none = $("#pmNone"); if (none) none.onclick = () => { pastMark.sel = new Set(); renderRegister(); };
+    const inp = $("#pmReason"); inp.oninput = () => { pastMark.reason = inp.value; };
+    el.querySelectorAll("[data-pmq]").forEach(b => b.onclick = () => { pastMark.reason = b.dataset.pmq; inp.value = pastMark.reason; inp.focus(); });
+    $("#pmCancel").onclick = () => { pastMark = null; renderRegister(); };
+    $("#pmSave").onclick = () => {
+      const reason = (inp.value || "").trim();
+      if (reason.length < 3) return showErr({ message: "reason_required" });
+      const code = pastMark.code, e = D.enroll.find(x => x.student_code === code);
+      const sids = missedSess(e).filter(s => pastMark.sel.has(s.id)).map(s => s.id);
+      act(async () => { for (const sid of sids) await rpc("mark_manual_many", { sid, codes: [code], p_reason: reason });
+        say("reg", "سُجِّل " + e.name + " حاضرًا في " + (sids.length === 1 ? "محاضرة واحدة" : sids.length === 2 ? "محاضرتين" : sids.length + " محاضرات") + "."); pastMark = null; }, loadCourse);
+    };
   }
   function renderRegister() { keepScroll("#regPanel", _renderRegister); }
   /* register table: search + Excel-style sort & filter on every column (including each lecture) */
@@ -734,13 +777,14 @@
       ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات سبقت البرنامج؟</span><button class="btn sm ghost" id="tplBtn">تنزيل ملف التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات سابقة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden></div>` : ""}
       ${impBoxHtml()}
       ${dsBox()}
+      ${pmBox()}
       ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.lvlChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">لا توجد إنذارات حتى الآن.</span>`}</div>
       <div class="rs-bar"><input type="search" id="rgQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rg.q)}" autocomplete="off"><span class="small muted">${rows.length === base.length ? base.length + " طالب" : "عرض " + rows.length + " من " + base.length}</span>${busy ? `<button class="btn sm ghost" id="rgClear">إلغاء الترتيب والتصفية</button>` : ""}</div>
       <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => { const lab = rh("s" + s.n, `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`); return `<th class="c ${delSess === s.id ? "th-on" : ""}">${lab}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="حذف المحاضرة ${s.n}" aria-label="حذف المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
       ${rows.length ? "" : `<tr><td colspan="${ss.length + 6}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
-      ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${CM.lvl(ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
+      ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${CM.lvl(ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}${mng && missedSess(e).length ? ` <button class="btn xs ghost pm-btn ${pastMark && pastMark.code === e.student_code ? "on" : ""}" data-pm="${esc(e.student_code)}" title="تحضيره في محاضرات سابقة غاب عنها">تحضير</button>` : ""}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
       </tbody></table></div>
-      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة أخرى · م معلّق · غ غائب · النقطة تعني أن المحاضرة ليست لمجموعته.${mng ? " إذا أنشأت محاضرة بالخطأ، فاضغط «حذف» أسفل رقمها." : ""} يُحتسب الغياب فور إغلاق التسجيل في المحاضرة، وإذا سُجِّل الطالب بعد ذلك يدويًّا أو بمسح بطاقته أُلغي الغياب. ويُلغي كل حضور تعويضي غيابًا واحدًا. الغياب مرتين إنذار أول، و3 مرات إنذار ثانٍ، و4 مرات إنذار ثالث ونهائي، و5 مرات انسحاب إجباري.</p>`
+      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة أخرى · م معلّق · غ غائب · النقطة تعني أن المحاضرة ليست لمجموعته.${mng ? " إذا أنشأت محاضرة بالخطأ، فاضغط «حذف» أسفل رقمها. ولتحضير طالب في محاضرة سابقة غاب عنها، اضغط «غ» في خانتها أو زر «تحضير» بجوار اسمه." : ""} يُحتسب الغياب فور إغلاق التسجيل في المحاضرة، وإذا سُجِّل الطالب بعد ذلك يدويًّا أو بمسح بطاقته أُلغي الغياب. ويُلغي كل حضور تعويضي غيابًا واحدًا. الغياب مرتين إنذار أول، و3 مرات إنذار ثانٍ، و4 مرات إنذار ثالث ونهائي، و5 مرات انسحاب إجباري.</p>`
       : `<div class="empty">سيمتلئ الكشف بمجرد بدء المحاضرات.</div>`}`;
     el.querySelectorAll("[data-rg]").forEach(b => b.onclick = () => { regGroup = b.dataset.rg; renderRegister(); });
     el.querySelectorAll("[data-rcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === "r:" + b.dataset.rcol ? closeFpop() : openFpop(b, RGG, "r:"); });
@@ -758,6 +802,7 @@
     const tb = $("#tplBtn"); if (tb) tb.onclick = exportTemplate;
     const px = $("#pastX"); if (px) px.onchange = ev => { importPast(ev.target.files[0]); ev.target.value = ""; };
     wireImp(el);
+    wirePast(el);
   }
   /* ---------- Excel: professional export, template for past lectures, import of ح / غ ---------- */
   const loadExcelJS = () => window.ExcelJS ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"; sc.onload = ok; sc.onerror = () => bad({ message: "تعذّر تحميل أداة إكسل. تأكّد من الاتصال بالإنترنت وأعد المحاولة." }); document.head.appendChild(sc); });

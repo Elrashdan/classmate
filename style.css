@@ -297,3 +297,11 @@ dialog.about::backdrop{background:rgba(10,20,18,.45)}
 .notice .btn{justify-self:start;margin-top:4px}
 .seen-ok{color:var(--ok)} .seen-no{color:var(--muted)}
 #rpLecSel{width:auto;max-width:100%}
+
+/* تحضير في محاضرات سابقة */
+.btn.xs{padding:1px 8px;font-size:.75rem;min-height:0;line-height:1.6;border-radius:6px;margin-inline-start:6px;vertical-align:middle}
+.pm-btn.on{background:var(--accent);color:var(--accent-ink)}
+button.pm-cell{border:0;cursor:pointer;font:inherit}
+button.pm-cell:hover{outline:2px solid var(--accent);outline-offset:1px}
+.pm-list{display:flex;flex-wrap:wrap;gap:6px 14px}
+.pm-it{display:flex;align-items:center;gap:6px;font-size:.88rem;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer}
