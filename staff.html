@@ -67,13 +67,20 @@
     stopLoops();
     app.innerHTML = `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول المحاضرين والمعيدين</p></div></div>${CM.themeBtn()}</header>
       <section class="panel" style="max-width:480px">
-      ${login.step === "email" ? `
+      ${login.step === "pass" ? `
+        <h2>الدخول بكلمة السر</h2>
+        <p class="muted small">تعمل إذا كنت قد عيّنت كلمة سر لحسابك من زر «كلمة السر» داخل البرنامج.</p>
+        <label class="f"><span>البريد الجامعي</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
+        <label class="f"><span>كلمة السر</span><input type="password" id="lgPass" autocomplete="current-password"></label>
+        ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
+        <div class="row"><button class="btn primary" id="lgPwGo" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button><button class="btn ghost" id="lgBack">الدخول برمز على البريد</button></div>
+      ` : login.step === "email" ? `
         <h2>الدخول بالبريد الجامعي</h2>
         <p class="muted small">لا حاجة إلى كلمة مرور؛ سيصلك رمز على بريدك لتدخل به. وإن لم يكن بريدك مسجَّلًا، فاطلب من مسؤول القسم إضافتك.</p>
         <label class="f"><span>البريد الجامعي</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
         <button class="btn primary" id="lgSend" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "إرسال رمز الدخول"}</button>
-        <p class="small" style="margin:0"><button class="linkish" id="lgHave">وصلتني رسالة دخول بالفعل</button></p>
+        <p class="small row" style="margin:0;gap:16px"><button class="linkish" id="lgHave">وصلتني رسالة دخول بالفعل</button><button class="linkish" id="lgPw">الدخول بكلمة السر</button></p>
       ` : `
         <div class="eyebrow mono" style="text-align:start">${esc(login.email)}</div>
         <h2>تحقّق من بريدك</h2>
@@ -83,6 +90,23 @@
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
         <div class="row"><button class="btn primary" id="lgVerify" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button><button class="btn ghost" id="lgBack">بريد آخر</button></div>
       `}</section>`;
+    if (login.step === "pass") {
+      const go = async () => {
+        const email = $("#lgEmail").value.trim().toLowerCase(), password = $("#lgPass").value; login.email = email; login.err = "";
+        if (!email || !password) { login.err = "اكتب البريد وكلمة السر."; return renderLogin(); }
+        login.busy = true; renderLogin();
+        try {
+          const { error } = await sb.auth.signInWithPassword({ email, password });
+          if (error) throw /invalid login credentials/i.test(error.message) ? { message: "البريد أو كلمة السر غير صحيحة. إذا لم تعيّن كلمة سر بعد، فادخل برمز على البريد ثم عيّنها من زر «كلمة السر»." } : error;
+          login = { step: "email", email: "", err: "", busy: false };
+          await afterLogin(); return;
+        } catch (e) { login.err = e.message && /[\u0600-\u06FF]/.test(e.message) ? e.message : errText(e); }
+        login.busy = false; renderLogin();
+      };
+      $("#lgPwGo").onclick = go; $("#lgPass").onkeydown = e => { if (e.key === "Enter") go(); };
+      $("#lgBack").onclick = () => { login.step = "email"; login.err = ""; renderLogin(); };
+      return;
+    }
     if (login.step === "email") {
       const send = async () => {
         const email = $("#lgEmail").value.trim().toLowerCase(); login.email = email; login.err = "";
@@ -98,6 +122,7 @@
         login.busy = false; renderLogin();
       };
       $("#lgSend").onclick = send; $("#lgEmail").onkeydown = e => { if (e.key === "Enter") send(); };
+      $("#lgPw").onclick = () => { login = { step: "pass", email: $("#lgEmail").value.trim().toLowerCase(), err: "", busy: false }; renderLogin(); };
       $("#lgHave").onclick = () => {
         const email = $("#lgEmail").value.trim().toLowerCase();
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { login.err = "اكتب بريدك أولًا، ثم اضغط «وصلتني رسالة دخول بالفعل»."; return renderLogin(); }
@@ -359,9 +384,16 @@
         <div class="row">
           ${canCreate() && view === "course" ? `<button class="btn sm" id="newC">مادة جديدة</button>` : ""}
           ${me.role === "admin" ? `<button class="btn sm ${view === "admin" ? "primary" : ""}" id="admin">${view === "admin" ? "رجوع للمواد" : "لوحة المسؤول"}</button>` : ""}
-          ${CM.themeBtn()}<button class="btn sm ghost" id="out">خروج</button>
+          ${CM.themeBtn()}<button class="btn sm ghost" id="pwSet">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button>
         </div>
       </header>
+      <div id="pwForm" class="panel" hidden style="margin-bottom:16px;max-width:520px">
+        <h3>كلمة سر للدخول</h3>
+        <p class="muted small">عيّن كلمة سر لتدخل بها بعد ذلك دون انتظار رسالة على البريد. ثماني خانات على الأقل.</p>
+        <label class="f"><span>كلمة السر الجديدة</span><input type="password" id="pwNew" autocomplete="new-password"></label>
+        <label class="f"><span>أعد كتابتها</span><input type="password" id="pwNew2" autocomplete="new-password"></label>
+        <div class="row"><button class="btn primary sm" id="pwSave">حفظ كلمة السر</button><button class="btn ghost sm" id="pwCancel">إلغاء</button><span class="small" id="pwMsg"></span></div>
+      </div>
       <div id="newCForm" class="panel" hidden style="margin-bottom:16px">
         <h3>مادة جديدة</h3>
         <div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="ncName" placeholder="مثلًا: التشريح الفني"></label>${classFields("nc")}</div>
@@ -388,6 +420,19 @@
     document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));
     tabBadges();
     $("#out").onclick = () => signOut();
+    $("#pwSet").onclick = () => { const f = $("#pwForm"); f.hidden = !f.hidden; if (!f.hidden) $("#pwNew").focus(); };
+    $("#pwCancel").onclick = () => { $("#pwForm").hidden = true; };
+    $("#pwSave").onclick = async () => {
+      const a = $("#pwNew").value, b2 = $("#pwNew2").value, m = $("#pwMsg");
+      if (a.length < 8) { m.className = "small bad-t"; m.textContent = "ثماني خانات على الأقل."; return; }
+      if (a !== b2) { m.className = "small bad-t"; m.textContent = "كلمتا السر غير متطابقتين."; return; }
+      $("#pwSave").disabled = true;
+      const { error } = await sb.auth.updateUser({ password: a });
+      $("#pwSave").disabled = false;
+      if (error) { m.className = "small bad-t"; m.textContent = errText(error); return; }
+      m.className = "small ok-t"; m.textContent = "حُفظت. ادخل بها بعد ذلك من «الدخول بكلمة السر».";
+      $("#pwNew").value = ""; $("#pwNew2").value = "";
+    };
     const pk = $("#pick"); if (pk) pk.onchange = () => { curId = pk.value; flash = {}; liveTab = "all"; regGroup = "all"; startState = null; loadCourse().catch(showErr); };
     const ad = $("#admin"); if (ad) ad.onclick = () => { view = view === "admin" ? "course" : "admin"; if (view === "admin") { stopLoops(); render(); } else loadCourse().catch(showErr); };
     const nc = $("#newC"); if (nc) nc.onclick = () => { $("#newCForm").hidden = !$("#newCForm").hidden; };
