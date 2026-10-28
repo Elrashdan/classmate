@@ -73,10 +73,12 @@
         <label class="f"><span>البريد الجامعي</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
         <button class="btn primary" id="lgSend" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "إرسال رمز الدخول"}</button>
+        <p class="small" style="margin:0"><button class="linkish" id="lgHave">وصلتني رسالة دخول بالفعل</button></p>
       ` : `
         <div class="eyebrow mono" style="text-align:start">${esc(login.email)}</div>
         <h2>تحقّق من بريدك</h2>
-        <p class="muted small">إذا احتوت الرسالة على رمز فاكتبه هنا، وإذا احتوت على رابط فافتحه من الجهاز نفسه لتدخل مباشرة. وإن لم تجدها فراجع مجلد Spam أو Junk.</p>
+        <p class="muted small">إذا احتوت الرسالة على رمز فاكتبه هنا، وإذا احتوت على رابط فافتحه <b>في هذا المتصفح نفسه</b> (لا في متصفح تطبيق البريد) لتدخل مباشرة. وإن لم تجدها فراجع مجلد Spam أو Junk.</p>
+        <p class="muted small">استخدم <b>آخر</b> رسالة وصلتك؛ فكل طلب جديد يُبطل الرسالة التي قبله، وعدد الرسائل محدود في الساعة.</p>
         <label class="f"><span>رمز الدخول</span><input type="text" id="lgCode" class="codein" inputmode="numeric" maxlength="10" autocomplete="one-time-code"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
         <div class="row"><button class="btn primary" id="lgVerify" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button><button class="btn ghost" id="lgBack">بريد آخر</button></div>
@@ -91,11 +93,16 @@
           if (!allowed) throw { message: "هذا البريد غير مسجَّل أو موقوف. اطلب من مسؤول القسم إضافتك." };
           const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } });
           if (error) throw error;
-          login.step = "code";
+          login.step = "code"; store.set("cm_otp", JSON.stringify({ email, at: Date.now() }));
         } catch (e) { login.err = e.message && e.message.startsWith("البريد الإلكتروني") ? e.message : errText(e); }
         login.busy = false; renderLogin();
       };
       $("#lgSend").onclick = send; $("#lgEmail").onkeydown = e => { if (e.key === "Enter") send(); };
+      $("#lgHave").onclick = () => {
+        const email = $("#lgEmail").value.trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { login.err = "اكتب بريدك أولًا، ثم اضغط «وصلتني رسالة دخول بالفعل»."; return renderLogin(); }
+        login = { step: "code", email, err: "", busy: false }; renderLogin();
+      };
     } else {
       const verify = async () => {
         const token = $("#lgCode").value.trim(); login.err = "";
@@ -104,7 +111,7 @@
         try {
           const { error } = await sb.auth.verifyOtp({ email: login.email, token, type: "email" });
           if (error) throw error;
-          login = { step: "email", email: "", err: "", busy: false };
+          login = { step: "email", email: "", err: "", busy: false }; store.set("cm_otp", "");
           await afterLogin();
           return;
         } catch (e) { login.err = errText(e); }
@@ -1467,7 +1474,11 @@
     if (ev === "SIGNED_OUT" && me) { me = null; renderLogin(); }
     if (ev === "SIGNED_IN" && !me && login.step === "code" && !login.busy) { login = { step: "email", email: "", err: "", busy: false }; afterLogin(); } // opened the email link in another tab
   });
-  sb.auth.getSession().then(({ data }) => { if (data.session) afterLogin(); else renderLogin(); });
+  sb.auth.getSession().then(({ data }) => {
+    if (data.session) return afterLogin();
+    try { const o = JSON.parse(store.get("cm_otp") || "null"); if (o && o.email && Date.now() - o.at < 3600e3) login = { step: "code", email: o.email, err: "", busy: false }; } catch (e) {}
+    renderLogin();
+  });
 })();
 </script>
 </body>

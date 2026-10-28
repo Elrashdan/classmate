@@ -77,6 +77,8 @@
     const m = (e && (e.message || e.error_description || e.msg)) || String(e || "");
     for (const k in ERR) if (m.includes(k)) return ERR[k];
     if (/Failed to fetch|NetworkError|network/i.test(m)) return "لا يوجد اتصال بالإنترنت. تأكّد من الاتصال وأعد المحاولة.";
+    if (/email rate limit|over_email_send_rate_limit/i.test(m)) return "أُرسلت رسائل دخول كثيرة خلال الساعة الأخيرة، فأوقفها الخادم مؤقتًا. لا تطلب رسالة جديدة: افتح آخر رسالة وصلتك واكتب رمزها هنا، أو افتح رابطها في هذا المتصفح نفسه. وإن لم تكن لديك رسالة صالحة، فانتظر ساعة ثم أعد المحاولة.";
+    if (/only request this after|security purposes/i.test(m)) return "انتظر دقيقة قبل طلب رسالة دخول جديدة. ويمكنك استخدام آخر رسالة وصلتك.";
     if (/rate limit|too many/i.test(m)) return "طلبات كثيرة متتالية. انتظر دقيقة ثم أعد المحاولة.";
     if (/Token has expired|invalid/i.test(m) && /otp|token/i.test(m)) return "الرمز غير صحيح أو انتهت صلاحيته. اطلب رمزًا جديدًا.";
     return "حدثت مشكلة: " + m;
