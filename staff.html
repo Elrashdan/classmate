@@ -23,6 +23,8 @@
 </head>
 <body>
 <div class="wrap" id="app"></div>
+<div class="grov" id="grOv" hidden></div>
+<div class="grov" id="phOv" hidden></div>
 <div class="overlay" id="overlay" hidden>
   <div class="inner">
     <h2 id="ovTitle"></h2>
@@ -62,6 +64,7 @@
   let liveTab = "all", regGroup = "all", delSess = null, pastMark = null, confirmKey = null, startState = null, report = null;
   let codeState = null, codeTimer = null, liveTimer = null, manFor = null, manDraft = "";
   let addOpen = false, addDraft = { code: "", name: "", grp: "", pin: "" };
+  let grader = null, photo = null, gimp = null;
   let tkSel = null, tkForm = null, tkFilter = "all", tkEdits = {}, tkQ = "", tkBusy = null, ncBylaw = null;
   let login = { step: "email", email: "", err: "", busy: false };
 
@@ -1244,10 +1247,15 @@
   const dueStr = t => new Date(t).toLocaleString("ar-EG", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
   const taskRows = t => D.enroll.filter(e => !t.grp || e.grp === t.grp).slice().sort(byGroupName);
   const subOf = (t, code) => (D.subs[t.id] || {})[code] || null;
+  const totalOf = s => s && s.grade != null ? Number(s.grade) + Number(s.bonus || 0) : null;
+  const isManual = t => t.mode === "manual";
+  const canEditTask = (c, t) => canManage(c) || (role(c) === "ta" && t.created_by === me.email);
   const localDT = d => { const x = new Date(d), p = n => String(n).padStart(2, "0"); return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`; };
+  // أرقام عربية/فارسية إلى إنجليزية، والفاصلة العربية إلى نقطة
+  const toNum = v => { if (v == null) return ""; if (typeof v === "object") v = v.result ?? (v.richText ? v.richText.map(x => x.text).join("") : v.text ?? ""); return String(v).replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٫,]/g, ".").trim(); };
   function taskStats(t) {
     const rows = taskRows(t); let sub = 0, late = 0, graded = 0, sum = 0, issues = 0;
-    rows.forEach(e => { const s = subOf(t, e.student_code); if (!s) return; if (s.submitted_at) { sub++; if (s.late) late++; } if (s.grade != null) { graded++; sum += Number(s.grade); } if (s.check_state === "changed" || s.check_state === "missing") issues++; });
+    rows.forEach(e => { const s = subOf(t, e.student_code); if (!s) return; if (s.submitted_at) { sub++; if (s.late) late++; } if (s.grade != null) { graded++; sum += totalOf(s); } if (s.check_state === "changed" || s.check_state === "missing") issues++; });
     return { n: rows.length, sub, late, graded, issues, avg: graded ? sum / graded : null };
   }
   const CHECK = { ok: ["ok", "لم يتغيّر"], changed: ["bad", "عُدِّل بعد التسليم"], missing: ["bad", "محذوف أو غير متاح"] };
@@ -1255,19 +1263,43 @@
     if (!c.cw_max && !c.exam_max && !c.bylaw_code) return `<div class="msg warn small">لم تُربط المادة بمقرر في اللائحة بعد، فلن يظهر في كشف الدرجات عمود «الأعمال الفصلية» محوَّلًا إلى نهايتها العظمى.${isOwner(c) ? ` اربطها من تبويب «الفريق» ← «مقرر اللائحة».` : ""}</div>`;
     return `<p class="small muted">مقرر اللائحة: <b>${esc(c.bylaw_code || "—")}</b>${c.credits ? " · " + c.credits + " ساعات معتمدة" : ""} · النهاية العظمى: أعمال فصلية <b>${c.cw_max ?? "—"}</b>، امتحان <b>${c.exam_max || "—"}</b>، المجموع <b>${(c.cw_max || 0) + (c.exam_max || 0)}</b></p>`;
   }
+  let tkMode = "submit";
   function taskFormHtml(t) {
-    const gs = groupsOf(), due = t ? localDT(t.due_at) : localDT(Date.now() + 7 * 864e5).slice(0, 11) + "23:59";
-    return `<div class="tk-sf" id="tkFormBox"><h3>${t ? "تعديل التكليف" : "تكليف جديد"}</h3>
+    const gs = groupsOf(), mode = t ? t.mode : tkMode, man = mode === "manual";
+    const due = t ? localDT(t.due_at) : localDT(Date.now() + 7 * 864e5).slice(0, 11) + "23:59";
+    return `<div class="tk-sf" id="tkFormBox"><h3>${t ? (man ? "تعديل الرصد اليدوي" : "تعديل التكليف") : "تكليف جديد"}</h3>
+      ${t ? "" : `<div class="modepick" role="radiogroup">
+        <button type="button" role="radio" data-mode="submit" aria-checked="${!man}"><b>تسليم من الطلبة</b><small>يرفع الطالب عمله من صفحته، وتصحّحه وأنت تراه</small></button>
+        <button type="button" role="radio" data-mode="manual" aria-checked="${man}"><b>رصد يدوي</b><small>بلا تسليم إلكتروني: عمل في المرسم أو لوحات ورقية، وترصد الدرجات في الكشف</small></button></div>`}
       <div class="settings">
-        <label class="f" style="grid-column:1/-1"><span>العنوان</span><input type="text" id="tfTitle" maxlength="200" value="${esc(t ? t.title : "")}" placeholder="مثلًا: المشروع الأول · تصميم فراغ داخلي"></label>
-        <label class="f" style="grid-column:1/-1"><span>المطلوب (يظهر للطالب)</span><textarea id="tfDet" maxlength="4000" placeholder="المقاس، والخامة، وعدد اللوحات، وطريقة الإخراج…">${esc(t ? t.details : "")}</textarea></label>
+        <label class="f" style="grid-column:1/-1"><span>${man ? "اسم الرصد" : "العنوان"}</span><input type="text" id="tfTitle" maxlength="200" value="${esc(t ? t.title : "")}" placeholder="${man ? "مثلًا: اسكتشات المرسم · الأسبوع الثالث" : "مثلًا: المشروع الأول · تصميم فراغ داخلي"}"></label>
+        ${man ? "" : `<label class="f" style="grid-column:1/-1"><span>المطلوب (يظهر للطالب)</span><textarea id="tfDet" maxlength="4000" placeholder="المقاس، والخامة، وعدد اللوحات، وطريقة الإخراج…">${esc(t ? t.details : "")}</textarea></label>`}
         <label class="f"><span>الدرجة العظمى</span><input type="number" id="tfMax" min="0.5" max="1000" step="0.5" value="${t ? gN(t.max_grade) : 10}"></label>
-        <label class="f"><span>موعد التسليم</span><input type="datetime-local" id="tfDue" value="${due}"></label>
-        <label class="f"><span>بعد الموعد</span><select id="tfLate"><option value="accept" ${!t || t.late === "accept" ? "selected" : ""}>يُقبل التسليم ويُعلَّم «متأخر»</option><option value="close" ${t && t.late === "close" ? "selected" : ""}>يُغلق التسليم</option></select></label>
+        ${man ? "" : `<label class="f"><span>موعد التسليم</span><input type="datetime-local" id="tfDue" value="${due}"></label>
+        <label class="f"><span>بعد الموعد</span><select id="tfLate"><option value="accept" ${!t || t.late === "accept" ? "selected" : ""}>يُقبل التسليم ويُعلَّم «متأخر»</option><option value="close" ${t && t.late === "close" ? "selected" : ""}>يُغلق التسليم</option></select></label>`}
         ${gs.length ? `<label class="f"><span>لمن</span><select id="tfGrp"><option value="">الدفعة كاملة</option>${gs.map(g => `<option value="${esc(g)}" ${t && t.grp === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}
       </div>
-      <div class="row"><button class="btn primary" id="tfSave">${t ? "حفظ التعديل" : "أضف التكليف"}</button><button class="btn ghost" id="tfCancel">إلغاء</button></div>
-      <p class="small muted">مجموع الدرجات العظمى للتكليفات يُحوَّل في كشف الدرجات إلى النهاية العظمى للأعمال الفصلية في اللائحة. فإن كانت الأعمال الفصلية 100، فاجعل درجة كل تكليف على قدر وزنه.</p></div>`;
+      <div class="row"><button class="btn primary" id="tfSave">${t ? "حفظ التعديل" : man ? "أنشئ الكشف" : "أضف التكليف"}</button><button class="btn ghost" id="tfCancel">إلغاء</button></div>
+      <p class="small muted">${man ? "لا يظهر الرصد اليدوي للطلبة حتى تعلن درجاته. ويمكنك رصد الدرجات في الكشف مباشرة، أو تنزيل كشف إكسل لتملأه على الكمبيوتر أو تطبعه وتكتب بخط يدك ثم ترفعه." : "مجموع الدرجات العظمى للتكليفات يُحوَّل في كشف الدرجات إلى النهاية العظمى للأعمال الفصلية في اللائحة. فإن كانت الأعمال الفصلية 100، فاجعل درجة كل تكليف على قدر وزنه."}</p></div>`;
+  }
+  function wireTaskForm(el, t) {
+    el.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { const keep = { title: $("#tfTitle").value, max: $("#tfMax").value }; tkMode = b.dataset.mode; renderTasks(); $("#tfTitle").value = keep.title; $("#tfMax").value = keep.max; $("#tfTitle").focus(); });
+    const sv = $("#tfSave"); if (!sv) return;
+    $("#tfCancel").onclick = () => { tkForm = null; renderTasks(); };
+    sv.onclick = async () => {
+      const man = t ? isManual(t) : tkMode === "manual";
+      const title = $("#tfTitle").value.trim(), max = +$("#tfMax").value, dueV = man ? "" : $("#tfDue").value;
+      if (!title) return showErr({ message: "title_required" });
+      if (!(max > 0)) return showErr({ message: "bad_grade" });
+      if (!man && !dueV) return showErr({ message: "due_required" });
+      const args = { p_title: title, p_details: man ? "" : $("#tfDet").value, p_max: max, p_due: man ? (t ? t.due_at : null) : new Date(dueV).toISOString(), p_late: man ? "accept" : $("#tfLate").value, p_grp: ($("#tfGrp") || {}).value || null };
+      sv.disabled = true;
+      try {
+        if (t) { await rpc("update_task", { tid: t.id, ...args }); say("tasks", "حُفظ التعديل."); }
+        else { tkSel = await rpc("create_task", { cid: D.cid, ...args, p_mode: man ? "manual" : "submit" }); say("tasks", man ? "أُنشئ الكشف. اكتب الدرجات أمام كل طالب، أو نزّل كشف الإكسل للطباعة." : "أُضيف التكليف، وظهر للطلبة في صفحتهم."); }
+        tkForm = null; tkMode = "submit"; await loadCourse();
+      } catch (e) { sv.disabled = false; showErr(e); }
+    };
   }
   function renderTasks() {
     const el = $("#tasksPanel"); if (!el || !D) return;
@@ -1275,103 +1307,103 @@
     if (t) return renderTask(el, c, t);
     const totalMax = D.tasks.reduce((a, x) => a + Number(x.max_grade), 0);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
-      <div class="row no-print">${canManage(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف جديد</button>` : ""}${D.tasks.length ? `<button class="btn sm" id="tkXls">كشف الدرجات (إكسل)</button>` : ""}</div></div>
+      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${D.tasks.length ? `<button class="btn sm" id="tkXls">كشف الدرجات (إكسل)</button>` : ""}</div></div>
       ${msgHtml("tasks")}
       ${bylawLine(c)}
       ${tkForm === "new" ? taskFormHtml(null) : ""}
-      ${D.tasks.length ? `<div class="tk-grid">${D.tasks.map(x => { const st = taskStats(x), past = new Date(x.due_at) < new Date();
+      ${D.tasks.length ? `<div class="tk-grid">${D.tasks.map(x => { const st = taskStats(x), past = new Date(x.due_at) < new Date(), man = isManual(x);
         return `<button class="tk-card" data-tk="${x.id}">
-          <span class="row between" style="align-items:flex-start"><b class="tk-name">${esc(x.title)}</b><span class="chip ${x.released ? "ok" : "none"}">${x.released ? "الدرجات معلنة" : "الدرجات غير معلنة"}</span></span>
-          <span class="small muted">${past ? "انتهى" : "التسليم"} ${esc(dueStr(x.due_at))} · من ${gN(x.max_grade)}${x.grp ? " · مجموعة " + esc(x.grp) : ""}${x.late === "close" ? " · يُغلق بعد الموعد" : ""}</span>
-          <span class="tk-bars"><span><i style="width:${st.n ? st.sub / st.n * 100 : 0}%"></i></span><small>سلّم ${st.sub} من ${st.n}${st.late ? ` · متأخر ${st.late}` : ""}</small></span>
+          <span class="row between" style="align-items:flex-start"><b class="tk-name">${esc(x.title)}</b><span class="chip ${x.released ? "ok" : "none"}">${x.released ? "الدرجات معلنة" : "غير معلنة"}</span></span>
+          <span class="small muted">${man ? `<span class="chip man">رصد يدوي</span> ` : (past ? "انتهى" : "التسليم") + " " + esc(dueStr(x.due_at)) + " · "}من ${gN(x.max_grade)}${x.grp ? " · مجموعة " + esc(x.grp) : ""}${!man && x.late === "close" ? " · يُغلق بعد الموعد" : ""}</span>
+          ${man ? "" : `<span class="tk-bars"><span><i style="width:${st.n ? st.sub / st.n * 100 : 0}%"></i></span><small>سلّم ${st.sub} من ${st.n}${st.late ? ` · متأخر ${st.late}` : ""}</small></span>`}
           <span class="tk-bars g"><span><i style="width:${st.n ? st.graded / st.n * 100 : 0}%"></i></span><small>رُصدت ${st.graded} من ${st.n}${st.avg != null ? " · المتوسط " + gN(Math.round(st.avg * 10) / 10) : ""}${st.issues ? ` · <b class="bad-t">${st.issues} ملف تغيّر</b>` : ""}</small></span>
         </button>`; }).join("")}</div>`
-      : `<div class="empty">${canManage(c) ? "لا توجد تكليفات بعد. اضغط «تكليف جديد» لإضافة مشروع أو بحث أو اسكتش، ويظهر للطلبة فورًا في صفحتهم ليسلّموه." : "لا توجد تكليفات في هذه المادة بعد."}</div>`}
-      ${!HD.ready ? `<p class="small muted">التسليم برفع الملفات إلى Google Drive لم يُفعَّل بعد في إعدادات الموقع، لذلك يسلّم الطلبة روابط فقط.</p>` : ""}`;
+      : `<div class="empty">${canRun(c) ? "لا توجد تكليفات بعد. اضغط «تكليف أو رصد جديد»: إما تكليف يسلّمه الطلبة من صفحتهم، أو كشف رصد يدوي لدرجات عمل لم يُسلَّم إلكترونيًّا." : "لا توجد تكليفات في هذه المادة بعد."}</div>`}
+      ${!HD.ready ? `<p class="small muted">رفع الملفات إلى Google Drive لم يُفعَّل بعد في إعدادات الموقع، لذلك يسلّم الطلبة روابط فقط.</p>` : ""}`;
     wireTaskForm(el, null);
-    const nb = $("#tkNew"); if (nb) nb.onclick = () => { tkForm = "new"; renderTasks(); const i = $("#tfTitle"); if (i) i.focus(); };
+    const nb = $("#tkNew"); if (nb) nb.onclick = () => { tkForm = "new"; tkMode = "submit"; renderTasks(); const i = $("#tfTitle"); if (i) i.focus(); };
     const xb = $("#tkXls"); if (xb) xb.onclick = exportGrades;
-    el.querySelectorAll("[data-tk]").forEach(b => b.onclick = () => { tkSel = b.dataset.tk; tkForm = null; tkEdits = {}; tkFilter = "all"; tkQ = ""; flash.tasks = ""; renderTasks(); el.scrollIntoView({ block: "start" }); });
+    el.querySelectorAll("[data-tk]").forEach(b => b.onclick = () => { tkSel = b.dataset.tk; tkForm = null; tkEdits = {}; tkFilter = "all"; tkQ = ""; gimp = null; flash.tasks = ""; renderTasks(); el.scrollIntoView({ block: "start" }); });
   }
-  function wireTaskForm(el, t) {
-    const sv = $("#tfSave"); if (!sv) return;
-    $("#tfCancel").onclick = () => { tkForm = null; renderTasks(); };
-    sv.onclick = async () => {
-      const title = $("#tfTitle").value.trim(), max = +$("#tfMax").value, dueV = $("#tfDue").value;
-      if (!title) return showErr({ message: "title_required" });
-      if (!(max > 0)) return showErr({ message: "bad_grade" });
-      if (!dueV) return showErr({ message: "due_required" });
-      const args = { p_title: title, p_details: $("#tfDet").value, p_max: max, p_due: new Date(dueV).toISOString(), p_late: $("#tfLate").value, p_grp: ($("#tfGrp") || {}).value || null };
-      sv.disabled = true;
-      try {
-        if (t) { await rpc("update_task", { tid: t.id, ...args }); say("tasks", "حُفظ التعديل."); }
-        else { tkSel = await rpc("create_task", { cid: D.cid, ...args }); say("tasks", "أُضيف التكليف، وظهر للطلبة في صفحتهم."); }
-        tkForm = null; await loadCourse();
-      } catch (e) { sv.disabled = false; showErr(e); }
-    };
+  // القيم الأصلية كما تُعرض في الخانات
+  const origOf = (s, k) => !s ? "" : k === "grade" ? gN(s.grade) : k === "bonus" ? (Number(s.bonus) ? gN(s.bonus) : "") : s.feedback || "";
+  const valOf = (code, k, s) => tkEdits[code] && k in tkEdits[code] ? tkEdits[code][k] : origOf(s, k);
+  function setEdit(t, code, k, v) {
+    const s = subOf(t, code), e2 = tkEdits[code] = tkEdits[code] || {}; e2[k] = v;
+    if (["grade", "bonus", "feedback"].every(x => !(x in e2) || String(e2[x]).trim() === origOf(s, x))) delete tkEdits[code];
+  }
+  const badVal = (v, max) => { if (v === "" || v == null) return false; const n = Number(toNum(v)); return isNaN(n) || n < 0 || n > max; };
+  function liveTotal(t, code) {
+    const s = subOf(t, code), g = toNum(valOf(code, "grade", s)), b = toNum(valOf(code, "bonus", s));
+    return g === "" ? "" : gN(Number(g) + (Number(b) || 0));
   }
   function renderTask(el, c, t) {
-    const rows = taskRows(t), st = taskStats(t), mng = canManage(c), run = canRun(c), gs = groupsOf();
+    const rows = taskRows(t), st = taskStats(t), edit = canEditTask(c, t), run = canRun(c), gs = groupsOf(), man = isManual(t);
     const q = normAr(tkQ);
     const pass = e => { const s = subOf(t, e.student_code) || {};
       if (q && !normAr(e.name).includes(q) && !e.student_code.includes(q)) return false;
       return tkFilter === "all" || (tkFilter === "sub" && s.submitted_at) || (tkFilter === "none" && !s.submitted_at) || (tkFilter === "late" && s.late && s.submitted_at)
         || (tkFilter === "ungraded" && s.grade == null) || (tkFilter === "issue" && (s.check_state === "changed" || s.check_state === "missing")); };
     const list = rows.filter(pass), drive = rows.filter(e => (subOf(t, e.student_code) || {}).kind === "drive").length;
-    const FT = [["all", "الكل", rows.length], ["sub", "سلّم", st.sub], ["none", "لم يسلّم", rows.length - st.sub], ["late", "متأخر", st.late], ["ungraded", "بلا درجة", rows.length - st.graded], ...(st.issues ? [["issue", "ملفات تغيّرت", st.issues]] : [])];
-    const val = (code, k, s) => tkEdits[code] && k in tkEdits[code] ? tkEdits[code][k] : (s ? (k === "grade" ? gN(s.grade) : s.feedback || "") : "");
+    const FT = man ? [["all", "الكل", rows.length], ["ungraded", "بلا درجة", rows.length - st.graded]]
+      : [["all", "الكل", rows.length], ["sub", "سلّم", st.sub], ["none", "لم يسلّم", rows.length - st.sub], ["late", "متأخر", st.late], ["ungraded", "بلا درجة", rows.length - st.graded], ...(st.issues ? [["issue", "ملفات تغيّرت", st.issues]] : [])];
+    if (!FT.some(f => f[0] === tkFilter)) tkFilter = "all";
+    const stampCol = !man && HD.canCheck;
     el.innerHTML = `<div class="panel-h"><div><button class="btn sm ghost" id="tkBack">→ كل التكليفات</button></div>
       <div class="row no-print">
-        ${run && HD.canCheck && drive ? `<button class="btn sm" id="tkCheck" title="يقارن كل ملف على Drive ببصمته وقت التسليم">${tkBusy === "check" ? "جارٍ الفحص…" : "فحص الملفات على Drive"}</button>` : ""}
-        ${mng ? `<button class="btn sm ${t.released ? "" : "primary"}" id="tkRel">${t.released ? "إخفاء الدرجات عن الطلبة" : "إعلان الدرجات للطلبة"}</button><button class="btn sm ghost" id="tkEdit">تعديل</button><button class="btn sm ghost danger" id="tkDel">حذف</button>` : ""}
+        ${edit ? `<button class="btn sm ${t.released ? "" : "primary"}" id="tkRel">${t.released ? "إخفاء الدرجات عن الطلبة" : "إعلان الدرجات للطلبة"}</button><button class="btn sm ghost" id="tkEdit">تعديل</button><button class="btn sm ghost danger" id="tkDel">حذف</button>` : ""}
       </div></div>
-      <div><div class="eyebrow">${esc(c.name)}${t.grp ? " · مجموعة " + esc(t.grp) : ""}</div><h2 style="font-size:1.3rem">${esc(t.title)}</h2>
-        <p class="small muted">التسليم ${esc(dueStr(t.due_at))} · الدرجة العظمى ${gN(t.max_grade)} · ${t.late === "close" ? "يُغلق التسليم بعد الموعد" : "يُقبل التسليم المتأخر ويُعلَّم"} · ${t.released ? "الدرجات معلنة للطلبة" : "الدرجات غير معلنة للطلبة"}</p>
+      <div><div class="eyebrow">${esc(c.name)}${t.grp ? " · مجموعة " + esc(t.grp) : ""}${man ? " · رصد يدوي" : ""}</div><h2 style="font-size:1.3rem">${esc(t.title)}</h2>
+        <p class="small muted">${man ? "" : "التسليم " + esc(dueStr(t.due_at)) + " · "}الدرجة العظمى ${gN(t.max_grade)}${man ? "" : " · " + (t.late === "close" ? "يُغلق التسليم بعد الموعد" : "يُقبل التسليم المتأخر ويُعلَّم")} · ${t.released ? "الدرجات معلنة للطلبة" : "الدرجات غير معلنة للطلبة"}</p>
         ${t.details ? `<p class="tk-det" style="margin-top:8px">${esc(t.details)}</p>` : ""}</div>
       ${msgHtml("tasks")}
       ${tkForm === t.id ? taskFormHtml(t) : ""}
       ${confirmKey === "deltask" ? `<div class="msg bad" style="display:grid;gap:8px"><b>حذف التكليف نهائي.</b>
-        ${st.sub || st.graded ? `<span class="small">ستُحذف ${st.sub} تسليمات و${st.graded} درجات مرصودة (تبقى ملفات الطلبة في حساباتهم على Drive). للتأكيد اكتب عنوان التكليف كما هو: <b>${esc(t.title)}</b></span><input type="text" id="tdName" autocomplete="off">` : `<span class="small">لا توجد تسليمات ولا درجات في هذا التكليف.</span>`}
-        <div class="row"><button class="btn sm danger" id="tdGo">حذف التكليف</button><button class="btn sm ghost" id="tdCancel">إلغاء</button></div></div>` : ""}
+        ${st.sub || st.graded ? `<span class="small">ستُحذف ${st.sub} تسليمات و${st.graded} درجات مرصودة (تبقى ملفات الطلبة في حساباتهم على Drive). للتأكيد اكتب العنوان كما هو: <b>${esc(t.title)}</b></span><input type="text" id="tdName" autocomplete="off">` : `<span class="small">لا توجد تسليمات ولا درجات هنا.</span>`}
+        <div class="row"><button class="btn sm danger" id="tdGo">حذف</button><button class="btn sm ghost" id="tdCancel">إلغاء</button></div></div>` : ""}
+      ${run ? `<div class="tk-tools no-print">
+        ${man ? "" : `<button class="btn primary" id="tkGrader" ${st.sub ? "" : "disabled"}>${ICO('<rect x="3" y="4" width="13" height="16" rx="2"/><path d="M19 8v12M7 9h5M7 13h5"/>')} عرض الأعمال وتصحيحها</button>`}
+        ${!man && HD.canCheck && drive ? `<button class="btn" id="tkCheck" title="يقارن كل ملف على Drive ببصمته وقت التسليم">${tkBusy === "check" ? "جارٍ الفحص…" : "فحص الملفات على Drive"}</button>` : ""}
+        <span class="tk-sep"></span>
+        <button class="btn" id="tkSheet" title="كشف بأسماء الطلبة وخانات الدرجة، يُملأ على الكمبيوتر أو يُطبع ويُكتب باليد">كشف رصد للطباعة (إكسل)</button>
+        <label class="btn" title="بعد ملء الكشف على الكمبيوتر">رفع كشف إكسل<input type="file" id="tkImpX" accept=".xlsx" hidden></label>
+        <label class="btn" title="صورة الكشف المكتوب باليد، تظهر بجانب الأسماء لتنقل الدرجات منها">صورة كشف مكتوب باليد<input type="file" id="tkImpP" accept="image/*" multiple hidden></label>
+      </div>` : ""}
+      ${gimp && gimp.tid === t.id ? impBox(t) : ""}
       <div class="kpis">
-        <div class="kpi"><b>${st.sub}<small> / ${st.n}</small></b><span>سلّموا</span></div>
-        <div class="kpi"><b>${st.late}</b><span>تسليم متأخر</span></div>
+        ${man ? `<div class="kpi"><b>${st.n}</b><span>طالب في الكشف</span></div>` : `<div class="kpi"><b>${st.sub}<small> / ${st.n}</small></b><span>سلّموا</span></div>`}
+        ${man ? `<div class="kpi"><b>${st.n - st.graded}</b><span>بلا درجة</span></div>` : `<div class="kpi"><b>${st.late}</b><span>تسليم متأخر</span></div>`}
         <div class="kpi"><b>${st.graded}<small> / ${st.n}</small></b><span>رُصدت درجاتهم</span></div>
         <div class="kpi ${st.issues ? "bad" : ""}"><b>${st.avg != null ? gN(Math.round(st.avg * 10) / 10) : "—"}</b><span>${st.issues ? st.issues + " ملف تغيّر بعد التسليم" : "متوسط الدرجات"}</span></div>
       </div>
       <div class="rs-bar no-print"><div class="tabs">${FT.map(([k, l, n]) => `<button data-tf="${k}" aria-pressed="${tkFilter === k}">${l} <span class="small muted">${n}</span></button>`).join("")}</div>
         <input type="search" id="tkQ" placeholder="ابحث بالاسم أو الكود" value="${esc(tkQ)}" autocomplete="off" style="max-width:240px"></div>
-      ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}<th>التسليم</th><th>الملف</th><th class="c">الدرجة من ${gN(t.max_grade)}</th><th>ملاحظة للطالب</th>${HD.canCheck ? "<th></th>" : ""}</tr></thead><tbody>
-        ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null;
-          const dirty = !!tkEdits[e.student_code];
-          return `<tr class="${dirty ? "dirty" : ""}"><td class="mono">${code}</td><td>${esc(e.name)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
-            <td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}` : `<span class="muted">لم يسلّم</span>`}</td>
-            <td class="small">${s && s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a">${esc(s.kind === "drive" ? (s.file_name || "الملف") : "رابط")}</a>${s.kind === "drive" && s.size ? ` <span class="muted">${HD.size(s.size)}</span>` : ""}${ck ? ` <span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted">«${esc(s.note)}»</div>` : ""}` : "—"}</td>
-            <td class="c">${run ? `<input type="number" class="gin" data-g="${code}" min="0" max="${gN(t.max_grade)}" step="0.25" value="${esc(val(e.student_code, "grade", s))}" inputmode="decimal">` : gN(s && s.grade)}</td>
-            <td>${run ? `<input type="text" class="fin" data-f="${code}" maxlength="2000" value="${esc(val(e.student_code, "feedback", s))}" placeholder="اختياري">` : esc((s && s.feedback) || "")}</td>
-            ${HD.canCheck ? `<td>${s && s.kind === "drive" && s.grade != null && HD.stampable(s.mime) ? `<button class="btn xs ghost" data-stamp="${code}" title="نسخة PDF من عمل الطالب عليها ختم بالدرجة">نسخة مختومة</button>` : ""}</td>` : ""}</tr>`; }).join("")}
+      ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}<th class="c">الدرجة من ${gN(t.max_grade)}</th><th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
+        ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
+          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td>${esc(e.name)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
+            ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}` : `<span class="muted">لم يسلّم</span>`}</td>
+            <td class="small">${s && s.url ? `<button class="btn xs" data-view="${code}">عرض</button> <a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a">${esc(s.kind === "drive" ? (s.file_name || "الملف") : "رابط")}</a>${ck ? ` <span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted">«${esc(s.note)}»</div>` : ""}` : "—"}</td>`}
+            <td class="c">${run ? `<input type="text" class="gin ${badVal(valOf(e.student_code, "grade", s), +t.max_grade) ? "bad" : ""}" data-g="${code}" value="${esc(valOf(e.student_code, "grade", s))}" inputmode="decimal" autocomplete="off">` : gN(s && s.grade)}</td>
+            <td class="c">${run ? `<input type="text" class="gin bin ${badVal(valOf(e.student_code, "bonus", s), +t.max_grade) ? "bad" : ""}" data-b="${code}" value="${esc(valOf(e.student_code, "bonus", s))}" inputmode="decimal" autocomplete="off" placeholder="—">` : (s && Number(s.bonus) ? "+" + gN(s.bonus) : "")}</td>
+            <td class="c mono"><b data-tot="${code}">${run ? liveTotal(t, e.student_code) : gN(totalOf(s))}</b></td>
+            <td>${run ? `<input type="text" class="fin" data-f="${code}" maxlength="2000" value="${esc(valOf(e.student_code, "feedback", s))}" placeholder="اختياري">` : esc((s && s.feedback) || "")}</td>
+            ${stampCol ? `<td>${s && s.kind === "drive" && s.grade != null && HD.stampable(s.mime) ? `<button class="btn xs ghost" data-stamp="${code}" title="نسخة PDF من عمل الطالب عليها ختم بالدرجة">نسخة مختومة</button>` : ""}</td>` : ""}</tr>`; }).join("")}
       </tbody></table></div>` : `<div class="empty">لا يوجد طلبة في هذا التصنيف.</div>`}
       ${run ? `<div class="savebar" id="tkSave" ${Object.keys(tkEdits).length ? "" : "hidden"}><span id="tkDirty"></span><button class="btn primary" id="tkSaveBtn">حفظ الدرجات</button><button class="btn ghost" id="tkUndo">تراجع</button></div>` : ""}
-      ${run ? `<p class="small muted">اكتب الدرجة واضغط Enter للانتقال إلى الطالب التالي. لا يرى الطلبة الدرجات حتى يضغط المحاضر «إعلان الدرجات». بعد رصد درجة الطالب لا يستطيع تغيير تسليمه.${HD.canCheck ? " «فحص الملفات» يقارن كل ملف ببصمته وقت التسليم، فيكشف أي تعديل أو حذف بعده." : ""}</p>` : ""}`;
+      ${run ? `<p class="small muted">اكتب الدرجة واضغط Enter للانتقال إلى الطالب التالي. البونص درجة إضافية تُضاف إلى الدرجة، ولا تتجاوز الأعمال الفصلية في كشف الدرجات نهايتها العظمى. لا يرى الطلبة الدرجات حتى تضغط «إعلان الدرجات».${man ? "" : " بعد رصد درجة الطالب لا يستطيع تغيير تسليمه."}</p>` : ""}`;
     const dirtyCount = () => { const n = Object.keys(tkEdits).length, b = $("#tkSave"); if (b) { b.hidden = !n; $("#tkDirty").textContent = n + " تغيير لم يُحفظ"; } };
     dirtyCount();
-    $("#tkBack").onclick = () => { if (Object.keys(tkEdits).length && confirmKey !== "tkleave") { confirmKey = "tkleave"; toast("لديك درجات لم تُحفظ. اضغط «حفظ الدرجات» أو اضغط الرجوع مرة أخرى لتجاهلها."); setTimeout(() => { if (confirmKey === "tkleave") confirmKey = null; }, 5000); return; } confirmKey = null; tkSel = null; tkEdits = {}; tkForm = null; renderTasks(); };
+    $("#tkBack").onclick = () => { if (Object.keys(tkEdits).length && confirmKey !== "tkleave") { confirmKey = "tkleave"; toast("لديك درجات لم تُحفظ. اضغط «حفظ الدرجات»، أو اضغط الرجوع مرة أخرى لتجاهلها."); setTimeout(() => { if (confirmKey === "tkleave") confirmKey = null; }, 5000); return; } confirmKey = null; tkSel = null; tkEdits = {}; tkForm = null; gimp = null; renderTasks(); };
     el.querySelectorAll("[data-tf]").forEach(b => b.onclick = () => { tkFilter = b.dataset.tf; renderTasks(); });
     const qi = $("#tkQ"); if (qi) qi.oninput = () => { tkQ = qi.value; renderTasks(); const r2 = $("#tkQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
-    const edit = (code, k, v) => {
-      const s = subOf(t, code), orig = s ? (k === "grade" ? gN(s.grade) : s.feedback || "") : "";
-      const e2 = tkEdits[code] = tkEdits[code] || {}; e2[k] = v;
-      const same = ["grade", "feedback"].every(x => !(x in e2) || e2[x] === (s ? (x === "grade" ? gN(s.grade) : s.feedback || "") : ""));
-      if (same) delete tkEdits[code];
-      const tr = el.querySelector(`[data-g="${CSS.escape(code)}"]`); if (tr) tr.closest("tr").classList.toggle("dirty", !!tkEdits[code]);
-      dirtyCount(); return orig;
-    };
-    const gins = [...el.querySelectorAll(".gin")];
-    gins.forEach((i, idx) => {
-      i.oninput = () => { edit(i.dataset.g, "grade", i.value.trim()); const v = i.value === "" ? null : +i.value; i.classList.toggle("bad", v != null && (isNaN(v) || v < 0 || v > Number(t.max_grade))); };
-      i.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); const n = gins[idx + (ev.shiftKey ? -1 : 1)]; if (n) { n.focus(); n.select(); } } };
-    });
-    el.querySelectorAll(".fin").forEach(i => i.oninput = () => edit(i.dataset.f, "feedback", i.value));
+    const onIn = (i, code, k) => { setEdit(t, code, k, i.value.trim()); if (k !== "feedback") i.classList.toggle("bad", badVal(i.value, +t.max_grade));
+      const tr = i.closest("tr"); tr.classList.toggle("dirty", !!tkEdits[code]); const tt = el.querySelector(`[data-tot="${CSS.escape(code)}"]`); if (tt) tt.textContent = liveTotal(t, code); dirtyCount(); };
+    const gins = [...el.querySelectorAll("[data-g]")];
+    const nav = (arr, idx, ev) => { if (ev.key === "Enter") { ev.preventDefault(); const n = arr[idx + (ev.shiftKey ? -1 : 1)]; if (n) { n.focus(); n.select(); } } };
+    gins.forEach((i, idx) => { i.oninput = () => onIn(i, i.dataset.g, "grade"); i.onkeydown = ev => nav(gins, idx, ev); });
+    const bins = [...el.querySelectorAll("[data-b]")];
+    bins.forEach((i, idx) => { i.oninput = () => onIn(i, i.dataset.b, "bonus"); i.onkeydown = ev => nav(bins, idx, ev); });
+    el.querySelectorAll("[data-f]").forEach(i => i.oninput = () => onIn(i, i.dataset.f, "feedback"));
     const sb2 = $("#tkSaveBtn"); if (sb2) sb2.onclick = () => saveGrades(t);
     const ub = $("#tkUndo"); if (ub) ub.onclick = () => { tkEdits = {}; renderTasks(); };
     const rl = $("#tkRel"); if (rl) rl.onclick = () => {
@@ -1385,29 +1417,262 @@
     const dg = $("#tdGo"); if (dg) dg.onclick = async () => {
       const typed = ($("#tdName") || {}).value || "";
       if ($("#tdName") && typed.trim() !== t.title.trim()) { say("tasks", "!العنوان المكتوب لا يطابق عنوان التكليف."); return renderTasks(); }
-      try { await rpc("delete_task", { tid: t.id, p_confirm: typed }); confirmKey = null; tkSel = null; tkEdits = {}; say("tasks", "حُذف التكليف «" + t.title + "»."); await loadCourse(); }
+      try { await rpc("delete_task", { tid: t.id, p_confirm: typed }); confirmKey = null; tkSel = null; tkEdits = {}; say("tasks", "حُذف «" + t.title + "»."); await loadCourse(); }
       catch (e) { say("tasks", "!" + errText(e)); renderTasks(); }
     };
     const ckb = $("#tkCheck"); if (ckb) ckb.onclick = () => checkFiles(t);
     el.querySelectorAll("[data-stamp]").forEach(b => b.onclick = () => stampCopy(t, b.dataset.stamp, b));
+    el.querySelectorAll("[data-view]").forEach(b => b.onclick = () => openGrader(t, b.dataset.view));
+    const gb = $("#tkGrader"); if (gb) gb.onclick = () => openGrader(t);
+    const sh = $("#tkSheet"); if (sh) sh.onclick = () => exportEntrySheet(t);
+    const ix = $("#tkImpX"); if (ix) ix.onchange = () => { const f = ix.files[0]; ix.value = ""; if (f) importEntrySheet(t, f); };
+    const ip = $("#tkImpP"); if (ip) ip.onchange = () => { const fs = [...ip.files]; ip.value = ""; if (fs.length) openPhoto(t, fs); };
+    wireImp2(t);
   }
-  async function saveGrades(t) {
+  // يجمع التعديلات ويحفظها مرة واحدة
+  function editRows(t) {
     const rows = [];
     for (const [code, e2] of Object.entries(tkEdits)) {
       const s = subOf(t, code);
-      const g = "grade" in e2 ? (e2.grade === "" ? null : Number(e2.grade)) : (s ? s.grade : null);
-      if (g != null && (isNaN(g) || g < 0 || g > Number(t.max_grade))) { toast("درجة " + nameOf(code) + " خارج المدى (من 0 إلى " + gN(t.max_grade) + ")."); return; }
-      rows.push({ code, grade: g, feedback: "feedback" in e2 ? e2.feedback : (s ? s.feedback || "" : "") });
+      const gv = toNum("grade" in e2 ? e2.grade : origOf(s, "grade")), bv = toNum("bonus" in e2 ? e2.bonus : origOf(s, "bonus"));
+      const g = gv === "" ? null : Number(gv), b = bv === "" ? 0 : Number(bv);
+      if (g != null && (isNaN(g) || g < 0 || g > Number(t.max_grade))) throw { message: "درجة " + nameOf(code) + " خارج المدى (من 0 إلى " + gN(t.max_grade) + ")." };
+      if (isNaN(b) || b < 0 || b > Number(t.max_grade)) throw { message: "بونص " + nameOf(code) + " غير صحيح." };
+      if (g == null && b) throw { message: "اكتب درجة " + nameOf(code) + " قبل البونص." };
+      rows.push({ code, grade: g, bonus: b, feedback: "feedback" in e2 ? e2.feedback : (s ? s.feedback || "" : "") });
     }
+    return rows;
+  }
+  async function saveGrades(t, source) {
+    let rows; try { rows = editRows(t); } catch (e) { return toast(e.message); }
     if (!rows.length) return;
     const b = $("#tkSaveBtn"); if (b) { b.disabled = true; b.textContent = "جارٍ الحفظ…"; }
-    try { const n = await rpc("grade_many", { tid: t.id, rows }); tkEdits = {}; say("tasks", "حُفظت " + n + " درجة." + (t.released ? " الدرجات معلنة، فيراها الطلبة الآن." : " لم تُعلن للطلبة بعد.")); await loadCourse(); }
+    try { const n = await rpc("grade_many", { tid: t.id, rows, p_source: source || null }); tkEdits = {}; say("tasks", "حُفظت " + n + " درجة." + (t.released ? " الدرجات معلنة، فيراها الطلبة الآن." : " لم تُعلن للطلبة بعد.")); await loadCourse(); return true; }
     catch (e) { if (b) { b.disabled = false; b.textContent = "حفظ الدرجات"; } showErr(e); }
+  }
+  async function refreshSubs(t) {
+    const r = await sb.from("submissions").select("*").eq("task_id", t.id);
+    if (!r.error) { D.subs[t.id] = {}; r.data.forEach(x => D.subs[t.id][x.student_code] = x); }
+  }
+
+  /* ---------- نافذة العرض والتصحيح ---------- */
+  const driveId = u => { const m = /drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([A-Za-z0-9_-]{10,})/.exec(u || ""); return m ? m[1] : null; };
+  function previewHtml(s) {
+    if (!s || !s.url) return `<div class="gr-empty"><b>لم يسلّم هذا الطالب</b><span>يمكنك رصد درجته رغم ذلك من اللوحة الجانبية.</span></div>`;
+    const id = s.kind === "drive" ? s.file_id : driveId(s.url);
+    if (id) return `<iframe src="https://drive.google.com/file/d/${esc(id)}/preview" title="عمل الطالب" allow="autoplay" referrerpolicy="no-referrer"></iframe>`;
+    return `<iframe src="${esc(s.url)}" title="عمل الطالب" sandbox="allow-scripts allow-same-origin allow-popups" referrerpolicy="no-referrer"></iframe>
+      <div class="gr-hint">بعض المواقع لا تسمح بعرض صفحاتها داخل برامج أخرى. إن ظهرت المساحة فارغة فاضغط «فتح في نافذة جديدة».</div>`;
+  }
+  function graderOrder(t, f) {
+    return taskRows(t).filter(e => { const s = subOf(t, e.student_code) || {}; return f === "all" || (f === "sub" && s.url) || (f === "ungraded" && s.url && s.grade == null); }).map(e => e.student_code);
+  }
+  function openGrader(t, code) {
+    let f = "sub", order = graderOrder(t, f);
+    if (code && !order.includes(code)) { f = "all"; order = graderOrder(t, f); }
+    grader = { tid: t.id, f, order, i: Math.max(0, code ? order.indexOf(code) : 0), msg: "" };
+    $("#grOv").hidden = false; document.body.classList.add("noscroll"); drawGrader(true);
+  }
+  function closeGrader() { if (!grader) return; grader = null; $("#grOv").hidden = true; document.body.classList.remove("noscroll"); renderTasks(); }
+  function drawGrader(newPreview) {
+    const t = grader && D.tasks.find(x => x.id === grader.tid); if (!t) return closeGrader();
+    const ov = $("#grOv"), code = grader.order[grader.i], e = D.enroll.find(x => x.student_code === code), s = code ? subOf(t, code) : null;
+    const ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, c = course();
+    if (newPreview || !$("#grPrev")) ov.innerHTML = `<div class="gr">
+      <header class="gr-h"><div class="gr-t"><span class="eyebrow">${esc(c.name)} · من ${gN(t.max_grade)}</span><b>${esc(t.title)}</b></div>
+        <select id="grF" aria-label="من يظهر"><option value="sub" ${grader.f === "sub" ? "selected" : ""}>من سلّموا</option><option value="ungraded" ${grader.f === "ungraded" ? "selected" : ""}>من سلّموا ولم تُرصد درجاتهم</option><option value="all" ${grader.f === "all" ? "selected" : ""}>كل الطلبة</option></select>
+        <span class="gr-n mono" id="grN"></span><button class="btn sm" id="grClose">إغلاق</button></header>
+      <div class="gr-b"><div class="gr-prev" id="grPrev"></div><aside class="gr-side" id="grSide"></aside></div></div>`;
+    $("#grN").textContent = grader.order.length ? (grader.i + 1) + " / " + grader.order.length : "0";
+    if (newPreview) $("#grPrev").innerHTML = e ? previewHtml(s) : "";
+    const v = k => s ? origOf(s, k) : "";
+    $("#grSide").innerHTML = !e ? `<div class="gr-empty"><b>لا يوجد طلبة هنا</b><span>${grader.f === "ungraded" ? "رُصدت درجات كل من سلّموا." : "غيّر الاختيار من الأعلى."}</span></div>` : `
+      <div class="gr-who"><span class="mono muted">${esc(code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</span><h3>${esc(e.name)}</h3>
+        ${s && s.submitted_at ? `<span class="small">سلّم ${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.version > 1 ? " · التسليم " + s.version : ""}</span>` : `<span class="small muted">لم يسلّم</span>`}
+        <div class="row">${s && s.late ? `<span class="chip warn">متأخر</span>` : ""}${ck ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s && s.grade != null ? `<span class="chip ok">مرصودة: ${gN(totalOf(s))}</span>` : ""}</div>
+        ${s && s.note ? `<p class="small">«${esc(s.note)}»</p>` : ""}</div>
+      <div class="gr-grade">
+        <label class="f"><span>الدرجة من ${gN(t.max_grade)}</span><input type="text" id="grG" inputmode="decimal" autocomplete="off" value="${esc(v("grade"))}"></label>
+        <label class="f"><span>بونص</span><input type="text" id="grB" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(v("bonus"))}"></label>
+        <div class="gr-tot"><span>المجموع</span><b id="grT"></b></div>
+      </div>
+      <div class="gr-quick" aria-label="درجات سريعة">${[1, .9, .8, .7, .6, .5].map(p => `<button class="btn xs" data-q="${Math.round(t.max_grade * p * 4) / 4}">${gN(Math.round(t.max_grade * p * 4) / 4)}</button>`).join("")}</div>
+      <label class="f"><span>ملاحظة للطالب</span><textarea id="grFb" maxlength="2000" rows="3" placeholder="اختياري">${esc(v("feedback"))}</textarea></label>
+      ${grader.msg ? `<div class="msg ${grader.msg.startsWith("!") ? "bad" : "ok"} small">${esc(grader.msg.replace(/^!/, ""))}</div>` : ""}
+      <button class="btn primary block" id="grSave">حفظ والتالي ←</button>
+      <div class="row between"><button class="btn sm" id="grPrevB">→ السابق</button><button class="btn sm" id="grNext">التالي دون حفظ ←</button></div>
+      <div class="row">${s && s.url ? `<a class="btn sm ghost" href="${esc(s.url)}" target="_blank" rel="noopener">فتح في نافذة جديدة</a>` : ""}${s && s.kind === "drive" && s.grade != null && HD.canCheck && HD.stampable(s.mime) ? `<button class="btn sm ghost" id="grStamp">نسخة مختومة</button>` : ""}</div>
+      <p class="small muted">Enter للحفظ والانتقال إلى التالي · Esc للإغلاق</p>`;
+    $("#grClose").onclick = closeGrader;
+    $("#grF").onchange = () => { const cur = grader.order[grader.i]; grader.f = $("#grF").value; grader.order = graderOrder(t, grader.f); grader.i = Math.max(0, grader.order.indexOf(cur)); grader.msg = ""; drawGrader(true); };
+    if (!e) return;
+    const G = $("#grG"), B = $("#grB"), T = $("#grT");
+    const upd = () => { const g = toNum(G.value), b = toNum(B.value); G.classList.toggle("bad", badVal(G.value, +t.max_grade)); B.classList.toggle("bad", badVal(B.value, +t.max_grade)); T.textContent = g === "" || isNaN(+g) ? "—" : gN(+g + (+b || 0)); };
+    upd(); G.oninput = upd; B.oninput = upd;
+    $("#grSide").querySelectorAll("[data-q]").forEach(b => b.onclick = () => { G.value = b.dataset.q; upd(); G.focus(); });
+    const go = d => { grader.i = Math.min(Math.max(0, grader.i + d), Math.max(0, grader.order.length - 1)); grader.msg = ""; drawGrader(true); };
+    $("#grPrevB").onclick = () => go(-1); $("#grNext").onclick = () => go(1);
+    $("#grSave").onclick = () => graderSave(t, code);
+    [G, B].forEach(i => i.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); graderSave(t, code); } });
+    const gs2 = $("#grStamp"); if (gs2) gs2.onclick = () => stampCopy(t, code, gs2);
+    setTimeout(() => { G.focus(); G.select(); }, 30);
+  }
+  async function graderSave(t, code) {
+    const gv = toNum($("#grG").value), bv = toNum($("#grB").value), fb = $("#grFb").value.trim();
+    const g = gv === "" ? null : Number(gv), b = bv === "" ? 0 : Number(bv);
+    if (g != null && (isNaN(g) || g < 0 || g > Number(t.max_grade))) { grader.msg = "!الدرجة من 0 إلى " + gN(t.max_grade) + "."; return drawGrader(false); }
+    if (isNaN(b) || b < 0 || b > Number(t.max_grade)) { grader.msg = "!البونص غير صحيح."; return drawGrader(false); }
+    if (g == null && b) { grader.msg = "!اكتب الدرجة قبل البونص."; return drawGrader(false); }
+    const btn = $("#grSave"); btn.disabled = true; btn.textContent = "جارٍ الحفظ…";
+    try {
+      await rpc("grade_many", { tid: t.id, rows: [{ code, grade: g, bonus: b, feedback: fb }], p_source: null });
+      await refreshSubs(t); delete tkEdits[code];
+      const name = nameOf(code);
+      if (grader.f === "ungraded") { grader.order = graderOrder(t, "ungraded"); grader.i = Math.min(grader.i, Math.max(0, grader.order.length - 1)); }
+      else grader.i = Math.min(grader.i + 1, grader.order.length - 1);
+      grader.msg = "حُفظت درجة " + name + (grader.order.length && grader.order[grader.i] === code ? ". هذا آخر طالب." : ".");
+      drawGrader(true);
+    } catch (e) { grader.msg = "!" + errText(e); drawGrader(false); }
+  }
+  document.addEventListener("keydown", ev => {
+    if (ev.key !== "Escape") return;
+    if (grader) closeGrader(); else if (photo) closePhoto();
+  });
+
+  /* ---------- كشف الرصد: تنزيل للطباعة أو للملء، ثم رفعه ---------- */
+  async function exportEntrySheet(t) {
+    const btn = $("#tkSheet"); if (btn) { btn.disabled = true; btn.textContent = "جارٍ التجهيز…"; }
+    try {
+      await loadExcelJS();
+      const c = course(), wb = new ExcelJS.Workbook(), rows = taskRows(t), max = Number(t.max_grade);
+      const ws = wb.addWorksheet("كشف الرصد", { views: [{ rightToLeft: true, state: "frozen", ySplit: 5 }] });
+      sheetTitle(ws, 7, "كشف رصد: " + t.title, courseSub(c) + (t.grp ? " · مجموعة " + t.grp : ""));
+      ws.mergeCells(3, 1, 3, 7);
+      ws.getCell(3, 1).value = "الدرجة العظمى " + gN(max) + " · اكتب الدرجة في خانتها والبونص (إن وجد) في خانته. لا تغيّر عمود الكود. بعد الملء ارفع الملف من «رفع كشف إكسل»، أو صوّر الورقة وارفعها من «صورة كشف مكتوب باليد».";
+      ws.getCell(3, 1).font = { name: "Arial", size: 9.5, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl", wrapText: true }; ws.getRow(3).height = 30;
+      headRow(ws, 5, ["م", "الكود", "الاسم", "المجموعة", "الدرجة (من " + gN(max) + ")", "بونص", "ملاحظة"], true);
+      rows.forEach((e, i) => {
+        const s = subOf(t, e.student_code), r = ws.getRow(6 + i);
+        [i + 1, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", s && s.grade != null ? Number(s.grade) : null, s && Number(s.bonus) ? Number(s.bonus) : null, (s && s.feedback) || ""].forEach((v, j) => { r.getCell(j + 1).value = v; });
+        r.height = 24;
+        r.eachCell({ includeEmpty: true }, (cl, j) => { if (j > 7) return; cl.border = { top: { style: "thin", color: { argb: "FF9AA7A3" } }, bottom: { style: "thin", color: { argb: "FF9AA7A3" } }, left: { style: "thin", color: { argb: "FF9AA7A3" } }, right: { style: "thin", color: { argb: "FF9AA7A3" } } };
+          cl.font = { name: "Arial", size: j === 5 || j === 6 ? 13 : 11, bold: j === 5 }; cl.alignment = { horizontal: j === 3 || j === 7 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
+        [5, 6].forEach(j => { r.getCell(j).dataValidation = { type: "decimal", operator: "between", formulae: [0, max], allowBlank: true, showErrorMessage: true, errorTitle: "درجة غير صحيحة", error: "اكتب رقمًا من 0 إلى " + gN(max) }; r.getCell(j).protection = { locked: false }; });
+        r.getCell(7).protection = { locked: false };
+      });
+      const end = 6 + rows.length;
+      const sg = ws.getRow(end + 1); ws.mergeCells(end + 1, 1, end + 1, 7); sg.height = 34;
+      sg.getCell(1).value = "اسم المصحح وتوقيعه: ……………………………………     التاريخ: ……… / ……… / ………"; sg.getCell(1).font = { name: "Arial", size: 11, bold: true }; sg.getCell(1).alignment = { horizontal: "right", vertical: "bottom", readingOrder: "rtl" };
+      [5, 12, 32, 10, 15, 10, 30].forEach((w, j) => { ws.getColumn(j + 1).width = w; });
+      ws.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "5:5", margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.6, header: 0.2, footer: 0.3 } };
+      await ws.protect("", { selectLockedCells: true, selectUnlockedCells: true, formatColumns: true, formatRows: true });
+      const meta = wb.addWorksheet("hadro", { state: "veryHidden" });
+      meta.getCell("A1").value = t.id; meta.getCell("A2").value = t.title; meta.getCell("A3").value = D.cid;
+      await saveWb(wb, HD.fileName("كشف رصد - " + t.title + " - " + c.name) + ".xlsx");
+    } catch (e) { showErr(e); }
+    if (btn) { btn.disabled = false; btn.textContent = "كشف رصد للطباعة (إكسل)"; }
+  }
+  async function importEntrySheet(t, file) {
+    try {
+      await loadExcelJS();
+      const wb = new ExcelJS.Workbook(); await wb.xlsx.load(await file.arrayBuffer());
+      const meta = wb.getWorksheet("hadro"), warn = [];
+      if (meta && meta.getCell("A1").value && String(meta.getCell("A1").value) !== t.id) {
+        const other = D.tasks.find(x => x.id === String(meta.getCell("A1").value));
+        throw { message: "هذا الكشف خاص بـ «" + (other ? other.title : meta.getCell("A2").value || "تكليف آخر") + "»، وليس «" + t.title + "». افتح التكليف الصحيح ثم ارفعه." };
+      }
+      if (!meta) warn.push("الملف ليس من كشوف Hadro، فقُرئ بحسب عناوين الأعمدة.");
+      const ws = wb.worksheets.find(w => w.name !== "hadro" && w.state !== "veryHidden" && w.state !== "hidden");
+      let hr = 0, cCode = 0, cG = 0, cB = 0, cF = 0;
+      for (let r = 1; r <= Math.min(ws.rowCount, 30) && !hr; r++) {
+        ws.getRow(r).eachCell((cl, j) => { const v = String(toNum(cl.value) || cl.value || "").trim();
+          if (/^(الكود|كود|رقم الجلوس|code)/i.test(v)) cCode = j; else if (/^(الدرجة|درجة|grade)/i.test(v)) cG = j; else if (/^(بونص|درجة إضافية|bonus)/i.test(v)) cB = j; else if (/^(ملاحظة|ملاحظات)/.test(v)) cF = j; });
+        if (cCode && cG) hr = r; else { cCode = cG = cB = cF = 0; }
+      }
+      if (!hr) throw { message: "لم أجد في الملف عمودي «الكود» و«الدرجة». استخدم كشف الرصد الذي ينزّله البرنامج." };
+      const max = Number(t.max_grade), inTask = new Set(taskRows(t).map(e => e.student_code)), out = [], errs = [], seen = new Set();
+      for (let r = hr + 1; r <= ws.rowCount; r++) {
+        const row = ws.getRow(r), code = String(toNum(row.getCell(cCode).value)).replace(/\.0+$/, "");
+        if (!code || !/^[0-9A-Za-z_-]+$/.test(code)) continue;
+        if (!inTask.has(code)) { errs.push(code + ": ليس في كشف هذا التكليف"); continue; }
+        if (seen.has(code)) { errs.push(code + ": مكرر في الملف"); continue; } seen.add(code);
+        const gv = toNum(row.getCell(cG).value), bv = cB ? toNum(row.getCell(cB).value) : "", fb = cF ? String(toNum(row.getCell(cF).value) || "").trim() : null;
+        if (gv === "" && (bv === "" || bv === "0") && !fb) continue; // خانة فارغة: لا تغيير
+        const g = gv === "" ? null : Number(gv), b = bv === "" ? 0 : Number(bv);
+        if (g != null && (isNaN(g) || g < 0 || g > max)) { errs.push(code + " · " + nameOf(code) + ": الدرجة «" + gv + "» خارج المدى"); continue; }
+        if (isNaN(b) || b < 0 || b > max) { errs.push(code + " · " + nameOf(code) + ": البونص «" + bv + "» غير صحيح"); continue; }
+        const s = subOf(t, code), x = { code, grade: g ?? (s ? s.grade : null), bonus: b, ...(fb != null ? { feedback: fb } : {}) };
+        if (x.grade == null && b) { errs.push(code + " · " + nameOf(code) + ": بونص بلا درجة"); continue; }
+        const same = s && Number(s.grade) === Number(x.grade) && s.grade != null && Number(s.bonus || 0) === b && (fb == null || (s.feedback || "") === fb);
+        if (!same) out.push({ ...x, old: s && s.grade != null ? gN(totalOf(s)) : "" });
+      }
+      gimp = { tid: t.id, file: file.name, rows: out, errs, warn };
+      renderTasks();
+      const box = $("#impBox"); if (box) box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    } catch (e) { showErr(e.message && !/[a-z_]{6,}/.test(e.message) ? e : { message: "تعذّرت قراءة الملف: " + (e.message || e) }); }
+  }
+  function impBox(t) {
+    const g = gimp;
+    return `<div class="imp-box" id="impBox"><div class="row between"><h3>مراجعة الكشف «${esc(g.file)}»</h3><button class="btn sm ghost" id="impX">إلغاء</button></div>
+      ${g.warn.map(w => `<div class="msg warn small">${esc(w)}</div>`).join("")}
+      <p class="small">${g.rows.length ? `سيُرصد <b>${g.rows.length}</b> درجة جديدة أو معدّلة.` : "لا توجد درجات جديدة في الملف."}${g.errs.length ? ` وتوجد <b class="bad-t">${g.errs.length}</b> مشكلة لن تُرصد.` : ""}</p>
+      ${g.errs.length ? `<ul class="small bad-t imp-err">${g.errs.slice(0, 30).map(x => `<li>${esc(x)}</li>`).join("")}${g.errs.length > 30 ? `<li>و${g.errs.length - 30} أخرى…</li>` : ""}</ul>` : ""}
+      ${g.rows.length ? `<div class="tbl-wrap" style="max-height:260px;overflow:auto"><table><thead><tr><th>الكود</th><th>الاسم</th><th class="c">قبل</th><th class="c">بعد</th></tr></thead><tbody>${g.rows.map(r => `<tr><td class="mono">${esc(r.code)}</td><td>${esc(nameOf(r.code))}</td><td class="c muted">${esc(r.old || "—")}</td><td class="c"><b>${r.grade == null ? "—" : gN(Number(r.grade) + Number(r.bonus || 0))}</b>${Number(r.bonus) ? ` <small class="muted">(منها بونص ${gN(r.bonus)})</small>` : ""}</td></tr>`).join("")}</tbody></table></div>
+      <div class="row"><button class="btn primary" id="impGo">اعتماد ${g.rows.length} درجة</button></div>` : ""}</div>`;
+  }
+  function wireImp2(t) {
+    const x = $("#impX"); if (x) x.onclick = () => { gimp = null; renderTasks(); };
+    const go = $("#impGo"); if (go) go.onclick = async () => {
+      go.disabled = true; go.textContent = "جارٍ الرصد…";
+      try { const n = await rpc("grade_many", { tid: t.id, rows: gimp.rows.map(({ old, ...r }) => r), p_source: "من ملف إكسل «" + gimp.file + "»" }); say("tasks", "رُصدت " + n + " درجة من الملف." + (t.released ? "" : " لم تُعلن للطلبة بعد.")); gimp = null; await loadCourse(); }
+      catch (e) { go.disabled = false; go.textContent = "اعتماد"; showErr(e); }
+    };
+  }
+
+  /* ---------- صورة الكشف المكتوب باليد بجانب الأسماء ---------- */
+  function openPhoto(t, files) {
+    if (photo) photo.urls.forEach(u => URL.revokeObjectURL(u));
+    photo = { tid: t.id, urls: files.map(f => URL.createObjectURL(f)), idx: 0, rot: 0, zoom: 1 };
+    $("#phOv").hidden = false; document.body.classList.add("noscroll"); drawPhoto(true);
+  }
+  function closePhoto() { if (!photo) return; photo.urls.forEach(u => URL.revokeObjectURL(u)); photo = null; $("#phOv").hidden = true; document.body.classList.remove("noscroll"); renderTasks(); }
+  function drawPhoto(full) {
+    const t = D.tasks.find(x => x.id === photo.tid), rows = taskRows(t), ov = $("#phOv");
+    if (full) ov.innerHTML = `<div class="gr">
+      <header class="gr-h"><div class="gr-t"><span class="eyebrow">انقل الدرجات من الصورة · من ${gN(t.max_grade)}</span><b>${esc(t.title)}</b></div>
+        <div class="row">${photo.urls.length > 1 ? photo.urls.map((_, i) => `<button class="btn xs ${i === photo.idx ? "primary" : ""}" data-pg="${i}">صفحة ${i + 1}</button>`).join("") : ""}
+        <button class="btn sm" id="phZo" title="تصغير">−</button><button class="btn sm" id="phZi" title="تكبير">+</button><button class="btn sm" id="phRot" title="تدوير">⟳</button>
+        <button class="btn sm primary" id="phSave">حفظ الدرجات</button><button class="btn sm" id="phClose">إغلاق</button></div></header>
+      <div class="gr-b"><div class="gr-prev ph-view" id="phView"><img id="phImg" alt="صورة الكشف"></div>
+        <aside class="gr-side ph-list"><p class="small muted">الترتيب هنا مثل ترتيب الكشف المطبوع. اكتب الدرجة واضغط Enter للانتقال.</p>
+          <table class="tk-tbl"><thead><tr><th class="c">م</th><th>الاسم</th><th class="c">الدرجة</th><th class="c">بونص</th></tr></thead><tbody>
+          ${rows.map((e, i) => { const s = subOf(t, e.student_code), code = esc(e.student_code); return `<tr><td class="c mono muted">${i + 1}</td><td><span class="small">${esc(e.name)}</span><br><span class="mono muted small">${code}</span></td>
+            <td><input type="text" class="gin" data-pg2="${code}" inputmode="decimal" autocomplete="off" value="${esc(valOf(e.student_code, "grade", s))}"></td>
+            <td><input type="text" class="gin bin" data-pb2="${code}" inputmode="decimal" autocomplete="off" placeholder="—" value="${esc(valOf(e.student_code, "bonus", s))}"></td></tr>`; }).join("")}
+          </tbody></table></aside></div></div>`;
+    const img = $("#phImg"); img.src = photo.urls[photo.idx]; img.style.transform = `rotate(${photo.rot}deg) scale(${photo.zoom})`;
+    if (!full) return;
+    ov.querySelectorAll("[data-pg]").forEach(b => b.onclick = () => { photo.idx = +b.dataset.pg; drawPhoto(true); });
+    $("#phZi").onclick = () => { photo.zoom = Math.min(4, photo.zoom * 1.25); drawPhoto(false); };
+    $("#phZo").onclick = () => { photo.zoom = Math.max(.4, photo.zoom / 1.25); drawPhoto(false); };
+    $("#phRot").onclick = () => { photo.rot = (photo.rot + 90) % 360; drawPhoto(false); };
+    $("#phClose").onclick = closePhoto;
+    $("#phSave").onclick = async () => { const tt = D.tasks.find(x => x.id === photo.tid); if (!Object.keys(tkEdits).length) return toast("لم تكتب أي درجة بعد."); if (await saveGrades(tt, "نقلًا من صورة كشف مكتوب باليد")) closePhoto(); };
+    const gi = [...ov.querySelectorAll("[data-pg2]")], bi = [...ov.querySelectorAll("[data-pb2]")];
+    const nav = (arr, idx, ev) => { if (ev.key === "Enter") { ev.preventDefault(); const n = arr[idx + (ev.shiftKey ? -1 : 1)]; if (n) { n.focus(); n.select(); } } };
+    gi.forEach((i, idx) => { i.oninput = () => { setEdit(t, i.dataset.pg2, "grade", i.value.trim()); i.classList.toggle("bad", badVal(i.value, +t.max_grade)); }; i.onkeydown = ev => nav(gi, idx, ev); });
+    bi.forEach((i, idx) => { i.oninput = () => { setEdit(t, i.dataset.pb2, "bonus", i.value.trim()); i.classList.toggle("bad", badVal(i.value, +t.max_grade)); }; i.onkeydown = ev => nav(bi, idx, ev); });
+    // سحب الصورة بالفأرة أو الإصبع
+    const v = $("#phView"); let drag = null;
+    v.onpointerdown = ev => { drag = { x: ev.clientX, y: ev.clientY, l: v.scrollLeft, t: v.scrollTop }; v.setPointerCapture(ev.pointerId); };
+    v.onpointermove = ev => { if (!drag) return; v.scrollLeft = drag.l - (ev.clientX - drag.x); v.scrollTop = drag.t - (ev.clientY - drag.y); };
+    v.onpointerup = () => { drag = null; };
+    setTimeout(() => { if (gi[0]) gi[0].focus(); }, 30);
   }
   async function checkFiles(t) {
     if (tkBusy) return; tkBusy = "check";
     const list = Object.values(D.subs[t.id] || {}).filter(s => s.kind === "drive" && s.file_id);
-    const btn = $("#tkCheck"); let done = 0; const out = [];
+    let done = 0; const out = [];
     const upd = () => { const b = $("#tkCheck"); if (b) { b.disabled = true; b.textContent = "جارٍ الفحص " + done + " من " + list.length; } };
     upd();
     try {
@@ -1426,10 +1691,10 @@
     const s = subOf(t, code), c = course(); if (!s) return;
     btn.disabled = true; const old = btn.textContent; btn.textContent = "جارٍ التجهيز…";
     try {
-      const bytes = await HD.publicFile(s.file_id);
-      const out = await HD.stamped(bytes, s.mime, { grade: s.grade, max: t.max_grade, task: t.title, course: c.name + (c.bylaw_code ? " · " + c.bylaw_code : ""),
-        student: code + " · " + nameOf(code), by: "صحّحه " + staffName(s.graded_by || me.email) + " · " + new Date(s.graded_at || Date.now()).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }),
-        footer: "Hadro · " + code + " · " + t.title + " · " + gN(s.grade) + " من " + gN(t.max_grade) });
+      const bytes = await HD.publicFile(s.file_id), b = Number(s.bonus || 0);
+      const out = await HD.stamped(bytes, s.mime, { grade: totalOf(s), max: t.max_grade, task: t.title, course: c.name + (c.bylaw_code ? " · " + c.bylaw_code : ""),
+        student: code + " · " + nameOf(code), by: "صحّحه " + staffName(s.graded_by || me.email) + " · " + new Date(s.graded_at || Date.now()).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }) + (b ? " · منها بونص " + gN(b) : ""),
+        footer: "Hadro · " + code + " · " + t.title + " · " + gN(totalOf(s)) + " من " + gN(t.max_grade) });
       HD.saveBytes(out, HD.fileName(code + " - " + nameOf(code) + " - " + t.title + " - مختوم") + ".pdf");
     } catch (e) { showErr(e); }
     btn.disabled = false; btn.textContent = old;
@@ -1452,17 +1717,17 @@
       ws.getCell(3, 1).value = [c.bylaw_code ? "كود المقرر " + c.bylaw_code : "", c.credits ? c.credits + " ساعات معتمدة" : "", hasCw ? "النهاية العظمى: أعمال فصلية " + cw + (ex ? "، امتحان " + ex + "، المجموع " + (cw + ex) : "") : "المادة غير مربوطة بمقرر في اللائحة", "قسم الديكور · " + ((window.CLASSMATE || {}).UNIVERSITY_NAME || "")].filter(Boolean).join(" · ");
       ws.getCell(3, 1).font = { name: "Arial", size: 10, bold: true, color: { argb: XC.title } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
       ws.mergeCells(4, 1, 4, N);
-      ws.getCell(4, 1).value = hasCw ? "الأعمال الفصلية = مجموع درجات التكليفات ÷ " + gN(S) + " × " + cw + "، مقرّبة إلى أقرب عدد صحيح. الخلية الفارغة: لم تُرصد درجة. الخلية الوردية: لم يسلّم." : "الخلية الفارغة: لم تُرصد درجة. الخلية الوردية: لم يسلّم.";
+      ws.getCell(4, 1).value = hasCw ? "الأعمال الفصلية = مجموع درجات التكليفات ÷ " + gN(S) + " × " + cw + "، مقرّبة إلى أقرب عدد صحيح، ولا تتجاوز " + cw + " مع البونص. درجة كل تكليف تشمل البونص. الخلية الفارغة: لم تُرصد درجة. الخلية الوردية: لم يسلّم." : "الخلية الفارغة: لم تُرصد درجة. الخلية الوردية: لم يسلّم.";
       ws.getCell(4, 1).font = { name: "Arial", size: 9, color: { argb: XC.muted } }; ws.getCell(4, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
       headRow(ws, 6, head, true);
       const col = i => ws.getColumn(i).letter, first = 5, last = 4 + ts.length, sumC = last + 1;
       rows.forEach((e, i) => {
         const r = 7 + i, row = ws.getRow(r), ab = absences(e), w = CM.lvl(ab);
-        const vals = [i + 1, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", ...ts.map(t => { if (t.grp && t.grp !== e.grp) return "—"; const s = subOf(t, e.student_code); return s && s.grade != null ? Number(s.grade) : null; })];
+        const vals = [i + 1, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", ...ts.map(t => { if (t.grp && t.grp !== e.grp) return "—"; const s = subOf(t, e.student_code); return s && s.grade != null ? totalOf(s) : null; })];
         vals.forEach((v, j) => { row.getCell(j + 1).value = v; });
         row.getCell(sumC).value = ts.length ? { formula: `IF(COUNT(${col(first)}${r}:${col(last)}${r})=0,"",SUM(${col(first)}${r}:${col(last)}${r}))` } : null;
         let k = sumC + 1;
-        if (hasCw) { row.getCell(k).value = { formula: `IF(${col(sumC)}${r}="","",ROUND(${col(sumC)}${r}/${S}*${cw},0))` }; k++; }
+        if (hasCw) { row.getCell(k).value = { formula: `IF(${col(sumC)}${r}="","",MIN(${cw},ROUND(${col(sumC)}${r}/${S}*${cw},0)))` }; k++; }
         if (hasCw && ex) { row.getCell(k).value = null; row.getCell(k + 1).value = { formula: `IF(OR(${col(k - 1)}${r}="",${col(k)}${r}=""),"",${col(k - 1)}${r}+${col(k)}${r})` }; k += 2; }
         row.getCell(k).value = ab; row.getCell(k + 1).value = CM.warnOf(ab).t;
         row.eachCell({ includeEmpty: true }, (cl, j) => { if (j > N) return; cl.border = box; cl.font = { name: "Arial", size: 10.5 }; cl.alignment = { horizontal: j === 3 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
@@ -1477,21 +1742,22 @@
       ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "6:6" };
       // تفاصيل التسليم
       const wd = wb.addWorksheet("تفاصيل التسليم", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
-      sheetTitle(wd, 11, "تفاصيل التسليم · " + c.name, courseSub(c));
-      headRow(wd, 4, ["التكليف", "الكود", "الاسم", "المجموعة", "وقت التسليم", "متأخر", "النوع", "الملف", "فحص الملف", "الدرجة", "ملاحظة المصحح"], false);
+      sheetTitle(wd, 12, "تفاصيل التسليم · " + c.name, courseSub(c));
+      headRow(wd, 4, ["التكليف", "الكود", "الاسم", "المجموعة", "وقت التسليم", "متأخر", "النوع", "الملف", "فحص الملف", "الدرجة", "بونص", "ملاحظة المصحح"], false);
       let rr = 5;
       ts.forEach(t => taskRows(t).forEach(e => { const s = subOf(t, e.student_code) || {};
         const row = wd.getRow(rr);
-        [t.title, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", s.submitted_at ? new Date(s.submitted_at).toLocaleString("en-GB", { timeZone: "Africa/Cairo" }) : "لم يسلّم", s.submitted_at ? (s.late ? "نعم" : "لا") : "", s.kind === "drive" ? "ملف على Drive" : s.kind === "link" ? "رابط" : "",
-          s.url ? { text: s.kind === "drive" ? (s.file_name || "فتح الملف") : s.url, hyperlink: s.url } : "", s.kind === "drive" ? (CHECK[s.check_state] || [0, "لم يُفحص"])[1] : "", s.grade != null ? Number(s.grade) : null, s.feedback || ""].forEach((v, j) => { const cl = row.getCell(j + 1); cl.value = v; cl.border = box; cl.font = { name: "Arial", size: 10, ...(j === 7 && s.url ? { color: { argb: "FF1D6B58" }, underline: true } : {}) }; cl.alignment = { horizontal: [0, 2, 7, 10].includes(j) ? "right" : "center", vertical: "middle", readingOrder: "rtl", wrapText: j === 10 }; });
+        [t.title, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", s.submitted_at ? new Date(s.submitted_at).toLocaleString("en-GB", { timeZone: "Africa/Cairo" }) : "لم يسلّم", s.submitted_at ? (s.late ? "نعم" : "لا") : "", s.kind === "drive" ? "ملف على Drive" : s.kind === "link" ? "رابط" : t.mode === "manual" ? "رصد يدوي" : "",
+          s.url ? { text: s.kind === "drive" ? (s.file_name || "فتح الملف") : s.url, hyperlink: s.url } : "", s.kind === "drive" ? (CHECK[s.check_state] || [0, "لم يُفحص"])[1] : "", s.grade != null ? Number(s.grade) : null, Number(s.bonus) || null, s.feedback || ""].forEach((v, j) => { const cl = row.getCell(j + 1); cl.value = v; cl.border = box; cl.font = { name: "Arial", size: 10, ...(j === 7 && s.url ? { color: { argb: "FF1D6B58" }, underline: true } : {}) }; cl.alignment = { horizontal: [0, 2, 7, 11].includes(j) ? "right" : "center", vertical: "middle", readingOrder: "rtl", wrapText: j === 11 }; });
         if (s.check_state === "changed" || s.check_state === "missing") row.getCell(9).fill = fill("FFF7E0DD");
         rr++; }));
-      wd.autoFilter = { from: { row: 4, column: 1 }, to: { row: Math.max(rr - 1, 5), column: 11 } };
-      [24, 12, 28, 9, 18, 7, 13, 30, 16, 8, 30].forEach((w2, j) => { wd.getColumn(j + 1).width = w2; });
+      wd.autoFilter = { from: { row: 4, column: 1 }, to: { row: Math.max(rr - 1, 5), column: 12 } };
+      [24, 12, 28, 9, 18, 7, 13, 30, 16, 8, 8, 30].forEach((w2, j) => { wd.getColumn(j + 1).width = w2; });
       await saveWb(wb, "كشف درجات " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
     } catch (e) { showErr(e); }
     if (btn) { btn.disabled = false; btn.textContent = "كشف الدرجات (إكسل)"; }
   }
+
 
   /* ---------- roster ---------- */
   function renderRoster() {

@@ -288,9 +288,11 @@
   }
   const dueTxt = t => new Date(t.due_at).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
   const gNum = n => Number(n).toLocaleString("en", { maximumFractionDigits: 2 });
+  const tot = m => Number(m.grade) + Number(m.bonus || 0);
   function tkState(t) {
     const m = t.mine || {}, past = new Date(t.due_at).getTime() < nowS();
-    if (m.grade != null) return ["ok", "الدرجة " + gNum(m.grade) + " من " + gNum(t.max)];
+    if (m.grade != null) return ["ok", "الدرجة " + gNum(tot(m)) + " من " + gNum(t.max)];
+    if (t.mode === "manual") return ["none", "رصد يدوي"];
     if (m.graded) return ["ok", "صُحِّح، والدرجة لم تُعلن بعد"];
     if (m.submitted_at) return [m.late ? "warn" : "ok", m.late ? "سُلِّم متأخرًا" : "سُلِّم"];
     if (!past) return [new Date(t.due_at).getTime() - nowS() < 864e5 ? "warn" : "none", relDue(t)];
@@ -300,7 +302,7 @@
     const list = (tasks || []).filter(t => t.course_id === c.id);
     if (!list.length) return "";
     return `<div class="tk-list"><div class="eyebrow">التكليفات</div>${list.map(t => { const [k, s] = tkState(t);
-      return `<button class="tk-row" data-task="${t.id}"><span class="tk-t"><b>${esc(t.title)}</b><small>التسليم: ${esc(dueTxt(t))}</small></span><span class="chip ${k}">${esc(s)}</span></button>`; }).join("")}</div>`;
+      return `<button class="tk-row" data-task="${t.id}"><span class="tk-t"><b>${esc(t.title)}</b><small>${t.mode === "manual" ? "درجة مرصودة من المحاضر" : "التسليم: " + esc(dueTxt(t))}</small></span><span class="chip ${k}">${esc(s)}</span></button>`; }).join("")}</div>`;
   }
   function openTask(id) {
     tkId = id; pickFile = null; linkMode = !HD.ready; tkMsg = null;
@@ -308,7 +310,7 @@
     $("#tkOv").hidden = false; renderTask(); loadTasks(true);
   }
   function closeTask() { if (up) return; tkId = null; $("#tkOv").hidden = true; renderHome(); }
-  const canSubmit = t => !(t.mine && t.mine.graded) && (t.late === "accept" || new Date(t.due_at).getTime() >= nowS());
+  const canSubmit = t => t.mode !== "manual" && !(t.mine && t.mine.graded) && (t.late === "accept" || new Date(t.due_at).getTime() >= nowS());
   function renderTask() {
     const t = (tasks || []).find(x => x.id === tkId), el = $("#tkIn");
     if (!t) { el.innerHTML = `<p class="muted">جارٍ التحميل…</p>`; return; }
@@ -316,9 +318,9 @@
     const stampOk = m.grade != null && m.kind === "drive" && HD.ready && HD.stampable(m.mime);
     el.innerHTML = `
       <div class="sheet-h"><div><div class="eyebrow">${esc(t.course)}</div><h2 id="tkTitle">${esc(t.title)}</h2></div><button class="btn sm ghost" id="tkClose" ${up ? "disabled" : ""} aria-label="إغلاق">إغلاق</button></div>
-      <div class="tk-meta"><span class="chip ${k}">${esc(s)}</span><span class="small">التسليم ${esc(dueTxt(t))}</span><span class="small muted">الدرجة العظمى ${gNum(t.max)}</span></div>
+      <div class="tk-meta"><span class="chip ${k}">${esc(s)}</span>${t.mode === "manual" ? "" : `<span class="small">التسليم ${esc(dueTxt(t))}</span>`}<span class="small muted">الدرجة العظمى ${gNum(t.max)}</span></div>
       ${t.details ? `<p class="tk-det">${esc(t.details)}</p>` : ""}
-      ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(m.grade)} من ${gNum(t.max)}</b>${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
+      ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}
       ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div>
         <a href="${esc(m.url)}" target="_blank" rel="noopener" class="tk-file"><b>${esc(m.kind === "drive" ? m.file_name || "الملف" : m.url)}</b><small>${m.kind === "drive" ? "على Google Drive الخاص بك" + (m.size ? " · " + HD.size(m.size) : "") : "رابط"} · ${CM.fmtD(m.submitted_at)} ${CM.fmtT(m.submitted_at)}${m.version > 1 ? " · التسليم رقم " + m.version : ""}</small></a>
@@ -339,7 +341,7 @@
           <label class="f"><span>ملاحظة للمحاضر (اختياري)</span><input type="text" id="tkNote" maxlength="300"></label>
           <button class="btn primary block" id="tkLink">سلّم الرابط</button>
           <p class="small muted">تأكّد أن الرابط مفتوح لمن معه الرابط، وإلا لن يتمكن المحاضر من فتحه.</p>`}
-      </div>` : !m.graded ? `<div class="msg bad">انتهى موعد التسليم، وأُغلق التسليم في هذا التكليف.</div>` : ""}`;
+      </div>` : t.mode === "manual" ? "" : !m.graded ? `<div class="msg bad">انتهى موعد التسليم، وأُغلق التسليم في هذا التكليف.</div>` : ""}`;
     $("#tkClose").onclick = closeTask;
     const mf = $("#tkModeF"), ml = $("#tkModeL");
     if (mf) mf.onclick = () => { linkMode = false; tkMsg = null; renderTask(); };
@@ -396,8 +398,8 @@
     try {
       await auth;
       const bytes = await HD.myFile(m.file_id);
-      const out = await HD.stamped(bytes, m.mime, { grade: m.grade, max: t.max, task: t.title, course: t.course,
-        student: home.code + " · " + (home.name || ""), by: "رُصدت في Hadro", footer: "Hadro · " + home.code + " · " + t.title + " · " + gNum(m.grade) + " من " + gNum(t.max) });
+      const out = await HD.stamped(bytes, m.mime, { grade: tot(m), max: t.max, task: t.title, course: t.course,
+        student: home.code + " · " + (home.name || ""), by: "رُصدت في Hadro",  footer: "Hadro · " + home.code + " · " + t.title + " · " + gNum(tot(m)) + " من " + gNum(t.max) });
       HD.saveBytes(out, HD.fileName(home.code + " - " + t.title + " - مختوم") + ".pdf");
       btn.textContent = "تم التنزيل";
     } catch (e) { tkMsg = { k: "bad", t: errText(e) }; renderTask(); }
