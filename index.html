@@ -24,11 +24,13 @@
 <body>
 <div class="wrap narrow" id="app"></div>
 <div class="qrov" id="qrOv" hidden><div class="in" id="qrIn"></div></div>
+<div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
+<script src="drive.js"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -103,6 +105,7 @@
       if (!silent || !q || q.code !== home.code) await refreshQrKey();
       else if (home.now_ms) { q.off = Number(home.now_ms) - Date.now(); store.set("cm_qr", JSON.stringify(q)); }
       renderHome();
+      loadTasks(!silent);
     } catch (e) {
       const m = String(e.message || "");
       if (m.includes("not_signed_in")) { signOut(); return; }
@@ -174,7 +177,7 @@
 
   function signOut() {
     if (token) rpc("student_logout", { p_token: token }).catch(() => {});
-    closeQr(); token = null; home = null; results = {}; store.del("cm_token"); store.del("cm_qr"); authTab = "login"; renderAuth();
+    closeQr(); token = null; home = null; results = {}; tasks = null; tasksAt = 0; tkId = null; $("#tkOv").hidden = true; store.del("cm_token"); store.del("cm_qr"); authTab = "login"; renderAuth();
   }
 
   function sessionBlock(c) {
@@ -244,6 +247,7 @@
             <div class="row between"><div><h2>${esc(c.name)}</h2>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ""}${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
             ${c.absences ? `<p class="small muted">غبت ${CM.times(c.absences)}${missedTxt(c)}. ${afterTxt(c.absences)}</p>` : ""}
             ${sessionBlock(c)}
+            ${tasksBlock(c)}
           </article>`).join("") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. تواصل مع المحاضر.</div>`}
       </section>`;
     $("#out").onclick = signOut;
@@ -260,9 +264,146 @@
     });
     app.querySelectorAll("[data-ci]").forEach(b => b.onclick = () => checkIn(b.dataset.ci));
     app.querySelectorAll("[data-ack]").forEach(b => b.onclick = () => ackWarning(b.dataset.ack, b));
+    app.querySelectorAll("[data-task]").forEach(b => b.onclick = () => openTask(b.dataset.task));
     wireQrCta();
     if (active && $("#" + CSS.escape(active))) { const el = $("#" + CSS.escape(active)); el.focus(); }
   }
+
+  /* ---------------- التكليفات والتسليم ---------------- */
+  let tasks = null, tasksAt = 0, tkId = null, pickFile = null, linkMode = false, tkMsg = null, up = null, tkOff = 0;
+  async function loadTasks(force) {
+    if (!token || (!force && Date.now() - tasksAt < 120000)) return;
+    try {
+      const r = await rpc("student_tasks", { p_token: token });
+      tasks = r.tasks || []; tasksAt = Date.now(); tkOff = Number(r.now_ms) - Date.now();
+      if (home) renderHome();
+      if (tkId) renderTask();
+    } catch (e) { if (String(e.message || "").includes("not_signed_in")) signOut(); }
+  }
+  const nowS = () => Date.now() + tkOff;
+  function relDue(t) {
+    const ms = new Date(t.due_at).getTime() - nowS(), a = Math.abs(ms), h = Math.round(a / 36e5), d = Math.round(a / 864e5);
+    const span = a < 36e5 ? Math.max(1, Math.round(a / 6e4)) + " دقيقة" : a < 864e5 * 2 ? (h === 1 ? "ساعة" : h === 2 ? "ساعتين" : h + " ساعة") : (d === 2 ? "يومين" : d + " أيام");
+    return ms >= 0 ? "باقٍ " + span : "مضى " + span;
+  }
+  const dueTxt = t => new Date(t.due_at).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
+  const gNum = n => Number(n).toLocaleString("en", { maximumFractionDigits: 2 });
+  function tkState(t) {
+    const m = t.mine || {}, past = new Date(t.due_at).getTime() < nowS();
+    if (m.grade != null) return ["ok", "الدرجة " + gNum(m.grade) + " من " + gNum(t.max)];
+    if (m.graded) return ["ok", "صُحِّح، والدرجة لم تُعلن بعد"];
+    if (m.submitted_at) return [m.late ? "warn" : "ok", m.late ? "سُلِّم متأخرًا" : "سُلِّم"];
+    if (!past) return [new Date(t.due_at).getTime() - nowS() < 864e5 ? "warn" : "none", relDue(t)];
+    return t.late === "accept" ? ["bad", "تأخرت · التسليم ما زال مفتوحًا"] : ["bad", "انتهى موعد التسليم"];
+  }
+  function tasksBlock(c) {
+    const list = (tasks || []).filter(t => t.course_id === c.id);
+    if (!list.length) return "";
+    return `<div class="tk-list"><div class="eyebrow">التكليفات</div>${list.map(t => { const [k, s] = tkState(t);
+      return `<button class="tk-row" data-task="${t.id}"><span class="tk-t"><b>${esc(t.title)}</b><small>التسليم: ${esc(dueTxt(t))}</small></span><span class="chip ${k}">${esc(s)}</span></button>`; }).join("")}</div>`;
+  }
+  function openTask(id) {
+    tkId = id; pickFile = null; linkMode = !HD.ready; tkMsg = null;
+    if (HD.ready) HD.loadGis().catch(() => {});
+    $("#tkOv").hidden = false; renderTask(); loadTasks(true);
+  }
+  function closeTask() { if (up) return; tkId = null; $("#tkOv").hidden = true; renderHome(); }
+  const canSubmit = t => !(t.mine && t.mine.graded) && (t.late === "accept" || new Date(t.due_at).getTime() >= nowS());
+  function renderTask() {
+    const t = (tasks || []).find(x => x.id === tkId), el = $("#tkIn");
+    if (!t) { el.innerHTML = `<p class="muted">جارٍ التحميل…</p>`; return; }
+    const m = t.mine || {}, [k, s] = tkState(t), sub = !!m.submitted_at, open = canSubmit(t);
+    const stampOk = m.grade != null && m.kind === "drive" && HD.ready && HD.stampable(m.mime);
+    el.innerHTML = `
+      <div class="sheet-h"><div><div class="eyebrow">${esc(t.course)}</div><h2 id="tkTitle">${esc(t.title)}</h2></div><button class="btn sm ghost" id="tkClose" ${up ? "disabled" : ""} aria-label="إغلاق">إغلاق</button></div>
+      <div class="tk-meta"><span class="chip ${k}">${esc(s)}</span><span class="small">التسليم ${esc(dueTxt(t))}</span><span class="small muted">الدرجة العظمى ${gNum(t.max)}</span></div>
+      ${t.details ? `<p class="tk-det">${esc(t.details)}</p>` : ""}
+      ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(m.grade)} من ${gNum(t.max)}</b>${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
+        ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}
+      ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div>
+        <a href="${esc(m.url)}" target="_blank" rel="noopener" class="tk-file"><b>${esc(m.kind === "drive" ? m.file_name || "الملف" : m.url)}</b><small>${m.kind === "drive" ? "على Google Drive الخاص بك" + (m.size ? " · " + HD.size(m.size) : "") : "رابط"} · ${CM.fmtD(m.submitted_at)} ${CM.fmtT(m.submitted_at)}${m.version > 1 ? " · التسليم رقم " + m.version : ""}</small></a>
+        ${m.late ? `<span class="small warn-t">سُلِّم بعد الموعد، ويظهر ذلك للمحاضر.</span>` : ""}
+        ${m.kind === "drive" ? `<p class="small muted">لا تحذف هذا الملف من Drive ولا تعدّله؛ فالتطبيق يحفظ بصمته، وأي تعديل بعد التسليم يظهر للمحاضر.</p>` : ""}</div>` : ""}
+      ${tkMsg ? `<div class="msg ${tkMsg.k}">${esc(tkMsg.t)}</div>` : ""}
+      ${up ? `<div class="tk-up"><div class="row between small"><span>${esc(up.phase)}</span><span class="mono" id="upPct">${up.pct != null ? Math.round(up.pct * 100) + "%" : ""}</span></div><div class="qbar"><i id="upBar" style="width:${Math.round((up.pct || 0) * 100)}%"></i></div><p class="small muted">لا تغلق الصفحة حتى يكتمل التسليم.</p></div>`
+      : open ? `<div class="tk-form">
+        <h3>${sub ? "استبدال التسليم" : "سلّم التكليف"}</h3>
+        ${HD.ready ? `<div class="tabs" role="group"><button id="tkModeF" aria-pressed="${!linkMode}">رفع ملف</button><button id="tkModeL" aria-pressed="${linkMode}">رابط</button></div>` : ""}
+        ${!linkMode ? `
+          <label class="filepick"><input type="file" id="tkFile"><span class="fp-b">${pickFile ? `<b>${esc(pickFile.name)}</b><small>${HD.size(pickFile.size)} · اضغط لاختيار ملف آخر</small>` : `<b>اختر الملف</b><small>PDF أو صور أو ملف مضغوط… حتى 1 جيجابايت</small>`}</span></label>
+          <label class="f"><span>ملاحظة للمحاضر (اختياري)</span><input type="text" id="tkNote" maxlength="300"></label>
+          <button class="btn primary block" id="tkGo" ${pickFile ? "" : "disabled"}>${sub ? "استبدل الملف وسلّم" : "سلّم عبر Google Drive"}</button>
+          <p class="small muted">يُرفع الملف إلى Google Drive في حسابك أنت، داخل مجلد Hadro، ويُتاح لمن معه الرابط ليفتحه المحاضر. في المرة الأولى يطلب Google موافقتك.</p>`
+        : `
+          <label class="f"><span>رابط عملك (Google Drive أو Behance أو غيرهما)</span><input type="url" id="tkUrl" dir="ltr" placeholder="https://" value="${esc(m.kind === "link" ? m.url : "")}"></label>
+          <label class="f"><span>ملاحظة للمحاضر (اختياري)</span><input type="text" id="tkNote" maxlength="300"></label>
+          <button class="btn primary block" id="tkLink">سلّم الرابط</button>
+          <p class="small muted">تأكّد أن الرابط مفتوح لمن معه الرابط، وإلا لن يتمكن المحاضر من فتحه.</p>`}
+      </div>` : !m.graded ? `<div class="msg bad">انتهى موعد التسليم، وأُغلق التسليم في هذا التكليف.</div>` : ""}`;
+    $("#tkClose").onclick = closeTask;
+    const mf = $("#tkModeF"), ml = $("#tkModeL");
+    if (mf) mf.onclick = () => { linkMode = false; tkMsg = null; renderTask(); };
+    if (ml) ml.onclick = () => { linkMode = true; tkMsg = null; renderTask(); };
+    const fi = $("#tkFile"); if (fi) fi.onchange = () => { const f = fi.files[0]; if (!f) return; tkMsg = null;
+      if (f.size > HD.MAX) { pickFile = null; tkMsg = { k: "bad", t: "حجم الملف أكبر من 1 جيجابايت. اضغطه أو قسّمه، أو سلّم رابطًا." }; } else pickFile = f; renderTask(); };
+    const go = $("#tkGo"); if (go) go.onclick = () => submitDrive(t, ($("#tkNote") || {}).value || "");
+    const gl = $("#tkLink"); if (gl) gl.onclick = () => submitLink(t, $("#tkUrl").value.trim(), ($("#tkNote") || {}).value || "");
+    const sp = $("#tkStamp"); if (sp) sp.onclick = () => myStamped(t, sp);
+  }
+  const setUp = (phase, pct) => { up = { phase, pct }; renderTask(); };
+  async function submitDrive(t, note) {
+    if (!pickFile || up) return;
+    const f = pickFile, old = t.mine && t.mine.kind === "drive" ? t.mine.file_id : null;
+    const auth = HD.authorize(); // من ضغطة الزر مباشرة، قبل أي انتظار
+    setUp("في انتظار موافقة Google…", null); tkMsg = null;
+    let fileId = null;
+    try {
+      await auth;
+      setUp("جارٍ تجهيز المجلد على Drive…", null);
+      const folder = await HD.folders(t.course, t.title);
+      const ext = (f.name.match(/\.[A-Za-z0-9]{1,8}$/) || [""])[0];
+      const name = HD.fileName(home.code + " - " + (home.name || "") + " - " + t.title) + ext;
+      setUp("جارٍ رفع الملف…", 0);
+      const meta = await HD.upload(f, folder, name, p => { up.pct = p; const b = $("#upBar"), n = $("#upPct"); if (b) b.style.width = Math.round(p * 100) + "%"; if (n) n.textContent = Math.round(p * 100) + "%"; });
+      fileId = meta.id;
+      setUp("جارٍ إتاحة الملف للمحاضر…", 1);
+      await HD.shareAnyone(meta.id);
+      setUp("جارٍ تسجيل التسليم…", 1);
+      const r = await rpc("student_submit", { p_token: token, tid: t.id, p_kind: "drive", p_url: meta.webViewLink || ("https://drive.google.com/file/d/" + meta.id + "/view"),
+        p_file_id: meta.id, p_name: meta.name, p_mime: meta.mimeType || f.type, p_size: Number(meta.size) || f.size, p_md5: meta.md5Checksum, p_modified: meta.modifiedTime, p_note: note });
+      fileId = null;
+      if (old && old !== meta.id) HD.trash(old);
+      pickFile = null; tkMsg = { k: "ok", t: r.late ? "تم التسليم بعد الموعد، وسيظهر ذلك للمحاضر." : "تم التسليم. يمكنك استبدال الملف حتى موعد التسليم." };
+    } catch (e) {
+      if (fileId) HD.trash(fileId);
+      tkMsg = { k: "bad", t: errText(e) };
+    }
+    up = null; await loadTasks(true); renderTask();
+  }
+  async function submitLink(t, url, note) {
+    if (up) return;
+    if (!/^https:\/\/\S+$/i.test(url)) { tkMsg = { k: "bad", t: errText({ message: "bad_link" }) }; return renderTask(); }
+    setUp("جارٍ تسجيل التسليم…", null);
+    try {
+      const r = await rpc("student_submit", { p_token: token, tid: t.id, p_kind: "link", p_url: url, p_file_id: null, p_name: "", p_mime: null, p_size: null, p_md5: null, p_modified: null, p_note: note });
+      tkMsg = { k: "ok", t: r.late ? "سُلِّم الرابط بعد الموعد، وسيظهر ذلك للمحاضر." : "تم تسليم الرابط." };
+    } catch (e) { tkMsg = { k: "bad", t: errText(e) }; }
+    up = null; await loadTasks(true); renderTask();
+  }
+  async function myStamped(t, btn) {
+    const auth = HD.authorize(), m = t.mine;
+    btn.disabled = true; btn.textContent = "جارٍ التجهيز…";
+    try {
+      await auth;
+      const bytes = await HD.myFile(m.file_id);
+      const out = await HD.stamped(bytes, m.mime, { grade: m.grade, max: t.max, task: t.title, course: t.course,
+        student: home.code + " · " + (home.name || ""), by: "رُصدت في Hadro", footer: "Hadro · " + home.code + " · " + t.title + " · " + gNum(m.grade) + " من " + gNum(t.max) });
+      HD.saveBytes(out, HD.fileName(home.code + " - " + t.title + " - مختوم") + ".pdf");
+      btn.textContent = "تم التنزيل";
+    } catch (e) { tkMsg = { k: "bad", t: errText(e) }; renderTask(); }
+  }
+  $("#tkOv").onclick = e => { if (e.target.id === "tkOv") closeTask(); };
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && tkId) closeTask(); });
 
   /* ---------------- check in ---------------- */
   async function checkIn(cid) {
@@ -317,7 +458,7 @@
   }
 
   // refresh while open: picks up a lecture that just started
-  setInterval(() => { if (token && home && !busy && document.visibilityState === "visible" && !(document.activeElement && document.activeElement.tagName === "INPUT")) loadHome(true); }, 15000);
+  setInterval(() => { if (token && home && !busy && !up && document.visibilityState === "visible" && !(document.activeElement && document.activeElement.tagName === "INPUT")) loadHome(true); }, 15000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && token && !busy) loadHome(true); });
 
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
