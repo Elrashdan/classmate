@@ -28,8 +28,10 @@
 <div class="overlay" id="overlay" hidden>
   <div class="inner">
     <h2 id="ovTitle"></h2>
-    <div class="code" id="ovCode"></div>
-    <div class="bar"><i id="ovBar"></i></div>
+    <div class="ovgrid">
+      <div class="ovqr"><div class="qrimg" id="ovQr"></div><div class="qbar"><i id="ovQbar"></i></div><span class="lbl">امسح بكاميرا الهاتف · يتغيّر كل 15 ثانية</span></div>
+      <div class="ovcode"><span class="lbl">أو اكتب الرمز في التطبيق</span><div class="code" id="ovCode"></div><div class="bar"><i id="ovBar"></i></div></div>
+    </div>
     <div class="row" style="justify-content:center;gap:28px"><span class="lbl" id="ovLeft"></span><span class="lbl" id="ovCount"></span></div>
     <div><button class="btn" id="ovClose" style="background:transparent;color:var(--board-ink);border-color:var(--board-dim)">إغلاق العرض</button></div>
   </div>
@@ -44,6 +46,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script src="drive.js"></script>
@@ -55,14 +58,14 @@
   if (!CM.configured) { app.innerHTML = CM.setupNotice(); return; }
 
   const ROLE = { admin: "مسؤول", lecturer: "محاضر", ta: "معيد" };
-  const REASON = { wrong_code: "رمز خطأ", expired_code: "رمز منتهي الصلاحية (غالبًا أُرسل إليه)", device_used: "هاتف سُجِّل منه طالب آخر", other_group: "من مجموعة أخرى والتعويض غير متاح", rejected_by_staff: "رُفض طلبه", bad_qr: "بطاقة حضور غير صحيحة", old_qr: "بطاقة حضور قديمة (غالبًا صورة)" };
+  const REASON = { old_qr_code: "رمز QR قديم من الشاشة (غالبًا صورة أُرسلت إليه)", bad_qr_code: "رمز QR غير صحيح", wrong_code: "رمز خطأ", expired_code: "رمز منتهي الصلاحية (غالبًا أُرسل إليه)", device_used: "هاتف سُجِّل منه طالب آخر", other_group: "من مجموعة أخرى والتعويض غير متاح", rejected_by_staff: "رُفض طلبه", bad_qr: "بطاقة حضور غير صحيحة", old_qr: "بطاقة حضور قديمة (غالبًا صورة)" };
   const reasonText = r => r.startsWith("too_far:") ? "خارج نطاق القاعة (" + CM.dist(+r.split(":")[1]) + ")" : (REASON[r] || r);
 
   let me = null, staff = [], settings = { domain: "" }, courses = [], tasAll = [], curId = store.get("cm_course"), view = "course";
   let D = null; // current course data
   let flash = {}; // per-panel messages
   let liveTab = "all", regGroup = "all", delSess = null, pastMark = null, confirmKey = null, startState = null, report = null;
-  let codeState = null, codeTimer = null, liveTimer = null, manFor = null, manDraft = "";
+  let qrState = null, qrTimer = null, codeState = null, codeTimer = null, liveTimer = null, manFor = null, manDraft = "";
   let addOpen = false, addDraft = { code: "", name: "", grp: "", pin: "" };
   let grader = null, photo = null, gimp = null;
   let tkSel = null, tkForm = null, tkFilter = "all", tkEdits = {}, tkQ = "", tkBusy = null, ncBylaw = null;
@@ -343,13 +346,38 @@
   }
 
   /* ======================= loops (code + live list) ======================= */
-  function stopLoops() { manFor = null; rosterMan = null; clearTimeout(codeTimer); clearInterval(liveTimer); codeTimer = null; liveTimer = null; codeState = null; $("#overlay").hidden = true; }
+  function stopLoops() { manFor = null; rosterMan = null; clearTimeout(codeTimer); clearTimeout(qrTimer); qrTimer = null; qrState = null; clearInterval(liveTimer); codeTimer = null; liveTimer = null; codeState = null; $("#overlay").hidden = true; }
   function startLoops() {
     const c = course(), s = running();
     if (!s) return;
     liveTimer = setInterval(() => { if (document.visibilityState === "visible") refreshLive().catch(() => {}); }, 5000);
-    if (canRun(c) && isOpen(s)) fetchCode();
+    if (canRun(c) && isOpen(s)) { fetchCode(); fetchQr(); }
   }
+  // رمز QR المتغيّر كل 15 ثانية
+  const checkinUrl = (sid, tok) => new URL("./", location.href).href + "#qr=" + sid + "." + tok;
+  function qrSvgStaff(text) {
+    if (typeof window.qrcode !== "function") return "";
+    const qr = window.qrcode(0, "M"); qr.addData(text); qr.make();
+    const n = qr.getModuleCount(), m = 3, size = n + m * 2; let d = "";
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + m} ${r + m}h1v1h-1z`;
+    return `<svg viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" role="img" aria-label="رمز QR للحضور"><rect width="${size}" height="${size}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+  }
+  function paintQr() {
+    if (!qrState) return;
+    const svg = qrSvgStaff(qrState.url);
+    ["#bQr", "#ovQr"].forEach(id => { const el = $(id); if (el && el.dataset.u !== qrState.url) { el.innerHTML = svg; el.dataset.u = qrState.url; } });
+  }
+  async function fetchQr() {
+    const s = running(); if (!s || !isOpen(s)) return;
+    try {
+      const r = await rpc("current_qr", { sid: s.id });
+      if (!r.open) { qrState = null; return; }
+      qrState = { url: checkinUrl(s.id, r.token), until: Date.now() + Number(r.ms_left), step: Number(r.step_ms) || 15000 };
+      paintQr();
+      qrTimer = setTimeout(fetchQr, Math.max(400, Number(r.ms_left) + 150));
+    } catch (e) { qrTimer = setTimeout(fetchQr, 2000); }
+  }
+  setInterval(() => { if (!qrState) return; const pct = Math.max(0, Math.min(100, (qrState.until - Date.now()) / qrState.step * 100)); ["#bQbar", "#ovQbar"].forEach(id => { const b = $(id); if (b) b.style.width = pct + "%"; }); }, 250);
   async function fetchCode() {
     const s = running(); if (!s) return;
     try {
@@ -631,7 +659,8 @@
     el.innerHTML = `<section class="board">
       <div class="row between"><div><div class="lbl">${esc(c.name)} · المحاضرة ${s.n}${s.kind === "outdoor" ? " · خارجية" : ""} · ${s.grp ? "مجموعة " + esc(s.grp) + (s.allow_makeup ? " · التعويض متاح" : " · التعويض غير متاح") : "الدفعة كاملة"}</div><h2>${open ? "رمز الحضور" : "التسجيل مغلق"}</h2></div>
         <div class="row"><button class="btn sm" id="bScan">مسح بطاقات الطلبة</button>${open ? `<button class="btn sm" id="bProj">${s.kind === "outdoor" ? "عرض الرمز ملء الشاشة" : "العرض على جهاز العرض"}</button><button class="btn sm" id="bClose">إغلاق التسجيل</button>` : ""}<button class="btn sm" id="bEnd">${confirmKey === "end" ? "متأكد؟ اضغط مرة أخرى" : "إنهاء المحاضرة"}</button></div></div>
-      ${open ? `<div class="code" id="bCode">··· ···</div><div class="bar"><i id="bBar"></i></div><div class="row between lbl"><span id="bNext"></span><span id="bLeft"></span></div>`
+      ${open ? `<div class="bgrid"><div class="bqr"><div class="qrimg" id="bQr"></div><div class="qbar"><i id="bQbar"></i></div><span class="lbl">رمز QR · يتغيّر كل 15 ثانية</span></div>
+        <div class="bcode"><div class="code" id="bCode">··· ···</div><div class="bar"><i id="bBar"></i></div><div class="row between lbl"><span id="bNext"></span><span id="bLeft"></span></div></div></div>`
         : `<p class="lbl">أُغلق التسجيل بالرمز ${s.closed_at ? "الساعة " + CM.fmtT(s.closed_at) : ""}. ما زال بإمكانك مسح بطاقات حضور الطلبة، أو الموافقة على الطلبات المعلّقة، أو التسجيل اليدوي، ثم إنهاء المحاضرة. تُحتسب الطلبات المعلّقة غيابًا عند الإنهاء.</p>`}
       <div class="lbl">${s.lat == null ? "دون التحقق من الموقع" : "النطاق " + s.radius + " متر حول مكان بدء المحاضرة"} · الطالب الذي لا يتوفر لديه إنترنت أو GPS: امسح بطاقة حضوره من هاتفه · بدأها ${esc(staffName(s.started_by))} الساعة ${CM.fmtT(s.started_at)}</div>
     </section>`;
@@ -640,6 +669,7 @@
       $("#bClose").onclick = () => act(() => rpc("close_session", { sid: s.id }), loadCourse);
     }
     $("#bScan").onclick = () => openScanner(s);
+    paintQr();
     $("#bEnd").onclick = () => { if (confirmKey !== "end") { confirmKey = "end"; renderSession(); setTimeout(() => { if (confirmKey === "end") { confirmKey = null; renderSession(); } }, 4000); return; } confirmKey = null; act(() => rpc("end_session", { sid: s.id }), loadCourse); };
     tick();
   }
@@ -707,7 +737,7 @@
     const editable = canRun(c) && (!s.ended || canManage(c)), done = regDone(s);
     const items = [];
     if (liveTab === "all" || liveTab === "pend") pend.forEach(e => items.push({ e, k: "warn", chip: recs[e.student_code].makeup ? "تعويض معلّق" : "معلّق", r: recs[e.student_code], sel: "pend" }));
-    if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · QR" : r.via === "import" ? "حاضر · ملف" : "حاضر", r }); });
+    if (liveTab === "all" || liveTab === "pres") pres.forEach(e => { const r = recs[e.student_code]; items.push({ e, k: r.makeup || r.status === "manual" ? "man" : "ok", chip: r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · بطاقة" : r.via === "qr" ? "حاضر · QR" : r.via === "import" ? "حاضر · ملف" : "حاضر", r }); });
     if (liveTab === "rej") rej.forEach(a => { const e = D.enroll.find(x => x.student_code === a.student_code) || { student_code: a.student_code, name: nameOf(a.student_code), grp: "" }; items.push({ e, k: "bad", chip: "مرفوض", r: { at: a.at, reason: reasonText(a.reason) }, log: true, sel: !recs[a.student_code] && D.enroll.includes(e) ? "abs" : null }); });
     if (liveTab === "abs") abs.forEach(e => items.push({ e, k: "none", chip: done ? "غائب" : "لم يسجّل بعد", r: null, sel: "abs" }));
     lvItems = items;
@@ -1840,7 +1870,7 @@
     const head = k => { const C = RCOLS[k], srt = rv.sort.col === k, flt = C.list && rv.f[k];
       return `<th><button class="fh ${srt || flt ? "on" : ""}" data-fcol="${k}" aria-haspopup="true">${k === "now" && ms ? "المحاضرة " + ms.n : C.t}<span class="fh-i">${srt ? (rv.sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button></th>`; };
     const nowCell = e => { const r = (D.att[ms.id] || {})[e.student_code], code = esc(e.student_code);
-      if (counted(r)) return `<span class="chip ${r.status === "manual" || r.makeup ? "man" : "ok"}">${r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · QR" : "حاضر"}</span>`;
+      if (counted(r)) return `<span class="chip ${r.status === "manual" || r.makeup ? "man" : "ok"}">${r.makeup ? "تعويض" : r.status === "manual" ? "يدوي" : r.via === "scan" ? "حاضر · بطاقة" : r.via === "qr" ? "حاضر · QR" : "حاضر"}</span>`;
       if (r) return `<span class="chip warn">معلّق</span> <button class="btn sm" data-rap="${code}">موافقة</button>`;
       return `<button class="btn sm primary" data-rman="${code}" ${rosterMan === e.student_code ? "aria-pressed=\"true\"" : ""}>تحضير${isOwn(ms, e) ? "" : " (تعويض)"}</button>`; };
     tb.innerHTML = `<thead><tr>${head("code")}${head("name")}${ms ? head("now") : ""}${head("grp")}${head("acc")}${mng ? "<th></th>" : ""}</tr></thead><tbody>

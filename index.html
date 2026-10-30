@@ -24,6 +24,7 @@
 <body>
 <div class="wrap narrow" id="app"></div>
 <div class="qrov" id="qrOv" hidden><div class="in" id="qrIn"></div></div>
+<div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -66,6 +67,7 @@
           <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="pass2" autocomplete="new-password"></label>
           <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا، مثل آخر 4 أرقام من الرقم القومي)</span><input type="text" id="pin" inputmode="numeric" class="mono" style="text-align:start"></label>
         `}
+        ${sstore.get("cm_pending_qr") ? `<div class="msg">سجّل الدخول أولًا، وبعدها يُسجَّل حضورك بالرمز الذي مسحته. وإن انتهت صلاحيته فامسحه من الشاشة مرة أخرى.</div>` : ""}
         ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
         ${!device ? `<div class="msg warn">هذا المتصفح لا يحفظ البيانات (غالبًا بسبب وضع التصفح الخفي). افتح الموقع في متصفح عادي.</div>` : ""}
         <button class="btn primary block" id="go" ${busy || !device ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : authTab === "login" ? "دخول" : "إنشاء الحساب"}</button>
@@ -106,6 +108,7 @@
       else if (home.now_ms) { q.off = Number(home.now_ms) - Date.now(); store.set("cm_qr", JSON.stringify(q)); }
       renderHome();
       loadTasks(!silent);
+      if (sstore.get("cm_pending_qr")) takePendingQr();
     } catch (e) {
       const m = String(e.message || "");
       if (m.includes("not_signed_in")) { signOut(); return; }
@@ -185,7 +188,7 @@
     if (!s) return `<p class="muted small">لا توجد محاضرة جارية الآن. عندما يبدأ المحاضر، ستظهر هنا خانة الرمز.</p>`;
     const mine = s.mine;
     let body = "";
-    if (mine && mine.status !== "pending") body = `<div class="result ok"><b>${mine.makeup ? "سُجِّل حضورك التعويضي" : "سُجِّل حضورك"}</b><span class="small">المحاضرة ${s.n} · ${CM.fmtT(mine.at)}${mine.status === "manual" ? " · سجّلك المحاضر يدويًّا" : mine.via === "scan" ? " · بمسح بطاقة الحضور" : ""}</span></div>`;
+    if (mine && mine.status !== "pending") body = `<div class="result ok"><b>${mine.makeup ? "سُجِّل حضورك التعويضي" : "سُجِّل حضورك"}</b><span class="small">المحاضرة ${s.n} · ${CM.fmtT(mine.at)}${mine.status === "manual" ? " · سجّلك المحاضر يدويًّا" : mine.via === "scan" ? " · بمسح بطاقة الحضور" : mine.via === "qr" ? " · بمسح رمز QR" : ""}</span></div>`;
     else if (mine) body = `<div class="result warn"><b>طلبك بانتظار موافقة المحاضر</b><span class="small">${esc(mine.reason)}</span></div>`;
     else if (!s.open) body = `<div class="result bad"><b>أُغلق التسجيل بالرمز</b><span class="small">إذا كنت موجودًا فعلًا، فاعرض «بطاقة الحضور» على المحاضر أو المعيد ليمسحها.</span></div>`;
     else if (!s.own && !s.allow_makeup) body = `<div class="result warn"><b>محاضرة اليوم للمجموعة ${esc(s.grp)}</b><span class="small">أنت في ${c.grp ? "مجموعة " + esc(c.grp) : "مجموعة أخرى"}، ومحاضرتك في موعدها الخاص. إذا احتجت إلى التعويض، فاطلب من المحاضر إتاحة الحضور التعويضي.</span></div>`;
@@ -193,8 +196,9 @@
     else body = `
       ${!s.own ? `<div class="msg">هذه محاضرة المجموعة ${esc(s.grp)}، وسيُسجَّل حضورك تعويضيًّا.</div>` : ""}
       ${s.kind === "outdoor" ? `<div class="msg">محاضرة خارجية: يظهر الرمز على هاتف المحاضر أو المعيد. إذا تعذّر عليك الوصول إليه أو لم يتوفر لديك إنترنت، فاعرض عليه «بطاقة الحضور» ليمسحها.</div>` : ""}
-      <label class="f"><span>${s.kind === "outdoor" ? "اكتب الرمز الظاهر على هاتف المحاضر" : "اكتب الرمز الظاهر على الشاشة"}</span><input type="text" class="codein" id="ci-${c.id}" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="000000" value="${esc(drafts[c.id] || "")}"></label>
-      <button class="btn primary block" data-ci="${c.id}" ${busy ? "disabled" : ""}>${busy === c.id ? `<span class="spinner"></span> جارٍ تحديد موقعك…` : "سجّل حضوري"}</button>
+      <button class="btn primary block" data-qrscan="${c.id}" ${busy ? "disabled" : ""}>امسح رمز QR من الشاشة</button>
+      <label class="f"><span>${s.kind === "outdoor" ? "أو اكتب الرمز الظاهر على هاتف المحاضر" : "أو اكتب الرمز الظاهر على الشاشة"}</span><input type="text" class="codein" id="ci-${c.id}" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="000000" value="${esc(drafts[c.id] || "")}"></label>
+      <button class="btn block" data-ci="${c.id}" ${busy ? "disabled" : ""}>${busy === c.id ? `<span class="spinner"></span> جارٍ تحديد موقعك…` : "سجّل حضوري بالرمز"}</button>
       <p class="muted small">سيطلب التطبيق إذن الوصول إلى الموقع للتأكد من أنك ${s.kind === "outdoor" ? "في مكان المحاضرة" : "في القاعة"}.${s.tries_left < 5 ? ` متبقٍّ لك ${s.tries_left} محاولات.` : ""}</p>`;
     return `<div class="row between"><span class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كاملة"}</span>${s.open ? `<span class="chip ok">التسجيل مفتوح</span>` : ""}</div>${body}
       ${res ? `<div class="result ${res.k}"><b>${esc(res.title)}</b>${res.checks.length ? `<ul class="checks">${res.checks.map(ch => `<li class="${ch[0]}">${esc(ch[1])}</li>`).join("")}</ul>` : ""}</div>` : ""}`;
@@ -236,6 +240,7 @@
       <section class="col">
         <div><div class="eyebrow mono" style="text-align:start">${esc(home.code)}</div><h2>أهلًا ${esc((home.name || "").split(" ")[0])}</h2></div>
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
+        ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
         ${home.courses.length ? qrCta() : ""}
         ${pwOpen ? `<div class="panel"><h3>تغيير كلمة السر</h3>
           <label class="f"><span>كلمة السر الحالية</span><input type="password" id="pwOld" autocomplete="current-password"></label>
@@ -243,7 +248,7 @@
           ${pwMsg ? `<div class="msg ${pwMsg.startsWith("!") ? "bad" : "ok"}">${esc(pwMsg.replace(/^!/, ""))}</div>` : ""}
           <button class="btn primary" id="pwSave">حفظ</button></div>` : ""}
         ${home.courses.length ? home.courses.map(c => `
-          <article class="course">
+          <article class="course" data-course="${c.id}">
             <div class="row between"><div><h2>${esc(c.name)}</h2>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ""}${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
             ${c.absences ? `<p class="small muted">غبت ${CM.times(c.absences)}${missedTxt(c)}. ${afterTxt(c.absences)}</p>` : ""}
             ${sessionBlock(c)}
@@ -263,6 +268,7 @@
       inp.onkeydown = e => { if (e.key === "Enter") checkIn(cid); };
     });
     app.querySelectorAll("[data-ci]").forEach(b => b.onclick = () => checkIn(b.dataset.ci));
+    app.querySelectorAll("[data-qrscan]").forEach(b => b.onclick = () => openStScan());
     app.querySelectorAll("[data-ack]").forEach(b => b.onclick = () => ackWarning(b.dataset.ack, b));
     app.querySelectorAll("[data-task]").forEach(b => b.onclick = () => openTask(b.dataset.task));
     wireQrCta();
@@ -407,6 +413,81 @@
   $("#tkOv").onclick = e => { if (e.target.id === "tkOv") closeTask(); };
   document.addEventListener("keydown", e => { if (e.key === "Escape" && tkId) closeTask(); });
 
+  /* ---------------- الحضور بمسح رمز QR من شاشة المحاضرة ---------------- */
+  const QR_RE = /#qr=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.([0-9a-f]{12})/i;
+  const sstore = { get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }, del(k) { try { sessionStorage.removeItem(k); } catch (e) {} } };
+  (function grabHash() {
+    const m = QR_RE.exec(location.hash || "");
+    if (!m) return;
+    sstore.set("cm_pending_qr", JSON.stringify({ sid: m[1].toLowerCase(), tok: m[2].toLowerCase(), at: Date.now() }));
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  })();
+  let qrFlash = null;
+  function takePendingQr() {
+    let p = null; try { p = JSON.parse(sstore.get("cm_pending_qr") || "null"); } catch (e) {}
+    sstore.del("cm_pending_qr");
+    if (!p || Date.now() - p.at > 5 * 60000 || !home) return;
+    checkInQr(p.sid, p.tok);
+  }
+  async function checkInQr(sid, tok) {
+    if (busy) return;
+    qrFlash = null;
+    const c = home.courses.find(x => x.session && x.session.id === sid);
+    if (!c) { qrFlash = { k: "bad", t: "هذا الرمز لمحاضرة لست مسجَّلًا فيها، أو انتهت المحاضرة." }; renderHome(); return; }
+    busy = c.id; results[c.id] = null; renderHome();
+    const card = document.querySelector(`[data-course="${c.id}"]`); if (card) card.scrollIntoView({ block: "start", behavior: "smooth" });
+    const pos = await CM.getPosition();
+    try {
+      const r = await rpc("student_check_in_qr", { p_token: token, sid, p_qr: tok, p_lat: pos.lat ?? null, p_lng: pos.lng ?? null, p_acc: pos.acc ?? null, p_device: device });
+      results[c.id] = describe(r, pos, c.session.kind);
+    } catch (e) {
+      if (String(e.message || "").includes("not_signed_in")) { busy = false; return signOut(); }
+      results[c.id] = { k: "bad", title: "تعذّر التسجيل", checks: [["x", errText(e)]] };
+    }
+    busy = false; await loadHome(true);
+  }
+  let stStream = null, stTimer = null, stDet = null, stBusy = false;
+  const loadJsQR = () => window.jsQR ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
+  async function openStScan() {
+    const ov = $("#stScan"), msg = $("#stMsg");
+    ov.hidden = false; msg.textContent = "جارٍ فتح الكاميرا…";
+    try {
+      stStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+      const v = $("#stVid"); v.srcObject = stStream; await v.play().catch(() => {});
+      try { if ("BarcodeDetector" in window && (await BarcodeDetector.getSupportedFormats()).includes("qr_code")) stDet = new BarcodeDetector({ formats: ["qr_code"] }); } catch (e) { stDet = null; }
+      if (!stDet) await loadJsQR();
+      msg.textContent = "وجّه الكاميرا نحو رمز QR على الشاشة";
+      stTimer = setInterval(stFrame, 250);
+    } catch (e) {
+      msg.textContent = e && e.name === "NotAllowedError" ? "رُفض إذن الكاميرا. اسمح للمتصفح باستخدامها، أو افتح كاميرا الهاتف وامسح الرمز منها، أو اكتب الرمز الرقمي." : "تعذّر فتح الكاميرا. افتح كاميرا الهاتف وامسح الرمز منها، أو اكتب الرمز الرقمي.";
+    }
+  }
+  function closeStScan() {
+    clearInterval(stTimer); stTimer = null;
+    if (stStream) stStream.getTracks().forEach(t => t.stop()); stStream = null;
+    $("#stScan").hidden = true;
+  }
+  async function stFrame() {
+    const v = $("#stVid"); if (stBusy || !v.videoWidth) return;
+    stBusy = true;
+    try {
+      let text = null;
+      if (stDet) { const r = await stDet.detect(v); text = r[0] && r[0].rawValue; }
+      else if (window.jsQR) {
+        const w = Math.min(640, v.videoWidth), h = Math.round(v.videoHeight * w / v.videoWidth), cv = stFrame.cv || (stFrame.cv = document.createElement("canvas"));
+        cv.width = w; cv.height = h; const x = cv.getContext("2d", { willReadFrequently: true }); x.drawImage(v, 0, 0, w, h);
+        const r = jsQR(x.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: "dontInvert" }); text = r && r.data;
+      }
+      if (text) {
+        const m = QR_RE.exec(text);
+        if (!m) { $("#stMsg").textContent = "هذا ليس رمز حضور Hadro. امسح الرمز الظاهر على شاشة المحاضرة."; }
+        else { closeStScan(); await checkInQr(m[1].toLowerCase(), m[2].toLowerCase()); }
+      }
+    } catch (e) {}
+    stBusy = false;
+  }
+  $("#stClose").onclick = closeStScan;
+
   /* ---------------- check in ---------------- */
   async function checkIn(cid) {
     if (busy) return;
@@ -452,7 +533,9 @@
           too_far: [kind === "outdoor" ? "أنت بعيد عن مكان المحاضرة" : "أنت لست في القاعة", [["x", "تبعد مسافة " + CM.dist(r.dist) + (kind === "outdoor" ? " عن المحاضر" : " عن القاعة") + "، والمسموح به " + r.radius + " م"], QR]],
           device_used: ["لا يمكنك التسجيل من هذا الهاتف", [["x", "سُجِّل من هذا الهاتف حضور طالب آخر في هذه المحاضرة"]]],
           other_group: ["ليست محاضرة مجموعتك", [["x", "هذه المحاضرة للمجموعة " + r.session_grp]]],
-          not_enrolled: ["أنت غير مسجَّل في ملف هذه المادة", []]
+          not_enrolled: ["أنت غير مسجَّل في ملف هذه المادة", []],
+          expired_qr: ["انتهت صلاحية رمز QR", [["x", "يتغيّر الرمز على الشاشة كل 15 ثانية، فامسحه من الشاشة مباشرة لا من صورة"]]],
+          bad_qr: ["رمز QR غير صحيح", [["x", "امسح الرمز الظاهر على شاشة المحاضرة، أو اكتب الرمز المكوّن من 6 أرقام"]]]
         }[r.reason] || ["تعذّر التسجيل", []];
         return { k: "bad", title: m[0], checks: m[1] };
       }
