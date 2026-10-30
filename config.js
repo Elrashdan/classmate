@@ -9,6 +9,6 @@ window.CLASSMATE = {
   UNIVERSITY_NAME: "كلية الفنون الجميلة · جامعة العاصمة",
   // تسليم التكليفات على Google Drive الخاص بالطالب (من Google Cloud Console، وكلاهما عام وليس سرًّا)
   // اتركهما فارغين ليسلّم الطلبة روابط فقط
-  GOOGLE_CLIENT_ID: "",
-  GOOGLE_API_KEY: ""
+  GOOGLE_CLIENT_ID: "546157853909-vjtbkhu37tddajs2f48uleb67fmmc4fm.apps.googleusercontent.com",
+  GOOGLE_API_KEY: "AIzaSyAEjU3kV6Qz9jR7r2fk8nJiPBSTz_55VeE"
 };
