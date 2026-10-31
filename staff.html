@@ -1701,25 +1701,58 @@
     if (!force && voice.entries.length && confirmKey !== "vcclose") { confirmKey = "vcclose"; voice.msg = "!لديك درجات لم تُعتمد. اضغط «إغلاق» مرة أخرى لتجاهلها، أو «اعتماد»."; drawVoice(); setTimeout(() => { if (confirmKey === "vcclose") confirmKey = null; }, 5000); return; }
     confirmKey = null; vcStop(); voice = null; $("#vcOv").hidden = true; document.body.classList.remove("noscroll"); renderTasks();
   }
+  // الاستماع على دفعات قصيرة: كل جملة جلسة تعرّف مستقلة تنتهي بعد سكتة قصيرة، فتصل النتيجة في ثانية تقريبًا
+  // (الوضع المستمر في Chrome على أندرويد يؤخر النتيجة النهائية ويكررها)
+  const VC_STABLE_MS = 750;
   function vcStart() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { voice.msg = "!هذا المتصفح لا يدعم الإملاء الصوتي. افتح البرنامج من Google Chrome (على أندرويد أو الكمبيوتر) أو Safari على الآيفون."; return drawVoice(); }
-    const rec = new SR(); rec.lang = "ar-EG"; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
-    rec.onresult = ev => {
-      let interim = "";
-      for (let i = ev.resultIndex; i < ev.results.length; i++) { const r = ev.results[i]; if (r.isFinal) vcHear(r[0].transcript); else interim += r[0].transcript; }
-      voice && (voice.interim = interim, paintInterim());
-    };
-    rec.onerror = ev => { if (!voice) return; if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { voice.listening = false; voice.msg = "!لم يُسمح باستخدام الميكروفون. اسمح للمتصفح باستخدامه من إعدادات الموقع ثم أعد المحاولة."; drawVoice(); } else if (ev.error === "network") { voice.msg = "!الإملاء الصوتي يحتاج إلى إنترنت."; drawVoice(); } };
-    rec.onend = () => { if (voice && voice.listening) setTimeout(() => { try { voice && voice.listening && voice.rec.start(); } catch (e) {} }, 250); };
-    voice.rec = rec; voice.listening = true; voice.started = true; voice.msg = "";
-    try { rec.start(); } catch (e) {}
+    voice.listening = true; voice.started = true; voice.msg = "";
     try { if (navigator.wakeLock) navigator.wakeLock.request("screen").then(w => { if (voice) voice.wake = w; }).catch(() => {}); } catch (e) {}
-    drawVoice();
+    drawVoice(); vcListen();
+  }
+  function vcListen() {
+    if (!voice || !voice.listening || voice.speaking || voice.rec) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SR(); rec.lang = "ar-EG"; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 1;
+    let done = false, timer = null, lastInt = "";
+    const finish = text => {                       // يُعتمد نص الجولة مرة واحدة فقط
+      if (done) return; done = true; clearTimeout(timer);
+      rec.onresult = null; try { rec.abort(); } catch (e) {}
+      vcHear(text);
+    };
+    rec.onresult = ev => {
+      if (!voice || done) return;
+      let fin = "", int = "";
+      for (let i = 0; i < ev.results.length; i++) { const r = ev.results[i]; if (r.isFinal) fin += r[0].transcript + " "; else int += r[0].transcript + " "; }
+      if (fin.trim()) return finish(fin);
+      voice.interim = int.trim(); paintInterim();
+      // إن اكتملت في النص المؤقت «اسم + درجة» وثبت قليلًا، نعتمده دون انتظار النتيجة النهائية
+      clearTimeout(timer);
+      if (voice.interim !== lastInt && HV.parse(voice.interim).length) { lastInt = voice.interim; timer = setTimeout(() => finish(lastInt), VC_STABLE_MS); }
+    };
+    rec.onerror = ev => {
+      if (!voice) return;
+      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { voice.listening = false; voice.msg = "!لم يُسمح باستخدام الميكروفون. اسمح للمتصفح باستخدامه من إعدادات الموقع ثم أعد المحاولة."; drawVoice(); }
+      else if (ev.error === "network") vcMsg("!الإملاء الصوتي يحتاج إلى إنترنت.");
+    };
+    rec.onend = () => {
+      clearTimeout(timer);
+      if (!done && lastInt) { done = true; vcHear(lastInt); }   // انتهت الجولة قبل الاعتماد
+      if (!voice) return;
+      if (voice.rec === rec) voice.rec = null;
+      voice.interim = ""; paintInterim();
+      if (voice.listening && !voice.speaking) setTimeout(vcListen, 30);
+    };
+    voice.rec = rec;
+    try { rec.start(); } catch (e) { voice.rec = null; setTimeout(vcListen, 300); }
   }
   function vcStop() {
     if (!voice) return; voice.listening = false; voice.interim = "";
-    try { voice.rec && voice.rec.stop(); } catch (e) {}
+    const r = voice.rec; voice.rec = null;
+    if (r) { r.onresult = null; try { r.abort(); } catch (e) {} }
+    try { window.speechSynthesis && speechSynthesis.cancel(); } catch (e) {}
+    voice.speaking = false;
     if (voice.wake) { voice.wake.release().catch(() => {}); voice.wake = null; }
   }
   document.addEventListener("keydown", ev => {
@@ -1728,20 +1761,39 @@
     ev.preventDefault(); if (voice.listening) { vcStop(); voice.msg = ""; drawVoice(); } else vcStart();
   });
   document.addEventListener("visibilitychange", () => { if (voice && voice.listening && document.visibilityState === "hidden") { vcStop(); voice.msg = "توقف الإملاء مؤقتًا لأنك غادرت الصفحة. اضغط «استكمال الإملاء» للمتابعة."; drawVoice(); } });
-  function vcSay(text) { try { if (!voice || !voice.speak || !window.speechSynthesis) return; const u = new SpeechSynthesisUtterance(text); u.lang = "ar-EG"; u.rate = 1.1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+  // التأكيد بالصوت: يتوقف الاستماع أثناء الكلام حتى لا يلتقط البرنامج صوته هو
+  function vcSay(text) {
+    try {
+      if (!voice || !voice.speak || !window.speechSynthesis) return;
+      voice.speaking = true;
+      const r = voice.rec; voice.rec = null; if (r) { r.onresult = null; r.onend = null; try { r.abort(); } catch (e) {} }
+      const u = new SpeechSynthesisUtterance(text); u.lang = "ar-EG"; u.rate = 1.15;
+      let back = false; const resume = () => { if (back || !voice) return; back = true; voice.speaking = false; setTimeout(vcListen, 250); };
+      u.onend = resume; u.onerror = resume; setTimeout(resume, 1500 + text.length * 90);
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) { if (voice) { voice.speaking = false; vcListen(); } }
+  }
+  function vcMsg(m) { if (!voice) return; voice.msg = m || ""; const el = $("#vcMsg"); if (el) { el.className = "msg small " + (m && m.startsWith("!") ? "bad" : "ok"); el.hidden = !m; el.textContent = (m || "").replace(/^!/, ""); } }
   function vcHear(text) {
     if (!voice) return;
     const t = D.tasks.find(x => x.id === voice.tid), roster = vcRoster(t), got = HV.parse(text);
-    if (!got.length) { voice.msg = "!لم أفهم «" + text.trim() + "». قل اسم الطالب ثم درجته، مثل: «محمد أحمد ١٧» أو «رقم ٥ … ١٨»."; drawVoice(); return; }
+    if (!got.length) { if (text.trim()) vcMsg("!لم أفهم «" + text.trim() + "». قل اسم الطالب ثم درجته، مثل: «محمد أحمد ١٧» أو «رقم ٥ … ١٨»."); return; }
+    let added = 0, said = [];
     got.forEach(g => {
       const cands = HV.match(g, roster), sure = HV.sure(cands);
       const code = cands[0] && (sure || cands[0].score >= .6) ? cands[0].code : "";
-      voice.entries.unshift({ id: ++vcSeq, raw: g.raw, cands, code, sure, grade: gN(g.grade), bonus: g.bonus ? gN(g.bonus) : "" });
-      if (code) vcSay(nameOf(code).split(" ").slice(0, 2).join(" ") + "، " + gN(g.grade) + (g.bonus ? " وبونص " + gN(g.bonus) : ""));
+      const grade = gN(g.grade), bonus = g.bonus ? gN(g.bonus) : "", now = Date.now();
+      // منع التكرار: الطالب نفسه بالدرجة نفسها خلال 15 ثانية لا يُضاف مرة أخرى، وبدرجة مختلفة خلال 6 ثوانٍ يُعدَّل بدل الإضافة
+      const prev = code && voice.entries.find(e => e.code === code && now - e.at < 15000);
+      if (prev && prev.grade === grade && prev.bonus === bonus) return;
+      if (prev && now - prev.at < 6000) { Object.assign(prev, { raw: g.raw, grade, bonus, at: now }); voice.flash = prev.id; }
+      else { const id = ++vcSeq; voice.entries.unshift({ id, raw: g.raw, cands, code, sure, grade, bonus, at: now }); voice.flash = id; added++; }
+      if (code) said.push(nameOf(code).split(" ").slice(0, 2).join(" ") + "، " + grade + (bonus ? " وبونص " + bonus : ""));
     });
-    voice.msg = ""; drawVoiceList(); paintInterim();
+    vcMsg(""); drawVoiceList();
+    if (said.length) vcSay(said.join("، "));
   }
-  function paintInterim() { const el = $("#vcInterim"); if (el && voice) el.textContent = voice.interim || (voice.listening ? "أسمعك…" : ""); }
+  function paintInterim() { const el = $("#vcInterim"); if (el && voice) el.textContent = voice.interim ? "…" + voice.interim.slice(-70) : (voice.listening ? (voice.speaking ? "يؤكّد بالصوت…" : "أسمعك…") : ""); }
   const vcValid = (t, e) => e.code && e.grade !== "" && !badVal(e.grade, +t.max_grade) && !badVal(e.bonus, +t.max_grade);
   function drawVoice() {
     const t = D.tasks.find(x => x.id === voice.tid), ov = $("#vcOv"), sup = HV.supported();
@@ -1754,7 +1806,7 @@
           <button class="vc-btn ${voice.listening ? "on" : voice.started ? "paused" : ""}" id="vcMic" aria-pressed="${voice.listening}" ${sup ? "" : "disabled"}>${voice.listening ? ICO('<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>') : ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')}<span>${voice.listening ? "إيقاف مؤقت" : voice.started ? "استكمال الإملاء" : "ابدأ الإملاء"}</span><small>${voice.listening ? "أو اضغط مسافة" : voice.started ? "متوقف مؤقتًا · اضغط مسافة للاستكمال" : ""}</small></button>
           <div class="vc-state ${voice.listening ? "on" : voice.started ? "paused" : ""}"><i></i>${voice.listening ? "يستمع الآن" : voice.started ? "متوقف مؤقتًا، ولن يُسجَّل أي كلام" : "لم يبدأ الاستماع بعد"}${voice.entries.length ? " · " + voice.entries.length + " درجة في القائمة" : ""}</div>
           <div class="vc-int" id="vcInterim" aria-live="polite"></div>
-          ${voice.msg ? `<div class="msg ${voice.msg.startsWith("!") ? "bad" : "ok"} small">${esc(voice.msg.replace(/^!/, ""))}</div>` : ""}
+          <div id="vcMsg" class="msg small ${voice.msg.startsWith("!") ? "bad" : "ok"}" ${voice.msg ? "" : "hidden"}>${esc(voice.msg.replace(/^!/, ""))}</div>
           <div class="vc-tips small">
             <b>قل اسم الطالب ثم درجته، ثم الطالب التالي:</b>
             <span>«محمد أحمد علي سبعتاشر» · «سلمى خالد خمستاشر ونص»</span>
@@ -1775,12 +1827,13 @@
   function drawVoiceList() {
     const el = $("#vcList"); if (!el || !voice) return;
     const t = D.tasks.find(x => x.id === voice.tid), roster = taskRows(t), n = voice.entries.filter(e => vcValid(t, e)).length;
+    const keepScroll2 = el.scrollTop;
     const seen = {}; voice.entries.slice().reverse().forEach(e => { if (e.code) seen[e.code] = (seen[e.code] || 0) + 1; });
     el.innerHTML = `<div class="row between"><h3>${voice.entries.length ? "راجع قبل الاعتماد" : "ستظهر هنا الدرجات التي تمليها"}</h3>${voice.entries.length ? `<button class="btn sm ghost" id="vcClear">مسح الكل</button>` : ""}</div>
       ${voice.entries.length ? `<p class="small muted">الأخضر: البرنامج متأكد من الطالب. الأصفر: راجِع الاختيار. يُعتمد آخر ما قلته إن تكرر الطالب.</p>
       <div class="vc-rows">${voice.entries.map(e => { const ok = vcValid(t, e), dup = e.code && seen[e.code] > 1;
         const ids = [...new Set([...e.cands.map(c => c.code), ...roster.map(r => r.student_code)])];
-        return `<div class="vc-row ${!ok ? "bad" : e.sure ? "ok" : "warn"}" data-vc="${e.id}">
+        return `<div class="vc-row ${!ok ? "bad" : e.sure ? "ok" : "warn"}${voice.flash === e.id ? " new" : ""}" data-vc="${e.id}">
           <div class="vc-heard small muted">سمعت: «${esc(e.raw)}»${dup ? ` <b class="warn-t">· مكرر</b>` : ""}</div>
           <select data-vk="code" aria-label="الطالب"><option value="">— اختر الطالب —</option>${ids.map((c, i) => { const r = roster.find(x => x.student_code === c); if (!r) return ""; const sc = e.cands.find(x => x.code === c); return `<option value="${esc(c)}" ${c === e.code ? "selected" : ""}>${roster.indexOf(r) + 1}. ${esc(r.name)} · ${esc(c)}${sc && i < e.cands.length ? ` (${Math.round(sc.score * 100)}%)` : ""}</option>`; }).join("")}</select>
           <input type="text" data-vk="grade" class="gin ${badVal(e.grade, +t.max_grade) ? "bad" : ""}" value="${esc(e.grade)}" inputmode="decimal" aria-label="الدرجة">
@@ -1794,6 +1847,7 @@
     });
     el.querySelectorAll("[data-vdel]").forEach(b => b.onclick = () => { voice.entries = voice.entries.filter(x => x.id !== +b.dataset.vdel); drawVoiceList(); });
     const cl = $("#vcClear"); if (cl) cl.onclick = () => { voice.entries = []; drawVoiceList(); };
+    voice.flash = null; el.scrollTop = keepScroll2;
     const sv = $("#vcSave"); if (sv) sv.onclick = async () => {
       const last = {}; voice.entries.slice().reverse().forEach(e => { if (vcValid(t, e)) last[e.code] = e; });
       const rows = Object.values(last).map(e => ({ code: e.code, grade: Number(toNum(e.grade)), bonus: e.bonus === "" ? 0 : Number(toNum(e.bonus)) }));
