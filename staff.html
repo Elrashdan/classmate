@@ -71,6 +71,7 @@
   let addOpen = false, addDraft = { code: "", name: "", grp: "", pin: "" };
   let grader = null, photo = null, gimp = null, voice = null;
   let ncManual = false;
+  let tkExtra = {}; // tid -> Set: طلبة من مجموعة أخرى أضافهم المحاضر لهذا التكليف استثناءً (قبل رصد درجتهم)
   let tkSel = null, tkForm = null, tkFilter = "all", tkEdits = {}, tkQ = "", tkBusy = null, ncBylaw = null;
   let login = { step: "email", email: "", err: "", busy: false };
 
@@ -1303,8 +1304,14 @@
   /* ======================= التكليفات والدرجات ======================= */
   const gN = n => n == null || n === "" ? "" : Number(n).toLocaleString("en", { maximumFractionDigits: 2 });
   const dueStr = t => new Date(t).toLocaleString("ar-EG", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
-  const taskRows = t => D.enroll.filter(e => !t.grp || e.grp === t.grp).slice().sort(byGroupName);
   const subOf = (t, code) => (D.subs[t.id] || {})[code] || null;
+  // الطالب في مجموعة التكليف؟ وإلا يظهر استثناءً لو سلّم أو رُصدت له درجة (مثلًا نُقل من مجموعة لأخرى، أو سلّم مع مجموعة غير مجموعته)
+  const inTaskGrp = (t, e) => !t.grp || e.grp === t.grp;
+  const hasWork = (t, code) => { const s = subOf(t, code); return !!(s && (s.submitted_at || s.url || s.grade != null)); };
+  const isExtra = (t, e) => !inTaskGrp(t, e);
+  const taskRows = t => D.enroll.filter(e => inTaskGrp(t, e) || hasWork(t, e.student_code) || (tkExtra[t.id] && tkExtra[t.id].has(e.student_code)))
+    .slice().sort((a, b) => (isExtra(t, a) - isExtra(t, b)) || byGroupName(a, b));
+  const extraChip = (t, e) => isExtra(t, e) ? ` <span class="chip warn small" title="ليس من مجموعة هذا التكليف، ويظهر هنا استثناءً">استثناء · ${e.grp ? "مجموعة " + esc(e.grp) : "دون مجموعة"}</span>` : "";
   const totalOf = s => s && s.grade != null ? Number(s.grade) + Number(s.bonus || 0) : null;
   const isManual = t => t.mode === "manual";
   const canEditTask = (c, t) => canManage(c) || (role(c) === "ta" && t.created_by === me.email);
@@ -1437,9 +1444,10 @@
       </div>
       <div class="rs-bar no-print"><div class="tabs">${FT.map(([k, l, n]) => `<button data-tf="${k}" aria-pressed="${tkFilter === k}">${l} <span class="small muted">${n}</span></button>`).join("")}</div>
         <input type="search" id="tkQ" placeholder="ابحث بالاسم أو الكود" value="${esc(tkQ)}" autocomplete="off" style="max-width:240px"></div>
+      ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" style="max-width:320px"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select></div>` : ""; })() : ""}
       ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}<th class="c">الدرجة من ${gN(t.max_grade)}</th><th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
-          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td>${esc(e.name)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
+          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td>${esc(e.name)}${extraChip(t, e)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
             ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}` : `<span class="muted">لم يسلّم</span>`}</td>
             <td class="small">${s && s.url ? `<button class="btn xs" data-view="${code}">عرض</button> <a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a">${esc(s.kind === "drive" ? (s.file_name || "الملف") : "رابط")}</a>${ck ? ` <span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted">«${esc(s.note)}»</div>` : ""}` : "—"}</td>`}
             <td class="c">${run ? `<input type="text" class="gin ${badVal(valOf(e.student_code, "grade", s), +t.max_grade) ? "bad" : ""}" data-g="${code}" value="${esc(valOf(e.student_code, "grade", s))}" inputmode="decimal" autocomplete="off">` : gN(s && s.grade)}</td>
@@ -1454,6 +1462,7 @@
     dirtyCount();
     $("#tkBack").onclick = () => { if (Object.keys(tkEdits).length && confirmKey !== "tkleave") { confirmKey = "tkleave"; toast("لديك درجات لم تُحفظ. اضغط «حفظ الدرجات»، أو اضغط الرجوع مرة أخرى لتجاهلها."); setTimeout(() => { if (confirmKey === "tkleave") confirmKey = null; }, 5000); return; } confirmKey = null; tkSel = null; tkEdits = {}; tkForm = null; gimp = null; renderTasks(); };
     el.querySelectorAll("[data-tf]").forEach(b => b.onclick = () => { tkFilter = b.dataset.tf; renderTasks(); });
+    const ax = $("#tkAddX"); if (ax) ax.onchange = () => { if (!ax.value) return; (tkExtra[t.id] = tkExtra[t.id] || new Set()).add(ax.value); tkQ = ""; toast("أُضيف " + nameOf(ax.value) + " إلى كشف هذا التكليف استثناءً. اكتب درجته واحفظ."); renderTasks(); };
     const qi = $("#tkQ"); if (qi) qi.oninput = () => { tkQ = qi.value; renderTasks(); const r2 = $("#tkQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
     const onIn = (i, code, k) => { setEdit(t, code, k, i.value.trim()); if (k !== "feedback") i.classList.toggle("bad", badVal(i.value, +t.max_grade));
       const tr = i.closest("tr"); tr.classList.toggle("dirty", !!tkEdits[code]); const tt = el.querySelector(`[data-tot="${CSS.escape(code)}"]`); if (tt) tt.textContent = liveTotal(t, code); dirtyCount(); };
@@ -1650,11 +1659,11 @@
         if (cCode && cG) hr = r; else { cCode = cG = cB = cF = 0; }
       }
       if (!hr) throw { message: "لم أجد في الملف عمودي «الكود» و«الدرجة». استخدم كشف الرصد الذي ينزّله البرنامج." };
-      const max = Number(t.max_grade), inTask = new Set(taskRows(t).map(e => e.student_code)), out = [], errs = [], seen = new Set();
+      const max = Number(t.max_grade), inTask = new Set(D.enroll.map(e => e.student_code)), out = [], errs = [], seen = new Set();
       for (let r = hr + 1; r <= ws.rowCount; r++) {
         const row = ws.getRow(r), code = String(toNum(row.getCell(cCode).value)).replace(/\.0+$/, "");
         if (!code || !/^[0-9A-Za-z_-]+$/.test(code)) continue;
-        if (!inTask.has(code)) { errs.push(code + ": ليس في كشف هذا التكليف"); continue; }
+        if (!inTask.has(code)) { errs.push(code + ": ليس من طلبة المادة"); continue; }
         if (seen.has(code)) { errs.push(code + ": مكرر في الملف"); continue; } seen.add(code);
         const gv = toNum(row.getCell(cG).value), bv = cB ? toNum(row.getCell(cB).value) : "", fb = cF ? String(toNum(row.getCell(cF).value) || "").trim() : null;
         if (gv === "" && (bv === "" || bv === "0") && !fb) continue; // خانة فارغة: لا تغيير
@@ -1691,7 +1700,14 @@
 
   /* ---------- رصد الدرجات بالإملاء الصوتي ---------- */
   let vcSeq = 0;
-  const vcRoster = t => taskRows(t).map(e => ({ code: e.student_code, name: e.name }));
+  // كشف الإملاء: طلبة التكليف أولًا (ويُحسب «رقم N» عليهم)، ثم باقي طلبة المادة لالتقاط الاستثناءات
+  const vcRows = t => { const r = taskRows(t); return r.concat(D.enroll.filter(e => !r.includes(e)).slice().sort(byGroupName)); };
+  const vcRoster = t => vcRows(t).map(e => ({ code: e.student_code, name: e.name, out: isExtra(t, e) }));
+  const vcMatch = (g, roster) => {
+    const c = HV.match(g, roster); if (g.row != null || g.code) return c;
+    const out = new Set(roster.filter(r => r.out).map(r => r.code));
+    return c.map(x => out.has(x.code) ? { ...x, score: Math.round(x.score * .95 * 100) / 100, out: true } : x).sort((a, b) => b.score - a.score);
+  };
   function openVoice(t) {
     voice = { tid: t.id, entries: [], listening: false, started: false, interim: "", rec: null, msg: "", speak: store.get("cm_vc_speak") === "1", wake: null };
     $("#vcOv").hidden = false; document.body.classList.add("noscroll"); drawVoice();
@@ -1780,7 +1796,7 @@
     if (!got.length) { if (text.trim()) vcMsg("!لم أفهم «" + text.trim() + "». قل اسم الطالب ثم درجته، مثل: «محمد أحمد ١٧» أو «رقم ٥ … ١٨»."); return; }
     let added = 0, said = [];
     got.forEach(g => {
-      const cands = HV.match(g, roster), sure = HV.sure(cands);
+      const cands = vcMatch(g, roster), sure = HV.sure(cands);
       const code = cands[0] && (sure || cands[0].score >= .6) ? cands[0].code : "";
       const grade = gN(g.grade), bonus = g.bonus ? gN(g.bonus) : "", now = Date.now();
       // منع التكرار: الطالب نفسه بالدرجة نفسها خلال 15 ثانية لا يُضاف مرة أخرى، وبدرجة مختلفة خلال 6 ثوانٍ يُعدَّل بدل الإضافة
@@ -1826,16 +1842,16 @@
   }
   function drawVoiceList() {
     const el = $("#vcList"); if (!el || !voice) return;
-    const t = D.tasks.find(x => x.id === voice.tid), roster = taskRows(t), n = voice.entries.filter(e => vcValid(t, e)).length;
+    const t = D.tasks.find(x => x.id === voice.tid), roster = vcRows(t), nIn = taskRows(t).length, n = voice.entries.filter(e => vcValid(t, e)).length;
     const keepScroll2 = el.scrollTop;
     const seen = {}; voice.entries.slice().reverse().forEach(e => { if (e.code) seen[e.code] = (seen[e.code] || 0) + 1; });
     el.innerHTML = `<div class="row between"><h3>${voice.entries.length ? "راجع قبل الاعتماد" : "ستظهر هنا الدرجات التي تمليها"}</h3>${voice.entries.length ? `<button class="btn sm ghost" id="vcClear">مسح الكل</button>` : ""}</div>
       ${voice.entries.length ? `<p class="small muted">الأخضر: البرنامج متأكد من الطالب. الأصفر: راجِع الاختيار. يُعتمد آخر ما قلته إن تكرر الطالب.</p>
       <div class="vc-rows">${voice.entries.map(e => { const ok = vcValid(t, e), dup = e.code && seen[e.code] > 1;
-        const ids = [...new Set([...e.cands.map(c => c.code), ...roster.map(r => r.student_code)])];
+        const ids = [...new Set([...e.cands.map(c => c.code), ...roster.map(r => r.student_code)])], who = e.code && roster.find(r => r.student_code === e.code);
         return `<div class="vc-row ${!ok ? "bad" : e.sure ? "ok" : "warn"}${voice.flash === e.id ? " new" : ""}" data-vc="${e.id}">
-          <div class="vc-heard small muted">سمعت: «${esc(e.raw)}»${dup ? ` <b class="warn-t">· مكرر</b>` : ""}</div>
-          <select data-vk="code" aria-label="الطالب"><option value="">— اختر الطالب —</option>${ids.map((c, i) => { const r = roster.find(x => x.student_code === c); if (!r) return ""; const sc = e.cands.find(x => x.code === c); return `<option value="${esc(c)}" ${c === e.code ? "selected" : ""}>${roster.indexOf(r) + 1}. ${esc(r.name)} · ${esc(c)}${sc && i < e.cands.length ? ` (${Math.round(sc.score * 100)}%)` : ""}</option>`; }).join("")}</select>
+          <div class="vc-heard small muted">سمعت: «${esc(e.raw)}»${dup ? ` <b class="warn-t">· مكرر</b>` : ""}${who && isExtra(t, who) ? ` <b class="warn-t">· استثناء من ${who.grp ? "مجموعة " + esc(who.grp) : "خارج المجموعة"}</b>` : ""}</div>
+          <select data-vk="code" aria-label="الطالب"><option value="">— اختر الطالب —</option>${ids.map((c, i) => { const r = roster.find(x => x.student_code === c); if (!r) return ""; const sc = e.cands.find(x => x.code === c); return `<option value="${esc(c)}" ${c === e.code ? "selected" : ""}>${roster.indexOf(r) < nIn ? (roster.indexOf(r) + 1) + ". " : "استثناء: "}${esc(r.name)} · ${esc(c)}${isExtra(t, r) ? " · مجموعة " + esc(r.grp || "—") : ""}${sc && i < e.cands.length ? ` (${Math.round(sc.score * 100)}%)` : ""}</option>`; }).join("")}</select>
           <input type="text" data-vk="grade" class="gin ${badVal(e.grade, +t.max_grade) ? "bad" : ""}" value="${esc(e.grade)}" inputmode="decimal" aria-label="الدرجة">
           <input type="text" data-vk="bonus" class="gin bin ${badVal(e.bonus, +t.max_grade) ? "bad" : ""}" value="${esc(e.bonus)}" placeholder="بونص" inputmode="decimal" aria-label="بونص">
           <button class="btn xs ghost danger" data-vdel="${e.id}" aria-label="حذف">✕</button></div>`; }).join("")}</div>
@@ -1938,7 +1954,7 @@
       // ---- كشف الكنترول: مسلسل · كود الطالب · اسم الطالب · متوسط الدرجات ----
       const tgt = hasCw ? cw : 100;
       const avgOf = e => {
-        const mine = ts.filter(t => !t.grp || t.grp === e.grp); if (!mine.length) return null;
+        const mine = ts.filter(t => inTaskGrp(t, e) || hasWork(t, e.student_code)); if (!mine.length) return null;
         let got = 0, den = 0, any = false;
         mine.forEach(t => { den += Number(t.max_grade); const sb = subOf(t, e.student_code); if (sb && sb.grade != null) { any = true; got += totalOf(sb); } });
         return any && den ? Math.min(tgt, Math.round(got / den * tgt)) : null;
@@ -1978,7 +1994,7 @@
       const col = i => ws.getColumn(i).letter, first = 5, last = 4 + ts.length, sumC = last + 1;
       rows.forEach((e, i) => {
         const r = 7 + i, row = ws.getRow(r), ab = absences(e), w = CM.lvl(ab);
-        const vals = [i + 1, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", ...ts.map(t => { if (t.grp && t.grp !== e.grp) return "—"; const s = subOf(t, e.student_code); return s && s.grade != null ? totalOf(s) : null; })];
+        const vals = [i + 1, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", ...ts.map(t => { if (!inTaskGrp(t, e) && !hasWork(t, e.student_code)) return "—"; const s = subOf(t, e.student_code); return s && s.grade != null ? totalOf(s) : null; })];
         vals.forEach((v, j) => { row.getCell(j + 1).value = v; });
         row.getCell(sumC).value = ts.length ? { formula: `IF(COUNT(${col(first)}${r}:${col(last)}${r})=0,"",SUM(${col(first)}${r}:${col(last)}${r}))` } : null;
         let k = sumC + 1;
@@ -1986,7 +2002,7 @@
         if (hasCw && ex) { row.getCell(k).value = null; row.getCell(k + 1).value = { formula: `IF(OR(${col(k - 1)}${r}="",${col(k)}${r}=""),"",${col(k - 1)}${r}+${col(k)}${r})` }; k += 2; }
         row.getCell(k).value = ab; row.getCell(k + 1).value = CM.warnOf(ab).t;
         row.eachCell({ includeEmpty: true }, (cl, j) => { if (j > N) return; cl.border = box; cl.font = { name: "Arial", size: 10.5 }; cl.alignment = { horizontal: j === 3 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
-        ts.forEach((t, j) => { const s = subOf(t, e.student_code); if ((!t.grp || t.grp === e.grp) && !(s && s.submitted_at) && !(s && s.grade != null)) row.getCell(first + j).fill = fill("FFF7E0DD"); });
+        ts.forEach((t, j) => { const s = subOf(t, e.student_code); if ((inTaskGrp(t, e) || hasWork(t, e.student_code)) && !(s && s.submitted_at) && !(s && s.grade != null)) row.getCell(first + j).fill = fill("FFF7E0DD"); });
         [sumC, ...(hasCw ? [sumC + 1] : [])].forEach(j => { row.getCell(j).font = { name: "Arial", size: 10.5, bold: true }; });
         const stc = row.getCell(k + 1); stc.fill = fill(WARNX[w][0]); stc.font = { name: "Arial", size: 10, bold: true, color: { argb: WARNX[w][1] } };
       });
