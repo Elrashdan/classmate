@@ -1667,7 +1667,7 @@
   let vcSeq = 0;
   const vcRoster = t => taskRows(t).map(e => ({ code: e.student_code, name: e.name }));
   function openVoice(t) {
-    voice = { tid: t.id, entries: [], listening: false, interim: "", rec: null, msg: "", speak: store.get("cm_vc_speak") === "1", wake: null };
+    voice = { tid: t.id, entries: [], listening: false, started: false, interim: "", rec: null, msg: "", speak: store.get("cm_vc_speak") === "1", wake: null };
     $("#vcOv").hidden = false; document.body.classList.add("noscroll"); drawVoice();
   }
   function closeVoice(force) {
@@ -1686,7 +1686,7 @@
     };
     rec.onerror = ev => { if (!voice) return; if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { voice.listening = false; voice.msg = "!لم يُسمح باستخدام الميكروفون. اسمح للمتصفح باستخدامه من إعدادات الموقع ثم أعد المحاولة."; drawVoice(); } else if (ev.error === "network") { voice.msg = "!الإملاء الصوتي يحتاج إلى إنترنت."; drawVoice(); } };
     rec.onend = () => { if (voice && voice.listening) setTimeout(() => { try { voice && voice.listening && voice.rec.start(); } catch (e) {} }, 250); };
-    voice.rec = rec; voice.listening = true; voice.msg = "";
+    voice.rec = rec; voice.listening = true; voice.started = true; voice.msg = "";
     try { rec.start(); } catch (e) {}
     try { if (navigator.wakeLock) navigator.wakeLock.request("screen").then(w => { if (voice) voice.wake = w; }).catch(() => {}); } catch (e) {}
     drawVoice();
@@ -1696,6 +1696,12 @@
     try { voice.rec && voice.rec.stop(); } catch (e) {}
     if (voice.wake) { voice.wake.release().catch(() => {}); voice.wake = null; }
   }
+  document.addEventListener("keydown", ev => {
+    if (!voice || ev.code !== "Space" || ev.repeat) return;
+    const tg = ev.target; if (tg && (tg.tagName === "INPUT" || tg.tagName === "TEXTAREA" || tg.tagName === "SELECT" || tg.isContentEditable)) return;
+    ev.preventDefault(); if (voice.listening) { vcStop(); voice.msg = ""; drawVoice(); } else vcStart();
+  });
+  document.addEventListener("visibilitychange", () => { if (voice && voice.listening && document.visibilityState === "hidden") { vcStop(); voice.msg = "توقف الإملاء مؤقتًا لأنك غادرت الصفحة. اضغط «استكمال الإملاء» للمتابعة."; drawVoice(); } });
   function vcSay(text) { try { if (!voice || !voice.speak || !window.speechSynthesis) return; const u = new SpeechSynthesisUtterance(text); u.lang = "ar-EG"; u.rate = 1.1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
   function vcHear(text) {
     if (!voice) return;
@@ -1719,7 +1725,8 @@
         <button class="btn sm" id="vcClose">إغلاق</button></header>
       <div class="vc-b">
         <section class="vc-mic">
-          <button class="vc-btn ${voice.listening ? "on" : ""}" id="vcMic" aria-pressed="${voice.listening}" ${sup ? "" : "disabled"}>${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')}<span>${voice.listening ? "إيقاف الاستماع" : "ابدأ الإملاء"}</span></button>
+          <button class="vc-btn ${voice.listening ? "on" : voice.started ? "paused" : ""}" id="vcMic" aria-pressed="${voice.listening}" ${sup ? "" : "disabled"}>${voice.listening ? ICO('<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>') : ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')}<span>${voice.listening ? "إيقاف مؤقت" : voice.started ? "استكمال الإملاء" : "ابدأ الإملاء"}</span><small>${voice.listening ? "أو اضغط مسافة" : voice.started ? "متوقف مؤقتًا · اضغط مسافة للاستكمال" : ""}</small></button>
+          <div class="vc-state ${voice.listening ? "on" : voice.started ? "paused" : ""}"><i></i>${voice.listening ? "يستمع الآن" : voice.started ? "متوقف مؤقتًا، ولن يُسجَّل أي كلام" : "لم يبدأ الاستماع بعد"}${voice.entries.length ? " · " + voice.entries.length + " درجة في القائمة" : ""}</div>
           <div class="vc-int" id="vcInterim" aria-live="polite"></div>
           ${voice.msg ? `<div class="msg ${voice.msg.startsWith("!") ? "bad" : "ok"} small">${esc(voice.msg.replace(/^!/, ""))}</div>` : ""}
           <div class="vc-tips small">
@@ -1735,7 +1742,7 @@
       </div></div>`;
     $("#vcClose").onclick = () => closeVoice();
     $("#vcSpeak").onchange = e => { voice.speak = e.target.checked; store.set("cm_vc_speak", voice.speak ? "1" : "0"); };
-    $("#vcMic").onclick = () => { if (voice.listening) { vcStop(); drawVoice(); } else vcStart(); };
+    $("#vcMic").onclick = () => { if (voice.listening) { vcStop(); voice.msg = ""; drawVoice(); } else vcStart(); };
     const ty = $("#vcType"); ty.onkeydown = e => { if (e.key === "Enter" && ty.value.trim()) { vcHear(ty.value); ty.value = ""; } };
     paintInterim(); drawVoiceList();
   }
