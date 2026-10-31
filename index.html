@@ -32,6 +32,8 @@
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script src="drive.js"></script>
+<script src="catalog.js"></script>
+<script src="regform.js"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -61,6 +63,7 @@
   const inAppWarn = () => inApp ? `<div class="msg warn">أنت تفتح الموقع من داخل ${esc(inApp)}. افتحه من متصفح الهاتف نفسه (${/iPhone|iPad/.test(UA) ? "Safari" : "Chrome"}): اضغط النقاط الثلاث ثم «فتح في المتصفح»، وادخل دائمًا من المتصفح نفسه؛ لأن الحساب يرتبط بالمتصفح الذي أنشأته منه.</div>` : "";
 
   let token = store.get("cm_token");
+  let rf = null;   // التسجيل باستمارة التسجيل: {mode: "reg"|"sync", stage, data, items, pct, note, result}
   let move = null; // {code, pass, info} عند ظهور «مرتبط بهاتف آخر»
   let home = null, authTab = "login", authMsg = "", busy = false, results = {}, drafts = {}, pwOpen = false, pwMsg = "";
 
@@ -69,6 +72,100 @@
   }
 
   /* ---------------- sign in / first time ---------------- */
+  /* ---------------- التسجيل باستمارة التسجيل (ابن الهيثم) ---------------- */
+  const LVN = ["", "الأول", "الثاني", "الثالث", "الرابع", "الخامس"];
+  const RFST = { added: ["ok", "أُضفت إليها"], created: ["ok", "أُضفت إليها (مادة جديدة على التطبيق، وسيعيّن المسؤول فريقها)"], already: ["", "مسجَّل فيها من قبل"],
+    blocked: ["bad", "أزالك المحاضر من هذه المادة من قبل، فراجِعه"], unknown: ["bad", "لم تُعرف في لائحة القسم، فاطلب من المحاضر إضافتك"] };
+  function openForm(mode) { rf = { mode, stage: "pick", pct: 0, note: "", msg: "" }; renderForm(); }
+  function closeForm() { const m = rf && rf.mode; rf = null; if (m === "sync" || token) loadHome(); else renderAuth(); }
+  async function readForm(file) {
+    rf.stage = "reading"; rf.pct = 0; rf.msg = ""; renderForm();
+    try {
+      const text = await HR.read(file, (p, t) => { if (!rf) return; rf.pct = p; rf.note = t; const b = $("#rfBar"), n = $("#rfNote"); if (b) b.style.width = Math.round(p * 100) + "%"; if (n) n.textContent = t; });
+      if (!rf) return;
+      const d = HR.parse(text);
+      if (!d.code && !d.items.length) { rf.stage = "pick"; rf.msg = "لم أستطع قراءة الاستمارة. ارفع ملف PDF الذي نزّلته من نظام ابن الهيثم، أو صورة واضحة للاستمارة كاملة."; return renderForm(); }
+      if (rf.mode === "sync" && home && home.code) d.code = d.code || home.code;
+      rf.data = d; rf.items = HR.match(d.items, d.level).map(x => ({ ...x, on: x.bid != null })); rf.stage = "review"; renderForm();
+    } catch (e) { if (!rf) return; rf.stage = "pick"; rf.msg = /load_failed/.test(e.message || "") ? "تعذّر تحميل أداة القراءة. تأكّد من اتصالك بالإنترنت وحاول مرة أخرى." : "تعذّرت قراءة الملف. جرّب ملف PDF أو صورة أوضح."; renderForm(); }
+  }
+  function renderForm() {
+    const d = rf.data || {}, reg = rf.mode === "reg";
+    let body = "";
+    if (rf.stage === "pick") body = `
+      <p>نزّل «استمارة التسجيل» من نظام ابن الهيثم لشئون الطلاب (ملف PDF أو صورة لها)، ثم اخترها هنا. يقرأ التطبيق منها كودك واسمك ومستواك والمقررات المسجلة، ويضيفك إلى موادها.</p>
+      <p class="small muted">تُقرأ الاستمارة على هاتفك فقط ولا تُرفع إلى أي مكان. ويظهر للمحاضر أنك سجّلت بالاستمارة ليراجعها.</p>
+      ${rf.msg ? `<div class="msg bad">${esc(rf.msg)}</div>` : ""}
+      <label class="btn primary block rf-pick">اختر الاستمارة (PDF أو صورة)<input type="file" id="rfFile" accept="application/pdf,.pdf,image/*" hidden></label>`;
+    else if (rf.stage === "reading") body = `<p>جارٍ قراءة الاستمارة… قد يستغرق ذلك دقيقة في أول مرة.</p>
+      <div class="qbar"><i id="rfBar" style="width:${Math.round(rf.pct * 100)}%"></i></div><p class="small muted" id="rfNote">${esc(rf.note || "")}</p>`;
+    else if (rf.stage === "review") {
+      const n = rf.items.filter(x => x.on).length;
+      body = `<p class="small muted">راجِع البيانات وصحّح أي خطأ في القراءة. يجب أن تطابق استمارتك.</p>
+        <div class="settings">
+          <label class="f"><span>كود الطالب</span><input type="text" id="rfCode" inputmode="numeric" class="mono" style="text-align:start" value="${esc(d.code || "")}" ${!reg ? "readonly" : ""}></label>
+          <label class="f"><span>المستوى</span><select id="rfLevel">${[1, 2, 3, 4, 5].map(l => `<option value="${l}" ${d.level === l ? "selected" : ""}>${LVN[l]}</option>`).join("")}</select></label>
+          <label class="f" style="grid-column:1/-1"><span>الاسم كما في الاستمارة</span><input type="text" id="rfName" value="${esc(d.name || "")}"></label>
+        </div>
+        <h3 style="margin-top:6px">المقررات (${n})</h3>
+        <div class="rf-list">${rf.items.map((x, i) => `<label class="rf-it ${x.bid == null ? "off" : ""}"><input type="checkbox" data-rfi="${i}" ${x.on ? "checked" : ""} ${x.bid == null ? "disabled" : ""}>
+          <span><b>${esc(x.cat ? x.cat.n.replace(/\*$/, "") : x.name)}</b><small class="muted mono">${esc((x.prefix ? x.prefix + " " : "") + x.code)}</small>${x.bid == null ? `<small class="bad-t">ليس في لائحة القسم؛ اطلب من المحاضر إضافتك</small>` : ""}</span></label>`).join("")}</div>
+        ${reg ? `<label class="f"><span>كلمة سر لحسابك (6 أحرف على الأقل)</span><input type="password" id="rfPass" autocomplete="new-password"></label>
+          <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="rfPass2" autocomplete="new-password"></label>
+          <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا)</span><input type="text" id="rfPin" inputmode="numeric" class="mono" style="text-align:start"></label>
+          <p class="small muted">سيرتبط الحساب بهذا الهاتف وهذا المتصفح.</p>` : ""}
+        ${rf.msg ? `<div class="msg bad">${esc(rf.msg)}</div>` : ""}
+        <button class="btn primary block" id="rfGo" ${busy || !n ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : reg ? "إنشاء الحساب والتسجيل في المواد" : "إضافتي إلى هذه المواد"}</button>
+        <button class="btn block" id="rfAgain">اختيار ملف آخر</button>`;
+    } else if (rf.stage === "done") {
+      const r = rf.result || {}, its = r.items || [];
+      body = `<div class="msg ${its.some(x => x.status === "added" || x.status === "created") ? "ok" : "warn"}">${its.filter(x => x.status === "added" || x.status === "created").length ? "تمت إضافتك إلى موادك." : "لم تُضف إلى مواد جديدة."}</div>
+        <div class="rf-list">${its.map(x => { const st = RFST[x.status] || ["", x.status]; return `<div class="rf-it"><span><b>${esc(x.name || "")}</b><small class="muted mono">${esc(x.code || "")}</small><small class="${st[0] === "bad" ? "bad-t" : st[0] === "ok" ? "ok-t" : "muted"}">${esc(st[1])}</small></span></div>`; }).join("")}</div>
+        <button class="btn primary block" id="rfDone">متابعة</button>`;
+    }
+    app.innerHTML = header() + `<section class="panel col"><h2>${rf.mode === "reg" ? "التسجيل باستمارة التسجيل" : "إضافة موادي من استمارة التسجيل"}</h2>${body}
+      ${rf.stage !== "done" && rf.stage !== "reading" ? `<button class="btn ghost block" id="rfBack">رجوع</button>` : ""}</section>`;
+    const fi = $("#rfFile"); if (fi) fi.onchange = () => { const f = fi.files && fi.files[0]; if (f) readForm(f); };
+    const bk = $("#rfBack"); if (bk) bk.onclick = closeForm;
+    const ag = $("#rfAgain"); if (ag) ag.onclick = () => { rf.stage = "pick"; rf.msg = ""; renderForm(); };
+    const dn = $("#rfDone"); if (dn) dn.onclick = () => { rf = null; loadHome(); };
+    app.querySelectorAll("[data-rfi]").forEach(c => c.onchange = () => { rf.items[+c.dataset.rfi].on = c.checked; const keep = { code: $("#rfCode").value, name: $("#rfName").value, level: +$("#rfLevel").value }; Object.assign(rf.data, keep); renderForm(); });
+    const go = $("#rfGo"); if (go) go.onclick = submitForm;
+  }
+  async function submitForm() {
+    if (busy) return;
+    const code = $("#rfCode").value.replace(/\D/g, ""), name = $("#rfName").value.trim(), level = +$("#rfLevel").value;
+    Object.assign(rf.data, { code, name, level });
+    const items = rf.items.filter(x => x.on).map(x => ({ code: x.code, prefix: x.prefix, name: x.name, bid: x.bid }));
+    rf.msg = "";
+    if (!/^\d{6,12}$/.test(code)) { rf.msg = "اكتب كود الطالب كما في الاستمارة."; return renderForm(); }
+    if (name.length < 3) { rf.msg = "اكتب اسمك كما في الاستمارة."; return renderForm(); }
+    let pass = "", pin = "";
+    if (rf.mode === "reg") {
+      pass = $("#rfPass").value; pin = $("#rfPin").value.trim();
+      if (pass.length < 6) { rf.msg = "يجب ألا تقل كلمة السر عن 6 أحرف."; return renderForm(); }
+      if (pass !== $("#rfPass2").value) { rf.msg = "كلمتا السر غير متطابقتين."; return renderForm(); }
+      if (!device) { rf.msg = "هذا المتصفح لا يحفظ البيانات. افتح الموقع في متصفح عادي."; return renderForm(); }
+    }
+    busy = true; renderForm();
+    try {
+      if (rf.mode === "reg") {
+        const r = await rpc("student_form_register", { p_code: code, p_name: name, p_level: level, p_items: items, p_password: pass, p_pin: pin, p_device: device, p_label: devLabel });
+        token = r.token; store.set("cm_token", token); store.set("cm_last_code", code);
+        rf.result = r.enroll;
+      } else rf.result = await rpc("student_form_sync", { p_token: token, p_code: code, p_name: name, p_level: level, p_items: items });
+      busy = false; rf.stage = "done"; renderForm();
+    } catch (e) {
+      busy = false;
+      const m = String(e.message || "");
+      rf.msg = m.includes("already_registered") ? "لك حساب بالفعل بهذا الكود. ادخل بكودك وكلمة السر، ثم استخدم «إضافة موادي من الاستمارة» من صفحتك."
+        : m.includes("no_course_matched") ? "لم نتعرّف على أي مقرر من مقررات الاستمارة في لائحة القسم. تواصل مع المحاضر."
+        : m.includes("code_mismatch") ? "الكود في الاستمارة لا يطابق كود حسابك."
+        : m.includes("too_many_tries") ? "حاولت مرات كثيرة اليوم. حاول غدًا أو تواصل مع المحاضر." : errText(e);
+      renderForm();
+    }
+  }
+
   function renderMove() {
     const i = move.info || {}, when = d => d ? CM.fmtD(d) : "";
     const can = !i.next_at;
@@ -93,6 +190,7 @@
   }
 
   function renderAuth() {
+    if (rf) return renderForm();
     if (move) return renderMove();
     app.innerHTML = header() + `
       <section class="panel">
@@ -109,6 +207,7 @@
           <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="pass2" autocomplete="new-password"></label>
           <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا، مثل آخر 4 أرقام من الرقم القومي)</span><input type="text" id="pin" inputmode="numeric" class="mono" style="text-align:start"></label>
         `}
+        ${authTab === "reg" ? `<div class="msg"><b>اسمك غير موجود في كشوف المحاضرين؟</b> سجّل باستمارة التسجيل التي نزّلتها من نظام ابن الهيثم، فتُضاف تلقائيًّا إلى موادك.<div style="margin-top:8px"><button class="btn sm" id="rfOpen">التسجيل باستمارة التسجيل</button></div></div>` : ""}
         ${sstore.get("cm_pending_qr") ? `<div class="msg">سجّل الدخول أولًا، وبعدها يُسجَّل حضورك بالرمز الذي مسحته. وإن انتهت صلاحيته فامسحه من الشاشة مرة أخرى.</div>` : ""}
         ${inAppWarn()}
         ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
@@ -119,6 +218,7 @@
     $("#tLogin").onclick = () => { authTab = "login"; authMsg = ""; renderAuth(); };
     $("#tReg").onclick = () => { authTab = "reg"; authMsg = ""; renderAuth(); };
     $("#go").onclick = submitAuth;
+    const ro = $("#rfOpen"); if (ro) ro.onclick = () => openForm("reg");
     app.querySelectorAll("input").forEach(i => i.onkeydown = e => { if (e.key === "Enter") submitAuth(); });
   }
 
@@ -287,6 +387,7 @@
   }
 
   function renderHome() {
+    if (rf) return renderForm();
     const active = document.activeElement && document.activeElement.id;
     app.innerHTML = header(`<div class="row"><button class="btn sm ghost" id="pwBtn">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button></div>`) + `
       <section class="col">
@@ -305,9 +406,11 @@
             ${c.absences ? `<p class="small muted">غبت ${CM.times(c.absences)}${missedTxt(c)}. ${afterTxt(c.absences)}</p>` : ""}
             ${sessionBlock(c)}
             ${tasksBlock(c)}
-          </article>`).join("") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. تواصل مع المحاضر.</div>`}
+          </article>`).join("") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. أضف موادك من استمارة التسجيل بالزر بالأسفل، أو تواصل مع المحاضر.</div>`}
+        <div class="rf-cta"><div><b>سجّلت مواد جديدة؟</b><span class="small muted">ارفع استمارة التسجيل من نظام ابن الهيثم، فتُضاف إلى موادك هنا.</span></div><button class="btn" id="rfSync">إضافة موادي من الاستمارة</button></div>
       </section>`;
     $("#out").onclick = signOut;
+    $("#rfSync").onclick = () => openForm("sync");
     $("#pwBtn").onclick = () => { pwOpen = !pwOpen; pwMsg = ""; renderHome(); };
     const ps = $("#pwSave"); if (ps) ps.onclick = async () => {
       try { await rpc("student_change_password", { p_token: token, p_old: $("#pwOld").value, p_new: $("#pwNew").value }); pwMsg = "تم تغيير كلمة السر."; }
