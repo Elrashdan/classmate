@@ -318,7 +318,7 @@
     let attempts = [];
     if (focus) { const r = await sb.from("attempts").select("*").eq("session_id", focus.id).order("at", { ascending: false }).limit(300); if (r.error) throw r.error; attempts = r.data; }
     let bindings = {};
-    try { (await rpc("course_bindings", { cid: c.id })).forEach(b => bindings[b.student_code] = b); } catch (e) {}
+    try { (await rpc("course_bindings2", { cid: c.id }).catch(() => rpc("course_bindings", { cid: c.id }))).forEach(b => bindings[b.student_code] = b); } catch (e) {}
     const notices = {};
     try { const nr = await sb.from("warning_notices").select("student_code,level,seen_at").eq("course_id", c.id); if (!nr.error) nr.data.forEach(n => { (notices[n.student_code] = notices[n.student_code] || {})[n.level] = n.seen_at; }); } catch (e) {}
     const tk = await sb.from("tasks").select("*").eq("course_id", c.id).order("due_at");
@@ -2101,7 +2101,7 @@
     tb.innerHTML = `<thead><tr>${head("code")}${head("name")}${ms ? head("now") : ""}${head("grp")}${head("acc")}${mng ? "<th></th>" : ""}</tr></thead><tbody>
       ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td>${esc(e.name)}</td>${ms ? `<td style="white-space:nowrap">${nowCell(e)}</td>` : ""}
         <td>${mng ? `<select data-grp="${esc(e.student_code)}" style="width:auto;padding:3px 6px">${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${esc(g) || "—"}</option>`).join("")}</select>` : esc(e.grp || "—")}</td>
-        <td>${b.device_bound ? `<span class="chip ok">مرتبط بهاتف</span>` : b.registered ? `<span class="chip warn">بانتظار ربط هاتف</span>` : `<span class="chip none">لم ينشئ حسابًا</span>`}</td>
+        <td>${b.device_bound ? `<span class="chip ok"${b.device_label ? ` title="${esc(b.device_label)}"` : ""}>مرتبط بهاتف</span>${b.moved_at && Date.now() - new Date(b.moved_at) < 30 * 864e5 ? `<div class="small muted">نقل حسابه بنفسه ${esc(CM.fmtD(b.moved_at))}</div>` : ""}` : b.registered ? `<span class="chip warn">بانتظار ربط هاتف</span>` : `<span class="chip none">لم ينشئ حسابًا</span>`}</td>
         ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الهاتف"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "حذف الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "إزالة من المادة"}</button></div></td>` : ""}</tr>
         ${ms && rosterMan === e.student_code ? `<tr class="manrow"><td colspan="${ncol}">${manBoxHtml([e.student_code], "rsm")}<span class="small muted">اضغط أحد الأسباب ليُسجَّل الحضور مباشرة، أو اكتب سببًا واضغط «تسجيله حاضرًا».</span></td></tr>` : ""}`; }).join("")
         : `<tr><td colspan="${ncol}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}

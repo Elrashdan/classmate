@@ -39,11 +39,29 @@
   if (!CM.configured) { app.innerHTML = CM.setupNotice(); return; }
 
   // device id: generated once on this phone and kept in the browser
-  let device = store.get("cm_device");
-  if (!device) { device = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)); store.set("cm_device", device); }
-  if (store.get("cm_device") !== device) device = ""; // storage blocked (private mode)
+  // نحفظه في التخزين المحلي وفي ملف تعريف (cookie) معًا، فلو مُسح أحدهما نسترجعه من الآخر
+  const ck = { get: k => { const m = document.cookie.match(new RegExp("(?:^|; )" + k + "=([^;]*)")); return m ? decodeURIComponent(m[1]) : null; },
+    set: (k, v) => { try { document.cookie = k + "=" + encodeURIComponent(v) + "; max-age=34560000; path=/; SameSite=Lax; Secure"; } catch (e) {} } };
+  let device = store.get("cm_device") || ck.get("cm_device");
+  if (!device) device = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+  store.set("cm_device", device); ck.set("cm_device", device);
+  if (store.get("cm_device") !== device && ck.get("cm_device") !== device) device = ""; // storage blocked (private mode)
+
+  // اسم المتصفح والهاتف، ليعرف الطالب من أين يدخل لو ظهر له أن الحساب مرتبط بهاتف آخر
+  const UA = navigator.userAgent || "";
+  const inApp = /FBAN|FBAV|FB_IAB|Messenger|Instagram|WhatsApp|Snapchat|TikTok|musical_ly|Line\/|Telegram|; wv\)/i.test(UA)
+    ? (/Messenger/i.test(UA) ? "ماسنجر" : /FBAN|FBAV|FB_IAB/i.test(UA) ? "فيسبوك" : /Instagram/i.test(UA) ? "إنستجرام" : /WhatsApp/i.test(UA) ? "واتساب" : /Telegram/i.test(UA) ? "تيليجرام" : /TikTok|musical_ly/i.test(UA) ? "تيك توك" : "تطبيق آخر") : "";
+  const standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+  const devLabel = (() => {
+    const os = /iPhone/.test(UA) ? "iPhone" : /iPad/.test(UA) ? "iPad" : /Android/.test(UA) ? "Android" : /Windows/.test(UA) ? "Windows" : /Mac OS X/.test(UA) ? "Mac" : "";
+    const br = inApp ? "داخل " + inApp : standalone ? "أيقونة الشاشة الرئيسية" : /SamsungBrowser/.test(UA) ? "Samsung Internet" : /EdgA?\//.test(UA) ? "Edge"
+      : /OPR\/|Opera/.test(UA) ? "Opera" : /Firefox|FxiOS/.test(UA) ? "Firefox" : /CriOS/.test(UA) ? "Chrome" : /Chrome\//.test(UA) ? "Chrome" : /Safari/.test(UA) ? "Safari" : "متصفح";
+    return os ? br + " · " + os : br;
+  })();
+  const inAppWarn = () => inApp ? `<div class="msg warn">أنت تفتح الموقع من داخل ${esc(inApp)}. افتحه من متصفح الهاتف نفسه (${/iPhone|iPad/.test(UA) ? "Safari" : "Chrome"}): اضغط النقاط الثلاث ثم «فتح في المتصفح»، وادخل دائمًا من المتصفح نفسه؛ لأن الحساب يرتبط بالمتصفح الذي أنشأته منه.</div>` : "";
 
   let token = store.get("cm_token");
+  let move = null; // {code, pass, info} عند ظهور «مرتبط بهاتف آخر»
   let home = null, authTab = "login", authMsg = "", busy = false, results = {}, drafts = {}, pwOpen = false, pwMsg = "";
 
   function header(extra) {
@@ -51,7 +69,31 @@
   }
 
   /* ---------------- sign in / first time ---------------- */
+  function renderMove() {
+    const i = move.info || {}, when = d => d ? CM.fmtD(d) : "";
+    const can = !i.next_at;
+    app.innerHTML = header() + `<section class="panel col">
+      <h2>الحساب مرتبط بمتصفح آخر</h2>
+      <p>حسابك مرتبط الآن بـ <b>${esc(i.label || "هاتف آخر")}</b>${i.bound_at ? ` منذ ${esc(when(i.bound_at))}` : ""}، وأنت تفتح الآن من <b>${esc(devLabel)}</b>.</p>
+      ${inAppWarn()}
+      <div class="msg"><b>إذا كان هذا هاتفك نفسه:</b> فغالبًا فتحت الموقع من متصفح مختلف (مثل فتحه من رابط في واتساب أو من كاميرا الهاتف). ارجع وافتحه من ${esc(i.label || "المتصفح الذي أنشأت منه الحساب")} وسيعمل مباشرة.</div>
+      <div class="msg"><b>إذا غيّرت هاتفك أو مسحت بيانات المتصفح:</b> انقل حسابك إلى هنا بنفسك. سيتوقف الحساب على المتصفح القديم، ويظهر النقل للمحاضر، ويحتاج حضورك خلال 12 ساعة بعد النقل إلى موافقته. يمكنك النقل مرة كل 3 أيام.</div>
+      ${can ? "" : `<div class="msg warn">نقلت حسابك مؤخرًا، ويمكنك نقله مرة أخرى يوم ${esc(when(i.next_at))}. وإن احتجت قبل ذلك فاطلب من المحاضر فك ربط الهاتف.</div>`}
+      ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
+      ${can ? `<button class="btn primary block" id="mvGo" ${busy ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : "انقل حسابي إلى هذا المتصفح"}</button>` : ""}
+      <button class="btn block" id="mvBack">رجوع</button></section>`;
+    $("#mvBack").onclick = () => { move = null; authMsg = ""; renderAuth(); };
+    if ($("#mvGo")) $("#mvGo").onclick = async () => {
+      if (busy) return; busy = true; authMsg = ""; renderMove();
+      try {
+        const r = await rpc("student_move_device", { p_code: move.code, p_password: move.pass, p_device: device, p_label: devLabel, p_confirm: true });
+        token = r.token; store.set("cm_token", token); store.set("cm_last_code", move.code); move = null; busy = false; await loadHome();
+      } catch (e) { busy = false; authMsg = errText(e); renderMove(); }
+    };
+  }
+
   function renderAuth() {
+    if (move) return renderMove();
     app.innerHTML = header() + `
       <section class="panel">
         <div class="tabs" role="group"><button id="tLogin" aria-pressed="${authTab === "login"}">دخول</button><button id="tReg" aria-pressed="${authTab === "reg"}">إنشاء حساب</button></div>
@@ -68,11 +110,12 @@
           <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا، مثل آخر 4 أرقام من الرقم القومي)</span><input type="text" id="pin" inputmode="numeric" class="mono" style="text-align:start"></label>
         `}
         ${sstore.get("cm_pending_qr") ? `<div class="msg">سجّل الدخول أولًا، وبعدها يُسجَّل حضورك بالرمز الذي مسحته. وإن انتهت صلاحيته فامسحه من الشاشة مرة أخرى.</div>` : ""}
+        ${inAppWarn()}
         ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
         ${!device ? `<div class="msg warn">هذا المتصفح لا يحفظ البيانات (غالبًا بسبب وضع التصفح الخفي). افتح الموقع في متصفح عادي.</div>` : ""}
         <button class="btn primary block" id="go" ${busy || !device ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : authTab === "login" ? "دخول" : "إنشاء الحساب"}</button>
       </section>
-      <p class="muted small" style="margin-top:14px;text-align:center">نسيت كلمة السر أو غيّرت هاتفك؟ اطلب من المحاضر فك ربط الجهاز أو حذف حسابك لتنشئه من جديد.</p>`;
+      <p class="muted small" style="margin-top:14px;text-align:center">غيّرت هاتفك؟ ادخل بكودك وكلمة السر، وسيظهر لك زر لنقل الحساب. نسيت كلمة السر؟ اطلب من المحاضر حذف حسابك لتنشئه من جديد.</p>`;
     $("#tLogin").onclick = () => { authTab = "login"; authMsg = ""; renderAuth(); };
     $("#tReg").onclick = () => { authTab = "reg"; authMsg = ""; renderAuth(); };
     $("#go").onclick = submitAuth;
@@ -92,11 +135,20 @@
     busy = true; renderAuth();
     try {
       const r = authTab === "login"
-        ? await rpc("student_login", { p_code: code, p_password: pass, p_device: device })
-        : await rpc("student_register", { p_code: code, p_password: pass, p_pin: pin, p_device: device });
+        ? await rpc("student_login", { p_code: code, p_password: pass, p_device: device, p_label: devLabel })
+        : await rpc("student_register", { p_code: code, p_password: pass, p_pin: pin, p_device: device, p_label: devLabel });
       token = r.token; store.set("cm_token", token); store.set("cm_last_code", code);
       busy = false; await loadHome();
-    } catch (e) { busy = false; authMsg = errText(e); renderAuth(); }
+    } catch (e) {
+      if (authTab === "login" && String(e.message || "").includes("device_mismatch")) {
+        // كلمة السر صحيحة لكن الحساب على متصفح آخر: نعرض للطالب أين، ونتيح له النقل
+        try { const info = await rpc("student_move_device", { p_code: code, p_password: pass, p_device: device, p_label: devLabel, p_confirm: false });
+          if (info.token) { token = info.token; store.set("cm_token", token); busy = false; return loadHome(); }
+          move = { code, pass, info }; busy = false; authMsg = ""; return renderMove();
+        } catch (e2) { busy = false; authMsg = errText(e2); return renderAuth(); }
+      }
+      busy = false; authMsg = errText(e); renderAuth();
+    }
   }
 
   /* ---------------- home ---------------- */
@@ -519,7 +571,8 @@
         return { k: "ok", title: r.makeup ? "تم تسجيل حضورك التعويضي" : "تم تسجيل حضورك", checks: ch };
       case "already": return { k: "ok", title: "سُجِّل حضورك من قبل", checks: [] };
       case "pending":
-        if (r.reason === "no_location") ch.push(["q", pos.error === "denied" ? "رفضتَ إذن الموقع. فعّله للمتصفح من إعدادات الهاتف في المرة القادمة" : "تعذّر على الهاتف تحديد موقعك"]);
+        if (r.reason === "new_device") ch.push(["q", "نقلت حسابك إلى هذا الهاتف اليوم، لذا يحتاج حضورك إلى موافقة المحاضر هذه المرة فقط"]);
+        else if (r.reason === "no_location") ch.push(["q", pos.error === "denied" ? "رفضتَ إذن الموقع. فعّله للمتصفح من إعدادات الهاتف في المرة القادمة" : "تعذّر على الهاتف تحديد موقعك"]);
         else ch.push(["q", "دقة الموقع " + r.acc + " م، وهي أضعف من المسموح به. جرّب بالقرب من نافذة في المرة القادمة"]);
         ch.push(["q", "لتسجيل حضورك فورًا، اعرض «بطاقة الحضور» على المحاضر أو المعيد ليمسحها"]);
         return { k: "warn", title: "الرمز صحيح، وأُرسل طلبك إلى المحاضر للموافقة", checks: ch };
