@@ -1311,6 +1311,20 @@
   const isExtra = (t, e) => !inTaskGrp(t, e);
   const taskRows = t => D.enroll.filter(e => inTaskGrp(t, e) || hasWork(t, e.student_code) || (tkExtra[t.id] && tkExtra[t.id].has(e.student_code)))
     .slice().sort((a, b) => (isExtra(t, a) - isExtra(t, b)) || byGroupName(a, b));
+  // يوم الاستلام: لو للطالب محاضرة (لمجموعته) في يوم تسليم التكليف وكان غائبًا فيها ولم يحضر تعويضيًّا في اليوم نفسه، فغالبًا سلّم متأخرًا
+  const dayKey = d => { const x = new Date(d); return x.getFullYear() + "-" + (x.getMonth() + 1) + "-" + x.getDate(); };
+  // الرصد اليدوي القديم مخزَّن بتاريخ إنشائه؛ يوم الاستلام المختار من التقويم يُحفظ الساعة 23:59 تمامًا
+  const hasDueDay = t => { if (!t.due_at) return false; if (!isManual(t)) return true; const x = new Date(t.due_at); return x.getHours() === 23 && x.getMinutes() === 59 && x.getSeconds() === 0; };
+  const absentOnDue = (t, e) => {
+    if (!hasDueDay(t)) return false;
+    const k = dayKey(t.due_at), day = D.sessions.filter(s => dayKey(s.started_at) === k);
+    const own = day.filter(s => isOwn(s, e) && regDone(s));
+    if (!own.length) return false;
+    return !day.some(s => counted((D.att[s.id] || {})[e.student_code]));
+  };
+  const dueSessions = (t, e) => hasDueDay(t) ? D.sessions.filter(s => dayKey(s.started_at) === dayKey(t.due_at) && (!e || isOwn(s, e))) : [];
+  const absChip = (t, e) => absentOnDue(t, e) ? ` <span class="chip bad small" title="كان غائبًا في محاضرة يوم التسليم، فغالبًا سلّم متأخرًا. راجِع عذره قبل رصد الدرجة.">غائب يوم التسليم</span>` : "";
+  const dayStr = d => new Date(d).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
   const extraChip = (t, e) => isExtra(t, e) ? ` <span class="chip warn small" title="ليس من مجموعة هذا التكليف، ويظهر هنا استثناءً">استثناء · ${e.grp ? "مجموعة " + esc(e.grp) : "دون مجموعة"}</span>` : "";
   const totalOf = s => s && s.grade != null ? Number(s.grade) + Number(s.bonus || 0) : null;
   const isManual = t => t.mode === "manual";
@@ -1340,7 +1354,8 @@
         <label class="f" style="grid-column:1/-1"><span>${man ? "اسم الرصد" : "العنوان"}</span><input type="text" id="tfTitle" maxlength="200" value="${esc(t ? t.title : "")}" placeholder="${man ? "مثلًا: اسكتشات المرسم · الأسبوع الثالث" : "مثلًا: المشروع الأول · تصميم فراغ داخلي"}"></label>
         ${man ? "" : `<label class="f" style="grid-column:1/-1"><span>المطلوب (يظهر للطالب)</span><textarea id="tfDet" maxlength="4000" placeholder="المقاس، والخامة، وعدد اللوحات، وطريقة الإخراج…">${esc(t ? t.details : "")}</textarea></label>`}
         <label class="f"><span>الدرجة العظمى</span><input type="number" id="tfMax" min="0.5" max="1000" step="0.5" value="${t ? gN(t.max_grade) : 10}"></label>
-        ${man ? "" : `<label class="f"><span>موعد التسليم</span><input type="datetime-local" id="tfDue" value="${due}"></label>
+        ${man ? `<label class="f"><span>يوم الاستلام (اختياري)</span><input type="date" id="tfDay" value="${t && hasDueDay(t) ? localDT(t.due_at).slice(0, 10) : ""}"></label>
+        <p class="small muted" style="grid-column:1/-1;margin:0">اختر من التقويم يوم استلام المشاريع. عند الرصد يُنبّهك البرنامج على كل طالب كان غائبًا في محاضرة ذلك اليوم، لأنه غالبًا سلّم متأخرًا.</p>` : `<label class="f"><span>موعد التسليم</span><input type="datetime-local" id="tfDue" value="${due}"></label>
         <label class="f"><span>بعد الموعد</span><select id="tfLate"><option value="accept" ${!t || t.late === "accept" ? "selected" : ""}>يُقبل التسليم ويُعلَّم «متأخر»</option><option value="close" ${t && t.late === "close" ? "selected" : ""}>يُغلق التسليم</option></select></label>`}
         ${gs.length ? `<label class="f"><span>لمن</span><select id="tfGrp"><option value="">الدفعة كاملة</option>${gs.map(g => `<option value="${esc(g)}" ${t && t.grp === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}
       </div>
@@ -1353,11 +1368,11 @@
     $("#tfCancel").onclick = () => { tkForm = null; renderTasks(); };
     sv.onclick = async () => {
       const man = t ? isManual(t) : tkMode === "manual";
-      const title = $("#tfTitle").value.trim(), max = +$("#tfMax").value, dueV = man ? "" : $("#tfDue").value;
+      const title = $("#tfTitle").value.trim(), max = +$("#tfMax").value, dueV = man ? "" : $("#tfDue").value, dayV = man && $("#tfDay") ? $("#tfDay").value : "";
       if (!title) return showErr({ message: "title_required" });
       if (!(max > 0)) return showErr({ message: "bad_grade" });
       if (!man && !dueV) return showErr({ message: "due_required" });
-      const args = { p_title: title, p_details: man ? "" : $("#tfDet").value, p_max: max, p_due: man ? (t ? t.due_at : null) : new Date(dueV).toISOString(), p_late: man ? "accept" : $("#tfLate").value, p_grp: ($("#tfGrp") || {}).value || null };
+      const args = { p_title: title, p_details: man ? "" : $("#tfDet").value, p_max: max, p_due: man ? (dayV ? new Date(dayV + "T23:59").toISOString() : (t ? t.due_at : null)) : new Date(dueV).toISOString(), p_late: man ? "accept" : $("#tfLate").value, p_grp: ($("#tfGrp") || {}).value || null };
       sv.disabled = true;
       try {
         if (t) { await rpc("update_task", { tid: t.id, ...args }); say("tasks", "حُفظ التعديل."); }
@@ -1379,7 +1394,7 @@
       ${D.tasks.length ? `<div class="tk-grid">${D.tasks.map(x => { const st = taskStats(x), past = new Date(x.due_at) < new Date(), man = isManual(x);
         return `<button class="tk-card" data-tk="${x.id}">
           <span class="row between" style="align-items:flex-start"><b class="tk-name">${esc(x.title)}</b><span class="chip ${x.released ? "ok" : "none"}">${x.released ? "الدرجات معلنة" : "غير معلنة"}</span></span>
-          <span class="small muted">${man ? `<span class="chip man">رصد يدوي</span> ` : (past ? "انتهى" : "التسليم") + " " + esc(dueStr(x.due_at)) + " · "}من ${gN(x.max_grade)}${x.grp ? " · مجموعة " + esc(x.grp) : ""}${!man && x.late === "close" ? " · يُغلق بعد الموعد" : ""}</span>
+          <span class="small muted">${man ? `<span class="chip man">رصد يدوي</span> ${hasDueDay(x) ? "الاستلام " + esc(dayStr(x.due_at)) + " · " : ""}` : (past ? "انتهى" : "التسليم") + " " + esc(dueStr(x.due_at)) + " · "}من ${gN(x.max_grade)}${x.grp ? " · مجموعة " + esc(x.grp) : ""}${!man && x.late === "close" ? " · يُغلق بعد الموعد" : ""}</span>
           ${man ? "" : `<span class="tk-bars"><span><i style="width:${st.n ? st.sub / st.n * 100 : 0}%"></i></span><small>سلّم ${st.sub} من ${st.n}${st.late ? ` · متأخر ${st.late}` : ""}</small></span>`}
           <span class="tk-bars g"><span><i style="width:${st.n ? st.graded / st.n * 100 : 0}%"></i></span><small>رُصدت ${st.graded} من ${st.n}${st.avg != null ? " · المتوسط " + gN(Math.round(st.avg * 10) / 10) : ""}${st.issues ? ` · <b class="bad-t">${st.issues} ملف تغيّر</b>` : ""}</small></span>
         </button>`; }).join("")}</div>`
@@ -1408,10 +1423,11 @@
     const pass = e => { const s = subOf(t, e.student_code) || {};
       if (q && !normAr(e.name).includes(q) && !e.student_code.includes(q)) return false;
       return tkFilter === "all" || (tkFilter === "sub" && s.submitted_at) || (tkFilter === "none" && !s.submitted_at) || (tkFilter === "late" && s.late && s.submitted_at)
-        || (tkFilter === "ungraded" && s.grade == null) || (tkFilter === "issue" && (s.check_state === "changed" || s.check_state === "missing")); };
+        || (tkFilter === "ungraded" && s.grade == null) || (tkFilter === "absdue" && absentOnDue(t, e)) || (tkFilter === "issue" && (s.check_state === "changed" || s.check_state === "missing")); };
     const list = rows.filter(pass), drive = rows.filter(e => (subOf(t, e.student_code) || {}).kind === "drive").length;
-    const FT = man ? [["all", "الكل", rows.length], ["ungraded", "بلا درجة", rows.length - st.graded]]
-      : [["all", "الكل", rows.length], ["sub", "سلّم", st.sub], ["none", "لم يسلّم", rows.length - st.sub], ["late", "متأخر", st.late], ["ungraded", "بلا درجة", rows.length - st.graded], ...(st.issues ? [["issue", "ملفات تغيّرت", st.issues]] : [])];
+    const nAbs = rows.filter(e => absentOnDue(t, e)).length, absT = nAbs ? [["absdue", "غائب يوم التسليم", nAbs]] : [];
+    const FT = man ? [["all", "الكل", rows.length], ["ungraded", "بلا درجة", rows.length - st.graded], ...absT]
+      : [["all", "الكل", rows.length], ["sub", "سلّم", st.sub], ["none", "لم يسلّم", rows.length - st.sub], ["late", "متأخر", st.late], ["ungraded", "بلا درجة", rows.length - st.graded], ...absT, ...(st.issues ? [["issue", "ملفات تغيّرت", st.issues]] : [])];
     if (!FT.some(f => f[0] === tkFilter)) tkFilter = "all";
     const stampCol = !man && HD.canCheck;
     el.innerHTML = `<div class="panel-h"><div><button class="btn sm ghost" id="tkBack">→ كل التكليفات</button></div>
@@ -1419,8 +1435,10 @@
         ${edit ? `<button class="btn sm ${t.released ? "" : "primary"}" id="tkRel">${t.released ? "إخفاء الدرجات عن الطلبة" : "إعلان الدرجات للطلبة"}</button><button class="btn sm ghost" id="tkEdit">تعديل</button><button class="btn sm ghost danger" id="tkDel">حذف</button>` : ""}
       </div></div>
       <div><div class="eyebrow">${esc(c.name)}${t.grp ? " · مجموعة " + esc(t.grp) : ""}${man ? " · رصد يدوي" : ""}</div><h2 style="font-size:1.3rem">${esc(t.title)}</h2>
-        <p class="small muted">${man ? "" : "التسليم " + esc(dueStr(t.due_at)) + " · "}الدرجة العظمى ${gN(t.max_grade)}${man ? "" : " · " + (t.late === "close" ? "يُغلق التسليم بعد الموعد" : "يُقبل التسليم المتأخر ويُعلَّم")} · ${t.released ? "الدرجات معلنة للطلبة" : "الدرجات غير معلنة للطلبة"}</p>
-        ${t.details ? `<p class="tk-det" style="margin-top:8px">${esc(t.details)}</p>` : ""}</div>
+        <p class="small muted">${man ? (hasDueDay(t) ? "يوم الاستلام " + esc(dayStr(t.due_at)) + " · " : "") : "التسليم " + esc(dueStr(t.due_at)) + " · "}الدرجة العظمى ${gN(t.max_grade)}${man ? "" : " · " + (t.late === "close" ? "يُغلق التسليم بعد الموعد" : "يُقبل التسليم المتأخر ويُعلَّم")} · ${t.released ? "الدرجات معلنة للطلبة" : "الدرجات غير معلنة للطلبة"}</p>
+        ${t.details ? `<p class="tk-det" style="margin-top:8px">${esc(t.details)}</p>` : ""}
+        ${hasDueDay(t) ? (nAbs ? `<div class="msg warn small" style="margin-top:8px"><b>${nAbs} ${nAbs === 1 ? "طالب كان غائبًا" : "طلبة كانوا غائبين"} في محاضرة يوم التسليم</b> (${esc(dayStr(t.due_at))})، فغالبًا سلّموا متأخرًا. تظهر أمام أسمائهم علامة «غائب يوم التسليم»؛ راجِع العذر (مرضي أو غيره) ثم ارصد الدرجة، واكتب السبب في الملاحظة إن أردت.</div>`
+          : !dueSessions(t).length ? `<p class="small muted" style="margin-top:6px">لا توجد محاضرة مسجّلة في يوم التسليم (${esc(dayStr(t.due_at))})، لذا لا يمكن معرفة من سلّم متأخرًا من الحضور.</p>` : "") : ""}</div>
       ${msgHtml("tasks")}
       ${tkForm === t.id ? taskFormHtml(t) : ""}
       ${confirmKey === "deltask" ? `<div class="msg bad" style="display:grid;gap:8px"><b>حذف التكليف نهائي.</b>
@@ -1447,7 +1465,7 @@
       ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" style="max-width:320px"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select></div>` : ""; })() : ""}
       ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}<th class="c">الدرجة من ${gN(t.max_grade)}</th><th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
-          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td>${esc(e.name)}${extraChip(t, e)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
+          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td>${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
             ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}` : `<span class="muted">لم يسلّم</span>`}</td>
             <td class="small">${s && s.url ? `<button class="btn xs" data-view="${code}">عرض</button> <a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a">${esc(s.kind === "drive" ? (s.file_name || "الملف") : "رابط")}</a>${ck ? ` <span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted">«${esc(s.note)}»</div>` : ""}` : "—"}</td>`}
             <td class="c">${run ? `<input type="text" class="gin ${badVal(valOf(e.student_code, "grade", s), +t.max_grade) ? "bad" : ""}" data-g="${code}" value="${esc(valOf(e.student_code, "grade", s))}" inputmode="decimal" autocomplete="off">` : gN(s && s.grade)}</td>
@@ -1558,7 +1576,7 @@
     $("#grSide").innerHTML = !e ? `<div class="gr-empty"><b>لا يوجد طلبة هنا</b><span>${grader.f === "ungraded" ? "رُصدت درجات كل من سلّموا." : "غيّر الاختيار من الأعلى."}</span></div>` : `
       <div class="gr-who"><span class="mono muted">${esc(code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</span><h3>${esc(e.name)}</h3>
         ${s && s.submitted_at ? `<span class="small">سلّم ${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.version > 1 ? " · التسليم " + s.version : ""}</span>` : `<span class="small muted">لم يسلّم</span>`}
-        <div class="row">${s && s.late ? `<span class="chip warn">متأخر</span>` : ""}${ck ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s && s.grade != null ? `<span class="chip ok">مرصودة: ${gN(totalOf(s))}</span>` : ""}</div>
+        <div class="row">${absentOnDue(t, e) ? `<span class="chip bad">غائب يوم التسليم · راجِع العذر</span>` : ""}${s && s.late ? `<span class="chip warn">متأخر</span>` : ""}${ck ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s && s.grade != null ? `<span class="chip ok">مرصودة: ${gN(totalOf(s))}</span>` : ""}</div>
         ${s && s.note ? `<p class="small">«${esc(s.note)}»</p>` : ""}</div>
       <div class="gr-grade">
         <label class="f"><span>الدرجة من ${gN(t.max_grade)}</span><input type="text" id="grG" inputmode="decimal" autocomplete="off" value="${esc(v("grade"))}"></label>
@@ -1804,7 +1822,8 @@
       if (prev && prev.grade === grade && prev.bonus === bonus) return;
       if (prev && now - prev.at < 6000) { Object.assign(prev, { raw: g.raw, grade, bonus, at: now }); voice.flash = prev.id; }
       else { const id = ++vcSeq; voice.entries.unshift({ id, raw: g.raw, cands, code, sure, grade, bonus, at: now }); voice.flash = id; added++; }
-      if (code) said.push(nameOf(code).split(" ").slice(0, 2).join(" ") + "، " + grade + (bonus ? " وبونص " + bonus : ""));
+      const wr = code && D.enroll.find(x => x.student_code === code);
+      if (code) said.push(nameOf(code).split(" ").slice(0, 2).join(" ") + "، " + grade + (bonus ? " وبونص " + bonus : "") + (wr && absentOnDue(t, wr) ? "، تنبيه: كان غائبًا يوم التسليم" : ""));
     });
     vcMsg(""); drawVoiceList();
     if (said.length) vcSay(said.join("، "));
@@ -1850,7 +1869,7 @@
       <div class="vc-rows">${voice.entries.map(e => { const ok = vcValid(t, e), dup = e.code && seen[e.code] > 1;
         const ids = [...new Set([...e.cands.map(c => c.code), ...roster.map(r => r.student_code)])], who = e.code && roster.find(r => r.student_code === e.code);
         return `<div class="vc-row ${!ok ? "bad" : e.sure ? "ok" : "warn"}${voice.flash === e.id ? " new" : ""}" data-vc="${e.id}">
-          <div class="vc-heard small muted">سمعت: «${esc(e.raw)}»${dup ? ` <b class="warn-t">· مكرر</b>` : ""}${who && isExtra(t, who) ? ` <b class="warn-t">· استثناء من ${who.grp ? "مجموعة " + esc(who.grp) : "خارج المجموعة"}</b>` : ""}</div>
+          <div class="vc-heard small muted">سمعت: «${esc(e.raw)}»${dup ? ` <b class="warn-t">· مكرر</b>` : ""}${who && isExtra(t, who) ? ` <b class="warn-t">· استثناء من ${who.grp ? "مجموعة " + esc(who.grp) : "خارج المجموعة"}</b>` : ""}${who && absentOnDue(t, who) ? ` <b class="bad-t">· غائب يوم التسليم (سلّم متأخرًا)</b>` : ""}</div>
           <select data-vk="code" aria-label="الطالب"><option value="">— اختر الطالب —</option>${ids.map((c, i) => { const r = roster.find(x => x.student_code === c); if (!r) return ""; const sc = e.cands.find(x => x.code === c); return `<option value="${esc(c)}" ${c === e.code ? "selected" : ""}>${roster.indexOf(r) < nIn ? (roster.indexOf(r) + 1) + ". " : "استثناء: "}${esc(r.name)} · ${esc(c)}${isExtra(t, r) ? " · مجموعة " + esc(r.grp || "—") : ""}${sc && i < e.cands.length ? ` (${Math.round(sc.score * 100)}%)` : ""}</option>`; }).join("")}</select>
           <input type="text" data-vk="grade" class="gin ${badVal(e.grade, +t.max_grade) ? "bad" : ""}" value="${esc(e.grade)}" inputmode="decimal" aria-label="الدرجة">
           <input type="text" data-vk="bonus" class="gin bin ${badVal(e.bonus, +t.max_grade) ? "bad" : ""}" value="${esc(e.bonus)}" placeholder="بونص" inputmode="decimal" aria-label="بونص">
