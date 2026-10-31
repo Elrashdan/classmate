@@ -70,6 +70,7 @@
   let qrState = null, qrTimer = null, codeState = null, codeTimer = null, liveTimer = null, manFor = null, manDraft = "";
   let addOpen = false, addDraft = { code: "", name: "", grp: "", pin: "" };
   let grader = null, photo = null, gimp = null, voice = null;
+  let ncManual = false;
   let tkSel = null, tkForm = null, tkFilter = "all", tkEdits = {}, tkQ = "", tkBusy = null, ncBylaw = null;
   let login = { step: "email", email: "", err: "", busy: false };
 
@@ -198,7 +199,10 @@
   const CAT = window.CATALOG || [];
   const SEMS = s => s % 2 ? "الفصل الأول (الخريف)" : "الفصل الثاني (الربيع)";
   const catLabel = e => `${e.p ? e.p + " " : ""}${e.c} · ${e.n}${e.note ? " · " + e.note : ""}`;
-  const catGroup = e => e.l ? LEVELS[e.l] + " · " + SEMS(e.s) + (e.tr ? " · " + e.tr : "") : "مقررات اختيارية" + (e.el === "عام" ? " عامة" : " · " + e.el);
+  const catProg = e => e.pr === "خاص" ? "خاص" : "عام";
+  const catGroup = e => (catProg(e) === "خاص" ? "البرنامج الخاص · " : "") + (e.l ? LEVELS[e.l] + " · " + SEMS(e.s) + (e.tr && catProg(e) === "عام" ? " · " + e.tr : "") : "مقررات اختيارية" + (e.el === "عام" ? " عامة" : " · " + e.el));
+  // مقررات برنامج وفصل دراسي معيّنين (للمادة الجديدة)
+  const catPick = (prog, term) => CAT.filter(e => catProg(e) === prog && (!e.l || term === 3 || !term || e.s % 2 === (term === 1 ? 1 : 0)));
   function catOptions(list, sel) {
     const groups = new Map();
     list.forEach(e => { const g = catGroup(e); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(e); });
@@ -206,13 +210,15 @@
   }
   // المقررات المناسبة لمادة بحسب مستواها وشعبتها وفصلها
   function catFor(c) {
-    if (!c || !c.level || progOf(c) === "خاص") return CAT;
-    const m = CAT.filter(e => (e.l === c.level && (!e.tr || e.tr === c.track) && (c.term === 3 || !c.term || e.s % 2 === (c.term === 1 ? 1 : 0))) || (!e.l && c.level >= 3 && (e.el === "عام" || e.el === c.track)));
-    return m.length ? m : CAT;
+    if (!c) return CAT;
+    const mine = CAT.filter(e => catProg(e) === progOf(c));
+    if (!c.level) return mine;
+    const m = mine.filter(e => (e.l === c.level && (!e.tr || e.tr === c.track) && (c.term === 3 || !c.term || e.s % 2 === (c.term === 1 ? 1 : 0))) || (!e.l && c.level >= 3 && (e.el === "عام" || e.el === c.track)));
+    return m.length ? m : mine;
   }
   const bylawOf = e => ({ p_code: (e.p ? e.p + " " : "") + e.c, p_cw: e.cw ?? null, p_exam: e.ex ?? null, p_credits: e.cr ?? null });
   const progOf = c => c.program === "خاص" ? "خاص" : "عام";
-  const levelsOf = prog => prog === "خاص" ? [1, 2, 3, 4] : [1, 2, 3, 4, 5];
+  const levelsOf = prog => [1, 2, 3, 4, 5];
   const nowYear = () => { const d = new Date(), y = d.getFullYear(); return d.getMonth() >= 7 ? `${y}/${y + 1}` : `${y - 1}/${y}`; };
   const nowTerm = () => { const m = new Date().getMonth() + 1; return m >= 9 || m === 1 ? 1 : m <= 6 ? 2 : 3; };
   const yearList = () => { const b = +nowYear().split("/")[0], ys = new Set(); for (let y = b - 2; y <= b + 1; y++) ys.add(`${y}/${y + 1}`); courses.forEach(c => c.academic_year && ys.add(c.academic_year)); return [...ys].sort().reverse(); };
@@ -235,24 +241,25 @@
       <label class="f"><span>البرنامج</span><select id="${p}Prog">${Object.entries(PROGRAMS).map(([k, v]) => `<option value="${k}" ${k === prog ? "selected" : ""}>${v}</option>`).join("")}</select></label>
       <label class="f"><span>العام الدراسي</span><select id="${p}Year">${yearList().map(v => `<option value="${v}" ${v === y ? "selected" : ""}>${v}</option>`).join("")}</select></label>
       <label class="f"><span>الفصل الدراسي</span><select id="${p}Term">${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === t ? "selected" : ""}>${v}</option>`).join("")}</select></label>
-      <label class="f"><span>المستوى</span><select id="${p}Level">${levelOpts(prog, l)}</select></label>
-      <label class="f" id="${p}TrackBox" ${prog === "خاص" || l >= 3 ? "" : "hidden"}><span>الشعبة</span><select id="${p}Track">${trackOpts(prog, c.track)}</select></label>`;
+      <label class="f" id="${p}LevelBox" ${p === "nc" && !ncManual ? "hidden" : ""}><span>المستوى</span><select id="${p}Level">${levelOpts(prog, l)}</select></label>
+      <label class="f" id="${p}TrackBox" ${(prog === "خاص" || l >= 3) && !(p === "nc" && !ncManual) ? "" : "hidden"}><span>الشعبة</span><select id="${p}Track">${trackOpts(prog, c.track)}</select></label>`;
   }
   function wireClass(p) {
     const l = $("#" + p + "Level"), g = $("#" + p + "Prog"), tb = $("#" + p + "TrackBox"), tr = $("#" + p + "Track");
     if (!l || !g) return;
-    const sync = () => { tb.hidden = !(g.value === "خاص" || +l.value >= 3); };
+    const sync = () => { tb.hidden = (p === "nc" && !ncManual) || !(g.value === "خاص" || +l.value >= 3); const lb = $("#" + p + "LevelBox"); if (lb) lb.hidden = p === "nc" && !ncManual; };
     l.onchange = sync;
     g.onchange = () => {
       const keep = +l.value && levelsOf(g.value).includes(+l.value) ? +l.value : "";
       l.innerHTML = levelOpts(g.value, keep); tr.innerHTML = trackOpts(g.value, tr.value); sync();
+      if (p === "nc") ncRefresh();
     };
+    const tm = $("#" + p + "Term"); if (tm && p === "nc") tm.onchange = () => ncRefresh();
   }
   function readClass(p) {
     const prog = ($("#" + p + "Prog") || {}).value || "عام", level = +$("#" + p + "Level").value || null;
     const track = prog === "خاص" ? "عمارة داخلية" : level >= 3 ? $("#" + p + "Track").value : "";
     if (!level) throw { message: "اختر المستوى." };
-    if (prog === "خاص" && level > 4) throw { message: "البرنامج الخاص من أربعة مستويات فقط." };
     if (level >= 3 && !track) throw { message: "المستوى " + LEVELS[level].replace("المستوى ", "") + " يلزم اختيار شعبة له: عمارة داخلية أو سينوغرافيا." };
     return { p_year: $("#" + p + "Year").value, p_term: +$("#" + p + "Term").value, p_level: level, p_track: track, p_program: prog };
   }
@@ -433,6 +440,30 @@
     put("live", s && !s.ended ? (pend ? `<b class="tb" title="${pend} طلب معلّق">${pend}</b>` : `<b class="live-dot" title="توجد محاضرة جارية"></b>`) : "");
     put("students", "");
   }
+  // المادة الجديدة: القائمة بحسب البرنامج والفصل الدراسي
+  function ncRefresh() {
+    const sel = $("#ncCat"); if (!sel) return;
+    const prog = $("#ncProg").value, term = +$("#ncTerm").value, list = catPick(prog, term);
+    sel.innerHTML = catOptions(list).replace("— اختر مقررًا —", list.length ? "— اختر المادة —" : "لا توجد مقررات في اللائحة لهذا الفصل") + `<option value="manual">مادة غير موجودة في اللائحة…</option>`;
+    ncManual = false; ncChose();
+  }
+  function ncChose() {
+    const sel = $("#ncCat"), info = $("#ncInfo"), nb = $("#ncNameBox"); if (!sel) return;
+    ncManual = sel.value === "manual";
+    const e = ncManual ? null : CAT[+sel.value];
+    if (e && e.l) {
+      $("#ncLevel").value = e.l;
+      if (e.tr) { const tr = $("#ncTrack"); if (tr) tr.value = e.tr; }
+    }
+    const elective = e && !e.l;   // المقرر الاختياري: بلا مستوى في اللائحة، فيُختار المستوى
+    const lb = $("#ncLevelBox"), tb = $("#ncTrackBox"), prog = $("#ncProg").value;
+    if (lb) lb.hidden = !(ncManual || elective);
+    if (tb) tb.hidden = !((ncManual || elective) && (prog === "خاص" || +$("#ncLevel").value >= 3));
+    if (elective || ncManual) { const l = $("#ncLevel"); l.onchange = () => { if (tb) tb.hidden = !(prog === "خاص" || +l.value >= 3); }; }
+    nb.hidden = !ncManual;
+    info.hidden = !e;
+    if (e) info.innerHTML = `<b>${esc(e.n.replace(/\*$/, ""))}</b><span>${[e.p ? e.p + " " + e.c : e.c, e.l ? LEVELS[e.l] + " · " + SEMS(e.s) : "مقرر اختياري: اختر مستوى الطلبة", catProg(e) === "خاص" ? PROGRAMS["خاص"] : e.tr || (e.l ? "تخصص عام" : ""), e.cr ? e.cr + " ساعات معتمدة" : "", e.cw != null && e.tot ? "أعمال فصلية " + e.cw + (e.ex ? " · امتحان " + e.ex : "") : ""].filter(Boolean).map(esc).join(" · ")}</span>${e.note ? `<small class="muted">${esc(e.note)}</small>` : ""}`;
+  }
   function render() {
     const c = course();
     const owned = courses.filter(x => x.owner_email === me.email).length;
@@ -454,9 +485,11 @@
       </div>
       <div id="newCForm" class="panel" hidden style="margin-bottom:16px">
         <h3>مادة جديدة</h3>
-        ${CAT.length ? `<label class="f" style="margin-bottom:10px"><span>من لائحة قسم الديكور (اختياري: يملأ الاسم والمستوى والفصل والشعبة ودرجات اللائحة)</span><select id="ncCat">${catOptions(CAT)}</select></label>` : ""}
-        <div class="settings"><label class="f"><span>اسم المادة</span><input type="text" id="ncName" placeholder="مثلًا: التشريح الفني"></label>${classFields("nc")}</div>
-        <div class="row"><button class="btn primary" id="ncSave">أضف المادة</button><span class="muted small">البرنامج العام: المستويان الأول والثاني تخصص عام، والمستويات من الثالث إلى الخامس تلزمها شعبة. البرنامج الخاص: شعبة العمارة الداخلية، أربعة مستويات.</span></div>
+        <div class="settings">${classFields("nc")}
+          <label class="f" style="grid-column:1/-1"><span>المادة (من اللائحة)</span><select id="ncCat"></select></label>
+          <div class="cat-info" id="ncInfo" style="grid-column:1/-1" hidden></div>
+          <label class="f" id="ncNameBox" style="grid-column:1/-1" hidden><span>اسم المادة</span><input type="text" id="ncName" placeholder="اكتب اسم المادة كما في اللائحة"></label></div>
+        <div class="row"><button class="btn primary" id="ncSave">أضف المادة</button><span class="muted small">اختر البرنامج والفصل الدراسي، ثم المادة من القائمة، فتُملأ بقية بياناتها من اللائحة: المستوى والشعبة والكود والساعات والدرجات العظمى.</span></div>
       </div>
       ${view === "course" ? `<div class="panel filters">
         <div class="settings" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
@@ -497,26 +530,19 @@
     const ad = $("#admin"); if (ad) ad.onclick = () => { view = view === "admin" ? "course" : "admin"; if (view === "admin") { stopLoops(); render(); } else loadCourse().catch(showErr); };
     const nc = $("#newC"); if (nc) nc.onclick = () => { $("#newCForm").hidden = !$("#newCForm").hidden; };
     wireClass("nc");
-    const ncc = $("#ncCat"); if (ncc) ncc.onchange = () => {
-      const e = CAT[+ncc.value]; if (!ncc.value || !e) { ncBylaw = null; return; }
-      ncBylaw = bylawOf(e);
-      if (!e.l) { $("#ncName").value = e.n; return; }
-      const g = $("#ncProg"); if (g && g.value !== "عام") { g.value = "عام"; g.onchange(); }
-      $("#ncName").value = e.n.replace(/\*$/, "");
-      $("#ncLevel").value = e.l; $("#ncLevel").onchange();
-      $("#ncTerm").value = e.s % 2 ? "1" : "2";
-      if (e.tr) $("#ncTrack").value = e.tr;
-    };
+    const ncc = $("#ncCat"); if (ncc) { ncRefresh(); ncc.onchange = ncChose; }
     $("#ncSave").onclick = async () => {
-      const n = $("#ncName").value.trim(); if (!n) return showErr({ message: "name_required" });
+      const e = ncManual ? null : CAT[+$("#ncCat").value];
+      if (!ncManual && !e) return showErr({ message: "اختر المادة من القائمة، أو «مادة غير موجودة في اللائحة»." });
+      const n = (e && e.l ? e.n.replace(/\*$/, "").trim() : $("#ncName").value.trim()); if (!n) return showErr({ message: "name_required" });
       try {
         const cls = readClass("nc");
         curId = await rpc("create_course", { p_name: n, ...cls });
-        if (ncBylaw) await rpc("set_course_bylaw", { cid: curId, ...ncBylaw }).catch(() => {});
-        ncBylaw = null;
+        if (e) await rpc("set_course_bylaw", { cid: curId, ...bylawOf(e) }).catch(() => {});
+        ncManual = false;
         fYear = cls.p_year; fTerm = String(cls.p_term); store.set("cm_year", fYear); store.set("cm_term", fTerm);
         await loadBase(); say("roster", "أُضيفت المادة. ارفع ملف طلبتها."); await loadCourse();
-      } catch (e) { showErr(e); }
+      } catch (err) { showErr(err); }
     };
     const onFilter = () => {
       fYear = $("#fYear").value; fTerm = $("#fTerm").value; store.set("cm_year", fYear); store.set("cm_term", fTerm);
@@ -1339,7 +1365,7 @@
     if (t) return renderTask(el, c, t);
     const totalMax = D.tasks.reduce((a, x) => a + Number(x.max_grade), 0);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
-      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${D.tasks.length ? `<button class="btn sm" id="tkXls">كشف الدرجات (إكسل)</button>` : ""}</div></div>
+      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${D.tasks.length ? `<button class="btn sm" id="tkXls" title="كشف الكنترول (مسلسل · الكود · الاسم · متوسط الدرجات) وتفاصيل الدرجات والتسليم">كشف الكنترول (إكسل)</button>` : ""}</div></div>
       ${msgHtml("tasks")}
       ${bylawLine(c)}
       ${tkForm === "new" ? taskFormHtml(null) : ""}
@@ -1855,7 +1881,33 @@
       const c = course(), wb = new ExcelJS.Workbook(), ts = D.tasks.slice().sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
       const rows = D.enroll.slice().sort(byGroupName), S = ts.reduce((a, t) => a + Number(t.max_grade), 0);
       const cw = c.cw_max, ex = c.exam_max || 0, hasCw = cw != null && cw > 0;
-      const ws = wb.addWorksheet("كشف الدرجات", { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 6 }] });
+      // ---- كشف الكنترول: مسلسل · كود الطالب · اسم الطالب · متوسط الدرجات ----
+      const tgt = hasCw ? cw : 100;
+      const avgOf = e => {
+        const mine = ts.filter(t => !t.grp || t.grp === e.grp); if (!mine.length) return null;
+        let got = 0, den = 0, any = false;
+        mine.forEach(t => { den += Number(t.max_grade); const sb = subOf(t, e.student_code); if (sb && sb.grade != null) { any = true; got += totalOf(sb); } });
+        return any && den ? Math.min(tgt, Math.round(got / den * tgt)) : null;
+      };
+      const wk = wb.addWorksheet("كشف الكنترول", { views: [{ rightToLeft: true, state: "frozen", ySplit: 6 }] });
+      sheetTitle(wk, 4, "كشف درجات الأعمال الفصلية · " + c.name, courseSub(c));
+      wk.mergeCells(3, 1, 3, 4);
+      wk.getCell(3, 1).value = [c.bylaw_code ? "كود المقرر " + c.bylaw_code : "", "قسم الديكور", (window.CLASSMATE || {}).UNIVERSITY_NAME || ""].filter(Boolean).join(" · ");
+      wk.getCell(3, 1).font = { name: "Arial", size: 10.5, bold: true, color: { argb: XC.title } }; wk.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
+      wk.mergeCells(4, 1, 4, 4);
+      wk.getCell(4, 1).value = "متوسط الدرجات = مجموع درجات الطالب في كل التكليفات (مع البونص) ÷ مجموع الدرجات العظمى × " + tgt + "، مقرّبًا إلى أقرب عدد صحيح. التكليف الذي لم تُرصد فيه درجة للطالب يُحسب صفرًا.";
+      wk.getCell(4, 1).font = { name: "Arial", size: 9, color: { argb: XC.muted } }; wk.getCell(4, 1).alignment = { horizontal: "right", readingOrder: "rtl", wrapText: true }; wk.getRow(4).height = 28;
+      headRow(wk, 6, ["مسلسل", "كود الطالب", "اسم الطالب", "متوسط الدرجات\n(من " + tgt + ")"], true);
+      rows.forEach((e, i) => {
+        const r = wk.getRow(7 + i), v = avgOf(e);
+        [i + 1, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, v].forEach((x, j) => { const cl = r.getCell(j + 1); cl.value = x; cl.border = box; cl.font = { name: "Arial", size: 11, bold: j === 3 }; cl.alignment = { horizontal: j === 2 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
+        r.height = 20;
+      });
+      const ke = 7 + rows.length;
+      [["المحاضر", 1], ["رئيس القسم", 3]].forEach(([tt, cc]) => { const cl = wk.getRow(ke + 2).getCell(cc); cl.value = tt + ": ……………………"; cl.font = { name: "Arial", size: 11, bold: true }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
+      [8, 14, 38, 16].forEach((w, j) => { wk.getColumn(j + 1).width = w; });
+      wk.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "6:6" };
+      const ws = wb.addWorksheet("تفاصيل الدرجات", { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 6 }] });
       const head = ["م", "الكود", "الاسم", "المجموعة", ...ts.map(t => t.title + "\n(من " + gN(t.max_grade) + ")"), "مجموع التكليفات\n(من " + gN(S) + ")"];
       if (hasCw) head.push("الأعمال الفصلية\n(من " + cw + ")");
       if (hasCw && ex) head.push("الامتحان\n(من " + ex + ")", "المجموع\n(من " + (cw + ex) + ")");
@@ -1902,9 +1954,9 @@
         rr++; }));
       wd.autoFilter = { from: { row: 4, column: 1 }, to: { row: Math.max(rr - 1, 5), column: 12 } };
       [24, 12, 28, 9, 18, 7, 13, 30, 16, 8, 8, 30].forEach((w2, j) => { wd.getColumn(j + 1).width = w2; });
-      await saveWb(wb, "كشف درجات " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
+      await saveWb(wb, "كشف الكنترول - " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
     } catch (e) { showErr(e); }
-    if (btn) { btn.disabled = false; btn.textContent = "كشف الدرجات (إكسل)"; }
+    if (btn) { btn.disabled = false; btn.textContent = "كشف الكنترول (إكسل)"; }
   }
 
 
