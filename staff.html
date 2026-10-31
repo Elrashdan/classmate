@@ -25,6 +25,7 @@
 <div class="wrap" id="app"></div>
 <div class="grov" id="grOv" hidden></div>
 <div class="grov" id="phOv" hidden></div>
+<div class="grov" id="vcOv" hidden></div>
 <div class="overlay" id="overlay" hidden>
   <div class="inner">
     <h2 id="ovTitle"></h2>
@@ -51,6 +52,7 @@
 <script src="common.js"></script>
 <script src="drive.js"></script>
 <script src="catalog.js"></script>
+<script src="voice.js"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -67,7 +69,7 @@
   let liveTab = "all", regGroup = "all", delSess = null, pastMark = null, confirmKey = null, startState = null, report = null;
   let qrState = null, qrTimer = null, codeState = null, codeTimer = null, liveTimer = null, manFor = null, manDraft = "";
   let addOpen = false, addDraft = { code: "", name: "", grp: "", pin: "" };
-  let grader = null, photo = null, gimp = null;
+  let grader = null, photo = null, gimp = null, voice = null;
   let tkSel = null, tkForm = null, tkFilter = "all", tkEdits = {}, tkQ = "", tkBusy = null, ncBylaw = null;
   let login = { step: "email", email: "", err: "", busy: false };
 
@@ -1395,6 +1397,7 @@
         ${man ? "" : `<button class="btn primary" id="tkGrader" ${st.sub ? "" : "disabled"}>${ICO('<rect x="3" y="4" width="13" height="16" rx="2"/><path d="M19 8v12M7 9h5M7 13h5"/>')} عرض الأعمال وتصحيحها</button>`}
         ${!man && HD.canCheck && drive ? `<button class="btn" id="tkCheck" title="يقارن كل ملف على Drive ببصمته وقت التسليم">${tkBusy === "check" ? "جارٍ الفحص…" : "فحص الملفات على Drive"}</button>` : ""}
         <span class="tk-sep"></span>
+        <button class="btn" id="tkVoice" title="قل اسم الطالب ثم درجته، فيكتبها البرنامج في الكشف بعد مراجعتك">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} رصد بالصوت</button>
         <button class="btn" id="tkSheet" title="كشف بأسماء الطلبة وخانات الدرجة، يُملأ على الكمبيوتر أو يُطبع ويُكتب باليد">كشف رصد للطباعة (إكسل)</button>
         <label class="btn" title="بعد ملء الكشف على الكمبيوتر">رفع كشف إكسل<input type="file" id="tkImpX" accept=".xlsx" hidden></label>
         <label class="btn" title="صورة الكشف المكتوب باليد، تظهر بجانب الأسماء لتنقل الدرجات منها">صورة كشف مكتوب باليد<input type="file" id="tkImpP" accept="image/*" multiple hidden></label>
@@ -1455,6 +1458,7 @@
     el.querySelectorAll("[data-view]").forEach(b => b.onclick = () => openGrader(t, b.dataset.view));
     const gb = $("#tkGrader"); if (gb) gb.onclick = () => openGrader(t);
     const sh = $("#tkSheet"); if (sh) sh.onclick = () => exportEntrySheet(t);
+    const vb = $("#tkVoice"); if (vb) vb.onclick = () => openVoice(t);
     const ix = $("#tkImpX"); if (ix) ix.onchange = () => { const f = ix.files[0]; ix.value = ""; if (f) importEntrySheet(t, f); };
     const ip = $("#tkImpP"); if (ip) ip.onchange = () => { const fs = [...ip.files]; ip.value = ""; if (fs.length) openPhoto(t, fs); };
     wireImp2(t);
@@ -1566,7 +1570,7 @@
   }
   document.addEventListener("keydown", ev => {
     if (ev.key !== "Escape") return;
-    if (grader) closeGrader(); else if (photo) closePhoto();
+    if (grader) closeGrader(); else if (photo) closePhoto(); else if (voice) closeVoice();
   });
 
   /* ---------- كشف الرصد: تنزيل للطباعة أو للملء، ثم رفعه ---------- */
@@ -1656,6 +1660,114 @@
       go.disabled = true; go.textContent = "جارٍ الرصد…";
       try { const n = await rpc("grade_many", { tid: t.id, rows: gimp.rows.map(({ old, ...r }) => r), p_source: "من ملف إكسل «" + gimp.file + "»" }); say("tasks", "رُصدت " + n + " درجة من الملف." + (t.released ? "" : " لم تُعلن للطلبة بعد.")); gimp = null; await loadCourse(); }
       catch (e) { go.disabled = false; go.textContent = "اعتماد"; showErr(e); }
+    };
+  }
+
+  /* ---------- رصد الدرجات بالإملاء الصوتي ---------- */
+  let vcSeq = 0;
+  const vcRoster = t => taskRows(t).map(e => ({ code: e.student_code, name: e.name }));
+  function openVoice(t) {
+    voice = { tid: t.id, entries: [], listening: false, interim: "", rec: null, msg: "", speak: store.get("cm_vc_speak") === "1", wake: null };
+    $("#vcOv").hidden = false; document.body.classList.add("noscroll"); drawVoice();
+  }
+  function closeVoice(force) {
+    if (!voice) return;
+    if (!force && voice.entries.length && confirmKey !== "vcclose") { confirmKey = "vcclose"; voice.msg = "!لديك درجات لم تُعتمد. اضغط «إغلاق» مرة أخرى لتجاهلها، أو «اعتماد»."; drawVoice(); setTimeout(() => { if (confirmKey === "vcclose") confirmKey = null; }, 5000); return; }
+    confirmKey = null; vcStop(); voice = null; $("#vcOv").hidden = true; document.body.classList.remove("noscroll"); renderTasks();
+  }
+  function vcStart() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { voice.msg = "!هذا المتصفح لا يدعم الإملاء الصوتي. افتح البرنامج من Google Chrome (على أندرويد أو الكمبيوتر) أو Safari على الآيفون."; return drawVoice(); }
+    const rec = new SR(); rec.lang = "ar-EG"; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+    rec.onresult = ev => {
+      let interim = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) { const r = ev.results[i]; if (r.isFinal) vcHear(r[0].transcript); else interim += r[0].transcript; }
+      voice && (voice.interim = interim, paintInterim());
+    };
+    rec.onerror = ev => { if (!voice) return; if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { voice.listening = false; voice.msg = "!لم يُسمح باستخدام الميكروفون. اسمح للمتصفح باستخدامه من إعدادات الموقع ثم أعد المحاولة."; drawVoice(); } else if (ev.error === "network") { voice.msg = "!الإملاء الصوتي يحتاج إلى إنترنت."; drawVoice(); } };
+    rec.onend = () => { if (voice && voice.listening) setTimeout(() => { try { voice && voice.listening && voice.rec.start(); } catch (e) {} }, 250); };
+    voice.rec = rec; voice.listening = true; voice.msg = "";
+    try { rec.start(); } catch (e) {}
+    try { if (navigator.wakeLock) navigator.wakeLock.request("screen").then(w => { if (voice) voice.wake = w; }).catch(() => {}); } catch (e) {}
+    drawVoice();
+  }
+  function vcStop() {
+    if (!voice) return; voice.listening = false; voice.interim = "";
+    try { voice.rec && voice.rec.stop(); } catch (e) {}
+    if (voice.wake) { voice.wake.release().catch(() => {}); voice.wake = null; }
+  }
+  function vcSay(text) { try { if (!voice || !voice.speak || !window.speechSynthesis) return; const u = new SpeechSynthesisUtterance(text); u.lang = "ar-EG"; u.rate = 1.1; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+  function vcHear(text) {
+    if (!voice) return;
+    const t = D.tasks.find(x => x.id === voice.tid), roster = vcRoster(t), got = HV.parse(text);
+    if (!got.length) { voice.msg = "!لم أفهم «" + text.trim() + "». قل اسم الطالب ثم درجته، مثل: «محمد أحمد ١٧» أو «رقم ٥ … ١٨»."; drawVoice(); return; }
+    got.forEach(g => {
+      const cands = HV.match(g, roster), sure = HV.sure(cands);
+      const code = cands[0] && (sure || cands[0].score >= .6) ? cands[0].code : "";
+      voice.entries.unshift({ id: ++vcSeq, raw: g.raw, cands, code, sure, grade: gN(g.grade), bonus: g.bonus ? gN(g.bonus) : "" });
+      if (code) vcSay(nameOf(code).split(" ").slice(0, 2).join(" ") + "، " + gN(g.grade) + (g.bonus ? " وبونص " + gN(g.bonus) : ""));
+    });
+    voice.msg = ""; drawVoiceList(); paintInterim();
+  }
+  function paintInterim() { const el = $("#vcInterim"); if (el && voice) el.textContent = voice.interim || (voice.listening ? "أسمعك…" : ""); }
+  const vcValid = (t, e) => e.code && e.grade !== "" && !badVal(e.grade, +t.max_grade) && !badVal(e.bonus, +t.max_grade);
+  function drawVoice() {
+    const t = D.tasks.find(x => x.id === voice.tid), ov = $("#vcOv"), sup = HV.supported();
+    ov.innerHTML = `<div class="gr">
+      <header class="gr-h"><div class="gr-t"><span class="eyebrow">رصد بالإملاء الصوتي · من ${gN(t.max_grade)}</span><b>${esc(t.title)}</b></div>
+        <label class="row small" style="gap:6px"><input type="checkbox" id="vcSpeak" ${voice.speak ? "checked" : ""}> تأكيد بالصوت</label>
+        <button class="btn sm" id="vcClose">إغلاق</button></header>
+      <div class="vc-b">
+        <section class="vc-mic">
+          <button class="vc-btn ${voice.listening ? "on" : ""}" id="vcMic" aria-pressed="${voice.listening}" ${sup ? "" : "disabled"}>${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')}<span>${voice.listening ? "إيقاف الاستماع" : "ابدأ الإملاء"}</span></button>
+          <div class="vc-int" id="vcInterim" aria-live="polite"></div>
+          ${voice.msg ? `<div class="msg ${voice.msg.startsWith("!") ? "bad" : "ok"} small">${esc(voice.msg.replace(/^!/, ""))}</div>` : ""}
+          <div class="vc-tips small">
+            <b>قل اسم الطالب ثم درجته، ثم الطالب التالي:</b>
+            <span>«محمد أحمد علي سبعتاشر» · «سلمى خالد خمستاشر ونص»</span>
+            <span>للبونص: «… ستاشر وبونص اتنين»</span>
+            <span>للأسماء المتشابهة استخدم رقمه في الكشف: «رقم ٧ … ١٨»، أو آخر أرقام كوده: «كود ١٠٥ … ١٢»</span>
+          </div>
+          <label class="f"><span>أو اكتب الجملة واضغط Enter</span><input type="text" id="vcType" placeholder="مثلًا: يوسف طارق 14" autocomplete="off"></label>
+          ${sup ? "" : `<div class="msg warn small">هذا المتصفح لا يدعم الإملاء الصوتي. افتح البرنامج من Google Chrome، أو اكتب الجمل في الخانة أعلاه.</div>`}
+        </section>
+        <section class="vc-list" id="vcList"></section>
+      </div></div>`;
+    $("#vcClose").onclick = () => closeVoice();
+    $("#vcSpeak").onchange = e => { voice.speak = e.target.checked; store.set("cm_vc_speak", voice.speak ? "1" : "0"); };
+    $("#vcMic").onclick = () => { if (voice.listening) { vcStop(); drawVoice(); } else vcStart(); };
+    const ty = $("#vcType"); ty.onkeydown = e => { if (e.key === "Enter" && ty.value.trim()) { vcHear(ty.value); ty.value = ""; } };
+    paintInterim(); drawVoiceList();
+  }
+  function drawVoiceList() {
+    const el = $("#vcList"); if (!el || !voice) return;
+    const t = D.tasks.find(x => x.id === voice.tid), roster = taskRows(t), n = voice.entries.filter(e => vcValid(t, e)).length;
+    const seen = {}; voice.entries.slice().reverse().forEach(e => { if (e.code) seen[e.code] = (seen[e.code] || 0) + 1; });
+    el.innerHTML = `<div class="row between"><h3>${voice.entries.length ? "راجع قبل الاعتماد" : "ستظهر هنا الدرجات التي تمليها"}</h3>${voice.entries.length ? `<button class="btn sm ghost" id="vcClear">مسح الكل</button>` : ""}</div>
+      ${voice.entries.length ? `<p class="small muted">الأخضر: البرنامج متأكد من الطالب. الأصفر: راجِع الاختيار. يُعتمد آخر ما قلته إن تكرر الطالب.</p>
+      <div class="vc-rows">${voice.entries.map(e => { const ok = vcValid(t, e), dup = e.code && seen[e.code] > 1;
+        const ids = [...new Set([...e.cands.map(c => c.code), ...roster.map(r => r.student_code)])];
+        return `<div class="vc-row ${!ok ? "bad" : e.sure ? "ok" : "warn"}" data-vc="${e.id}">
+          <div class="vc-heard small muted">سمعت: «${esc(e.raw)}»${dup ? ` <b class="warn-t">· مكرر</b>` : ""}</div>
+          <select data-vk="code" aria-label="الطالب"><option value="">— اختر الطالب —</option>${ids.map((c, i) => { const r = roster.find(x => x.student_code === c); if (!r) return ""; const sc = e.cands.find(x => x.code === c); return `<option value="${esc(c)}" ${c === e.code ? "selected" : ""}>${roster.indexOf(r) + 1}. ${esc(r.name)} · ${esc(c)}${sc && i < e.cands.length ? ` (${Math.round(sc.score * 100)}%)` : ""}</option>`; }).join("")}</select>
+          <input type="text" data-vk="grade" class="gin ${badVal(e.grade, +t.max_grade) ? "bad" : ""}" value="${esc(e.grade)}" inputmode="decimal" aria-label="الدرجة">
+          <input type="text" data-vk="bonus" class="gin bin ${badVal(e.bonus, +t.max_grade) ? "bad" : ""}" value="${esc(e.bonus)}" placeholder="بونص" inputmode="decimal" aria-label="بونص">
+          <button class="btn xs ghost danger" data-vdel="${e.id}" aria-label="حذف">✕</button></div>`; }).join("")}</div>
+      <div class="row"><button class="btn primary" id="vcSave" ${n ? "" : "disabled"}>اعتماد ${n} درجة</button><span class="small muted">${voice.entries.length - n ? (voice.entries.length - n) + " تحتاج إلى مراجعة ولن تُعتمد" : ""}</span></div>`
+      : `<div class="empty">اضغط «ابدأ الإملاء» واسمح للمتصفح باستخدام الميكروفون، ثم تكلّم بصوت واضح.</div>`}`;
+    el.querySelectorAll("[data-vc]").forEach(row => {
+      const e = voice.entries.find(x => x.id === +row.dataset.vc);
+      row.querySelectorAll("[data-vk]").forEach(inp => inp.onchange = () => { e[inp.dataset.vk] = inp.value.trim(); if (inp.dataset.vk === "code") e.sure = !!e.code; drawVoiceList(); });
+    });
+    el.querySelectorAll("[data-vdel]").forEach(b => b.onclick = () => { voice.entries = voice.entries.filter(x => x.id !== +b.dataset.vdel); drawVoiceList(); });
+    const cl = $("#vcClear"); if (cl) cl.onclick = () => { voice.entries = []; drawVoiceList(); };
+    const sv = $("#vcSave"); if (sv) sv.onclick = async () => {
+      const last = {}; voice.entries.slice().reverse().forEach(e => { if (vcValid(t, e)) last[e.code] = e; });
+      const rows = Object.values(last).map(e => ({ code: e.code, grade: Number(toNum(e.grade)), bonus: e.bonus === "" ? 0 : Number(toNum(e.bonus)) }));
+      sv.disabled = true; sv.textContent = "جارٍ الاعتماد…";
+      try { const k = await rpc("grade_many", { tid: t.id, rows, p_source: "بالإملاء الصوتي" }); voice.entries = voice.entries.filter(e => !vcValid(t, e)); say("tasks", "رُصدت " + k + " درجة بالإملاء الصوتي." + (t.released ? "" : " لم تُعلن للطلبة بعد."));
+        if (!voice.entries.length) { closeVoice(true); await loadCourse(); } else { await refreshSubs(t); voice.msg = "رُصدت " + k + " درجة. بقيت درجات تحتاج إلى مراجعة."; drawVoice(); } }
+      catch (err) { sv.disabled = false; sv.textContent = "اعتماد"; showErr(err); }
     };
   }
 
