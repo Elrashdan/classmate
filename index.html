@@ -569,8 +569,14 @@
     const mf = $("#tkModeF"), ml = $("#tkModeL");
     if (mf) mf.onclick = () => { linkMode = false; tkMsg = null; renderTask(); };
     if (ml) ml.onclick = () => { linkMode = true; tkMsg = null; renderTask(); };
-    const fi = $("#tkFile"); if (fi) fi.onchange = () => { const f = fi.files[0]; if (!f) return; tkMsg = null;
-      if (f.size > HD.MAX) { pickFile = null; tkMsg = { k: "bad", t: "حجم الملف أكبر من 1 جيجابايت. اضغطه أو قسّمه، أو سلّم رابطًا." }; } else pickFile = f; renderTask(); };
+    const fi = $("#tkFile"); if (fi) fi.onchange = async () => { const f = fi.files[0]; if (!f) return; tkMsg = null;
+      if (f.size > HD.MAX) { pickFile = null; tkMsg = { k: "bad", t: "حجم الملف أكبر من 1 جيجابايت. اضغطه أو قسّمه، أو سلّم رابطًا." }; return renderTask(); }
+      // نقرأ الملف فورًا: على أندرويد قد يفقد المتصفح إذن قراءة الصورة بعد الانتقال إلى نافذة Google، فيفشل الرفع بخطأ «لا يوجد اتصال»
+      if (f.size <= 200 * 1048576) {
+        try { const buf = await f.arrayBuffer(); pickFile = new File([buf], f.name, { type: f.type || "application/octet-stream", lastModified: f.lastModified }); }
+        catch (e) { pickFile = null; tkMsg = { k: "bad", t: "تعذّرت قراءة الملف من هاتفك. إن كانت الصورة في Google Photos أو مساحة سحابية فنزّلها على الهاتف أولًا، أو اختر الملف من «الملفات/التنزيلات»." }; logErr("read_file", e, f); }
+      } else pickFile = f;
+      renderTask(); };
     const go = $("#tkGo"); if (go) go.onclick = () => submitDrive(t, ($("#tkNote") || {}).value || "");
     const gl = $("#tkLink"); if (gl) gl.onclick = () => submitLink(t, $("#tkUrl").value.trim(), ($("#tkNote") || {}).value || "");
     const sp = $("#tkStamp"); if (sp) sp.onclick = () => myStamped(t, sp);
@@ -581,19 +587,24 @@
     const f = pickFile, old = t.mine && t.mine.kind === "drive" ? t.mine.file_id : null;
     const auth = HD.authorize(); // من ضغطة الزر مباشرة، قبل أي انتظار
     setUp("في انتظار موافقة Google…", null); tkMsg = null;
-    let fileId = null;
+    let fileId = null, stage = "auth";
     try {
       await auth;
-      setUp("جارٍ تجهيز المجلد على Drive…", null);
+      setUp("جارٍ تجهيز المجلد على Drive…", null); stage = "folder";
       const folder = await HD.folders(t.course, t.title);
       const ext = (f.name.match(/\.[A-Za-z0-9]{1,8}$/) || [""])[0];
       const name = HD.fileName(home.code + " - " + (home.name || "") + " - " + t.title) + ext;
-      setUp("جارٍ رفع الملف…", 0);
-      const meta = await HD.upload(f, folder, name, p => { up.pct = p; const b = $("#upBar"), n = $("#upPct"); if (b) b.style.width = Math.round(p * 100) + "%"; if (n) n.textContent = Math.round(p * 100) + "%"; });
+      setUp("جارٍ رفع الملف…", 0); stage = "upload";
+      const prog = p => { if (!up) return; up.pct = p; const b = $("#upBar"), n = $("#upPct"); if (b) b.style.width = Math.round(p * 100) + "%"; if (n) n.textContent = Math.round(p * 100) + "%"; };
+      let meta = null;
+      for (let k = 0; k < 3 && !meta; k++) {   // انقطاع أثناء الرفع: نعيد المحاولة تلقائيًّا مرتين
+        try { meta = await HD.upload(f, folder, name, prog); }
+        catch (e) { if (k === 2 || !/Failed to fetch|drive_http_0|drive_http_5/.test(e.message || "")) throw e; setUp("انقطع الاتصال أثناء الرفع، جارٍ إعادة المحاولة…", 0); await new Promise(r => setTimeout(r, 1500 * (k + 1))); }
+      }
       fileId = meta.id;
-      setUp("جارٍ إتاحة الملف للمحاضر…", 1);
+      setUp("جارٍ إتاحة الملف للمحاضر…", 1); stage = "share";
       await HD.shareAnyone(meta.id);
-      setUp("جارٍ تسجيل التسليم…", 1);
+      setUp("جارٍ تسجيل التسليم…", 1); stage = "submit";
       const r = await rpc("student_submit", { p_token: token, tid: t.id, p_kind: "drive", p_url: meta.webViewLink || ("https://drive.google.com/file/d/" + meta.id + "/view"),
         p_file_id: meta.id, p_name: meta.name, p_mime: meta.mimeType || f.type, p_size: Number(meta.size) || f.size, p_md5: meta.md5Checksum, p_modified: meta.modifiedTime, p_note: note });
       fileId = null;
@@ -601,9 +612,17 @@
       pickFile = null; tkMsg = { k: "ok", t: r.late ? "تم التسليم بعد الموعد، وسيظهر ذلك للمحاضر." : "تم التسليم. يمكنك استبدال الملف حتى موعد التسليم." };
     } catch (e) {
       if (fileId) HD.trash(fileId);
-      tkMsg = { k: "bad", t: errText(e) };
+      const net = /Failed to fetch|NetworkError|network|Load failed/i.test(String(e && e.message || ""));
+      const WHERE = { auth: "أثناء الاتصال بحساب Google", folder: "أثناء تجهيز المجلد على Google Drive", upload: "أثناء رفع الملف إلى Google Drive", share: "أثناء إتاحة الملف للمحاضر", submit: "أثناء تسجيل التسليم في Hadro" };
+      tkMsg = { k: "bad", t: net ? "انقطع الاتصال " + WHERE[stage] + ". إن تكرر ذلك: أغلق الصفحة وافتحها من جديد واختر الملف مرة أخرى، أو جرّب متصفحًا آخر، أو سلّم «رابط» لملفك على Drive." : errText(e) };
+      logErr("submit_" + stage, e, f);
     }
     up = null; await loadTasks(true); renderTask();
+  }
+  // نسجّل أخطاء التسليم (دون بيانات الملف) لتشخيصها
+  function logErr(where, e, f) {
+    try { rpc("client_log", { p_token: token || null, p_where: where, p_msg: String((e && (e.name ? e.name + ": " : "") + (e.message || "")) || e).slice(0, 300) + (e && e.detail ? " | " + String(e.detail).slice(0, 300) : ""),
+      p_info: { ua: navigator.userAgent.slice(0, 200), size: f ? f.size : null, type: f ? f.type : null, online: navigator.onLine } }).catch(() => {}); } catch (x) {}
   }
   async function submitLink(t, url, note) {
     if (up) return;
