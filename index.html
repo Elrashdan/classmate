@@ -455,6 +455,7 @@
     if (m.grade != null) return ["ok", "الدرجة " + gNum(tot(m)) + " من " + gNum(t.max)];
     if (t.mode === "manual") return ["none", "رصد يدوي"];
     if (m.graded) return ["ok", "صُحِّح، والدرجة لم تُعلن بعد"];
+    if (t.refused) return ["bad", "مرفوض: غبت يوم التسليم"];
     if (m.submitted_at) return [m.late ? "warn" : "ok", m.late ? "سُلِّم متأخرًا" : "سُلِّم"];
     if (!past) return [new Date(t.due_at).getTime() - nowS() < 864e5 ? "warn" : "none", relDue(t)];
     return t.late === "accept" ? ["bad", "تأخرت · التسليم ما زال مفتوحًا"] : ["bad", "انتهى موعد التسليم"];
@@ -471,7 +472,7 @@
     $("#tkOv").hidden = false; renderTask(); loadTasks(true);
   }
   function closeTask() { if (up) return; tkId = null; $("#tkOv").hidden = true; renderHome(); }
-  const canSubmit = t => t.mode !== "manual" && !(t.mine && t.mine.graded) && (t.late === "accept" || new Date(t.due_at).getTime() >= nowS());
+  const canSubmit = t => t.mode !== "manual" && !t.refused && !(t.mine && t.mine.graded) && (t.late === "accept" || new Date(t.due_at).getTime() >= nowS());
   function renderTask() {
     const t = (tasks || []).find(x => x.id === tkId), el = $("#tkIn");
     if (!t) { el.innerHTML = `<p class="muted">جارٍ التحميل…</p>`; return; }
@@ -481,6 +482,8 @@
       <div class="sheet-h"><div><div class="eyebrow">${esc(t.course)}</div><h2 id="tkTitle">${esc(t.title)}</h2></div><button class="btn sm ghost" id="tkClose" ${up ? "disabled" : ""} aria-label="إغلاق">إغلاق</button></div>
       <div class="tk-meta"><span class="chip ${k}">${esc(s)}</span>${t.mode === "manual" ? "" : `<span class="small">التسليم ${esc(dueTxt(t))}</span>`}<span class="small muted">الدرجة العظمى ${gNum(t.max)}</span></div>
       ${t.details ? `<p class="tk-det">${esc(t.details)}</p>` : ""}
+      ${t.absent_rule === "refuse" && !t.refused && m.grade == null ? `<div class="msg warn small">لا يُقبل ${t.mode === "manual" ? "المشروع" : "التسليم"} ممن يغيب عن محاضرة يوم ${t.mode === "manual" ? "الاستلام" : "التسليم"}.</div>` : ""}
+      ${t.refused && m.grade == null ? `<div class="msg bad">لا يُقبل ${t.mode === "manual" ? "مشروعك" : "تسليمك"} في هذا التكليف لأنك غبت في محاضرة يوم ${t.mode === "manual" ? "الاستلام" : "التسليم"}. إن كان لك عذر (مرضي أو غيره) فراجِع المحاضر ليقبله.</div>` : ""}
       ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}
       ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div>
@@ -502,7 +505,7 @@
           <label class="f"><span>ملاحظة للمحاضر (اختياري)</span><input type="text" id="tkNote" maxlength="300"></label>
           <button class="btn primary block" id="tkLink">سلّم الرابط</button>
           <p class="small muted">تأكّد أن الرابط مفتوح لمن معه الرابط، وإلا لن يتمكن المحاضر من فتحه.</p>`}
-      </div>` : t.mode === "manual" ? "" : !m.graded ? `<div class="msg bad">انتهى موعد التسليم، وأُغلق التسليم في هذا التكليف.</div>` : ""}`;
+      </div>` : t.mode === "manual" || t.refused ? "" : !m.graded ? `<div class="msg bad">انتهى موعد التسليم، وأُغلق التسليم في هذا التكليف.</div>` : ""}`;
     $("#tkClose").onclick = closeTask;
     const mf = $("#tkModeF"), ml = $("#tkModeL");
     if (mf) mf.onclick = () => { linkMode = false; tkMsg = null; renderTask(); };

@@ -325,8 +325,10 @@
     const tk = await sb.from("tasks").select("*").eq("course_id", c.id).order("due_at");
     const tasks = tk.error ? [] : tk.data, subs = {};
     if (tasks.length) (await CM.fetchAll(() => sb.from("submissions").select("*").in("task_id", tasks.map(t => t.id)).order("task_id"))).forEach(r => { (subs[r.task_id] = subs[r.task_id] || {})[r.student_code] = r; });
+    const excuses = {};
+    if (tasks.length) try { const xr = await sb.from("task_excuses").select("*").in("task_id", tasks.map(t => t.id)); if (!xr.error) xr.data.forEach(x => { if (x.active) (excuses[x.task_id] = excuses[x.task_id] || {})[x.student_code] = x; }); } catch (e) {}
     if (tkSel && !tasks.some(t => t.id === tkSel)) tkSel = null;
-    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, tasks, subs };
+    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, tasks, subs, excuses };
     if (scan && !sessions.some(x => x.id === scan.sid && !x.ended)) closeScanner();
     render();
     startLoops();
@@ -1324,7 +1326,14 @@
     return !day.some(s => counted((D.att[s.id] || {})[e.student_code]));
   };
   const dueSessions = (t, e) => hasDueDay(t) ? D.sessions.filter(s => dayKey(s.started_at) === dayKey(t.due_at) && (!e || isOwn(s, e))) : [];
-  const absChip = (t, e) => absentOnDue(t, e) ? ` <span class="chip bad small" title="كان غائبًا في محاضرة يوم التسليم، فغالبًا سلّم متأخرًا. راجِع عذره قبل رصد الدرجة.">غائب يوم التسليم</span>` : "";
+  const excusedOf = (t, code) => !!((D.excuses || {})[t.id] || {})[code];
+  // «لا يُقبل ممن غاب يوم التسليم»: مرفوض ما لم يُقبل عذره
+  const refusedFor = (t, e) => t.absent_rule === "refuse" && absentOnDue(t, e) && !excusedOf(t, e.student_code);
+  const excBtn = (t, e) => canRun(course()) ? ` <button class="btn xs ${excusedOf(t, e.student_code) ? "ghost" : ""}" data-exc="${esc(e.student_code)}" data-on="${excusedOf(t, e.student_code) ? 0 : 1}">${excusedOf(t, e.student_code) ? "إلغاء قبول العذر" : "قبول بعذر"}</button>` : "";
+  const absChip = (t, e) => !absentOnDue(t, e) ? ""
+    : refusedFor(t, e) ? ` <span class="chip bad small" title="كان غائبًا في محاضرة يوم التسليم، والتكليف لا يُقبل ممن غاب إلا بعذر تقبله.">مرفوض · غائب يوم التسليم</span>${excBtn(t, e)}`
+    : excusedOf(t, e.student_code) ? ` <span class="chip ok small" title="${esc((D.excuses[t.id][e.student_code].note || "") + " · " + staffName(D.excuses[t.id][e.student_code].by_email))}">غاب يوم التسليم · مقبول بعذر</span>${t.absent_rule === "refuse" ? excBtn(t, e) : ""}`
+    : ` <span class="chip bad small" title="كان غائبًا في محاضرة يوم التسليم، فغالبًا سلّم متأخرًا. راجِع عذره قبل رصد الدرجة.">غائب يوم التسليم</span>`;
   const dayStr = d => new Date(d).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
   const extraChip = (t, e) => isExtra(t, e) ? ` <span class="chip warn small" title="ليس من مجموعة هذا التكليف، ويظهر هنا استثناءً">استثناء · ${e.grp ? "مجموعة " + esc(e.grp) : "دون مجموعة"}</span>` : "";
   const totalOf = s => s && s.grade != null ? Number(s.grade) + Number(s.bonus || 0) : null;
@@ -1358,6 +1367,7 @@
         ${man ? `<label class="f"><span>يوم الاستلام (اختياري)</span><input type="date" id="tfDay" value="${t && hasDueDay(t) ? localDT(t.due_at).slice(0, 10) : ""}"></label>
         <p class="small muted" style="grid-column:1/-1;margin:0">اختر من التقويم يوم استلام المشاريع. عند الرصد يُنبّهك البرنامج على كل طالب كان غائبًا في محاضرة ذلك اليوم، لأنه غالبًا سلّم متأخرًا.</p>` : `<label class="f"><span>موعد التسليم</span><input type="datetime-local" id="tfDue" value="${due}"></label>
         <label class="f"><span>بعد الموعد</span><select id="tfLate"><option value="accept" ${!t || t.late === "accept" ? "selected" : ""}>يُقبل التسليم ويُعلَّم «متأخر»</option><option value="close" ${t && t.late === "close" ? "selected" : ""}>يُغلق التسليم</option></select></label>`}
+        <label class="f" style="grid-column:1/-1"><span>الطالب الغائب في محاضرة يوم ${man ? "الاستلام" : "التسليم"}</span><select id="tfAbs"><option value="flag" ${!t || t.absent_rule !== "refuse" ? "selected" : ""}>يُقبل ${man ? "مشروعه" : "تسليمه"}، وينبّهني البرنامج عند الرصد</option><option value="refuse" ${t && t.absent_rule === "refuse" ? "selected" : ""}>لا يُقبل ${man ? "مشروعه" : "تسليمه"} إلا إذا قبلتُ عذره</option></select></label>
         ${gs.length ? `<label class="f"><span>لمن</span><select id="tfGrp"><option value="">الدفعة كاملة</option>${gs.map(g => `<option value="${esc(g)}" ${t && t.grp === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}
       </div>
       <div class="row"><button class="btn primary" id="tfSave">${t ? "حفظ التعديل" : man ? "أنشئ الكشف" : "أضف التكليف"}</button><button class="btn ghost" id="tfCancel">إلغاء</button></div>
@@ -1376,8 +1386,9 @@
       const args = { p_title: title, p_details: man ? "" : $("#tfDet").value, p_max: max, p_due: man ? (dayV ? new Date(dayV + "T23:59").toISOString() : (t ? t.due_at : null)) : new Date(dueV).toISOString(), p_late: man ? "accept" : $("#tfLate").value, p_grp: ($("#tfGrp") || {}).value || null };
       sv.disabled = true;
       try {
-        if (t) { await rpc("update_task", { tid: t.id, ...args }); say("tasks", "حُفظ التعديل."); }
-        else { tkSel = await rpc("create_task", { cid: D.cid, ...args, p_mode: man ? "manual" : "submit" }); say("tasks", man ? "أُنشئ الكشف. اكتب الدرجات أمام كل طالب، أو نزّل كشف الإكسل للطباعة." : "أُضيف التكليف، وظهر للطلبة في صفحتهم."); }
+        const absV = ($("#tfAbs") || {}).value || "flag";
+        if (t) { await rpc("update_task", { tid: t.id, ...args }); if (absV !== (t.absent_rule || "flag")) await rpc("set_task_absent_rule", { tid: t.id, p_rule: absV }); say("tasks", "حُفظ التعديل."); }
+        else { tkSel = await rpc("create_task", { cid: D.cid, ...args, p_mode: man ? "manual" : "submit" }); if (absV === "refuse") await rpc("set_task_absent_rule", { tid: tkSel, p_rule: "refuse" }); say("tasks", man ? "أُنشئ الكشف. اكتب الدرجات أمام كل طالب، أو نزّل كشف الإكسل للطباعة." : "أُضيف التكليف، وظهر للطلبة في صفحتهم."); }
         tkForm = null; tkMode = "submit"; await loadCourse();
       } catch (e) { sv.disabled = false; showErr(e); }
     };
@@ -1436,9 +1447,9 @@
         ${edit ? `<button class="btn sm ${t.released ? "" : "primary"}" id="tkRel">${t.released ? "إخفاء الدرجات عن الطلبة" : "إعلان الدرجات للطلبة"}</button><button class="btn sm ghost" id="tkEdit">تعديل</button><button class="btn sm ghost danger" id="tkDel">حذف</button>` : ""}
       </div></div>
       <div><div class="eyebrow">${esc(c.name)}${t.grp ? " · مجموعة " + esc(t.grp) : ""}${man ? " · رصد يدوي" : ""}</div><h2 style="font-size:1.3rem">${esc(t.title)}</h2>
-        <p class="small muted">${man ? (hasDueDay(t) ? "يوم الاستلام " + esc(dayStr(t.due_at)) + " · " : "") : "التسليم " + esc(dueStr(t.due_at)) + " · "}الدرجة العظمى ${gN(t.max_grade)}${man ? "" : " · " + (t.late === "close" ? "يُغلق التسليم بعد الموعد" : "يُقبل التسليم المتأخر ويُعلَّم")} · ${t.released ? "الدرجات معلنة للطلبة" : "الدرجات غير معلنة للطلبة"}</p>
+        <p class="small muted">${man ? (hasDueDay(t) ? "يوم الاستلام " + esc(dayStr(t.due_at)) + " · " : "") : "التسليم " + esc(dueStr(t.due_at)) + " · "}الدرجة العظمى ${gN(t.max_grade)}${man ? "" : " · " + (t.late === "close" ? "يُغلق التسليم بعد الموعد" : "يُقبل التسليم المتأخر ويُعلَّم")}${t.absent_rule === "refuse" ? " · لا يُقبل ممن غاب يوم " + (man ? "الاستلام" : "التسليم") + " إلا بعذر" : ""} · ${t.released ? "الدرجات معلنة للطلبة" : "الدرجات غير معلنة للطلبة"}</p>
         ${t.details ? `<p class="tk-det" style="margin-top:8px">${esc(t.details)}</p>` : ""}
-        ${hasDueDay(t) ? (nAbs ? `<div class="msg warn small" style="margin-top:8px"><b>${nAbs} ${nAbs === 1 ? "طالب كان غائبًا" : "طلبة كانوا غائبين"} في محاضرة يوم التسليم</b> (${esc(dayStr(t.due_at))})، فغالبًا سلّموا متأخرًا. تظهر أمام أسمائهم علامة «غائب يوم التسليم»؛ راجِع العذر (مرضي أو غيره) ثم ارصد الدرجة، واكتب السبب في الملاحظة إن أردت.</div>`
+        ${hasDueDay(t) ? (nAbs ? `<div class="msg warn small" style="margin-top:8px"><b>${nAbs} ${nAbs === 1 ? "طالب كان غائبًا" : "طلبة كانوا غائبين"} في محاضرة يوم التسليم</b> (${esc(dayStr(t.due_at))})${t.absent_rule === "refuse" ? "، و<b>هذا التكليف لا يُقبل ممن غاب</b>: لا يستطيعون التسليم ولا تُرصد درجاتهم إلا إذا ضغطت «قبول بعذر» أمام الاسم (عذر مرضي أو غيره)." : "، فغالبًا سلّموا متأخرًا. تظهر أمام أسمائهم علامة «غائب يوم التسليم»؛ راجِع العذر (مرضي أو غيره) ثم ارصد الدرجة، واكتب السبب في الملاحظة إن أردت."}</div>`
           : !dueSessions(t).length ? `<p class="small muted" style="margin-top:6px">لا توجد محاضرة مسجّلة في يوم التسليم (${esc(dayStr(t.due_at))})، لذا لا يمكن معرفة من سلّم متأخرًا من الحضور.</p>` : "") : ""}</div>
       ${msgHtml("tasks")}
       ${tkForm === t.id ? taskFormHtml(t) : ""}
@@ -1447,6 +1458,7 @@
         <div class="row"><button class="btn sm danger" id="tdGo">حذف</button><button class="btn sm ghost" id="tdCancel">إلغاء</button></div></div>` : ""}
       ${run ? `<div class="tk-tools no-print">
         ${man ? "" : `<button class="btn primary" id="tkGrader" ${st.sub ? "" : "disabled"}>${ICO('<rect x="3" y="4" width="13" height="16" rx="2"/><path d="M19 8v12M7 9h5M7 13h5"/>')} عرض الأعمال وتصحيحها</button>`}
+        ${!man && HD.canCheck && drive ? `<button class="btn" id="tkDl" title="ينزّل كل الملفات مرقّمة بأسماء الطلبة، مع فهرس إكسل">${tkBusy === "dl" ? "جارٍ التنزيل…" : "تنزيل كل الملفات"}</button>` : ""}
         ${!man && HD.canCheck && drive ? `<button class="btn" id="tkCheck" title="يقارن كل ملف على Drive ببصمته وقت التسليم">${tkBusy === "check" ? "جارٍ الفحص…" : "فحص الملفات على Drive"}</button>` : ""}
         <span class="tk-sep"></span>
         <button class="btn" id="tkVoice" title="قل اسم الطالب ثم درجته، فيكتبها البرنامج في الكشف بعد مراجعتك">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} رصد بالصوت</button>
@@ -1469,8 +1481,8 @@
           return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td>${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
             ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}` : `<span class="muted">لم يسلّم</span>`}</td>
             <td class="small">${s && s.url ? `<button class="btn xs" data-view="${code}">عرض</button> <a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a">${esc(s.kind === "drive" ? (s.file_name || "الملف") : "رابط")}</a>${ck ? ` <span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted">«${esc(s.note)}»</div>` : ""}` : "—"}</td>`}
-            <td class="c">${run ? `<input type="text" class="gin ${badVal(valOf(e.student_code, "grade", s), +t.max_grade) ? "bad" : ""}" data-g="${code}" value="${esc(valOf(e.student_code, "grade", s))}" inputmode="decimal" autocomplete="off">` : gN(s && s.grade)}</td>
-            <td class="c">${run ? `<input type="text" class="gin bin ${badVal(valOf(e.student_code, "bonus", s), +t.max_grade) ? "bad" : ""}" data-b="${code}" value="${esc(valOf(e.student_code, "bonus", s))}" inputmode="decimal" autocomplete="off" placeholder="—">` : (s && Number(s.bonus) ? "+" + gN(s.bonus) : "")}</td>
+            <td class="c">${run ? `<input type="text" class="gin ${badVal(valOf(e.student_code, "grade", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? `disabled title="مرفوض: غاب يوم التسليم. اقبل عذره أولًا لترصد درجته."` : ""} data-g="${code}" value="${esc(valOf(e.student_code, "grade", s))}" inputmode="decimal" autocomplete="off">` : gN(s && s.grade)}</td>
+            <td class="c">${run ? `<input type="text" class="gin bin ${badVal(valOf(e.student_code, "bonus", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-b="${code}" value="${esc(valOf(e.student_code, "bonus", s))}" inputmode="decimal" autocomplete="off" placeholder="—">` : (s && Number(s.bonus) ? "+" + gN(s.bonus) : "")}</td>
             <td class="c mono"><b data-tot="${code}">${run ? liveTotal(t, e.student_code) : gN(totalOf(s))}</b></td>
             <td>${run ? `<input type="text" class="fin" data-f="${code}" maxlength="2000" value="${esc(valOf(e.student_code, "feedback", s))}" placeholder="اختياري">` : esc((s && s.feedback) || "")}</td>
             ${stampCol ? `<td>${s && s.kind === "drive" && s.grade != null && HD.stampable(s.mime) ? `<button class="btn xs ghost" data-stamp="${code}" title="نسخة PDF من عمل الطالب عليها ختم بالدرجة">نسخة مختومة</button>` : ""}</td>` : ""}</tr>`; }).join("")}
@@ -1481,6 +1493,7 @@
     dirtyCount();
     $("#tkBack").onclick = () => { if (Object.keys(tkEdits).length && confirmKey !== "tkleave") { confirmKey = "tkleave"; toast("لديك درجات لم تُحفظ. اضغط «حفظ الدرجات»، أو اضغط الرجوع مرة أخرى لتجاهلها."); setTimeout(() => { if (confirmKey === "tkleave") confirmKey = null; }, 5000); return; } confirmKey = null; tkSel = null; tkEdits = {}; tkForm = null; gimp = null; renderTasks(); };
     el.querySelectorAll("[data-tf]").forEach(b => b.onclick = () => { tkFilter = b.dataset.tf; renderTasks(); });
+    el.querySelectorAll("[data-exc]").forEach(b => b.onclick = () => excuseToggle(t, b.dataset.exc, b.dataset.on === "1"));
     const ax = $("#tkAddX"); if (ax) ax.onchange = () => { if (!ax.value) return; (tkExtra[t.id] = tkExtra[t.id] || new Set()).add(ax.value); tkQ = ""; toast("أُضيف " + nameOf(ax.value) + " إلى كشف هذا التكليف استثناءً. اكتب درجته واحفظ."); renderTasks(); };
     const qi = $("#tkQ"); if (qi) qi.oninput = () => { tkQ = qi.value; renderTasks(); const r2 = $("#tkQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
     const onIn = (i, code, k) => { setEdit(t, code, k, i.value.trim()); if (k !== "feedback") i.classList.toggle("bad", badVal(i.value, +t.max_grade));
@@ -1513,6 +1526,7 @@
     const gb = $("#tkGrader"); if (gb) gb.onclick = () => openGrader(t);
     const sh = $("#tkSheet"); if (sh) sh.onclick = () => exportEntrySheet(t);
     const vb = $("#tkVoice"); if (vb) vb.onclick = () => openVoice(t);
+    const dla = $("#tkDl"); if (dla) dla.onclick = () => downloadAll(t);
     const ix = $("#tkImpX"); if (ix) ix.onchange = () => { const f = ix.files[0]; ix.value = ""; if (f) importEntrySheet(t, f); };
     const ip = $("#tkImpP"); if (ip) ip.onchange = () => { const fs = [...ip.files]; ip.value = ""; if (fs.length) openPhoto(t, fs); };
     wireImp2(t);
@@ -1521,7 +1535,8 @@
   function editRows(t) {
     const rows = [];
     for (const [code, e2] of Object.entries(tkEdits)) {
-      const s = subOf(t, code);
+      const s = subOf(t, code), en = D.enroll.find(x => x.student_code === code);
+      if (en && refusedFor(t, en)) continue;
       const gv = toNum("grade" in e2 ? e2.grade : origOf(s, "grade")), bv = toNum("bonus" in e2 ? e2.bonus : origOf(s, "bonus"));
       const g = gv === "" ? null : Number(gv), b = bv === "" ? 0 : Number(bv);
       if (g != null && (isNaN(g) || g < 0 || g > Number(t.max_grade))) throw { message: "درجة " + nameOf(code) + " خارج المدى (من 0 إلى " + gN(t.max_grade) + ")." };
@@ -1530,6 +1545,17 @@
       rows.push({ code, grade: g, bonus: b, feedback: "feedback" in e2 ? e2.feedback : (s ? s.feedback || "" : "") });
     }
     return rows;
+  }
+  async function excuseToggle(t, code, on, after) {
+    let note = "";
+    if (on) { note = prompt("قبول عذر " + nameOf(code) + " (غاب في محاضرة يوم التسليم).\nاكتب السبب (مثلًا: عذر مرضي) — اختياري:", ""); if (note === null) return; }
+    try {
+      await rpc("set_task_excuse", { tid: t.id, code, p_on: on, p_note: note || "" });
+      const x = (D.excuses[t.id] = D.excuses[t.id] || {});
+      if (on) x[code] = { task_id: t.id, student_code: code, note: note || "", by_email: me.email, active: true }; else delete x[code];
+      toast(on ? "قُبل عذر " + nameOf(code) + "، ويمكن رصد درجته" + (isManual(t) ? "." : " أو أن يسلّم.") : "أُلغي قبول عذر " + nameOf(code) + ".");
+      if (after) after(); else renderTasks();
+    } catch (e) { showErr(e); }
   }
   async function saveGrades(t, source) {
     let rows; try { rows = editRows(t); } catch (e) { return toast(e.message); }
@@ -1569,7 +1595,10 @@
     if (newPreview || !$("#grPrev")) ov.innerHTML = `<div class="gr">
       <header class="gr-h"><div class="gr-t"><span class="eyebrow">${esc(c.name)} · من ${gN(t.max_grade)}</span><b>${esc(t.title)}</b></div>
         <select id="grF" aria-label="من يظهر"><option value="sub" ${grader.f === "sub" ? "selected" : ""}>من سلّموا</option><option value="ungraded" ${grader.f === "ungraded" ? "selected" : ""}>من سلّموا ولم تُرصد درجاتهم</option><option value="all" ${grader.f === "all" ? "selected" : ""}>كل الطلبة</option></select>
-        <span class="gr-n mono" id="grN"></span><button class="btn sm" id="grClose">إغلاق</button></header>
+        <span class="gr-n mono" id="grN"></span>
+        <button class="btn sm" id="grSheet" title="كشف بأسماء الطلبة وروابط أعمالهم، تملؤه وأنت تشاهد الأعمال">كشف رصد (إكسل)</button>
+        <label class="btn sm" title="ارفع كشف إكسل كتبت فيه الدرجات (بالكود أو بالاسم)">رفع كشف إكسل<input type="file" id="grImpX" accept=".xlsx" hidden></label>
+        <button class="btn sm" id="grClose">إغلاق</button></header>
       <div class="gr-b"><div class="gr-prev" id="grPrev"></div><aside class="gr-side" id="grSide"></aside></div></div>`;
     $("#grN").textContent = grader.order.length ? (grader.i + 1) + " / " + grader.order.length : "0";
     if (newPreview) $("#grPrev").innerHTML = e ? previewHtml(s) : "";
@@ -1577,7 +1606,7 @@
     $("#grSide").innerHTML = !e ? `<div class="gr-empty"><b>لا يوجد طلبة هنا</b><span>${grader.f === "ungraded" ? "رُصدت درجات كل من سلّموا." : "غيّر الاختيار من الأعلى."}</span></div>` : `
       <div class="gr-who"><span class="mono muted">${esc(code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</span><h3>${esc(e.name)}</h3>
         ${s && s.submitted_at ? `<span class="small">سلّم ${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.version > 1 ? " · التسليم " + s.version : ""}</span>` : `<span class="small muted">لم يسلّم</span>`}
-        <div class="row">${absentOnDue(t, e) ? `<span class="chip bad">غائب يوم التسليم · راجِع العذر</span>` : ""}${s && s.late ? `<span class="chip warn">متأخر</span>` : ""}${ck ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s && s.grade != null ? `<span class="chip ok">مرصودة: ${gN(totalOf(s))}</span>` : ""}</div>
+        <div class="row">${refusedFor(t, e) ? `<span class="chip bad">مرفوض · غائب يوم التسليم</span><button class="btn xs" id="grExc">قبول بعذر</button>` : absentOnDue(t, e) ? `<span class="chip ${excusedOf(t, code) ? "ok" : "bad"}">${excusedOf(t, code) ? "غاب يوم التسليم · مقبول بعذر" : "غائب يوم التسليم · راجِع العذر"}</span>` : ""}${s && s.late ? `<span class="chip warn">متأخر</span>` : ""}${ck ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s && s.grade != null ? `<span class="chip ok">مرصودة: ${gN(totalOf(s))}</span>` : ""}</div>
         ${s && s.note ? `<p class="small">«${esc(s.note)}»</p>` : ""}</div>
       <div class="gr-grade">
         <label class="f"><span>الدرجة من ${gN(t.max_grade)}</span><input type="text" id="grG" inputmode="decimal" autocomplete="off" value="${esc(v("grade"))}"></label>
@@ -1592,9 +1621,13 @@
       <div class="row">${s && s.url ? `<a class="btn sm ghost" href="${esc(s.url)}" target="_blank" rel="noopener">فتح في نافذة جديدة</a>` : ""}${s && s.kind === "drive" && s.grade != null && HD.canCheck && HD.stampable(s.mime) ? `<button class="btn sm ghost" id="grStamp">نسخة مختومة</button>` : ""}</div>
       <p class="small muted">Enter للحفظ والانتقال إلى التالي · Esc للإغلاق</p>`;
     $("#grClose").onclick = closeGrader;
+    const gsx = $("#grSheet"); if (gsx) gsx.onclick = () => exportEntrySheet(t);
+    const gix = $("#grImpX"); if (gix) gix.onchange = () => { const f = gix.files[0]; gix.value = ""; if (f) { closeGrader(); importEntrySheet(t, f); } };
     $("#grF").onchange = () => { const cur = grader.order[grader.i]; grader.f = $("#grF").value; grader.order = graderOrder(t, grader.f); grader.i = Math.max(0, grader.order.indexOf(cur)); grader.msg = ""; drawGrader(true); };
     if (!e) return;
     const G = $("#grG"), B = $("#grB"), T = $("#grT");
+    const ge = $("#grExc"); if (ge) ge.onclick = () => excuseToggle(t, code, true, () => drawGrader(false));
+    if (refusedFor(t, e)) { G.disabled = B.disabled = true; $("#grSave").disabled = true; G.placeholder = "مرفوض"; }
     const upd = () => { const g = toNum(G.value), b = toNum(B.value); G.classList.toggle("bad", badVal(G.value, +t.max_grade)); B.classList.toggle("bad", badVal(B.value, +t.max_grade)); T.textContent = g === "" || isNaN(+g) ? "—" : gN(+g + (+b || 0)); };
     upd(); G.oninput = upd; B.oninput = upd;
     $("#grSide").querySelectorAll("[data-q]").forEach(b => b.onclick = () => { G.value = b.dataset.q; upd(); G.focus(); });
@@ -1627,31 +1660,94 @@
     if (grader) closeGrader(); else if (photo) closePhoto(); else if (voice) closeVoice();
   });
 
+  /* ---------- تنزيل كل ملفات التكليف: مرقّمة بأسماء الطلبة + فهرس ---------- */
+  const loadJSZip = () => window.JSZip ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"; sc.onload = ok; sc.onerror = () => bad({ message: "تعذّر تحميل أداة الضغط. تأكّد من الاتصال بالإنترنت." }); document.head.appendChild(sc); });
+  const MIMEX = { "application/pdf": ".pdf", "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/heic": ".heic", "application/zip": ".zip", "application/x-zip-compressed": ".zip", "application/vnd.rar": ".rar", "application/x-rar-compressed": ".rar", "video/mp4": ".mp4" };
+  const extOf = s => { const m = /\.([A-Za-z0-9]{1,6})$/.exec(s.file_name || ""); return m ? "." + m[1].toLowerCase() : MIMEX[s.mime] || ""; };
+  async function downloadAll(t) {
+    if (tkBusy) return;
+    const c = course(), rows = taskRows(t), w = Math.max(3, String(rows.length).length), pad = n => String(n).padStart(w, "0");
+    const items = rows.map((e, i) => ({ e, n: i + 1, s: subOf(t, e.student_code) }));
+    const files = items.filter(x => x.s && x.s.kind === "drive" && x.s.file_id);
+    if (!files.length) return toast("لا توجد ملفات مرفوعة على Drive في هذا التكليف.");
+    const base = HD.fileName(t.title + " - " + c.name + (t.grp ? " - مجموعة " + t.grp : ""));
+    const nameFor = x => HD.fileName(pad(x.n) + " - " + x.e.student_code + " - " + x.e.name + (x.s.late ? " - متأخر" : "") + (absentOnDue(t, x.e) && !excusedOf(t, x.e.student_code) ? " - غائب يوم التسليم" : "")) + extOf(x.s);
+    // كروم على الكمبيوتر: تُكتب الملفات مباشرة في مجلد تختاره (مهما كبر حجمها)، وإلا فملف مضغوط (أجزاء حتى 300 م.ب)
+    let dir = null;
+    if (window.showDirectoryPicker) {
+      try { const root = await window.showDirectoryPicker({ mode: "readwrite", id: "hadro-dl" }); dir = await root.getDirectoryHandle(base, { create: true }); }
+      catch (e) { if (e && e.name === "AbortError") return; dir = null; }
+    }
+    tkBusy = "dl"; renderTasks();
+    const stat = txt => { const b = $("#tkDl"); if (b) b.textContent = txt; };
+    const result = {}; let done = 0, okN = 0;
+    const LIMIT = 300 * 1048576, total = files.reduce((a, x) => a + Number(x.s.size || 0), 0), multi = !dir && total > LIMIT;
+    let zip = null, zbytes = 0, part = 1, queue = Promise.resolve();
+    try {
+      if (!dir) { await loadJSZip(); zip = new window.JSZip(); }
+      const flush = async () => { if (!zip || !Object.keys(zip.files).length) return; const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }); HD.saveBytes(blob, base + (multi ? " - الجزء " + part : "") + ".zip", "application/zip"); part++; zip = new window.JSZip(); zbytes = 0; };
+      const one = async x => {
+        const nm = nameFor(x);
+        try {
+          const r = await HD.publicResponse(x.s.file_id);
+          if (dir) { const fh = await dir.getFileHandle(nm, { create: true }); const wr = await fh.createWritable(); await r.body.pipeTo(wr); }
+          else { const buf = await r.arrayBuffer(); queue = queue.then(async () => { if (zbytes && zbytes + buf.byteLength > LIMIT) await flush(); zip.file(nm, buf); zbytes += buf.byteLength; }); await queue; }
+          result[x.e.student_code] = { ok: true, name: nm }; okN++;
+        } catch (e) { result[x.e.student_code] = { ok: false, why: e && e.message === "drive_missing" ? "الملف محذوف أو غير متاح على Drive" : "تعذّر التنزيل" }; }
+        done++; stat("جارٍ التنزيل " + done + " / " + files.length + "…");
+      };
+      let i = 0; const workers = Array.from({ length: 3 }, async () => { while (i < files.length) await one(files[i++]); });
+      await Promise.all(workers);
+      // الفهرس
+      await loadExcelJS();
+      const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("فهرس التسليمات", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
+      sheetTitle(ws, 10, "فهرس تسليمات: " + t.title, courseSub(c) + (t.grp ? " · مجموعة " + t.grp : "") + " · " + CM.fmtD(new Date()));
+      headRow(ws, 4, ["م", "الكود", "الاسم", "المجموعة", "الحالة", "تاريخ التسليم", "اسم الملف في المجلد", "رابط العمل", "يوم التسليم", "ملاحظة الطالب"], true);
+      items.forEach((x, k) => {
+        const s = x.s, rr = result[x.e.student_code], r = ws.getRow(5 + k);
+        const state = !s || !s.url ? "لم يسلّم" : s.kind === "link" ? "رابط خارجي (لم يُنزَّل)" : rr && rr.ok ? (s.late ? "سُلِّم متأخرًا" : "سُلِّم") : (rr ? rr.why : "—");
+        [x.n, isNaN(+x.e.student_code) ? x.e.student_code : +x.e.student_code, x.e.name, x.e.grp || "—", state, s && s.submitted_at ? CM.fmtD(s.submitted_at) + " " + CM.fmtT(s.submitted_at) : "",
+         rr && rr.ok ? rr.name : "", s && s.url ? { text: "فتح", hyperlink: s.url } : "", absentOnDue(t, x.e) ? (excusedOf(t, x.e.student_code) ? "غائب (مقبول بعذر)" : "غائب") : "", (s && s.note) || ""].forEach((v, j) => { r.getCell(j + 1).value = v; });
+        r.eachCell({ includeEmpty: true }, (cl, j) => { if (j > 10) return; cl.font = { name: "Arial", size: 10.5, ...(j === 8 && s && s.url ? { color: { argb: "FF1D6B58" }, underline: true } : {}) }; cl.alignment = { horizontal: j === 3 || j === 7 || j === 10 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (k % 2) cl.fill = fill(XC.band); });
+      });
+      [5, 12, 30, 9, 22, 18, 50, 9, 14, 30].forEach((wd, j) => { ws.getColumn(j + 1).width = wd; });
+      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + items.length, column: 10 } };
+      const xbuf = await wb.xlsx.writeBuffer(), xname = pad(0) + " - فهرس التسليمات.xlsx";
+      if (dir) { const fh = await dir.getFileHandle(xname, { create: true }); const wr = await fh.createWritable(); await wr.write(xbuf); await wr.close(); }
+      else { await queue; zip.file(xname, xbuf); await flush(); }
+      const bad = files.length - okN, links = items.filter(x => x.s && x.s.kind === "link").length;
+      say("tasks", (bad ? "!" : "") + "نُزّل " + okN + " ملفًا من " + files.length + (dir ? " في مجلد «" + base + "»" : multi ? " في " + (part - 1) + " ملفات مضغوطة" : " في ملف مضغوط") + "، مرقّمة بترتيب الكشف وبأسماء الطلبة، ومعها «فهرس التسليمات»." + (bad ? " تعذّر تنزيل " + bad + " (موضّحة في الفهرس)." : "") + (links ? " و" + links + " سلّموا روابط خارجية، روابطها في الفهرس." : ""));
+    } catch (e) { showErr(e); }
+    tkBusy = null; renderTasks();
+  }
+
   /* ---------- كشف الرصد: تنزيل للطباعة أو للملء، ثم رفعه ---------- */
   async function exportEntrySheet(t) {
     const btn = $("#tkSheet"); if (btn) { btn.disabled = true; btn.textContent = "جارٍ التجهيز…"; }
     try {
       await loadExcelJS();
-      const c = course(), wb = new ExcelJS.Workbook(), rows = taskRows(t), max = Number(t.max_grade);
+      const c = course(), wb = new ExcelJS.Workbook(), rows = taskRows(t), max = Number(t.max_grade), withWork = !isManual(t), NC = withWork ? 8 : 7;
       const ws = wb.addWorksheet("كشف الرصد", { views: [{ rightToLeft: true, state: "frozen", ySplit: 5 }] });
-      sheetTitle(ws, 7, "كشف رصد: " + t.title, courseSub(c) + (t.grp ? " · مجموعة " + t.grp : ""));
-      ws.mergeCells(3, 1, 3, 7);
+      sheetTitle(ws, NC, "كشف رصد: " + t.title, courseSub(c) + (t.grp ? " · مجموعة " + t.grp : ""));
+      ws.mergeCells(3, 1, 3, NC);
       ws.getCell(3, 1).value = "الدرجة العظمى " + gN(max) + " · اكتب الدرجة في خانتها والبونص (إن وجد) في خانته. لا تغيّر عمود الكود. بعد الملء ارفع الملف من «رفع كشف إكسل»، أو صوّر الورقة وارفعها من «صورة كشف مكتوب باليد».";
       ws.getCell(3, 1).font = { name: "Arial", size: 9.5, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl", wrapText: true }; ws.getRow(3).height = 30;
-      headRow(ws, 5, ["م", "الكود", "الاسم", "المجموعة", "الدرجة (من " + gN(max) + ")", "بونص", "ملاحظة"], true);
+      headRow(ws, 5, ["م", "الكود", "الاسم", "المجموعة", "الدرجة (من " + gN(max) + ")", "بونص", "ملاحظة", ...(withWork ? ["العمل المسلَّم"] : [])], true);
       rows.forEach((e, i) => {
         const s = subOf(t, e.student_code), r = ws.getRow(6 + i);
         [i + 1, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", s && s.grade != null ? Number(s.grade) : null, s && Number(s.bonus) ? Number(s.bonus) : null, (s && s.feedback) || ""].forEach((v, j) => { r.getCell(j + 1).value = v; });
+        if (withWork) r.getCell(8).value = s && s.url ? { text: (s.kind === "drive" ? s.file_name || "فتح الملف" : "فتح الرابط") + (s.late ? " (متأخر)" : ""), hyperlink: s.url } : refusedFor(t, e) ? "مرفوض: غائب يوم التسليم" : "لم يسلّم";
+        if (refusedFor(t, e)) r.getCell(3).value = e.name + " (مرفوض: غائب يوم " + (withWork ? "التسليم" : "الاستلام") + ")";
         r.height = 24;
-        r.eachCell({ includeEmpty: true }, (cl, j) => { if (j > 7) return; cl.border = { top: { style: "thin", color: { argb: "FF9AA7A3" } }, bottom: { style: "thin", color: { argb: "FF9AA7A3" } }, left: { style: "thin", color: { argb: "FF9AA7A3" } }, right: { style: "thin", color: { argb: "FF9AA7A3" } } };
-          cl.font = { name: "Arial", size: j === 5 || j === 6 ? 13 : 11, bold: j === 5 }; cl.alignment = { horizontal: j === 3 || j === 7 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
+        r.eachCell({ includeEmpty: true }, (cl, j) => { if (j > NC) return; cl.border = { top: { style: "thin", color: { argb: "FF9AA7A3" } }, bottom: { style: "thin", color: { argb: "FF9AA7A3" } }, left: { style: "thin", color: { argb: "FF9AA7A3" } }, right: { style: "thin", color: { argb: "FF9AA7A3" } } };
+          cl.font = { name: "Arial", size: j === 5 || j === 6 ? 13 : j === 8 ? 10 : 11, bold: j === 5, ...(j === 8 && s && s.url ? { color: { argb: "FF1D6B58" }, underline: true } : {}) }; cl.alignment = { horizontal: j === 3 || j >= 7 ? "right" : "center", vertical: "middle", readingOrder: "rtl", ...(j === 8 ? { shrinkToFit: true } : {}) }; if (i % 2) cl.fill = fill(XC.band); });
         [5, 6].forEach(j => { r.getCell(j).dataValidation = { type: "decimal", operator: "between", formulae: [0, max], allowBlank: true, showErrorMessage: true, errorTitle: "درجة غير صحيحة", error: "اكتب رقمًا من 0 إلى " + gN(max) }; r.getCell(j).protection = { locked: false }; });
         r.getCell(7).protection = { locked: false };
       });
       const end = 6 + rows.length;
-      const sg = ws.getRow(end + 1); ws.mergeCells(end + 1, 1, end + 1, 7); sg.height = 34;
+      const sg = ws.getRow(end + 1); ws.mergeCells(end + 1, 1, end + 1, NC); sg.height = 34;
       sg.getCell(1).value = "اسم المصحح وتوقيعه: ……………………………………     التاريخ: ……… / ……… / ………"; sg.getCell(1).font = { name: "Arial", size: 11, bold: true }; sg.getCell(1).alignment = { horizontal: "right", vertical: "bottom", readingOrder: "rtl" };
-      [5, 12, 32, 10, 15, 10, 30].forEach((w, j) => { ws.getColumn(j + 1).width = w; });
+      [5, 12, 32, 10, 15, 10, 30, 34].slice(0, NC).forEach((w, j) => { ws.getColumn(j + 1).width = w; });
       ws.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "5:5", margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.6, header: 0.2, footer: 0.3 } };
       await ws.protect("", { selectLockedCells: true, selectUnlockedCells: true, formatColumns: true, formatRows: true });
       const meta = wb.addWorksheet("hadro", { state: "veryHidden" });
@@ -1671,20 +1767,32 @@
       }
       if (!meta) warn.push("الملف ليس من كشوف Hadro، فقُرئ بحسب عناوين الأعمدة.");
       const ws = wb.worksheets.find(w => w.name !== "hadro" && w.state !== "veryHidden" && w.state !== "hidden");
-      let hr = 0, cCode = 0, cG = 0, cB = 0, cF = 0;
+      let hr = 0, cCode = 0, cG = 0, cB = 0, cF = 0, cN = 0;
+      const cellTxt = v => v && typeof v === "object" ? (v.text || (v.richText ? v.richText.map(x => x.text).join("") : v.result != null ? v.result : "")) : v;
       for (let r = 1; r <= Math.min(ws.rowCount, 30) && !hr; r++) {
-        ws.getRow(r).eachCell((cl, j) => { const v = String(toNum(cl.value) || cl.value || "").trim();
-          if (/^(الكود|كود|رقم الجلوس|code)/i.test(v)) cCode = j; else if (/^(الدرجة|درجة|grade)/i.test(v)) cG = j; else if (/^(بونص|درجة إضافية|bonus)/i.test(v)) cB = j; else if (/^(ملاحظة|ملاحظات)/.test(v)) cF = j; });
-        if (cCode && cG) hr = r; else { cCode = cG = cB = cF = 0; }
+        ws.getRow(r).eachCell((cl, j) => { const v = String(toNum(cellTxt(cl.value)) || cellTxt(cl.value) || "").trim();
+          if (/^(الكود|كود|رقم الجلوس|رقم القيد|code|id)/i.test(v)) cCode = cCode || j; else if (/^(الدرجة|درجة|الدرجات|grade|mark|score)/i.test(v)) cG = cG || j; else if (/^(بونص|درجة إضافية|bonus)/i.test(v)) cB = j; else if (/^(ملاحظة|ملاحظات)/.test(v)) cF = j; else if (/^(الاسم|اسم الطالب|الطالب|name)/i.test(v)) cN = cN || j; });
+        if ((cCode || cN) && cG) hr = r; else { cCode = cG = cB = cF = cN = 0; }
       }
-      if (!hr) throw { message: "لم أجد في الملف عمودي «الكود» و«الدرجة». استخدم كشف الرصد الذي ينزّله البرنامج." };
+      if (!hr) throw { message: "لم أجد في الملف عمود «الدرجة» ومعه عمود «الكود» أو «الاسم». اكتب هذه العناوين في الصف الأول، أو استخدم كشف الرصد الذي ينزّله البرنامج." };
+      if (!cCode) warn.push("لا يوجد في الملف عمود للكود، فطُوبقت الأسماء بكشف المادة. راجِع المطابقة جيدًا قبل الاعتماد.");
+      const roster = vcRoster(t);
       const max = Number(t.max_grade), inTask = new Set(D.enroll.map(e => e.student_code)), out = [], errs = [], seen = new Set();
       for (let r = hr + 1; r <= ws.rowCount; r++) {
-        const row = ws.getRow(r), code = String(toNum(row.getCell(cCode).value)).replace(/\.0+$/, "");
+        const row = ws.getRow(r);
+        let code = cCode ? String(toNum(cellTxt(row.getCell(cCode).value))).replace(/\.0+$/, "") : "";
+        if (!cCode) {
+          const nm = String(cellTxt(row.getCell(cN).value) || "").trim(); if (!nm || nm.length < 3) continue;
+          const cands = vcMatch({ name: nm }, roster);
+          if (!HV.sure(cands)) { if (toNum(cellTxt(row.getCell(cG).value)) !== "") errs.push("«" + nm + "»: لم أتأكد من الطالب" + (cands[0] ? " (أقرب اسم: " + nameOf(cands[0].code) + ")" : "") + "، فارصده من الكشف"); continue; }
+          code = cands[0].code;
+        }
         if (!code || !/^[0-9A-Za-z_-]+$/.test(code)) continue;
         if (!inTask.has(code)) { errs.push(code + ": ليس من طلبة المادة"); continue; }
         if (seen.has(code)) { errs.push(code + ": مكرر في الملف"); continue; } seen.add(code);
-        const gv = toNum(row.getCell(cG).value), bv = cB ? toNum(row.getCell(cB).value) : "", fb = cF ? String(toNum(row.getCell(cF).value) || "").trim() : null;
+        const enr = D.enroll.find(x => x.student_code === code);
+        if (enr && refusedFor(t, enr)) { errs.push(code + " · " + nameOf(code) + ": مرفوض لغيابه يوم التسليم (اقبل عذره من الكشف أولًا)"); continue; }
+        const gv = toNum(cellTxt(row.getCell(cG).value)), bv = cB ? toNum(cellTxt(row.getCell(cB).value)) : "", fb = cF ? String(toNum(cellTxt(row.getCell(cF).value)) || "").trim() : null;
         if (gv === "" && (bv === "" || bv === "0") && !fb) continue; // خانة فارغة: لا تغيير
         const g = gv === "" ? null : Number(gv), b = bv === "" ? 0 : Number(bv);
         if (g != null && (isNaN(g) || g < 0 || g > max)) { errs.push(code + " · " + nameOf(code) + ": الدرجة «" + gv + "» خارج المدى"); continue; }
@@ -1824,13 +1932,13 @@
       if (prev && now - prev.at < 6000) { Object.assign(prev, { raw: g.raw, grade, bonus, at: now }); voice.flash = prev.id; }
       else { const id = ++vcSeq; voice.entries.unshift({ id, raw: g.raw, cands, code, sure, grade, bonus, at: now }); voice.flash = id; added++; }
       const wr = code && D.enroll.find(x => x.student_code === code);
-      if (code) said.push(nameOf(code).split(" ").slice(0, 2).join(" ") + "، " + grade + (bonus ? " وبونص " + bonus : "") + (wr && absentOnDue(t, wr) ? "، تنبيه: كان غائبًا يوم التسليم" : ""));
+      if (code) said.push(nameOf(code).split(" ").slice(0, 2).join(" ") + "، " + grade + (bonus ? " وبونص " + bonus : "") + (wr && refusedFor(t, wr) ? "، مرفوض لغيابه يوم التسليم" : wr && absentOnDue(t, wr) && !excusedOf(t, code) ? "، تنبيه: كان غائبًا يوم التسليم" : ""));
     });
     vcMsg(""); drawVoiceList();
     if (said.length) vcSay(said.join("، "));
   }
   function paintInterim() { const el = $("#vcInterim"); if (el && voice) el.textContent = voice.interim ? "…" + voice.interim.slice(-70) : (voice.listening ? (voice.speaking ? "يؤكّد بالصوت…" : "أسمعك…") : ""); }
-  const vcValid = (t, e) => e.code && e.grade !== "" && !badVal(e.grade, +t.max_grade) && !badVal(e.bonus, +t.max_grade);
+  const vcValid = (t, e) => e.code && !(D.enroll.find(x => x.student_code === e.code) && refusedFor(t, D.enroll.find(x => x.student_code === e.code))) && e.grade !== "" && !badVal(e.grade, +t.max_grade) && !badVal(e.bonus, +t.max_grade);
   function drawVoice() {
     const t = D.tasks.find(x => x.id === voice.tid), ov = $("#vcOv"), sup = HV.supported();
     ov.innerHTML = `<div class="gr">
@@ -1870,7 +1978,7 @@
       <div class="vc-rows">${voice.entries.map(e => { const ok = vcValid(t, e), dup = e.code && seen[e.code] > 1;
         const ids = [...new Set([...e.cands.map(c => c.code), ...roster.map(r => r.student_code)])], who = e.code && roster.find(r => r.student_code === e.code);
         return `<div class="vc-row ${!ok ? "bad" : e.sure ? "ok" : "warn"}${voice.flash === e.id ? " new" : ""}" data-vc="${e.id}">
-          <div class="vc-heard small muted">سمعت: «${esc(e.raw)}»${dup ? ` <b class="warn-t">· مكرر</b>` : ""}${who && isExtra(t, who) ? ` <b class="warn-t">· استثناء من ${who.grp ? "مجموعة " + esc(who.grp) : "خارج المجموعة"}</b>` : ""}${who && absentOnDue(t, who) ? ` <b class="bad-t">· غائب يوم التسليم (سلّم متأخرًا)</b>` : ""}</div>
+          <div class="vc-heard small muted">سمعت: «${esc(e.raw)}»${dup ? ` <b class="warn-t">· مكرر</b>` : ""}${who && isExtra(t, who) ? ` <b class="warn-t">· استثناء من ${who.grp ? "مجموعة " + esc(who.grp) : "خارج المجموعة"}</b>` : ""}${who && refusedFor(t, who) ? ` <b class="bad-t">· مرفوض: غاب يوم التسليم (لن تُرصد إلا بقبول عذره من الكشف)</b>` : who && absentOnDue(t, who) ? ` <b class="bad-t">· غائب يوم التسليم${excusedOf(t, who.student_code) ? " (مقبول بعذر)" : " (سلّم متأخرًا)"}</b>` : ""}</div>
           <select data-vk="code" aria-label="الطالب"><option value="">— اختر الطالب —</option>${ids.map((c, i) => { const r = roster.find(x => x.student_code === c); if (!r) return ""; const sc = e.cands.find(x => x.code === c); return `<option value="${esc(c)}" ${c === e.code ? "selected" : ""}>${roster.indexOf(r) < nIn ? (roster.indexOf(r) + 1) + ". " : "استثناء: "}${esc(r.name)} · ${esc(c)}${isExtra(t, r) ? " · مجموعة " + esc(r.grp || "—") : ""}${sc && i < e.cands.length ? ` (${Math.round(sc.score * 100)}%)` : ""}</option>`; }).join("")}</select>
           <input type="text" data-vk="grade" class="gin ${badVal(e.grade, +t.max_grade) ? "bad" : ""}" value="${esc(e.grade)}" inputmode="decimal" aria-label="الدرجة">
           <input type="text" data-vk="bonus" class="gin bin ${badVal(e.bonus, +t.max_grade) ? "bad" : ""}" value="${esc(e.bonus)}" placeholder="بونص" inputmode="decimal" aria-label="بونص">

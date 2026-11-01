@@ -109,6 +109,12 @@
     return r.arrayBuffer();
   };
 
+  // للتنزيل الجماعي: استجابة كاملة (تُكتب مباشرة في مجلد دون تحميلها كلها في الذاكرة)
+  HD.publicResponse = async id => {
+    const r = await fetch(API + "/files/" + encodeURIComponent(id) + "?" + new URLSearchParams({ alt: "media", key: HD.apiKey, supportsAllDrives: "true", acknowledgeAbuse: "false" }));
+    if (!r.ok) throw { message: r.status === 404 || r.status === 403 ? "drive_missing" : "drive_http_" + r.status };
+    return r;
+  };
   HD.size = b => b == null ? "" : b >= 1048576 ? (b / 1048576).toFixed(b >= 10485760 ? 0 : 1) + " م.ب" : Math.max(1, Math.round(b / 1024)) + " ك.ب";
   HD.stampable = mime => /pdf|jpe?g|png/i.test(mime || "");
 
