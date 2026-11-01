@@ -95,7 +95,7 @@
     const ch = await rpc("passkey_begin", {});
     const a = await navigator.credentials.get({ publicKey: { challenge: b64u.dec(ch.challenge), rpId: location.hostname, userVerification: "required", timeout: 90000 } });
     const r = await pkCall({ action: "login", challenge_id: ch.id, id: a.id, clientDataJSON: b64u.enc(a.response.clientDataJSON), authenticatorData: b64u.enc(a.response.authenticatorData), signature: b64u.enc(a.response.signature), device, label: devLabel });
-    token = r.token; store.set("cm_token", token); if (r.code) store.set("cm_last_code", r.code);
+    token = r.token; store.set("cm_token", token); setLim(false); if (r.code) store.set("cm_last_code", r.code);
   }
   async function pkLoginUI() {
     if (busy) return; busy = true; authMsg = ""; move ? renderMove() : renderAuth();
@@ -108,6 +108,9 @@
   let pkMsg = "";
   let rf = null;   // التسجيل باستمارة التسجيل: {mode: "reg"|"sync", stage, data, items, pct, note, result}
   let move = null; // {code, pass, info} عند ظهور «مرتبط بهاتف آخر»
+  // جلسة «تسليم التكليفات فقط» من جهاز غير الهاتف المرتبط (لا حضور ولا بطاقة حضور ولا بصمة)
+  let limited = store.get("cm_limited") ? JSON.parse(store.get("cm_limited")) : null;
+  function setLim(v) { limited = v || null; if (v) store.set("cm_limited", JSON.stringify(v)); else store.del("cm_limited"); }
   let home = null, authTab = "login", authMsg = "", busy = false, results = {}, drafts = {}, pwOpen = false, pwMsg = "";
 
   function header(extra) {
@@ -194,7 +197,7 @@
     try {
       if (rf.mode === "reg") {
         const r = await rpc("student_form_register", { p_code: code, p_name: name, p_level: level, p_items: items, p_password: pass, p_pin: pin, p_device: device, p_label: devLabel });
-        token = r.token; store.set("cm_token", token); store.set("cm_last_code", code);
+        token = r.token; store.set("cm_token", token); setLim(false); store.set("cm_last_code", code);
         rf.result = r.enroll;
       } else rf.result = await rpc("student_form_sync", { p_token: token, p_code: code, p_name: name, p_level: level, p_items: items });
       busy = false; rf.stage = "done"; renderForm();
@@ -222,15 +225,25 @@
       ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
       ${pk.ok ? `<div class="msg ok"><b>فعّلت الدخول ببصمة الوجه أو الإصبع من قبل؟</b> ادخل بها الآن، فينتقل حسابك إلى هنا فورًا دون انتظار ودون موافقة المحاضر.</div>${pkBtn("pkMv")}` : ""}
       ${can ? `<button class="btn primary block" id="mvGo" ${busy ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : "انقل حسابي إلى هذا المتصفح"}</button>` : ""}
+      <div class="msg"><b>تريد فقط تسليم تكليف أو متابعة درجاتك من هذا الجهاز؟</b> ادخل دون نقل الحساب. يبقى حسابك مرتبطًا بهاتفك، وتسجّل حضورك منه كالمعتاد.</div>
+      <button class="btn ${can ? "" : "primary "}block" id="mvWeb" ${busy ? "disabled" : ""}>ادخل لتسليم التكليفات فقط</button>
       ${iosTip()}
       <button class="btn block" id="mvBack">رجوع</button></section>`;
     const pm = $("#pkMv"); if (pm) pm.onclick = pkLoginUI;
+    $("#mvWeb").onclick = async () => {
+      if (busy) return; busy = true; authMsg = ""; renderMove();
+      try {
+        const r = await rpc("student_login_web", { p_code: move.code, p_password: move.pass, p_label: devLabel });
+        if (r.error) throw { message: r.error };
+        token = r.token; store.set("cm_token", token); setLim({ label: r.bound_label || (move.info || {}).label || "" }); store.set("cm_last_code", move.code); move = null; busy = false; await loadHome();
+      } catch (e) { busy = false; authMsg = errText(e); renderMove(); }
+    };
     $("#mvBack").onclick = () => { move = null; authMsg = ""; renderAuth(); };
     if ($("#mvGo")) $("#mvGo").onclick = async () => {
       if (busy) return; busy = true; authMsg = ""; renderMove();
       try {
         const r = await rpc("student_move_device", { p_code: move.code, p_password: move.pass, p_device: device, p_label: devLabel, p_confirm: true });
-        token = r.token; store.set("cm_token", token); store.set("cm_last_code", move.code); move = null; busy = false; await loadHome();
+        token = r.token; store.set("cm_token", token); setLim(false); store.set("cm_last_code", move.code); move = null; busy = false; await loadHome();
       } catch (e) { busy = false; authMsg = errText(e); renderMove(); }
     };
   }
@@ -247,7 +260,7 @@
     if (p1 !== p2) throw "كلمتا السر غير متطابقتين.";
     return { code: code.trim(), pass: p1 };
   }
-  async function rsDone(r) { token = r.token; store.set("cm_token", token); if (r.code) store.set("cm_last_code", r.code); store.del("cm_reset"); rs = null; clearInterval(rsTimer); busy = false; await loadHome(); }
+  async function rsDone(r) { token = r.token; store.set("cm_token", token); setLim(false); if (r.code) store.set("cm_last_code", r.code); store.del("cm_reset"); rs = null; clearInterval(rsTimer); busy = false; await loadHome(); }
   // من نفس المتصفح المرتبط بالحساب: لا يحتاج إلى أي تأكيد آخر
   async function rsTryDevice(v) {
     if (!device || store.get("cm_last_code") !== v.code) return false;
@@ -361,13 +374,13 @@
       const r = authTab === "login"
         ? await rpc("student_login", { p_code: code, p_password: pass, p_device: device, p_label: devLabel })
         : await rpc("student_register", { p_code: code, p_password: pass, p_pin: pin, p_device: device, p_label: devLabel });
-      token = r.token; store.set("cm_token", token); store.set("cm_last_code", code);
+      token = r.token; store.set("cm_token", token); setLim(false); store.set("cm_last_code", code);
       busy = false; await loadHome();
     } catch (e) {
       if (authTab === "login" && String(e.message || "").includes("device_mismatch")) {
         // كلمة السر صحيحة لكن الحساب على متصفح آخر: نعرض للطالب أين، ونتيح له النقل
         try { const info = await rpc("student_move_device", { p_code: code, p_password: pass, p_device: device, p_label: devLabel, p_confirm: false });
-          if (info.token) { token = info.token; store.set("cm_token", token); busy = false; return loadHome(); }
+          if (info.token) { token = info.token; store.set("cm_token", token); setLim(false); busy = false; return loadHome(); }
           move = { code, pass, info }; busy = false; authMsg = ""; return renderMove();
         } catch (e2) { busy = false; authMsg = errText(e2); return renderAuth(); }
       }
@@ -379,9 +392,9 @@
   async function loadHome(silent) {
     try {
       home = await rpc("student_home", { p_token: token });
-      if (pk.ok && pk.count == null) rpc("student_passkey_count", { p_token: token }).then(n => { pk.count = Number(n) || 0; if (home && !rf && !tkId) renderHome(); }).catch(() => {});
+      if (!limited && pk.ok && pk.count == null) rpc("student_passkey_count", { p_token: token }).then(n => { pk.count = Number(n) || 0; if (home && !rf && !tkId) renderHome(); }).catch(() => {});
       const q = qrGet();
-      if (!silent || !q || q.code !== home.code) await refreshQrKey();
+      if (limited) {} else if (!silent || !q || q.code !== home.code) await refreshQrKey();
       else if (home.now_ms) { q.off = Number(home.now_ms) - Date.now(); store.set("cm_qr", JSON.stringify(q)); }
       renderHome();
       loadTasks(!silent);
@@ -458,11 +471,12 @@
 
   function signOut() {
     if (token) rpc("student_logout", { p_token: token }).catch(() => {});
-    closeQr(); token = null; home = null; results = {}; tasks = null; tasksAt = 0; tkId = null; $("#tkOv").hidden = true; store.del("cm_token"); store.del("cm_qr"); authTab = "login"; renderAuth();
+    closeQr(); token = null; home = null; results = {}; tasks = null; tasksAt = 0; tkId = null; $("#tkOv").hidden = true; store.del("cm_token"); store.del("cm_qr"); setLim(false); authTab = "login"; renderAuth();
   }
 
   function sessionBlock(c) {
     const s = c.session, res = results[c.id];
+    if (limited) return s ? `<div class="msg small">محاضرة جارية الآن. سجّل حضورك من هاتفك المرتبط بالحساب.</div>` : "";
     if (!s) return `<p class="muted small">لا توجد محاضرة جارية الآن. عندما يبدأ المحاضر، ستظهر هنا خانة الرمز.</p>`;
     const mine = s.mine;
     let body = "";
@@ -520,15 +534,15 @@
         <div><div class="eyebrow mono" style="text-align:start">${esc(home.code)}</div><h2>أهلًا ${esc((home.name || "").split(" ")[0])}</h2></div>
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
-        ${home.courses.length ? qrCta() : ""}
-        ${pk.ok && pk.count === 0 && !store.get("cm_pk_skip") ? `<div class="pk-cta"><div><b>فعّل الدخول ببصمة الوجه أو الإصبع</b><span class="small muted">إن مسح المتصفح بياناتك (يحدث كثيرًا في آيفون) أو غيّرت المتصفح، تعود إلى حسابك بلمسة دون كلمة السر ودون مراجعة المحاضر.</span>${pkMsg ? `<span class="small ${pkMsg.startsWith("!") ? "bad-t" : "ok-t"}">${esc(pkMsg.replace(/^!/, ""))}</span>` : ""}</div><div class="row"><button class="btn primary" id="pkOn">تفعيل</button><button class="btn ghost sm" id="pkSkip">لاحقًا</button></div></div>` : pkMsg && !pkMsg.startsWith("!") ? `<div class="msg ok small">${esc(pkMsg)}</div>` : ""}
+        ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : home.courses.length ? qrCta() : ""}
+        ${!limited && pk.ok && pk.count === 0 && !store.get("cm_pk_skip") ? `<div class="pk-cta"><div><b>فعّل الدخول ببصمة الوجه أو الإصبع</b><span class="small muted">إن مسح المتصفح بياناتك (يحدث كثيرًا في آيفون) أو غيّرت المتصفح، تعود إلى حسابك بلمسة دون كلمة السر ودون مراجعة المحاضر.</span>${pkMsg ? `<span class="small ${pkMsg.startsWith("!") ? "bad-t" : "ok-t"}">${esc(pkMsg.replace(/^!/, ""))}</span>` : ""}</div><div class="row"><button class="btn primary" id="pkOn">تفعيل</button><button class="btn ghost sm" id="pkSkip">لاحقًا</button></div></div>` : pkMsg && !pkMsg.startsWith("!") ? `<div class="msg ok small">${esc(pkMsg)}</div>` : ""}
         ${iosTip()}
         ${pwOpen ? `<div class="panel"><h3>تغيير كلمة السر</h3>
           <label class="f"><span>كلمة السر الحالية</span><input type="password" id="pwOld" autocomplete="current-password"></label>
           <label class="f"><span>كلمة السر الجديدة</span><input type="password" id="pwNew" autocomplete="new-password"></label>
           ${pwMsg ? `<div class="msg ${pwMsg.startsWith("!") ? "bad" : "ok"}">${esc(pwMsg.replace(/^!/, ""))}</div>` : ""}
           <button class="btn primary" id="pwSave">حفظ</button>
-          ${HD.ready ? `<hr><p class="small muted">اربط حساب Google لتستعيد كلمة السر بنفسك إن نسيتها.${store.get("cm_glink_" + home.code) ? " <b class='ok-t'>مربوط.</b>" : ""}</p><button class="btn sm" id="gLink">ربط حساب Google</button>` : ""}</div>` : ""}
+          ${HD.ready && !limited ? `<hr><p class="small muted">اربط حساب Google لتستعيد كلمة السر بنفسك إن نسيتها.${store.get("cm_glink_" + home.code) ? " <b class='ok-t'>مربوط.</b>" : ""}</p><button class="btn sm" id="gLink">ربط حساب Google</button>` : ""}</div>` : ""}
         ${home.courses.length ? home.courses.map(c => `
           <article class="course" data-course="${c.id}">
             <div class="row between"><div><h2>${esc(c.name)}</h2>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ""}${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
@@ -670,7 +684,7 @@
     let fileId = null, stage = "auth";
     try {
       const at = await auth;
-      if (at && !store.get("cm_glink_" + home.code)) pkCall({ action: "google_link", token, access_token: at }).then(() => store.set("cm_glink_" + home.code, "1")).catch(() => {});
+      if (at && !limited && !store.get("cm_glink_" + home.code)) pkCall({ action: "google_link", token, access_token: at }).then(() => store.set("cm_glink_" + home.code, "1")).catch(() => {});
       setUp("جارٍ تجهيز المجلد على Drive…", null); stage = "folder";
       const folder = await HD.folders(t.course, t.title);
       const ext = (f.name.match(/\.[A-Za-z0-9]{1,8}$/) || [""])[0];
