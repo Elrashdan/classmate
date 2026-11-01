@@ -509,3 +509,8 @@ fieldset.abs-rule input{width:auto;margin:0}
 .cal-key{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px}
 .cal-key.lec{background:#1d6b58}
 .cal-key.next{border:2px dashed #1d6b58}
+.pk-cta{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 16px;border:1px solid #1d6b58;border-radius:14px;background:rgba(29,107,88,.06);flex-wrap:wrap}
+.pk-cta>div:first-child{display:grid;gap:3px;flex:1;min-width:220px}
+.pk-btn{margin-top:8px}
+.pk-btn span{color:#1d6b58;font-size:1.1em}
+.ios-tip{margin-top:10px}

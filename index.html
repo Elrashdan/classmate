@@ -62,7 +62,50 @@
   })();
   const inAppWarn = () => inApp ? `<div class="msg warn">أنت تفتح الموقع من داخل ${esc(inApp)}. افتحه من متصفح الهاتف نفسه (${/iPhone|iPad/.test(UA) ? "Safari" : "Chrome"}): اضغط النقاط الثلاث ثم «فتح في المتصفح»، وادخل دائمًا من المتصفح نفسه؛ لأن الحساب يرتبط بالمتصفح الذي أنشأته منه.</div>` : "";
 
+  /* ---------- آيفون: Safari يمسح بيانات المواقع بعد أيام دون استخدام ---------- */
+  const isIOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {}
+  const iosTip = () => isIOS && !standalone && !inApp ? `<div class="msg warn small ios-tip"><b>على آيفون:</b> قد يمسح Safari بيانات الموقع إذا لم تفتحه بضعة أيام، فيظهر لك أن الحساب «مرتبط بهاتف آخر». لتجنّب ذلك أضف الموقع إلى الشاشة الرئيسية: اضغط زر المشاركة <b>⬆︎</b> ثم «إضافة إلى الشاشة الرئيسية»، وافتحه دائمًا من الأيقونة.${pk.ok ? " وفعّل «الدخول ببصمة الوجه» لتعود إلى حسابك بلمسة في أي وقت." : ""}</div>` : "";
+
+  /* ---------- الدخول ببصمة الوجه أو الإصبع (مفتاح مرور) ---------- */
+  const b64u = { dec: s => { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); },
+    enc: b => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "") };
+  const pk = { ok: !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext), count: null };
+  async function pkCall(body) {
+    const cfg = window.CLASSMATE || {};
+    let r; try { r = await fetch(cfg.SUPABASE_URL.replace(/\/$/, "") + "/functions/v1/passkey", { method: "POST", headers: { "Content-Type": "application/json", apikey: cfg.SUPABASE_ANON_KEY, Authorization: "Bearer " + cfg.SUPABASE_ANON_KEY }, body: JSON.stringify(body) }); }
+    catch (e) { throw { message: "Failed to fetch" }; }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.error) throw { message: j.error || "passkey_failed" };
+    return j;
+  }
+  const pkErr = e => e && (e.name === "NotAllowedError" || e.name === "AbortError") ? "لم يكتمل الدخول بالبصمة: أُلغيت العملية، أو لم تفعّل البصمة لحسابك من قبل (فعّلها من صفحتك بعد الدخول بكلمة السر)." : e && e.name === "InvalidStateError" ? "البصمة مفعّلة لهذا الحساب على هذا الهاتف من قبل." : errText(e);
+  async function pkRegister() {
+    const ch = await rpc("passkey_begin", { p_token: token });
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: b64u.dec(ch.challenge), rp: { id: location.hostname, name: "Hadro" },
+      user: { id: new TextEncoder().encode(ch.code), name: ch.code, displayName: ch.name + " · " + ch.code },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }], timeout: 90000, attestation: "none",
+      authenticatorSelection: { residentKey: "required", requireResidentKey: true, userVerification: "required" },
+      excludeCredentials: (ch.exclude || []).map(id => ({ type: "public-key", id: b64u.dec(id) })) } });
+    await pkCall({ action: "register", challenge_id: ch.id, id: cred.id, clientDataJSON: b64u.enc(cred.response.clientDataJSON), attestationObject: b64u.enc(cred.response.attestationObject), label: devLabel });
+    pk.count = (pk.count || 0) + 1;
+  }
+  async function pkLogin() {
+    const ch = await rpc("passkey_begin", {});
+    const a = await navigator.credentials.get({ publicKey: { challenge: b64u.dec(ch.challenge), rpId: location.hostname, userVerification: "required", timeout: 90000 } });
+    const r = await pkCall({ action: "login", challenge_id: ch.id, id: a.id, clientDataJSON: b64u.enc(a.response.clientDataJSON), authenticatorData: b64u.enc(a.response.authenticatorData), signature: b64u.enc(a.response.signature), device, label: devLabel });
+    token = r.token; store.set("cm_token", token); if (r.code) store.set("cm_last_code", r.code);
+  }
+  async function pkLoginUI() {
+    if (busy) return; busy = true; authMsg = ""; move ? renderMove() : renderAuth();
+    try { await pkLogin(); busy = false; move = null; await loadHome(); }
+    catch (e) { busy = false; authMsg = pkErr(e); move ? renderMove() : renderAuth(); }
+  }
+  const pkBtn = id => pk.ok ? `<button class="btn block pk-btn" id="${id}" ${busy ? "disabled" : ""}><span aria-hidden="true">◉</span> الدخول ببصمة الوجه أو الإصبع</button>` : "";
+
   let token = store.get("cm_token");
+  let pkMsg = "";
   let rf = null;   // التسجيل باستمارة التسجيل: {mode: "reg"|"sync", stage, data, items, pct, note, result}
   let move = null; // {code, pass, info} عند ظهور «مرتبط بهاتف آخر»
   let home = null, authTab = "login", authMsg = "", busy = false, results = {}, drafts = {}, pwOpen = false, pwMsg = "";
@@ -177,8 +220,11 @@
       <div class="msg"><b>إذا غيّرت هاتفك أو مسحت بيانات المتصفح:</b> انقل حسابك إلى هنا بنفسك. سيتوقف الحساب على المتصفح القديم، ويظهر النقل للمحاضر، ويحتاج حضورك خلال 12 ساعة بعد النقل إلى موافقته. يمكنك النقل مرة كل 3 أيام.</div>
       ${can ? "" : `<div class="msg warn">نقلت حسابك مؤخرًا، ويمكنك نقله مرة أخرى يوم ${esc(when(i.next_at))}. وإن احتجت قبل ذلك فاطلب من المحاضر فك ربط الهاتف.</div>`}
       ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
+      ${pk.ok ? `<div class="msg ok"><b>فعّلت الدخول ببصمة الوجه أو الإصبع من قبل؟</b> ادخل بها الآن، فينتقل حسابك إلى هنا فورًا دون انتظار ودون موافقة المحاضر.</div>${pkBtn("pkMv")}` : ""}
       ${can ? `<button class="btn primary block" id="mvGo" ${busy ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : "انقل حسابي إلى هذا المتصفح"}</button>` : ""}
+      ${iosTip()}
       <button class="btn block" id="mvBack">رجوع</button></section>`;
+    const pm = $("#pkMv"); if (pm) pm.onclick = pkLoginUI;
     $("#mvBack").onclick = () => { move = null; authMsg = ""; renderAuth(); };
     if ($("#mvGo")) $("#mvGo").onclick = async () => {
       if (busy) return; busy = true; authMsg = ""; renderMove();
@@ -213,12 +259,15 @@
         ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
         ${!device ? `<div class="msg warn">هذا المتصفح لا يحفظ البيانات (غالبًا بسبب وضع التصفح الخفي). افتح الموقع في متصفح عادي.</div>` : ""}
         <button class="btn primary block" id="go" ${busy || !device ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : authTab === "login" ? "دخول" : "إنشاء الحساب"}</button>
+        ${authTab === "login" && device ? pkBtn("pkIn") : ""}
+        ${iosTip()}
       </section>
       <p class="muted small" style="margin-top:14px;text-align:center">غيّرت هاتفك؟ ادخل بكودك وكلمة السر، وسيظهر لك زر لنقل الحساب. نسيت كلمة السر؟ اطلب من المحاضر حذف حسابك لتنشئه من جديد.</p>`;
     $("#tLogin").onclick = () => { authTab = "login"; authMsg = ""; renderAuth(); };
     $("#tReg").onclick = () => { authTab = "reg"; authMsg = ""; renderAuth(); };
     $("#go").onclick = submitAuth;
     const ro = $("#rfOpen"); if (ro) ro.onclick = () => openForm("reg");
+    const pi = $("#pkIn"); if (pi) pi.onclick = pkLoginUI;
     app.querySelectorAll("input").forEach(i => i.onkeydown = e => { if (e.key === "Enter") submitAuth(); });
   }
 
@@ -255,6 +304,7 @@
   async function loadHome(silent) {
     try {
       home = await rpc("student_home", { p_token: token });
+      if (pk.ok && pk.count == null) rpc("student_passkey_count", { p_token: token }).then(n => { pk.count = Number(n) || 0; if (home && !rf && !tkId) renderHome(); }).catch(() => {});
       const q = qrGet();
       if (!silent || !q || q.code !== home.code) await refreshQrKey();
       else if (home.now_ms) { q.off = Number(home.now_ms) - Date.now(); store.set("cm_qr", JSON.stringify(q)); }
@@ -395,6 +445,8 @@
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
         ${home.courses.length ? qrCta() : ""}
+        ${pk.ok && pk.count === 0 && !store.get("cm_pk_skip") ? `<div class="pk-cta"><div><b>فعّل الدخول ببصمة الوجه أو الإصبع</b><span class="small muted">إن مسح المتصفح بياناتك (يحدث كثيرًا في آيفون) أو غيّرت المتصفح، تعود إلى حسابك بلمسة دون كلمة السر ودون مراجعة المحاضر.</span>${pkMsg ? `<span class="small ${pkMsg.startsWith("!") ? "bad-t" : "ok-t"}">${esc(pkMsg.replace(/^!/, ""))}</span>` : ""}</div><div class="row"><button class="btn primary" id="pkOn">تفعيل</button><button class="btn ghost sm" id="pkSkip">لاحقًا</button></div></div>` : pkMsg && !pkMsg.startsWith("!") ? `<div class="msg ok small">${esc(pkMsg)}</div>` : ""}
+        ${iosTip()}
         ${pwOpen ? `<div class="panel"><h3>تغيير كلمة السر</h3>
           <label class="f"><span>كلمة السر الحالية</span><input type="password" id="pwOld" autocomplete="current-password"></label>
           <label class="f"><span>كلمة السر الجديدة</span><input type="password" id="pwNew" autocomplete="new-password"></label>
@@ -411,6 +463,8 @@
       </section>`;
     $("#out").onclick = signOut;
     $("#rfSync").onclick = () => openForm("sync");
+    const po = $("#pkOn"); if (po) po.onclick = async () => { po.disabled = true; try { await pkRegister(); pkMsg = "فُعّل الدخول بالبصمة. إن ظهر لك يومًا أن الحساب «مرتبط بهاتف آخر» فاضغط «الدخول ببصمة الوجه أو الإصبع»."; } catch (e) { pkMsg = "!" + pkErr(e); } renderHome(); };
+    const ps2 = $("#pkSkip"); if (ps2) ps2.onclick = () => { store.set("cm_pk_skip", "1"); renderHome(); };
     $("#pwBtn").onclick = () => { pwOpen = !pwOpen; pwMsg = ""; renderHome(); };
     const ps = $("#pwSave"); if (ps) ps.onclick = async () => {
       try { await rpc("student_change_password", { p_token: token, p_old: $("#pwOld").value, p_new: $("#pwNew").value }); pwMsg = "تم تغيير كلمة السر."; }
