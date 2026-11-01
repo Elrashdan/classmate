@@ -40,6 +40,29 @@
     client.requestAccessToken({ prompt: "" });
   });
 
+  // بديل النافذة المنبثقة: الانتقال إلى صفحة Google في نفس النافذة ثم الرجوع (بعض الهواتف تغلق النافذة المنبثقة وحدها)
+  const RKEY = "hd_gstate";
+  HD.redirectUri = () => location.origin + location.pathname.replace(/index\.html$/, "");
+  HD.redirectAuth = (hint) => {
+    const st = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, "0")).join("");
+    try { localStorage.setItem(RKEY, st); } catch (e) {}
+    const p = new URLSearchParams({ client_id: HD.clientId, redirect_uri: HD.redirectUri(), response_type: "token",
+      scope: "https://www.googleapis.com/auth/drive.file", include_granted_scopes: "true", state: st });
+    if (hint) p.set("login_hint", hint);
+    location.assign("https://accounts.google.com/o/oauth2/v2/auth?" + p);
+  };
+  // عند الرجوع من Google: #state=…&access_token=…&expires_in=… أو #error=…
+  HD.redirectResult = (function () {
+    const h = location.hash || "";
+    if (!/[#&](access_token|error)=/.test(h) || !/[#&]state=/.test(h)) return null;
+    const p = new URLSearchParams(h.slice(1));
+    let st = null; try { st = localStorage.getItem(RKEY); localStorage.removeItem(RKEY); } catch (e) {}
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    if (!st || p.get("state") !== st) return { ok: false, error: "drive_denied" };
+    if (p.get("access_token")) { tok = p.get("access_token"); tokUntil = Date.now() + (Number(p.get("expires_in")) || 3600) * 1000; return { ok: true }; }
+    return { ok: false, error: "drive_denied" };
+  })();
+
   async function g(url, opt = {}) {
     const r = await fetch(url, { ...opt, headers: { Authorization: "Bearer " + tok, ...(opt.headers || {}) } });
     if (r.status === 401) { tok = null; throw { message: "drive_expired" }; }

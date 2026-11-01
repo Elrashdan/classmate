@@ -386,6 +386,7 @@
       renderHome();
       loadTasks(!silent);
       if (sstore.get("cm_pending_qr")) takePendingQr();
+      if (store.get("cm_gdrive")) takePendingDrive();
     } catch (e) {
       const m = String(e.message || "");
       if (m.includes("not_signed_in")) { signOut(); return; }
@@ -627,7 +628,7 @@
         <a href="${esc(m.url)}" target="_blank" rel="noopener" class="tk-file"><b>${esc(m.kind === "drive" ? m.file_name || "الملف" : m.url)}</b><small>${m.kind === "drive" ? "على Google Drive الخاص بك" + (m.size ? " · " + HD.size(m.size) : "") : "رابط"} · ${CM.fmtD(m.submitted_at)} ${CM.fmtT(m.submitted_at)}${m.version > 1 ? " · التسليم رقم " + m.version : ""}</small></a>
         ${m.late ? `<span class="small warn-t">سُلِّم بعد الموعد، ويظهر ذلك للمحاضر.</span>` : ""}
         ${m.kind === "drive" ? `<p class="small muted">لا تحذف هذا الملف من Drive ولا تعدّله؛ فالتطبيق يحفظ بصمته، وأي تعديل بعد التسليم يظهر للمحاضر.</p>` : ""}</div>` : ""}
-      ${tkMsg ? `<div class="msg ${tkMsg.k}">${esc(tkMsg.t)}</div>` : ""}
+      ${tkMsg ? `<div class="msg ${tkMsg.k}">${esc(tkMsg.t)}${tkMsg.redir ? `<button class="btn primary block" id="tkRedir" style="margin-top:10px">جرّب طريقة أخرى: افتح صفحة Google في نفس الصفحة</button><small class="muted" style="display:block;margin-top:6px">ستنتقل إلى صفحة Google لتختار حسابك وتوافق، ثم ترجع إلى هنا ويُكمَل التسليم وحده.</small>` : ""}</div>` : ""}
       ${up ? `<div class="tk-up"><div class="row between small"><span>${esc(up.phase)}</span><span class="mono" id="upPct">${up.pct != null ? Math.round(up.pct * 100) + "%" : ""}</span></div><div class="qbar"><i id="upBar" style="width:${Math.round((up.pct || 0) * 100)}%"></i></div><p class="small muted">لا تغلق الصفحة حتى يكتمل التسليم.</p></div>`
       : open ? `<div class="tk-form">
         <h3>${sub ? "استبدال التسليم" : "سلّم التكليف"}</h3>
@@ -656,6 +657,7 @@
       } else pickFile = f;
       renderTask(); };
     const go = $("#tkGo"); if (go) go.onclick = () => submitDrive(t, ($("#tkNote") || {}).value || "");
+    const rd = $("#tkRedir"); if (rd) rd.onclick = () => driveRedirect(t, ($("#tkNote") || {}).value || "", rd);
     const gl = $("#tkLink"); if (gl) gl.onclick = () => submitLink(t, $("#tkUrl").value.trim(), ($("#tkNote") || {}).value || "");
     const sp = $("#tkStamp"); if (sp) sp.onclick = () => myStamped(t, sp);
   }
@@ -693,7 +695,8 @@
       if (fileId) HD.trash(fileId);
       const net = /Failed to fetch|NetworkError|network|Load failed/i.test(String(e && e.message || ""));
       const WHERE = { auth: "أثناء الاتصال بحساب Google", folder: "أثناء تجهيز المجلد على Google Drive", upload: "أثناء رفع الملف إلى Google Drive", share: "أثناء إتاحة الملف للمحاضر", submit: "أثناء تسجيل التسليم في Hadro" };
-      tkMsg = { k: "bad", t: net ? "انقطع الاتصال " + WHERE[stage] + ". إن تكرر ذلك: أغلق الصفحة وافتحها من جديد واختر الملف مرة أخرى، أو جرّب متصفحًا آخر، أو سلّم «رابط» لملفك على Drive." : errText(e) };
+      const redir = stage === "auth" && /drive_closed|drive_denied/.test(String(e && e.message || "")) && !!(window.CLASSMATE || {}).GOOGLE_REDIRECT;
+      tkMsg = { k: "bad", redir, t: redir ? "لم تكتمل الموافقة في نافذة Google (أُغلقت النافذة أو لم تظهر). اضغط «سلّم» مرة أخرى، وإن تكرر ذلك فاستخدم الطريقة الأخرى بالأسفل." : net ? "انقطع الاتصال " + WHERE[stage] + ". إن تكرر ذلك: أغلق الصفحة وافتحها من جديد واختر الملف مرة أخرى، أو جرّب متصفحًا آخر، أو سلّم «رابط» لملفك على Drive." : errText(e) };
       logErr("submit_" + stage, e, f);
     }
     up = null; await loadTasks(true); renderTask();
@@ -702,6 +705,35 @@
   function logErr(where, e, f) {
     try { rpc("client_log", { p_token: token || null, p_where: where, p_msg: String((e && (e.name ? e.name + ": " : "") + (e.message || "")) || e).slice(0, 300) + (e && e.detail ? " | " + String(e.detail).slice(0, 300) : ""),
       p_info: { ua: navigator.userAgent.slice(0, 200), size: f ? f.size : null, type: f ? f.type : null, online: navigator.onLine } }).catch(() => {}); } catch (x) {}
+  }
+  // ---- الاتصال بـ Google بالانتقال (بدل النافذة المنبثقة)، مع حفظ الملف مؤقتًا على الهاتف ----
+  const idb = (mode, fn) => new Promise((ok, no) => { let rq; try { rq = indexedDB.open("hadro", 1); } catch (e) { return no(e); }
+    rq.onupgradeneeded = () => rq.result.createObjectStore("kv");
+    rq.onerror = () => no(rq.error);
+    rq.onsuccess = () => { const db = rq.result, tx = db.transaction("kv", mode), r = fn(tx.objectStore("kv")); tx.oncomplete = () => { db.close(); ok(r && r.result); }; tx.onerror = () => { db.close(); no(tx.error); }; }; });
+  async function driveRedirect(t, note, btn) {
+    if (!pickFile) { tkMsg = { k: "bad", t: "اختر الملف أولًا." }; return renderTask(); }
+    btn.disabled = true; btn.textContent = "جارٍ التحويل إلى Google…";
+    let saved = false;
+    try { await idb("readwrite", st => st.put({ file: pickFile, name: pickFile.name, type: pickFile.type }, "gdrive_file")); saved = true; } catch (e) {}
+    store.set("cm_gdrive", JSON.stringify({ tid: t.id, note, code: home.code, saved, at: Date.now() }));
+    HD.redirectAuth();
+  }
+  async function takePendingDrive() {
+    let p = null; try { p = JSON.parse(store.get("cm_gdrive") || "null"); } catch (e) {}
+    if (!p) return;
+    store.del("cm_gdrive");
+    let rec = null; try { rec = await idb("readonly", st => st.get("gdrive_file")); } catch (e) {}
+    try { await idb("readwrite", st => st.delete("gdrive_file")); } catch (e) {}
+    if (!home || p.code !== home.code || Date.now() - p.at > 30 * 60000) return;
+    const res = HD.redirectResult;
+    await loadTasks(true);
+    if (!(tasks || []).some(x => x.id === p.tid)) return;
+    openTask(p.tid);
+    if (!res || !res.ok || !HD.hasToken()) { tkMsg = { k: "bad", t: errText({ message: (res && res.error) || "drive_denied" }) }; return renderTask(); }
+    const t = tasks.find(x => x.id === p.tid);
+    if (rec && rec.file) { pickFile = rec.file instanceof File ? rec.file : new File([rec.file], rec.name || "file", { type: rec.type || "" }); renderTask(); submitDrive(t, p.note || ""); }
+    else { tkMsg = { k: "ok", t: "تم الاتصال بحساب Google. اختر الملف مرة أخرى ثم اضغط «سلّم»." }; renderTask(); }
   }
   async function submitLink(t, url, note) {
     if (up) return;
