@@ -450,12 +450,15 @@
   const dueTxt = t => new Date(t.due_at).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
   const gNum = n => Number(n).toLocaleString("en", { maximumFractionDigits: 2 });
   const tot = m => Number(m.grade) + Number(m.bonus || 0);
+  const sDL = t => t.present_day ? "يوم طرح المشروع" : t.mode === "manual" ? "يوم الاستلام" : "يوم التسليم";
+  const presTxt = t => new Date(t.present_day + "T12:00:00").toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
   function tkState(t) {
     const m = t.mine || {}, past = new Date(t.due_at).getTime() < nowS();
     if (m.grade != null) return ["ok", "الدرجة " + gNum(tot(m)) + " من " + gNum(t.max)];
     if (t.mode === "manual") return ["none", "رصد يدوي"];
     if (m.graded) return ["ok", "صُحِّح، والدرجة لم تُعلن بعد"];
-    if (t.refused) return ["bad", "مرفوض: غبت يوم التسليم"];
+    if (t.refused) return ["bad", "مرفوض: غبت " + sDL(t)];
+    if (m.submitted_at && t.absent_due && !t.excused) return ["warn", "سُلِّم · متأخر (غبت " + sDL(t) + ")"];
     if (m.submitted_at) return [m.late ? "warn" : "ok", m.late ? "سُلِّم متأخرًا" : "سُلِّم"];
     if (!past) return [new Date(t.due_at).getTime() - nowS() < 864e5 ? "warn" : "none", relDue(t)];
     return t.late === "accept" ? ["bad", "تأخرت · التسليم ما زال مفتوحًا"] : ["bad", "انتهى موعد التسليم"];
@@ -464,7 +467,7 @@
     const list = (tasks || []).filter(t => t.course_id === c.id);
     if (!list.length) return "";
     return `<div class="tk-list"><div class="eyebrow">التكليفات</div>${list.map(t => { const [k, s] = tkState(t);
-      return `<button class="tk-row" data-task="${t.id}"><span class="tk-t"><b>${esc(t.title)}</b><small>${t.mode === "manual" ? "درجة مرصودة من المحاضر" : "التسليم: " + esc(dueTxt(t))}</small></span><span class="chip ${k}">${esc(s)}</span></button>`; }).join("")}</div>`;
+      return `<button class="tk-row" data-task="${t.id}"><span class="tk-t"><b>${esc(t.title)}</b><small>${t.mode === "manual" ? "درجة مرصودة من المحاضر" : (t.present_day ? "الطرح: " + esc(presTxt(t)) + " · " : "") + "رفع الملفات حتى: " + esc(dueTxt(t))}</small></span><span class="chip ${k}">${esc(s)}</span></button>`; }).join("")}</div>`;
   }
   function openTask(id) {
     tkId = id; pickFile = null; linkMode = !HD.ready; tkMsg = null;
@@ -480,10 +483,11 @@
     const stampOk = m.grade != null && m.kind === "drive" && HD.ready && HD.stampable(m.mime);
     el.innerHTML = `
       <div class="sheet-h"><div><div class="eyebrow">${esc(t.course)}</div><h2 id="tkTitle">${esc(t.title)}</h2></div><button class="btn sm ghost" id="tkClose" ${up ? "disabled" : ""} aria-label="إغلاق">إغلاق</button></div>
-      <div class="tk-meta"><span class="chip ${k}">${esc(s)}</span>${t.mode === "manual" ? "" : `<span class="small">التسليم ${esc(dueTxt(t))}</span>`}<span class="small muted">الدرجة العظمى ${gNum(t.max)}</span></div>
+      <div class="tk-meta"><span class="chip ${k}">${esc(s)}</span>${t.mode === "manual" ? "" : `${t.present_day ? `<span class="small">يوم طرح المشروع: <b>${esc(presTxt(t))}</b></span>` : ""}<span class="small">آخر موعد لرفع الملفات: ${esc(dueTxt(t))}</span>`}<span class="small muted">الدرجة العظمى ${gNum(t.max)}</span></div>
       ${t.details ? `<p class="tk-det">${esc(t.details)}</p>` : ""}
-      ${t.absent_rule === "refuse" && !t.refused && m.grade == null ? `<div class="msg warn small">لا يُقبل ${t.mode === "manual" ? "المشروع" : "التسليم"} ممن يغيب عن محاضرة يوم ${t.mode === "manual" ? "الاستلام" : "التسليم"}.</div>` : ""}
-      ${t.refused && m.grade == null ? `<div class="msg bad">لا يُقبل ${t.mode === "manual" ? "مشروعك" : "تسليمك"} في هذا التكليف لأنك غبت في محاضرة يوم ${t.mode === "manual" ? "الاستلام" : "التسليم"}. إن كان لك عذر (مرضي أو غيره) فراجِع المحاضر ليقبله.</div>` : ""}
+      ${t.absent_rule !== "refuse" && t.present_day && m.grade == null ? `<div class="msg warn small">من يغيب عن محاضرة يوم طرح المشروع يُحسب تسليمه متأخرًا.</div>` : ""}
+      ${t.absent_rule === "refuse" && !t.refused && m.grade == null ? `<div class="msg warn small">لا يُقبل ${t.mode === "manual" ? "المشروع" : "التسليم"} ممن يغيب عن محاضرة ${sDL(t)}.</div>` : ""}
+      ${t.refused && m.grade == null ? `<div class="msg bad">لا يُقبل ${t.mode === "manual" ? "مشروعك" : "تسليمك"} في هذا التكليف لأنك غبت في محاضرة ${sDL(t)}. إن كان لك عذر (مرضي أو غيره) فراجِع المحاضر ليقبله.</div>` : ""}
       ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}
       ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div>

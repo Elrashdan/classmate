@@ -487,3 +487,7 @@ body.noscroll{overflow:hidden}
 .rf-it.off{opacity:.7}
 .rf-it input{margin-top:4px}
 .rf-pick{cursor:pointer}
+fieldset.abs-rule{border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0;display:grid;gap:8px}
+fieldset.abs-rule legend{font-size:.85rem;color:var(--muted);padding:0 6px}
+fieldset.abs-rule label{display:flex;gap:8px;align-items:center;cursor:pointer}
+fieldset.abs-rule input{width:auto;margin:0}
