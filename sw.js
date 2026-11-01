@@ -3,7 +3,7 @@
  */
 // Hadro offline cache: the student page (and its QR) must open with no internet.
 // Network first (so updates arrive), cache as fallback. Never touches Supabase API calls.
-const CACHE = "hadro-v34";
+const CACHE = "hadro-v35";
 const CDN = [
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js",
   "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"
@@ -26,7 +26,8 @@ self.addEventListener("fetch", e => {
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     try {
-      const res = await Promise.race([fetch(req), new Promise((_, rej) => setTimeout(() => rej(new Error("slow")), 6000))]);
+      // ملفاتنا: نتحقق من الخادم في كل مرة (no-cache) حتى يصل أي تحديث فورًا ولا يُستخدم نسخة قديمة من ذاكرة المتصفح
+      const res = await Promise.race([mine ? fetch(req.url, { cache: "no-cache", credentials: "same-origin" }) : fetch(req), new Promise((_, rej) => setTimeout(() => rej(new Error("slow")), 6000))]);
       if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone()).catch(() => {});
       return res;
     } catch (err) {
