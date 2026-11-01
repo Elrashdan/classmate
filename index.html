@@ -485,8 +485,9 @@
       <div class="sheet-h"><div><div class="eyebrow">${esc(t.course)}</div><h2 id="tkTitle">${esc(t.title)}</h2></div><button class="btn sm ghost" id="tkClose" ${up ? "disabled" : ""} aria-label="إغلاق">إغلاق</button></div>
       <div class="tk-meta"><span class="chip ${k}">${esc(s)}</span>${t.mode === "manual" ? "" : `${t.present_day ? `<span class="small">يوم طرح المشروع: <b>${esc(presTxt(t))}</b></span>` : ""}<span class="small">آخر موعد لرفع الملفات: ${esc(dueTxt(t))}</span>`}<span class="small muted">الدرجة العظمى ${gNum(t.max)}</span></div>
       ${t.details ? `<p class="tk-det">${esc(t.details)}</p>` : ""}
-      ${t.absent_rule !== "refuse" && t.present_day && m.grade == null ? `<div class="msg warn small">من يغيب عن محاضرة يوم طرح المشروع يُحسب تسليمه متأخرًا.</div>` : ""}
-      ${t.absent_rule === "refuse" && !t.refused && m.grade == null ? `<div class="msg warn small">لا يُقبل ${t.mode === "manual" ? "المشروع" : "التسليم"} ممن يغيب عن محاضرة ${sDL(t)}.</div>` : ""}
+      ${t.at_home && t.mode !== "manual" ? `<div class="msg small">يُنفَّذ هذا المشروع في البيت، ولا يُشترط الحضور يوم طرحه.</div>` : ""}
+      ${!t.at_home && t.absent_rule !== "refuse" && t.present_day && m.grade == null ? `<div class="msg warn small">من يغيب عن محاضرة يوم طرح المشروع يُحسب تسليمه متأخرًا.</div>` : ""}
+      ${!t.at_home && t.absent_rule === "refuse" && !t.refused && m.grade == null ? `<div class="msg warn small">لا يُقبل ${t.mode === "manual" ? "المشروع" : "التسليم"} ممن يغيب عن محاضرة ${sDL(t)}.</div>` : ""}
       ${t.refused && m.grade == null ? `<div class="msg bad">لا يُقبل ${t.mode === "manual" ? "مشروعك" : "تسليمك"} في هذا التكليف لأنك غبت في محاضرة ${sDL(t)}. إن كان لك عذر (مرضي أو غيره) فراجِع المحاضر ليقبله.</div>` : ""}
       ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}

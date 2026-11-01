@@ -491,3 +491,21 @@ fieldset.abs-rule{border:1px solid var(--line);border-radius:12px;padding:10px 1
 fieldset.abs-rule legend{font-size:.85rem;color:var(--muted);padding:0 6px}
 fieldset.abs-rule label{display:flex;gap:8px;align-items:center;cursor:pointer}
 fieldset.abs-rule input{width:auto;margin:0}
+/* تقويم اختيار يوم الطرح/الاستلام */
+.tf-col{display:grid;gap:10px}
+.tf-col[hidden]{display:none}
+.tf-dayrow{display:grid;grid-template-columns:minmax(200px,1fr) minmax(260px,320px);gap:14px;align-items:start}
+@media (max-width:640px){.tf-dayrow{grid-template-columns:1fr}}
+.tf-cal{border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--surface)}
+.cal-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:.92rem}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}
+.cal-g span{font-size:.68rem;color:var(--muted);padding-bottom:2px}
+.cal-g button{border:1px solid transparent;background:none;border-radius:8px;padding:5px 0;font:inherit;font-size:.85rem;color:var(--ink);cursor:pointer}
+.cal-g button:hover{background:var(--sunk)}
+.cal-g button.lec{background:#1d6b58;color:#fff;font-weight:600}
+.cal-g button.next{border:2px dashed #1d6b58;color:#1d6b58;font-weight:600}
+.cal-g button.today{text-decoration:underline}
+.cal-g button.sel{outline:3px solid #c98a1a;outline-offset:1px}
+.cal-key{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px}
+.cal-key.lec{background:#1d6b58}
+.cal-key.next{border:2px dashed #1d6b58}

@@ -1322,7 +1322,7 @@
   const cmpDate = t => t.present_day ? new Date(pdStr(t) + "T12:00:00") : new Date(t.due_at);
   const cmpKey = t => dayKey(cmpDate(t));
   // الرصد اليدوي القديم مخزَّن بتاريخ إنشائه؛ يوم الاستلام المختار من التقويم يُحفظ الساعة 23:59 تمامًا
-  const hasDueDay = t => { if (t.present_day) return true; if (!t.due_at) return false; if (!isManual(t)) return true; const x = new Date(t.due_at); return x.getHours() === 23 && x.getMinutes() === 59 && x.getSeconds() === 0; };
+  const hasDueDay = t => { if (t.at_home) return false; if (t.present_day) return true; if (!t.due_at) return false; if (!isManual(t)) return true; const x = new Date(t.due_at); return x.getHours() === 23 && x.getMinutes() === 59 && x.getSeconds() === 0; };
   const absentOnDue = (t, e) => {
     if (!hasDueDay(t)) return false;
     const k = cmpKey(t), day = D.sessions.filter(s => dayKey(s.started_at) === k);
@@ -1372,20 +1372,54 @@
         <label class="f" style="grid-column:1/-1"><span>${man ? "اسم الرصد" : "العنوان"}</span><input type="text" id="tfTitle" maxlength="200" value="${esc(t ? t.title : "")}" placeholder="${man ? "مثلًا: اسكتشات المرسم · الأسبوع الثالث" : "مثلًا: المشروع الأول · تصميم فراغ داخلي"}"></label>
         ${man ? "" : `<label class="f" style="grid-column:1/-1"><span>المطلوب (يظهر للطالب)</span><textarea id="tfDet" maxlength="4000" placeholder="المقاس، والخامة، وعدد اللوحات، وطريقة الإخراج…">${esc(t ? t.details : "")}</textarea></label>`}
         <label class="f"><span>الدرجة العظمى</span><input type="number" id="tfMax" min="0.5" max="1000" step="0.5" value="${t ? gN(t.max_grade) : 10}"></label>
-        ${man ? `<label class="f"><span>يوم الاستلام (اختياري)</span><input type="date" id="tfDay" value="${t && hasDueDay(t) ? localDT(t.due_at).slice(0, 10) : ""}"></label>
-        <p class="small muted" style="grid-column:1/-1;margin:0">اختر من التقويم يوم استلام المشاريع. عند الرصد يُنبّهك البرنامج على كل طالب كان غائبًا في محاضرة ذلك اليوم، لأنه غالبًا سلّم متأخرًا.</p>` : `<label class="f"><span>يوم طرح المشروع (في المحاضرة)</span><input type="date" id="tfPres" value="${t && t.present_day ? esc(pdStr(t)) : ""}"></label>
-        <label class="f"><span>آخر موعد لرفع الملفات</span><input type="datetime-local" id="tfDue" value="${due}"></label>
-        <p class="small muted" style="grid-column:1/-1;margin:0">«يوم طرح المشروع» هو يوم المحاضرة الذي يُعرض فيه المشروع، ويُقارن البرنامج به حضور الطالب. و«آخر موعد لرفع الملفات» هو موعد رفع الملف على Hadro.</p>
-        <label class="f"><span>بعد آخر موعد للرفع</span><select id="tfLate"><option value="accept" ${!t || t.late === "accept" ? "selected" : ""}>يُقبل التسليم ويُعلَّم «متأخر»</option><option value="close" ${t && t.late === "close" ? "selected" : ""}>يُغلق التسليم</option></select></label>`}
-        <fieldset class="f abs-rule" style="grid-column:1/-1"><legend>الطالب الغائب في محاضرة ${man ? "يوم الاستلام" : "يوم طرح المشروع"}</legend>
-          <label><input type="radio" name="tfAbs" value="flag" ${!t || t.absent_rule !== "refuse" ? "checked" : ""}> يُقبل ${man ? "مشروعه" : "تسليمه"} ويُكتب جنبه <b>«متأخر»</b></label>
-          <label><input type="radio" name="tfAbs" value="refuse" ${t && t.absent_rule === "refuse" ? "checked" : ""}> <b>لا يُقبل</b> ${man ? "مشروعه" : "تسليمه"} إلا إذا قبلتُ عذره</label></fieldset>
         ${gs.length ? `<label class="f"><span>لمن</span><select id="tfGrp"><option value="">الدفعة كاملة</option>${gs.map(g => `<option value="${esc(g)}" ${t && t.grp === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}
+        ${man ? "" : `<label class="f"><span>آخر موعد لرفع الملفات</span><input type="datetime-local" id="tfDue" value="${due}"></label>
+        <label class="f"><span>بعد آخر موعد للرفع</span><select id="tfLate"><option value="accept" ${!t || t.late === "accept" ? "selected" : ""}>يُقبل التسليم ويُعلَّم «متأخر»</option><option value="close" ${t && t.late === "close" ? "selected" : ""}>يُغلق التسليم</option></select></label>`}
+        <fieldset class="f abs-rule place" style="grid-column:1/-1"><legend>أين يُنفَّذ المشروع؟</legend>
+          <label><input type="radio" name="tfPlace" value="college" ${!t || !t.at_home ? "checked" : ""}> <b>في الكلية</b> · يُشترط حضور الطالب محاضرة ${man ? "يوم الاستلام" : "يوم الطرح"}</label>
+          <label><input type="radio" name="tfPlace" value="home" ${t && t.at_home ? "checked" : ""}> <b>في البيت</b> · لا يُشترط الحضور</label></fieldset>
+        <div class="tf-col" id="tfCol" style="grid-column:1/-1" ${t && t.at_home ? "hidden" : ""}>
+          <div class="tf-dayrow">
+            ${man ? `<label class="f"><span>يوم الاستلام</span><input type="date" id="tfDay" value="${t && hasDueDay(t) ? localDT(t.due_at).slice(0, 10) : ""}"></label>`
+              : `<label class="f"><span>يوم طرح المشروع (في المحاضرة)</span><input type="date" id="tfPres" value="${t && t.present_day ? esc(pdStr(t)) : ""}"></label>`}
+            <div class="tf-cal" id="tfCal"></div>
+          </div>
+          <p class="small muted" style="margin:0">اختر اليوم من التقويم: <span class="cal-key lec"></span> أيام محاضرات سابقة، و<span class="cal-key next"></span> أيام المحاضرات القادمة المتوقعة (نفس أيام الأسبوع). ويُقارن البرنامج حضور الطالب بمحاضرة هذا اليوم.</p>
+          <fieldset class="f abs-rule"><legend>الطالب الغائب في محاضرة ${man ? "يوم الاستلام" : "يوم طرح المشروع"}</legend>
+            <label><input type="radio" name="tfAbs" value="flag" ${!t || t.absent_rule !== "refuse" ? "checked" : ""}> يُقبل ${man ? "مشروعه" : "تسليمه"} ويُكتب جنبه <b>«متأخر»</b></label>
+            <label><input type="radio" name="tfAbs" value="refuse" ${t && t.absent_rule === "refuse" ? "checked" : ""}> <b>لا يُقبل</b> ${man ? "مشروعه" : "تسليمه"} إلا إذا قبلتُ عذره</label></fieldset>
+        </div>
       </div>
       <div class="row"><button class="btn primary" id="tfSave">${t ? "حفظ التعديل" : man ? "أنشئ الكشف" : "أضف التكليف"}</button><button class="btn ghost" id="tfCancel">إلغاء</button></div>
       <p class="small muted">${man ? "لا يظهر الرصد اليدوي للطلبة حتى تعلن درجاته. ويمكنك رصد الدرجات في الكشف مباشرة، أو تنزيل كشف إكسل لتملأه على الكمبيوتر أو تطبعه وتكتب بخط يدك ثم ترفعه." : "مجموع الدرجات العظمى للتكليفات يُحوَّل في كشف الدرجات إلى النهاية العظمى للأعمال الفصلية في اللائحة. فإن كانت الأعمال الفصلية 100، فاجعل درجة كل تكليف على قدر وزنه."}</p></div>`;
   }
+  /* تقويم صغير يُبرز أيام المحاضرات (السابقة) والأيام المتوقعة القادمة لمجموعة التكليف */
+  let calYM = null;
+  const ymd = x => x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0");
+  function drawCal(el) {
+    const box = el.querySelector("#tfCal"), inp = el.querySelector("#tfPres") || el.querySelector("#tfDay"); if (!box || !inp) return;
+    const grp = (el.querySelector("#tfGrp") || {}).value || "";
+    const mine = D.sessions.filter(x => !x.grp || !grp || x.grp === grp);
+    const lec = new Set(mine.map(x => ymd(new Date(x.started_at))));
+    const recent = mine.filter(x => Date.now() - new Date(x.started_at) < 56 * 864e5), wd = new Set(recent.map(x => new Date(x.started_at).getDay()));
+    const today = ymd(new Date()), sel = inp.value;
+    if (!calYM) { const b = sel ? new Date(sel + "T12:00:00") : new Date(); calYM = [b.getFullYear(), b.getMonth()]; }
+    const [Y, M] = calYM, first = new Date(Y, M, 1), lead = (first.getDay() + 1) % 7, nd = new Date(Y, M + 1, 0).getDate();
+    const cells = []; for (let i = 0; i < lead; i++) cells.push(`<i></i>`);
+    for (let d = 1; d <= nd; d++) {
+      const x = new Date(Y, M, d), k = ymd(x), isLec = lec.has(k), isNext = !isLec && k >= today && wd.has(x.getDay());
+      cells.push(`<button type="button" data-cd="${k}" class="${isLec ? "lec" : ""}${isNext ? " next" : ""}${k === sel ? " sel" : ""}${k === today ? " today" : ""}" title="${isLec ? "يوم محاضرة" : isNext ? "يوم محاضرة متوقع" : ""}">${d}</button>`);
+    }
+    box.innerHTML = `<div class="cal-h"><button type="button" class="btn xs ghost" data-cm="1" title="الشهر السابق">→</button><b>${first.toLocaleDateString("ar-EG", { month: "long", year: "numeric" })}</b><button type="button" class="btn xs ghost" data-cm="-1" title="الشهر التالي">←</button></div>
+      <div class="cal-g">${["سبت", "أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة"].map(w => `<span>${w}</span>`).join("")}${cells.join("")}</div>`;
+    box.querySelectorAll("[data-cm]").forEach(b => b.onclick = () => { const d = new Date(Y, M - +b.dataset.cm, 1); calYM = [d.getFullYear(), d.getMonth()]; drawCal(el); });
+    box.querySelectorAll("[data-cd]").forEach(b => b.onclick = () => { inp.value = b.dataset.cd; drawCal(el); });
+  }
   function wireTaskForm(el, t) {
+    calYM = null; drawCal(el);
+    const pin = el.querySelector("#tfPres") || el.querySelector("#tfDay"); if (pin) pin.onchange = () => { calYM = null; drawCal(el); };
+    const gsel = el.querySelector("#tfGrp"); if (gsel) gsel.addEventListener("change", () => drawCal(el));
+    el.querySelectorAll('input[name="tfPlace"]').forEach(r => r.onchange = () => { const c = el.querySelector("#tfCol"); if (c) c.hidden = r.value === "home" && r.checked; });
     el.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => { const keep = { title: $("#tfTitle").value, max: $("#tfMax").value }; tkMode = b.dataset.mode; renderTasks(); $("#tfTitle").value = keep.title; $("#tfMax").value = keep.max; $("#tfTitle").focus(); });
     const sv = $("#tfSave"); if (!sv) return;
     $("#tfCancel").onclick = () => { tkForm = null; renderTasks(); };
@@ -1395,13 +1429,16 @@
       if (!title) return showErr({ message: "title_required" });
       if (!(max > 0)) return showErr({ message: "bad_grade" });
       if (!man && !dueV) return showErr({ message: "due_required" });
+      if ((el.querySelector('input[name="tfPlace"]:checked') || {}).value !== "home" && !(($("#tfPres") || $("#tfDay") || {}).value))
+        return showErr({ message: man ? "المشروع في الكلية: اختر «يوم الاستلام» من التقويم ليُقارن البرنامج حضور الطلبة به." : "المشروع في الكلية: اختر «يوم طرح المشروع» من التقويم ليُقارن البرنامج حضور الطلبة به." });
       const args = { p_title: title, p_details: man ? "" : $("#tfDet").value, p_max: max, p_due: man ? (dayV ? new Date(dayV + "T23:59").toISOString() : (t ? t.due_at : null)) : new Date(dueV).toISOString(), p_late: man ? "accept" : $("#tfLate").value, p_grp: ($("#tfGrp") || {}).value || null };
       sv.disabled = true;
       try {
-        const absV = (el.querySelector('input[name="tfAbs"]:checked') || {}).value || "flag", presV = ($("#tfPres") || {}).value || "";
+        const atHome = (el.querySelector('input[name="tfPlace"]:checked') || {}).value === "home";
+        const absV = (el.querySelector('input[name="tfAbs"]:checked') || {}).value || "flag", presV = atHome ? ((t && t.present_day && pdStr(t)) || "") : (($("#tfPres") || {}).value || "");
         const presChanged = !man && presV !== ((t && t.present_day && pdStr(t)) || "");
-        if (t) { await rpc("update_task", { tid: t.id, ...args }); if (absV !== (t.absent_rule || "flag")) await rpc("set_task_absent_rule", { tid: t.id, p_rule: absV }); if (presChanged) await rpc("set_task_present_day", { tid: t.id, p_day: presV || null }); say("tasks", "حُفظ التعديل."); }
-        else { tkSel = await rpc("create_task", { cid: D.cid, ...args, p_mode: man ? "manual" : "submit" }); if (absV === "refuse") await rpc("set_task_absent_rule", { tid: tkSel, p_rule: "refuse" }); if (presChanged && presV) await rpc("set_task_present_day", { tid: tkSel, p_day: presV }); say("tasks", man ? "أُنشئ الكشف. اكتب الدرجات أمام كل طالب، أو نزّل كشف الإكسل للطباعة." : "أُضيف التكليف، وظهر للطلبة في صفحتهم."); }
+        if (t) { await rpc("update_task", { tid: t.id, ...args }); if (!!t.at_home !== atHome) await rpc("set_task_place", { tid: t.id, p_home: atHome }); if (absV !== (t.absent_rule || "flag")) await rpc("set_task_absent_rule", { tid: t.id, p_rule: absV }); if (presChanged) await rpc("set_task_present_day", { tid: t.id, p_day: presV || null }); say("tasks", "حُفظ التعديل."); }
+        else { tkSel = await rpc("create_task", { cid: D.cid, ...args, p_mode: man ? "manual" : "submit" }); if (atHome) await rpc("set_task_place", { tid: tkSel, p_home: true }); if (absV === "refuse") await rpc("set_task_absent_rule", { tid: tkSel, p_rule: "refuse" }); if (presChanged && presV) await rpc("set_task_present_day", { tid: tkSel, p_day: presV }); say("tasks", man ? "أُنشئ الكشف. اكتب الدرجات أمام كل طالب، أو نزّل كشف الإكسل للطباعة." : "أُضيف التكليف، وظهر للطلبة في صفحتهم."); }
         tkForm = null; tkMode = "submit"; await loadCourse();
       } catch (e) { sv.disabled = false; showErr(e); }
     };
@@ -1460,7 +1497,7 @@
         ${edit ? `<button class="btn sm ${t.released ? "" : "primary"}" id="tkRel">${t.released ? "إخفاء الدرجات عن الطلبة" : "إعلان الدرجات للطلبة"}</button><button class="btn sm ghost" id="tkEdit">تعديل</button><button class="btn sm ghost danger" id="tkDel">حذف</button>` : ""}
       </div></div>
       <div><div class="eyebrow">${esc(c.name)}${t.grp ? " · مجموعة " + esc(t.grp) : ""}${man ? " · رصد يدوي" : ""}</div><h2 style="font-size:1.3rem">${esc(t.title)}</h2>
-        <p class="small muted">${man ? (hasDueDay(t) ? "يوم الاستلام " + esc(dayStr(cmpDate(t))) + " · " : "") : (t.present_day ? "يوم طرح المشروع " + esc(dayStr(cmpDate(t))) + " · " : "") + "آخر موعد لرفع الملفات " + esc(dueStr(t.due_at)) + " · "}الدرجة العظمى ${gN(t.max_grade)}${man ? "" : " · " + (t.late === "close" ? "يُغلق التسليم بعد الموعد" : "يُقبل التسليم المتأخر ويُعلَّم")}${t.absent_rule === "refuse" ? " · لا يُقبل ممن غاب " + DL(t) + " إلا بعذر" : hasDueDay(t) ? " · من غاب " + DL(t) + " يُعلَّم متأخرًا" : ""} · ${t.released ? "الدرجات معلنة للطلبة" : "الدرجات غير معلنة للطلبة"}</p>
+        <p class="small muted">${man ? (hasDueDay(t) ? "يوم الاستلام " + esc(dayStr(cmpDate(t))) + " · " : "") : (t.present_day ? "يوم طرح المشروع " + esc(dayStr(cmpDate(t))) + " · " : "") + "آخر موعد لرفع الملفات " + esc(dueStr(t.due_at)) + " · "}الدرجة العظمى ${gN(t.max_grade)}${man ? "" : " · " + (t.late === "close" ? "يُغلق التسليم بعد الموعد" : "يُقبل التسليم المتأخر ويُعلَّم")}${t.at_home ? " · يُنفَّذ في البيت (لا يُشترط الحضور)" : t.absent_rule === "refuse" ? " · في الكلية · لا يُقبل ممن غاب " + DL(t) + " إلا بعذر" : hasDueDay(t) ? " · في الكلية · من غاب " + DL(t) + " يُعلَّم متأخرًا" : ""} · ${t.released ? "الدرجات معلنة للطلبة" : "الدرجات غير معلنة للطلبة"}</p>
         ${t.details ? `<p class="tk-det" style="margin-top:8px">${esc(t.details)}</p>` : ""}
         ${hasDueDay(t) ? (nAbs ? `<div class="msg warn small" style="margin-top:8px"><b>${nAbs} ${nAbs === 1 ? "طالب كان غائبًا" : "طلبة كانوا غائبين"} في محاضرة ${DL(t)}</b> (${esc(dayStr(cmpDate(t)))})${t.absent_rule === "refuse" ? "، و<b>هذا التكليف لا يُقبل ممن غاب</b>: لا يستطيعون التسليم ولا تُرصد درجاتهم إلا إذا ضغطت «قبول بعذر» أمام الاسم (عذر مرضي أو غيره)." : "، فيُعدّ تسليمهم متأخرًا. تظهر أمام أسمائهم علامة «متأخر · غاب " + DL(t) + "»؛ راجِع العذر (مرضي أو غيره) ثم ارصد الدرجة، واكتب السبب في الملاحظة إن أردت."}</div>`
           : !dueSessions(t).length ? `<p class="small muted" style="margin-top:6px">لا توجد محاضرة مسجّلة في ${DL(t)} (${esc(dayStr(cmpDate(t)))})، لذا لا يمكن معرفة من سلّم متأخرًا من الحضور.</p>` : "") : ""}</div>
