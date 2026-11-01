@@ -78,6 +78,10 @@
     passkey_cloned: "تعذّر التحقق من مفتاح المرور. فعّل البصمة من جديد.",
     passkey_failed: "تعذّر الدخول بالبصمة. حاول مرة أخرى أو ادخل بكلمة السر.",
     too_many_passkeys: "فعّلت البصمة على أجهزة كثيرة. تواصل مع المحاضر.",
+    not_this_device: "هذا ليس المتصفح المرتبط بحسابك.",
+    google_not_linked: "حساب Google هذا غير مربوط بهذا الكود. اختر الحساب الذي سلّمت منه تكليفاتك، أو اطلب موافقة المحاضر.",
+    google_token: "تعذّر التحقق من حساب Google. حاول مرة أخرى.",
+    reset_not_approved: "لم تتم الموافقة على الطلب بعد، أو انتهت صلاحيته.",
     move_too_soon: "نقلت حسابك مؤخرًا. يمكن النقل مرة كل 3 أيام، أو اطلب من المحاضر فك ربط الهاتف.",
     device_taken: "هذا المتصفح مرتبط بحساب طالب آخر، فلا يمكن نقل حسابك إليه.",
     locked: "محاولات كثيرة. انتظر ربع ساعة ثم أعد المحاولة.",
@@ -194,7 +198,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b35)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b36)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

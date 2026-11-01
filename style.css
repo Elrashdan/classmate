@@ -514,3 +514,9 @@ fieldset.abs-rule input{width:auto;margin:0}
 .pk-btn{margin-top:8px}
 .pk-btn span{color:#1d6b58;font-size:1.1em}
 .ios-tip{margin-top:10px}
+.rs-wait{display:grid;gap:4px;justify-items:center;text-align:center;padding:14px;border:2px dashed #1d6b58;border-radius:14px}
+.rs-wait b{font-size:2.6rem;letter-spacing:.2em;color:#1d6b58}
+.rs-reqs{display:grid;gap:8px;margin-bottom:14px}
+.rs-req{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--surface);border-radius:10px}
+.rs-req>b{font-size:1.3rem;letter-spacing:.15em;color:#1d6b58}
+.rs-req>span{display:grid;flex:1;min-width:160px}

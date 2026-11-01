@@ -235,8 +235,82 @@
     };
   }
 
+  /* ---------------- نسيت كلمة السر ---------------- */
+  let rs = null;   // {stage: "form"|"wait"|"finish", msg, req: {id, secret, code, name}}
+  try { const p = JSON.parse(store.get("cm_reset") || "null"); if (p && p.id) rs = { stage: "wait", msg: "", req: p }; } catch (e) {}
+  let rsTimer = null;
+  const rsCheck = id => String(id || "").replace(/-/g, "").slice(0, 4).toUpperCase();
+  function rsVals() {
+    const code = ($("#rsCode") || {}).value, p1 = ($("#rsPass") || {}).value || "", p2 = ($("#rsPass2") || {}).value || "";
+    if (!code || !code.trim()) throw "اكتب كود الطالب.";
+    if (p1.length < 6) throw "يجب ألا تقل كلمة السر الجديدة عن 6 أحرف.";
+    if (p1 !== p2) throw "كلمتا السر غير متطابقتين.";
+    return { code: code.trim(), pass: p1 };
+  }
+  async function rsDone(r) { token = r.token; store.set("cm_token", token); if (r.code) store.set("cm_last_code", r.code); store.del("cm_reset"); rs = null; clearInterval(rsTimer); busy = false; await loadHome(); }
+  // من نفس المتصفح المرتبط بالحساب: لا يحتاج إلى أي تأكيد آخر
+  async function rsTryDevice(v) {
+    if (!device || store.get("cm_last_code") !== v.code) return false;
+    try { const r = await rpc("student_reset_on_device", { p_code: v.code, p_device: device, p_new: v.pass }); await rsDone(r); return true; } catch (e) { return false; }
+  }
+  function renderReset() {
+    const st = rs.stage, last = store.get("cm_last_code") || "";
+    let body = "";
+    if (st === "form") body = `
+      <p>اكتب كودك وكلمة سر جديدة، ثم أكّد أنك صاحب الحساب بإحدى الطرق التالية:</p>
+      <label class="f"><span>كود الطالب</span><input type="text" id="rsCode" inputmode="numeric" class="mono" style="text-align:start" value="${esc(last)}"></label>
+      <label class="f"><span>كلمة السر الجديدة (6 أحرف على الأقل)</span><input type="password" id="rsPass" autocomplete="new-password"></label>
+      <label class="f"><span>أعد كتابة كلمة السر الجديدة</span><input type="password" id="rsPass2" autocomplete="new-password"></label>
+      ${rs.msg ? `<div class="msg bad">${esc(rs.msg)}</div>` : ""}
+      ${pk.ok ? `<button class="btn primary block" id="rsPk" ${busy ? "disabled" : ""}>تأكيد ببصمة الوجه أو الإصبع</button><p class="small muted">إن كنت فعّلت الدخول بالبصمة من قبل.</p>` : ""}
+      ${HD.ready ? `<button class="btn block" id="rsG" ${busy ? "disabled" : ""}>تأكيد بحساب Google الذي سلّمت منه تكليفاتك</button><p class="small muted">إن كنت سلّمت تكليفًا على Google Drive من هذا التطبيق، أو ربطت حساب Google من صفحتك.</p>` : ""}
+      <button class="btn block" id="rsReq" ${busy ? "disabled" : ""}>اطلب موافقة المحاضر أو المعيد</button>
+      <p class="small muted">يظهر طلبك لفريق المادة في صفحتهم، فيوافق عليه بلمسة بعد أن يتأكد منك، ثم تكمل من هاتفك.</p>`;
+    else if (st === "wait") body = `
+      <div class="rs-wait"><span class="small muted">رقم التحقق</span><b class="mono">${esc(rsCheck(rs.req.id))}</b><span>${esc(rs.req.name || "")} · <span class="mono">${esc(rs.req.code)}</span></span></div>
+      <p>اعرض هذه الشاشة على المحاضر أو المعيد، ليوافق على طلبك من صفحة المادة عنده. وحين يوافق تنتقل هذه الصفحة وحدها لتكتب كلمة السر الجديدة.</p>
+      <div class="live"><span class="dot"></span><span>في انتظار الموافقة…</span></div>
+      ${rs.msg ? `<div class="msg bad">${esc(rs.msg)}</div>` : ""}`;
+    else if (st === "finish") body = `
+      <div class="msg ok">وافق فريق المادة على طلبك. اكتب كلمة السر الجديدة.</div>
+      <input type="hidden" id="rsCode" value="${esc(rs.req.code)}">
+      <label class="f"><span>كلمة السر الجديدة (6 أحرف على الأقل)</span><input type="password" id="rsPass" autocomplete="new-password"></label>
+      <label class="f"><span>أعد كتابة كلمة السر الجديدة</span><input type="password" id="rsPass2" autocomplete="new-password"></label>
+      ${rs.msg ? `<div class="msg bad">${esc(rs.msg)}</div>` : ""}
+      <button class="btn primary block" id="rsFin" ${busy ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : "حفظ كلمة السر والدخول"}</button>`;
+    app.innerHTML = header() + `<section class="panel col"><h2>استعادة كلمة السر</h2>${body}<button class="btn ghost block" id="rsBack">${st === "wait" ? "إلغاء الطلب والرجوع" : "رجوع"}</button></section>`;
+    $("#rsBack").onclick = () => { if (st === "wait") store.del("cm_reset"); clearInterval(rsTimer); rs = null; busy = false; renderAuth(); };
+    const run = async fn => { if (busy) return; let v; try { v = rsVals(); } catch (m) { rs.msg = m; return renderReset(); } rs.msg = ""; busy = true; renderReset();
+      try { if (await rsTryDevice(v)) return; await fn(v); } catch (e) { busy = false; rs.msg = typeof e === "string" ? e : pkErr(e); renderReset(); } };
+    const bp = $("#rsPk"); if (bp) bp.onclick = () => run(async v => {
+      await pkLogin(); const r = await rpc("student_set_password", { p_token: token, p_device: device, p_new: v.pass }); await rsDone(r); });
+    const bg = $("#rsG"); if (bg) bg.onclick = () => { const auth = HD.authorize(); run(async v => {
+      const at = await auth; const r = await pkCall({ action: "google_reset", access_token: at, code: v.code, password: v.pass, device, label: devLabel }); await rsDone(r); }); };
+    const bq = $("#rsReq"); if (bq) bq.onclick = () => { const code = (($("#rsCode") || {}).value || "").trim(); if (!code) { rs.msg = "اكتب كود الطالب."; return renderReset(); }
+      busy = true; renderReset();
+      rpc("student_reset_request", { p_code: code, p_device: device || "", p_label: devLabel }).then(r => { busy = false; rs = { stage: "wait", msg: "", req: { id: r.id, secret: r.secret, code, name: r.name } }; store.set("cm_reset", JSON.stringify(rs.req)); renderReset(); rsPoll(); })
+        .catch(e => { busy = false; rs.msg = errText(e); renderReset(); }); };
+    const bf = $("#rsFin"); if (bf) bf.onclick = async () => { if (busy) return; let v; try { v = rsVals(); } catch (m) { rs.msg = m; return renderReset(); }
+      if (!device) { rs.msg = "هذا المتصفح لا يحفظ البيانات. افتح الموقع في متصفح عادي."; return renderReset(); }
+      busy = true; renderReset();
+      try { const r = await rpc("student_reset_finish", { p_id: rs.req.id, p_secret: rs.req.secret, p_new: v.pass, p_device: device, p_label: devLabel }); await rsDone(r); }
+      catch (e) { busy = false; rs.msg = errText(e); renderReset(); } };
+    if (st === "wait") rsPoll();
+  }
+  function rsPoll() {
+    clearInterval(rsTimer);
+    rsTimer = setInterval(async () => {
+      if (!rs || rs.stage !== "wait") return clearInterval(rsTimer);
+      try { const s2 = await rpc("student_reset_status", { p_id: rs.req.id, p_secret: rs.req.secret });
+        if (s2 === "approved") { clearInterval(rsTimer); rs.stage = "finish"; renderReset(); }
+        else if (s2 === "rejected" || s2 === "expired" || s2 === "used" || s2 == null) { clearInterval(rsTimer); store.del("cm_reset"); rs = { stage: "form", msg: s2 === "rejected" ? "رُفض طلبك. تواصل مع المحاضر." : "انتهت صلاحية الطلب. اطلب من جديد.", req: null }; renderReset(); }
+      } catch (e) {}
+    }, 4000);
+  }
+
   function renderAuth() {
     if (rf) return renderForm();
+    if (rs) return renderReset();
     if (move) return renderMove();
     app.innerHTML = header() + `
       <section class="panel">
@@ -262,12 +336,13 @@
         ${authTab === "login" && device ? pkBtn("pkIn") : ""}
         ${iosTip()}
       </section>
-      <p class="muted small" style="margin-top:14px;text-align:center">غيّرت هاتفك؟ ادخل بكودك وكلمة السر، وسيظهر لك زر لنقل الحساب. نسيت كلمة السر؟ اطلب من المحاضر حذف حسابك لتنشئه من جديد.</p>`;
+      <p class="muted small" style="margin-top:14px;text-align:center">غيّرت هاتفك؟ ادخل بكودك وكلمة السر، وسيظهر لك زر لنقل الحساب. <button type="button" class="linkish" id="rsOpen">نسيت كلمة السر؟</button></p>`;
     $("#tLogin").onclick = () => { authTab = "login"; authMsg = ""; renderAuth(); };
     $("#tReg").onclick = () => { authTab = "reg"; authMsg = ""; renderAuth(); };
     $("#go").onclick = submitAuth;
     const ro = $("#rfOpen"); if (ro) ro.onclick = () => openForm("reg");
     const pi = $("#pkIn"); if (pi) pi.onclick = pkLoginUI;
+    const ro2 = $("#rsOpen"); if (ro2) ro2.onclick = () => { if (HD.ready) HD.loadGis().catch(() => {}); authMsg = ""; rs = { stage: "form", msg: "", req: null }; renderReset(); };
     app.querySelectorAll("input").forEach(i => i.onkeydown = e => { if (e.key === "Enter") submitAuth(); });
   }
 
@@ -451,7 +526,8 @@
           <label class="f"><span>كلمة السر الحالية</span><input type="password" id="pwOld" autocomplete="current-password"></label>
           <label class="f"><span>كلمة السر الجديدة</span><input type="password" id="pwNew" autocomplete="new-password"></label>
           ${pwMsg ? `<div class="msg ${pwMsg.startsWith("!") ? "bad" : "ok"}">${esc(pwMsg.replace(/^!/, ""))}</div>` : ""}
-          <button class="btn primary" id="pwSave">حفظ</button></div>` : ""}
+          <button class="btn primary" id="pwSave">حفظ</button>
+          ${HD.ready ? `<hr><p class="small muted">اربط حساب Google لتستعيد كلمة السر بنفسك إن نسيتها.${store.get("cm_glink_" + home.code) ? " <b class='ok-t'>مربوط.</b>" : ""}</p><button class="btn sm" id="gLink">ربط حساب Google</button>` : ""}</div>` : ""}
         ${home.courses.length ? home.courses.map(c => `
           <article class="course" data-course="${c.id}">
             <div class="row between"><div><h2>${esc(c.name)}</h2>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ""}${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
@@ -463,6 +539,8 @@
       </section>`;
     $("#out").onclick = signOut;
     $("#rfSync").onclick = () => openForm("sync");
+    if ($("#gLink")) HD.loadGis().catch(() => {});
+    const gl = $("#gLink"); if (gl) gl.onclick = () => { const auth = HD.authorize(); auth.then(at => pkCall({ action: "google_link", token, access_token: at })).then(() => { store.set("cm_glink_" + home.code, "1"); pwMsg = "رُبط حساب Google. إن نسيت كلمة السر فاختر «نسيت كلمة السر؟» ثم «تأكيد بحساب Google»."; renderHome(); }).catch(e => { pwMsg = "!" + errText(e); renderHome(); }); };
     const po = $("#pkOn"); if (po) po.onclick = async () => { po.disabled = true; try { await pkRegister(); pkMsg = "فُعّل الدخول بالبصمة. إن ظهر لك يومًا أن الحساب «مرتبط بهاتف آخر» فاضغط «الدخول ببصمة الوجه أو الإصبع»."; } catch (e) { pkMsg = "!" + pkErr(e); } renderHome(); };
     const ps2 = $("#pkSkip"); if (ps2) ps2.onclick = () => { store.set("cm_pk_skip", "1"); renderHome(); };
     $("#pwBtn").onclick = () => { pwOpen = !pwOpen; pwMsg = ""; renderHome(); };
@@ -589,7 +667,8 @@
     setUp("في انتظار موافقة Google…", null); tkMsg = null;
     let fileId = null, stage = "auth";
     try {
-      await auth;
+      const at = await auth;
+      if (at && !store.get("cm_glink_" + home.code)) pkCall({ action: "google_link", token, access_token: at }).then(() => store.set("cm_glink_" + home.code, "1")).catch(() => {});
       setUp("جارٍ تجهيز المجلد على Drive…", null); stage = "folder";
       const folder = await HD.folders(t.course, t.title);
       const ext = (f.name.match(/\.[A-Za-z0-9]{1,8}$/) || [""])[0];

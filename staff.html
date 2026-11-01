@@ -328,12 +328,37 @@
     const excuses = {};
     if (tasks.length) try { const xr = await sb.from("task_excuses").select("*").in("task_id", tasks.map(t => t.id)); if (!xr.error) xr.data.forEach(x => { if (x.active) (excuses[x.task_id] = excuses[x.task_id] || {})[x.student_code] = x; }); } catch (e) {}
     if (tkSel && !tasks.some(t => t.id === tkSel)) tkSel = null;
-    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, tasks, subs, excuses };
+    let resets = [];
+    if (canRun(c)) try { resets = await rpc("course_reset_requests", { cid: c.id }) || []; } catch (e) {}
+    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, tasks, subs, excuses, resets };
+    clearInterval(rsPollT); if (canRun(c)) rsPollT = setInterval(pollResets, 10000);
     if (scan && !sessions.some(x => x.id === scan.sid && !x.ended)) closeScanner();
     render();
     startLoops();
   }
 
+  /* طلبات الطلبة لاستعادة كلمة السر: موافقة بلمسة بعد التأكد من الطالب */
+  let rsPollT = null;
+  async function pollResets() {
+    if (!D || document.visibilityState !== "visible") return;
+    const cid = D.cid;
+    try { const r = await rpc("course_reset_requests", { cid }) || []; if (!D || D.cid !== cid) return;
+      if (JSON.stringify(r.map(x => x.id)) !== JSON.stringify((D.resets || []).map(x => x.id))) { D.resets = r; drawResets(); } } catch (e) {}
+  }
+  function drawResets() {
+    const el = $("#rsReqs"); if (!el || !D) return;
+    const L = D.resets || [];
+    el.hidden = !L.length;
+    el.innerHTML = L.length ? `<div class="msg warn rs-reqs"><b>طلبات استعادة كلمة السر (${L.length})</b>
+      <span class="small">تأكّد أن الطالب أمامك وأن «رقم التحقق» على شاشته هو نفسه، ثم وافق، فيكتب كلمة سر جديدة من هاتفه.</span>
+      ${L.map(r => `<div class="rs-req"><b class="mono">${esc(String(r.id).replace(/-/g, "").slice(0, 4).toUpperCase())}</b><span>${esc(r.name)} <span class="mono muted small">${esc(r.student_code)}</span><small class="muted">${esc(r.device_label || "")} · ${CM.fmtT(r.created_at)}</small></span>
+        <button class="btn sm primary" data-rsok="${r.id}">موافقة</button><button class="btn sm ghost" data-rsno="${r.id}">رفض</button></div>`).join("")}</div>` : "";
+    el.querySelectorAll("[data-rsok],[data-rsno]").forEach(b => b.onclick = async () => {
+      const id = b.dataset.rsok || b.dataset.rsno, ok = !!b.dataset.rsok; b.disabled = true;
+      try { await rpc("decide_reset", { rid: id, p_ok: ok }); D.resets = D.resets.filter(x => x.id !== id); drawResets(); toast(ok ? "تمت الموافقة. يكتب الطالب كلمة السر الجديدة من هاتفه الآن." : "رُفض الطلب."); }
+      catch (e) { b.disabled = false; showErr(e); }
+    });
+  }
   async function refreshLive() {
     const s = D && running(); if (!s) return;
     const [a, t, ss, au] = await Promise.all([
@@ -505,6 +530,7 @@
       <div class="course-h"><div><h2>${esc(c.name)}</h2><p class="muted small">${esc(clsLabel(c))}${c.archived ? " · مؤرشفة" : ""}${c.auto_created ? " · أنشأها النظام من استمارات التسجيل" : ""}</p></div></div>
       ${c.auto_created && !tasAll.some(x => x.course_id === c.id) && isOwner(c) ? `<div class="msg warn" style="margin-bottom:16px"><b>أنشأ النظام هذه المادة تلقائيًّا</b> لأن طلبة سجّلوها في استمارات التسجيل، ولا يوجد لها فريق بعد. أضف المحاضر أو المعيد المسؤول عنها من تبويب «الفريق» (محاضر مشارك أو معيد).</div>` : ""}
       ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `أنت محاضر مشارك في هذه المادة مع ${esc(staffName(c.owner_email))}. يمكنك القيام بكل ما يتعلق بالمحاضرات والطلبة والكشف، أما حذف المادة وتعديل بياناتها وإدارة الفريق فهي لصاحب المادة.` : role(c) === "ta" ? `أنت معيد في هذه المادة. يمكنك بدء المحاضرات والموافقة على الطلبات والتسجيل اليدوي وإضافة طالب، أما رفع ملف الطلبة وإدارة الفريق فهما للمحاضر ${esc(staffName(c.owner_email))}.` : `هذه مادة ${esc(staffName(c.owner_email))}. تطّلع عليها بصفتك مسؤولًا، للقراءة والتصدير فقط.`}</div>` : ""}
+      <div id="rsReqs" hidden></div>
       <nav class="ctabs" role="tablist" aria-label="أقسام المادة">${CTABS.map(([k, t, ic]) => `<button role="tab" data-ct="${k}" aria-selected="${ctab === k}" aria-controls="pane-${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
       <div class="tabpane" id="pane-live" role="tabpanel" ${ctab === "live" ? "" : "hidden"}><div id="sessionArea"></div><section class="panel" id="livePanel"></section></div>
       <div class="tabpane" id="pane-students" role="tabpanel" ${ctab === "students" ? "" : "hidden"}><section class="panel" id="rosterPanel"></section></div>
@@ -557,7 +583,7 @@
     const ft = $("#fTerm"); if (ft) ft.onchange = onFilter;
     if (view === "admin") return renderAdmin();
     if (!c) return;
-    renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit(); renderReport(); renderTasks();
+    renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit(); renderReport(); renderTasks(); drawResets();
   }
   const MAN_REASONS = ["لا يوجد إنترنت ولا GPS", "نفدت بطارية هاتفه", "هاتفه ليس معه", "مشكلة في حسابه", "حاضر وأراه بنفسي"];
   let kindPick = "hall";
