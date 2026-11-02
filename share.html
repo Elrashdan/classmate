@@ -1,0 +1,87 @@
+<!doctype html>
+<!--
+  Hadro · نظام إدارة الحضور
+  © 2026 أحمد محمد راشد حامد (Ahmed Mohamed Rashed Hamed). جميع الحقوق محفوظة. All rights reserved.
+-->
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d6b58">
+<meta name="robots" content="noindex,nofollow">
+<meta name="author" content="أحمد محمد راشد حامد">
+<script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+<title>Hadro · تسليمات التكليف</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="drive.js"></script>
+<script src="pack.js"></script>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), esc = CM.esc, app = $("#app");
+  const key = (/[#&]k=([0-9a-f]{20,80})/i.exec(location.hash || "") || [])[1] || "";
+  const header = () => `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">${esc((window.CLASSMATE || {}).UNIVERSITY_NAME || "")}</p></div></div><div class="row">${CM.themeBtn()}</div></header>`;
+  const gN = n => Number(n).toLocaleString("en", { maximumFractionDigits: 2 });
+  let D = null, busy = false, msg = null;
+  const DL = t => t.present_day ? "يوم الطرح" : "يوم التسليم";
+
+  function fail(t) { app.innerHTML = header() + `<section class="panel col"><h2>تعذّر فتح الرابط</h2><p>${esc(t)}</p></section>`; }
+  async function load() {
+    if (!key) return fail("الرابط غير مكتمل. تأكّد أنك نسخته كاملًا.");
+    app.innerHTML = header() + `<section class="panel col"><p class="muted"><span class="spinner"></span> جارٍ التحميل…</p></section>`;
+    try { D = await CM.rpc("task_link_open", { p_key: key }); }
+    catch (e) { const m = String(e.message || ""); return fail(/link_expired/.test(m) ? "انتهت صلاحية هذا الرابط. اطلب رابطًا جديدًا من المعيد أو المحاضر." : /link_invalid/.test(m) ? "هذا الرابط غير صحيح أو أُوقف. اطلب رابطًا جديدًا من المعيد أو المحاضر." : CM.errText(e)); }
+    render();
+  }
+  function rowsOf() {
+    const t = D.task;
+    return HP.sortRows(D.rows.map(r => ({ code: r.code, name: r.name, grp: r.grp, s: r.sub && (r.sub.url || r.sub.submitted_at || r.sub.grade != null) ? r.sub : null, absent: !!r.absent, excused: !!r.excused,
+      refused: t.absent_rule === "refuse" && !!r.absent && !r.excused })), t.grp).map((x, i) => ({ ...x, n: i + 1 }));
+  }
+  function render() {
+    const t = D.task, rows = rowsOf(), sub = rows.filter(x => x.s && x.s.url), files = rows.filter(x => x.s && x.s.kind === "drive" && x.s.file_id);
+    const stateOf = x => !x.s || !x.s.url ? (x.refused ? ["bad", "مرفوض: غائب " + DL(t)] : ["none", "لم يسلّم"]) : x.s.late || (x.absent && !x.excused) ? ["warn", "سُلِّم · متأخر" + (x.absent && !x.excused && !x.s.late ? " (غاب " + DL(t) + ")" : "")] : ["ok", "سُلِّم"];
+    app.innerHTML = header() + `<section class="panel col">
+      <div class="eyebrow">${esc(D.course)}${t.grp ? " · مجموعة " + esc(t.grp) : ""}</div>
+      <h2>${esc(t.title)}</h2>
+      <p class="small muted">${t.present_day ? "يوم طرح المشروع " + esc(new Date(t.present_day + "T12:00:00").toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })) + " · " : ""}آخر موعد لرفع الملفات ${esc(new Date(t.due_at).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" }))} · الدرجة العظمى ${gN(t.max_grade)}</p>
+      <p><b>${sub.length}</b> سلّموا من <b>${rows.length}</b> طالبًا${files.length !== sub.length ? ` (${files.length} ملفًا على Drive، والباقي روابط)` : ""}.</p>
+      <div class="msg"><b>طريقة التصحيح:</b> اضغط «تنزيل كل الملفات» فتنزل الملفات مرقّمة بأسماء الطلبة، ومعها ملف إكسل «000 - كشف الدرجات والفهرس». اكتب الدرجات في ورقة «كشف الرصد» (لا تغيّر عمود الكود)، ثم أرسل الملف للمعيد أو المحاضر، فيرفعه على Hadro وتُرصد الدرجات.</div>
+      ${msg ? `<div class="msg ${msg.k}">${esc(msg.t)}</div>` : ""}
+      ${files.length ? `<button class="btn primary block" id="dlAll" ${busy ? "disabled" : ""}>${busy ? esc(busy) : "تنزيل كل الملفات + كشف الدرجات"}</button>` : ""}
+      <button class="btn block" id="dlSheet">كشف الدرجات وحده (إكسل)</button>
+      <p class="small muted">على Chrome في الكمبيوتر تختار مجلدًا فتُحفظ فيه الملفات مباشرة، وعلى غيره تنزل في ملف مضغوط. الرابط صالح حتى ${esc(CM.fmtD(D.expires_at))}.</p>
+      </section>
+      <section class="panel col"><div class="tbl-wrap"><table><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th><th>المجموعة</th><th>الحالة</th><th>العمل</th></tr></thead><tbody>
+      ${rows.map(x => { const [k, s] = stateOf(x); return `<tr><td class="c">${x.n}</td><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td><td>${esc(x.grp || "—")}</td><td><span class="chip ${k}">${esc(s)}</span></td><td>${x.s && x.s.url ? `<a href="${esc(x.s.url)}" target="_blank" rel="noopener noreferrer">${x.s.kind === "drive" ? "فتح الملف" : "فتح الرابط"}</a>${x.s.kind === "drive" && x.s.size ? ` <small class="muted">${esc(HD.size(x.s.size))}</small>` : ""}` : ""}</td></tr>`; }).join("")}
+      </tbody></table></div></section>`;
+    const pack = () => ({ base: HD.fileName(t.title + " - " + D.course + (t.grp ? " - مجموعة " + t.grp : "")), title: t.title, sub: D.course + (t.grp ? " · مجموعة " + t.grp : "") + " · " + new Date().toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }),
+      max: t.max_grade, dl: DL(t), taskId: t.id, taskTitle: t.title, cid: t.course_id, rows });
+    const b = $("#dlAll"); if (b) b.onclick = async () => {
+      if (busy) return; busy = "جارٍ التحضير…"; msg = null; render();
+      try {
+        const r = await HP.download({ ...pack(), status: txt => { busy = txt; const x = $("#dlAll"); if (x) x.textContent = txt; } });
+        if (r) msg = { k: r.bad ? "warn" : "ok", t: "نُزّل " + r.ok + " ملفًا من " + r.total + (r.dir ? " في المجلد الذي اخترته" : r.parts > 1 ? " في " + r.parts + " ملفات مضغوطة" : " في ملف مضغوط") + "، ومعها «" + r.sheet + "»." + (r.bad ? " تعذّر تنزيل " + r.bad + " (موضّحة في الفهرس)." : "") };
+      } catch (e) { msg = { k: "bad", t: e && e.message && !/^[a-z_]+$/.test(e.message) ? e.message : "تعذّر التنزيل. أعد المحاولة." }; }
+      busy = false; render();
+    };
+    $("#dlSheet").onclick = async () => {
+      try { await HP.loadExcelJS(); const o = pack(), wb = new ExcelJS.Workbook(); await HP.entrySheet(wb, { ...o, withWork: true }); HP.metaSheet(wb, o);
+        const nm = HD.fileName("كشف رصد - " + t.title + " - " + D.course) + ".xlsx"; HP.finishWb(wb, nm); HD.saveBytes(await wb.xlsx.writeBuffer(), nm, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); }
+      catch (e) { msg = { k: "bad", t: e.message || "تعذّر تجهيز الكشف." }; render(); }
+    };
+  }
+  load();
+})();
+</script>
+</body>
+</html>

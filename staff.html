@@ -51,6 +51,7 @@
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script src="drive.js"></script>
+<script src="pack.js"></script>
 <script src="catalog.js"></script>
 <script src="voice.js"></script>
 <script>
@@ -1535,6 +1536,7 @@
       ${run ? `<div class="tk-tools no-print">
         ${man ? "" : `<button class="btn primary" id="tkGrader" ${st.sub ? "" : "disabled"}>${ICO('<rect x="3" y="4" width="13" height="16" rx="2"/><path d="M19 8v12M7 9h5M7 13h5"/>')} عرض الأعمال وتصحيحها</button>`}
         ${!man && HD.canCheck && drive ? `<button class="btn" id="tkDl" title="ينزّل كل الملفات مرقّمة بأسماء الطلبة، مع فهرس إكسل">${tkBusy === "dl" ? "جارٍ التنزيل…" : "تنزيل كل الملفات"}</button>` : ""}
+        ${!man && HD.canCheck && drive ? `<button class="btn" id="tkShare" title="رابط تفتحه دون حساب، ينزّل منه الدكتور كل الملفات ومعها كشف الدرجات">${ICO('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>')} رابط تنزيل للدكتور</button>` : ""}
         ${!man && HD.canCheck && drive ? `<button class="btn" id="tkCheck" title="يقارن كل ملف على Drive ببصمته وقت التسليم">${tkBusy === "check" ? "جارٍ الفحص…" : "فحص الملفات على Drive"}</button>` : ""}
         <span class="tk-sep"></span>
         <button class="btn" id="tkVoice" title="قل اسم الطالب ثم درجته، فيكتبها البرنامج في الكشف بعد مراجعتك">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} رصد بالصوت</button>
@@ -1542,6 +1544,7 @@
         <label class="btn" title="بعد ملء الكشف على الكمبيوتر">رفع كشف إكسل<input type="file" id="tkImpX" accept=".xlsx" hidden></label>
         <label class="btn" title="صورة الكشف المكتوب باليد، تظهر بجانب الأسماء لتنقل الدرجات منها">صورة كشف مكتوب باليد<input type="file" id="tkImpP" accept="image/*" multiple hidden></label>
       </div>` : ""}
+      ${lnk && lnk.tid === t.id ? linkBox(t) : ""}
       ${gimp && gimp.tid === t.id ? impBox(t) : ""}
       <div class="kpis">
         ${man ? `<div class="kpi"><b>${st.n}</b><span>طالب في الكشف</span></div>` : `<div class="kpi"><b>${st.sub}<small> / ${st.n}</small></b><span>سلّموا</span></div>`}
@@ -1603,6 +1606,8 @@
     const sh = $("#tkSheet"); if (sh) sh.onclick = () => exportEntrySheet(t);
     const vb = $("#tkVoice"); if (vb) vb.onclick = () => openVoice(t);
     const dla = $("#tkDl"); if (dla) dla.onclick = () => downloadAll(t);
+    const shb = $("#tkShare"); if (shb) shb.onclick = () => openLinks(t);
+    wireLinks(t);
     const ix = $("#tkImpX"); if (ix) ix.onchange = () => { const f = ix.files[0]; ix.value = ""; if (f) importEntrySheet(t, f); };
     const ip = $("#tkImpP"); if (ip) ip.onchange = () => { const fs = [...ip.files]; ip.value = ""; if (fs.length) openPhoto(t, fs); };
     wireImp2(t);
@@ -1740,61 +1745,61 @@
   const loadJSZip = () => window.JSZip ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"; sc.onload = ok; sc.onerror = () => bad({ message: "تعذّر تحميل أداة الضغط. تأكّد من الاتصال بالإنترنت." }); document.head.appendChild(sc); });
   const MIMEX = { "application/pdf": ".pdf", "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/heic": ".heic", "application/zip": ".zip", "application/x-zip-compressed": ".zip", "application/vnd.rar": ".rar", "application/x-rar-compressed": ".rar", "video/mp4": ".mp4" };
   const extOf = s => { const m = /\.([A-Za-z0-9]{1,6})$/.exec(s.file_name || ""); return m ? "." + m[1].toLowerCase() : MIMEX[s.mime] || ""; };
+  // بيانات الحزمة بصيغة pack.js (نفسها في صفحة الرابط المرسل للدكتور)
+  const packOf = t => {
+    const c = course();
+    return { base: HD.fileName(t.title + " - " + c.name + (t.grp ? " - مجموعة " + t.grp : "")), title: t.title,
+      sub: courseSub(c) + (t.grp ? " · مجموعة " + t.grp : ""), max: t.max_grade, dl: DL(t), taskId: t.id, taskTitle: t.title, cid: D.cid,
+      rows: taskRows(t).map((e, i) => ({ n: i + 1, code: e.student_code, name: e.name, grp: e.grp, s: subOf(t, e.student_code), absent: absentOnDue(t, e), excused: excusedOf(t, e.student_code), refused: refusedFor(t, e) })) };
+  };
   async function downloadAll(t) {
     if (tkBusy) return;
-    const c = course(), rows = taskRows(t), w = Math.max(3, String(rows.length).length), pad = n => String(n).padStart(w, "0");
-    const items = rows.map((e, i) => ({ e, n: i + 1, s: subOf(t, e.student_code) }));
-    const files = items.filter(x => x.s && x.s.kind === "drive" && x.s.file_id);
-    if (!files.length) return toast("لا توجد ملفات مرفوعة على Drive في هذا التكليف.");
-    const base = HD.fileName(t.title + " - " + c.name + (t.grp ? " - مجموعة " + t.grp : ""));
-    const nameFor = x => HD.fileName(pad(x.n) + " - " + x.e.student_code + " - " + x.e.name + (x.s.late ? " - متأخر" : "") + (absentOnDue(t, x.e) && !excusedOf(t, x.e.student_code) ? " - غائب " + DL(t) + "" : "")) + extOf(x.s);
-    // كروم على الكمبيوتر: تُكتب الملفات مباشرة في مجلد تختاره (مهما كبر حجمها)، وإلا فملف مضغوط (أجزاء حتى 300 م.ب)
-    let dir = null;
-    if (window.showDirectoryPicker) {
-      try { const root = await window.showDirectoryPicker({ mode: "readwrite", id: "hadro-dl" }); dir = await root.getDirectoryHandle(base, { create: true }); }
-      catch (e) { if (e && e.name === "AbortError") return; dir = null; }
-    }
+    const o = packOf(t);
+    if (!o.rows.some(x => x.s && x.s.kind === "drive" && x.s.file_id)) return toast("لا توجد ملفات مرفوعة على Drive في هذا التكليف.");
     tkBusy = "dl"; renderTasks();
-    const stat = txt => { const b = $("#tkDl"); if (b) b.textContent = txt; };
-    const result = {}; let done = 0, okN = 0;
-    const LIMIT = 300 * 1048576, total = files.reduce((a, x) => a + Number(x.s.size || 0), 0), multi = !dir && total > LIMIT;
-    let zip = null, zbytes = 0, part = 1, queue = Promise.resolve();
     try {
-      if (!dir) { await loadJSZip(); zip = new window.JSZip(); }
-      const flush = async () => { if (!zip || !Object.keys(zip.files).length) return; const blob = await zip.generateAsync({ type: "blob", compression: "STORE" }); HD.saveBytes(blob, base + (multi ? " - الجزء " + part : "") + ".zip", "application/zip"); part++; zip = new window.JSZip(); zbytes = 0; };
-      const one = async x => {
-        const nm = nameFor(x);
-        try {
-          const r = await HD.publicResponse(x.s.file_id);
-          if (dir) { const fh = await dir.getFileHandle(nm, { create: true }); const wr = await fh.createWritable(); await r.body.pipeTo(wr); }
-          else { const buf = await r.arrayBuffer(); queue = queue.then(async () => { if (zbytes && zbytes + buf.byteLength > LIMIT) await flush(); zip.file(nm, buf); zbytes += buf.byteLength; }); await queue; }
-          result[x.e.student_code] = { ok: true, name: nm }; okN++;
-        } catch (e) { result[x.e.student_code] = { ok: false, why: e && e.message === "drive_missing" ? "الملف محذوف أو غير متاح على Drive" : "تعذّر التنزيل" }; }
-        done++; stat("جارٍ التنزيل " + done + " / " + files.length + "…");
-      };
-      let i = 0; const workers = Array.from({ length: 3 }, async () => { while (i < files.length) await one(files[i++]); });
-      await Promise.all(workers);
-      // الفهرس
-      await loadExcelJS();
-      const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("فهرس التسليمات", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
-      sheetTitle(ws, 10, "فهرس تسليمات: " + t.title, courseSub(c) + (t.grp ? " · مجموعة " + t.grp : "") + " · " + CM.fmtD(new Date()));
-      headRow(ws, 4, ["م", "الكود", "الاسم", "المجموعة", "الحالة", "تاريخ التسليم", "اسم الملف في المجلد", "رابط العمل", "" + DL(t) + "", "ملاحظة الطالب"], true);
-      items.forEach((x, k) => {
-        const s = x.s, rr = result[x.e.student_code], r = ws.getRow(5 + k);
-        const state = !s || !s.url ? "لم يسلّم" : s.kind === "link" ? "رابط خارجي (لم يُنزَّل)" : rr && rr.ok ? (s.late ? "سُلِّم متأخرًا" : "سُلِّم") : (rr ? rr.why : "—");
-        [x.n, isNaN(+x.e.student_code) ? x.e.student_code : +x.e.student_code, x.e.name, x.e.grp || "—", state, s && s.submitted_at ? CM.fmtD(s.submitted_at) + " " + CM.fmtT(s.submitted_at) : "",
-         rr && rr.ok ? rr.name : "", s && s.url ? { text: "فتح", hyperlink: s.url } : "", absentOnDue(t, x.e) ? (excusedOf(t, x.e.student_code) ? "غائب (مقبول بعذر)" : "غائب") : "", (s && s.note) || ""].forEach((v, j) => { r.getCell(j + 1).value = v; });
-        r.eachCell({ includeEmpty: true }, (cl, j) => { if (j > 10) return; cl.font = { name: "Arial", size: 10.5, ...(j === 8 && s && s.url ? { color: { argb: "FF1D6B58" }, underline: true } : {}) }; cl.alignment = { horizontal: j === 3 || j === 7 || j === 10 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (k % 2) cl.fill = fill(XC.band); });
-      });
-      [5, 12, 30, 9, 22, 18, 50, 9, 14, 30].forEach((wd, j) => { ws.getColumn(j + 1).width = wd; });
-      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4 + items.length, column: 10 } };
-      const xbuf = await wb.xlsx.writeBuffer(), xname = pad(0) + " - فهرس التسليمات.xlsx";
-      if (dir) { const fh = await dir.getFileHandle(xname, { create: true }); const wr = await fh.createWritable(); await wr.write(xbuf); await wr.close(); }
-      else { await queue; zip.file(xname, xbuf); await flush(); }
-      const bad = files.length - okN, links = items.filter(x => x.s && x.s.kind === "link").length;
-      say("tasks", (bad ? "!" : "") + "نُزّل " + okN + " ملفًا من " + files.length + (dir ? " في مجلد «" + base + "»" : multi ? " في " + (part - 1) + " ملفات مضغوطة" : " في ملف مضغوط") + "، مرقّمة بترتيب الكشف وبأسماء الطلبة، ومعها «فهرس التسليمات»." + (bad ? " تعذّر تنزيل " + bad + " (موضّحة في الفهرس)." : "") + (links ? " و" + links + " سلّموا روابط خارجية، روابطها في الفهرس." : ""));
+      const r = await HP.download({ ...o, status: txt => { const b = $("#tkDl"); if (b) b.textContent = txt; } });
+      if (r) say("tasks", (r.bad ? "!" : "") + "نُزّل " + r.ok + " ملفًا من " + r.total + (r.dir ? " في مجلد «" + o.base + "»" : r.parts > 1 ? " في " + r.parts + " ملفات مضغوطة" : " في ملف مضغوط") + "، مرقّمة بترتيب الكشف وبأسماء الطلبة، ومعها «كشف الدرجات والفهرس»: يكتب فيه الدكتور الدرجات، ثم ترفعه من «رفع كشف إكسل» فتُرصد." + (r.bad ? " تعذّر تنزيل " + r.bad + " (موضّحة في الفهرس)." : "") + (r.links ? " و" + r.links + " سلّموا روابط خارجية، روابطها في الكشف." : ""));
     } catch (e) { showErr(e); }
     tkBusy = null; renderTasks();
+  }
+
+  /* ---------- رابط تنزيل للدكتور (دون حساب) ---------- */
+  let lnk = null;   // { tid, list, fresh, busy, msg }
+  async function openLinks(t) {
+    if (lnk && lnk.tid === t.id) { lnk = null; return renderTasks(); }
+    lnk = { tid: t.id, list: null, fresh: null, busy: false, msg: "" }; renderTasks();
+    try { lnk.list = await rpc("task_links_list", { tid: t.id }) || []; } catch (e) { lnk.msg = "!" + errText(e); }
+    if (lnk && lnk.tid === t.id) renderTasks();
+  }
+  const shareUrl = k => location.origin + location.pathname.replace(/[^/]*$/, "") + "share.html#k=" + k;
+  function linkBox(t) {
+    const L = lnk, now = Date.now();
+    const st = l => l.revoked ? `<span class="chip bad">موقوف</span>` : new Date(l.expires_at).getTime() < now ? `<span class="chip none">انتهى</span>` : `<span class="chip ok">يعمل حتى ${esc(CM.fmtD(l.expires_at))}</span>`;
+    return `<div class="imp-box" id="lnkBox"><div class="row between"><h3>رابط تنزيل للدكتور</h3><button class="btn sm ghost" id="lnkX">إغلاق</button></div>
+      <p class="small">رابط تفتحه دون حساب على Hadro: يرى أسماء الطلبة وأعمالهم، وينزّل كل الملفات مرقّمة بأسمائهم ومعها <b>كشف الدرجات</b> (إكسل). يكتب الدكتور الدرجات في الكشف ويرسله إليك، فترفعه من «رفع كشف إكسل» فتُرصد. أرسل الرابط للدكتور وحده، فمن معه الرابط يرى أسماء الطلبة وأعمالهم حتى ينتهي أو توقفه.</p>
+      ${L.msg ? `<div class="msg ${L.msg.startsWith("!") ? "bad" : "ok"} small">${esc(L.msg.replace(/^!/, ""))}</div>` : ""}
+      ${L.fresh ? `<div class="msg ok"><b>الرابط جاهز.</b> انسخه الآن وأرسله (لا يظهر مرة أخرى؛ يمكنك إنشاء غيره).<div class="row" style="margin-top:8px"><input type="text" id="lnkUrl" dir="ltr" readonly value="${esc(L.fresh)}" style="flex:1;min-width:0"><button class="btn sm primary" id="lnkCopy">نسخ</button></div></div>` : ""}
+      <div class="row"><label class="small">صالح لمدة <select id="lnkDays"><option value="3">3 أيام</option><option value="7" selected>أسبوع</option><option value="14">أسبوعين</option><option value="30">شهر</option></select></label>
+        <button class="btn primary sm" id="lnkNew" ${L.busy ? "disabled" : ""}>${L.busy ? "جارٍ الإنشاء…" : "إنشاء رابط جديد"}</button></div>
+      ${L.list == null ? `<p class="small muted">جارٍ التحميل…</p>` : L.list.length ? `<div class="tbl-wrap"><table><thead><tr><th>أنشأه</th><th>التاريخ</th><th>الحالة</th><th class="c">فُتح</th><th></th></tr></thead><tbody>${L.list.map(l => `<tr><td>${esc(l.created_by)}</td><td class="small">${esc(CM.fmtD(l.created_at))}</td><td>${st(l)}</td><td class="c">${l.opens}${l.last_open ? ` <small class="muted">(آخرها ${esc(CM.fmtD(l.last_open))})</small>` : ""}</td><td>${!l.revoked && new Date(l.expires_at).getTime() >= now ? `<button class="btn xs" data-lnkoff="${l.id}">إيقاف</button>` : ""}</td></tr>`).join("")}</tbody></table></div>` : `<p class="small muted">لم يُنشأ رابط لهذا التكليف بعد.</p>`}</div>`;
+  }
+  function wireLinks(t) {
+    if (!lnk || lnk.tid !== t.id) return;
+    const x = $("#lnkX"); if (x) x.onclick = () => { lnk = null; renderTasks(); };
+    const cp = $("#lnkCopy"); if (cp) cp.onclick = async () => { const u = $("#lnkUrl"); try { await navigator.clipboard.writeText(u.value); cp.textContent = "نُسخ ✓"; } catch (e) { u.select(); document.execCommand("copy"); cp.textContent = "نُسخ ✓"; } };
+    const nb = $("#lnkNew"); if (nb) nb.onclick = async () => {
+      lnk.busy = true; lnk.msg = ""; const days = Number($("#lnkDays").value) || 7; renderTasks();
+      try { const r = await rpc("create_task_link", { tid: t.id, p_days: days }); lnk.fresh = shareUrl(r.key); lnk.list = await rpc("task_links_list", { tid: t.id }) || []; }
+      catch (e) { lnk.msg = "!" + errText(e); }
+      lnk.busy = false; renderTasks();
+    };
+    document.querySelectorAll("[data-lnkoff]").forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      try { await rpc("revoke_task_link", { lid: b.dataset.lnkoff }); lnk.list = await rpc("task_links_list", { tid: t.id }) || []; lnk.msg = "أُوقف الرابط، ولن يفتح بعد الآن."; }
+      catch (e) { lnk.msg = "!" + errText(e); }
+      renderTasks();
+    });
   }
 
   /* ---------- كشف الرصد: تنزيل للطباعة أو للملء، ثم رفعه ---------- */
@@ -1802,32 +1807,9 @@
     const btn = $("#tkSheet"); if (btn) { btn.disabled = true; btn.textContent = "جارٍ التجهيز…"; }
     try {
       await loadExcelJS();
-      const c = course(), wb = new ExcelJS.Workbook(), rows = taskRows(t), max = Number(t.max_grade), withWork = !isManual(t), NC = withWork ? 8 : 7;
-      const ws = wb.addWorksheet("كشف الرصد", { views: [{ rightToLeft: true, state: "frozen", ySplit: 5 }] });
-      sheetTitle(ws, NC, "كشف رصد: " + t.title, courseSub(c) + (t.grp ? " · مجموعة " + t.grp : ""));
-      ws.mergeCells(3, 1, 3, NC);
-      ws.getCell(3, 1).value = "الدرجة العظمى " + gN(max) + " · اكتب الدرجة في خانتها والبونص (إن وجد) في خانته. لا تغيّر عمود الكود. بعد الملء ارفع الملف من «رفع كشف إكسل»، أو صوّر الورقة وارفعها من «صورة كشف مكتوب باليد».";
-      ws.getCell(3, 1).font = { name: "Arial", size: 9.5, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl", wrapText: true }; ws.getRow(3).height = 30;
-      headRow(ws, 5, ["م", "الكود", "الاسم", "المجموعة", "الدرجة (من " + gN(max) + ")", "بونص", "ملاحظة", ...(withWork ? ["العمل المسلَّم"] : [])], true);
-      rows.forEach((e, i) => {
-        const s = subOf(t, e.student_code), r = ws.getRow(6 + i);
-        [i + 1, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", s && s.grade != null ? Number(s.grade) : null, s && Number(s.bonus) ? Number(s.bonus) : null, (s && s.feedback) || ""].forEach((v, j) => { r.getCell(j + 1).value = v; });
-        if (withWork) r.getCell(8).value = s && s.url ? { text: (s.kind === "drive" ? s.file_name || "فتح الملف" : "فتح الرابط") + (s.late ? " (متأخر)" : ""), hyperlink: s.url } : refusedFor(t, e) ? "مرفوض: غائب " + DL(t) + "" : "لم يسلّم";
-        if (refusedFor(t, e)) r.getCell(3).value = e.name + " (مرفوض: غائب يوم " + (withWork ? "التسليم" : "الاستلام") + ")";
-        r.height = 24;
-        r.eachCell({ includeEmpty: true }, (cl, j) => { if (j > NC) return; cl.border = { top: { style: "thin", color: { argb: "FF9AA7A3" } }, bottom: { style: "thin", color: { argb: "FF9AA7A3" } }, left: { style: "thin", color: { argb: "FF9AA7A3" } }, right: { style: "thin", color: { argb: "FF9AA7A3" } } };
-          cl.font = { name: "Arial", size: j === 5 || j === 6 ? 13 : j === 8 ? 10 : 11, bold: j === 5, ...(j === 8 && s && s.url ? { color: { argb: "FF1D6B58" }, underline: true } : {}) }; cl.alignment = { horizontal: j === 3 || j >= 7 ? "right" : "center", vertical: "middle", readingOrder: "rtl", ...(j === 8 ? { shrinkToFit: true } : {}) }; if (i % 2) cl.fill = fill(XC.band); });
-        [5, 6].forEach(j => { r.getCell(j).dataValidation = { type: "decimal", operator: "between", formulae: [0, max], allowBlank: true, showErrorMessage: true, errorTitle: "درجة غير صحيحة", error: "اكتب رقمًا من 0 إلى " + gN(max) }; r.getCell(j).protection = { locked: false }; });
-        r.getCell(7).protection = { locked: false };
-      });
-      const end = 6 + rows.length;
-      const sg = ws.getRow(end + 1); ws.mergeCells(end + 1, 1, end + 1, NC); sg.height = 34;
-      sg.getCell(1).value = "اسم المصحح وتوقيعه: ……………………………………     التاريخ: ……… / ……… / ………"; sg.getCell(1).font = { name: "Arial", size: 11, bold: true }; sg.getCell(1).alignment = { horizontal: "right", vertical: "bottom", readingOrder: "rtl" };
-      [5, 12, 32, 10, 15, 10, 30, 34].slice(0, NC).forEach((w, j) => { ws.getColumn(j + 1).width = w; });
-      ws.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "5:5", margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.6, header: 0.2, footer: 0.3 } };
-      await ws.protect("", { selectLockedCells: true, selectUnlockedCells: true, formatColumns: true, formatRows: true });
-      const meta = wb.addWorksheet("hadro", { state: "veryHidden" });
-      meta.getCell("A1").value = t.id; meta.getCell("A2").value = t.title; meta.getCell("A3").value = D.cid;
+      const c = course(), wb = new ExcelJS.Workbook(), o = packOf(t);
+      await HP.entrySheet(wb, { ...o, withWork: !isManual(t) });
+      HP.metaSheet(wb, o);
       await saveWb(wb, HD.fileName("كشف رصد - " + t.title + " - " + c.name) + ".xlsx");
     } catch (e) { showErr(e); }
     if (btn) { btn.disabled = false; btn.textContent = "كشف رصد للطباعة (إكسل)"; }
