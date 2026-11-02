@@ -608,6 +608,7 @@
     if (m.submitted_at && t.absent_due && !t.excused) return ["warn", "سُلِّم · متأخر (غبت " + sDL(t) + ")"];
     if (m.submitted_at) return [m.late ? "warn" : "ok", m.late ? "سُلِّم متأخرًا" : "سُلِّم"];
     if (!past) return [new Date(t.due_at).getTime() - nowS() < 864e5 ? "warn" : "none", relDue(t)];
+    if (t.ext_until) return ["warn", "مفتوح لك استثنائيًا حتى " + extTxt(t)];
     return t.late === "accept" ? ["bad", "تأخرت · التسليم ما زال مفتوحًا"] : ["bad", "انتهى موعد التسليم"];
   }
   function tasksBlock(c) {
@@ -622,7 +623,8 @@
     $("#tkOv").hidden = false; renderTask(); loadTasks(true);
   }
   function closeTask() { if (up) return; tkId = null; $("#tkOv").hidden = true; renderHome(); }
-  const canSubmit = t => t.mode !== "manual" && !t.refused && !(t.mine && t.mine.graded) && (t.late === "accept" || new Date(t.due_at).getTime() >= nowS());
+  const extTxt = t => new Date(t.ext_until).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
+  const canSubmit = t => t.mode !== "manual" && !t.refused && !(t.mine && t.mine.graded) && (t.late === "accept" || !!t.ext_until || new Date(t.due_at).getTime() >= nowS());
   function renderTask() {
     const t = (tasks || []).find(x => x.id === tkId), el = $("#tkIn");
     if (!t) { el.innerHTML = `<p class="muted">جارٍ التحميل…</p>`; return; }
@@ -635,6 +637,7 @@
       ${t.at_home && t.mode !== "manual" ? `<div class="msg small">يُنفَّذ هذا المشروع في البيت، ولا يُشترط الحضور يوم طرحه.</div>` : ""}
       ${!t.at_home && t.absent_rule !== "refuse" && t.present_day && m.grade == null ? `<div class="msg warn small">من يغيب عن محاضرة يوم طرح المشروع يُحسب تسليمه متأخرًا.</div>` : ""}
       ${!t.at_home && t.absent_rule === "refuse" && !t.refused && m.grade == null ? `<div class="msg warn small">لا يُقبل ${t.mode === "manual" ? "المشروع" : "التسليم"} ممن يغيب عن محاضرة ${sDL(t)}.</div>` : ""}
+      ${t.ext_until && m.grade == null && new Date(t.due_at).getTime() < nowS() ? `<div class="msg ok"><b>فُتح لك تسليم استثنائي</b> حتى ${esc(extTxt(t))}${t.ext_reason ? ` (${esc(t.ext_reason)})` : ""}. لا يُحسب تسليمك متأخرًا.</div>` : ""}
       ${t.refused && m.grade == null ? `<div class="msg bad">لا يُقبل ${t.mode === "manual" ? "مشروعك" : "تسليمك"} في هذا التكليف لأنك غبت في محاضرة ${sDL(t)}. إن كان لك عذر (مرضي أو غيره) فراجِع المحاضر ليقبله.</div>` : ""}
       ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}

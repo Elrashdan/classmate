@@ -520,3 +520,7 @@ fieldset.abs-rule input{width:auto;margin:0}
 .rs-req{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;background:var(--surface);border-radius:10px}
 .rs-req>b{font-size:1.3rem;letter-spacing:.15em;color:#1d6b58}
 .rs-req>span{display:grid;flex:1;min-width:160px}
+/* تسليم استثنائي */
+.ext-f { display: grid; grid-template-columns: 1fr 220px; gap: 10px; align-items: end; }
+.ext-f > .row { grid-column: 1 / -1; }
+@media (max-width: 640px) { .ext-f { grid-template-columns: 1fr; } }

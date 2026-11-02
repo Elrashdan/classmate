@@ -331,7 +331,9 @@
     if (tkSel && !tasks.some(t => t.id === tkSel)) tkSel = null;
     let resets = [];
     if (canRun(c)) try { resets = await rpc("course_reset_requests", { cid: c.id }) || []; } catch (e) {}
-    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, tasks, subs, excuses, resets };
+    const exts = {};
+    if (tasks.length) try { const xr = await sb.from("task_extensions").select("*").in("task_id", tasks.map(t => t.id)); if (!xr.error) xr.data.forEach(x => { if (x.active) (exts[x.task_id] = exts[x.task_id] || {})[x.student_code] = x; }); } catch (e) {}
+    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, tasks, subs, excuses, resets, exts };
     clearInterval(rsPollT); if (canRun(c)) rsPollT = setInterval(pollResets, 10000);
     if (scan && !sessions.some(x => x.id === scan.sid && !x.ended)) closeScanner();
     render();
@@ -1361,8 +1363,19 @@
   // اسم اليوم الذي يُقارن به الحضور: يوم طرح المشروع إن حُدّد، وإلا يوم الاستلام (الرصد اليدوي) أو يوم التسليم
   const DL = t => t && t.present_day ? "يوم الطرح" : t && isManual(t) ? "يوم الاستلام" : "يوم التسليم";
   const excusedOf = (t, code) => !!((D.excuses || {})[t.id] || {})[code];
+  // تسليم استثنائي بعد الموعد (بعذر): ext = { until, reason, by_email }
+  const extnOf = (t, code) => ((D.exts || {})[t.id] || {})[code] || null;
+  const extLive = (t, code) => { const x = extnOf(t, code); return x && new Date(x.until).getTime() > Date.now() ? x : null; };
+  const extTxt = x => CM.fmtD(x.until) + " " + CM.fmtT(x.until);
+  const extCell = (t, e, s, run) => {
+    const code = e.student_code, x = extnOf(t, code), live = extLive(t, code), past = new Date(t.due_at).getTime() < Date.now();
+    const tip = x ? esc((x.reason ? "العذر: " + x.reason + " · " : "") + "فتحه " + staffName(x.by_email)) : "";
+    if (s && s.submitted_at) return x && new Date(s.submitted_at).getTime() > new Date(t.due_at).getTime() && !s.late ? ` <span class="chip ok" title="${tip}">تسليم استثنائي</span>` : "";
+    if (live) return `<div style="margin-top:4px"><span class="chip warn" title="${tip}">تسليم استثنائي حتى ${esc(extTxt(live))}</span>${run ? ` <button class="btn xs ghost" data-extoff="${esc(code)}">إلغاء</button>` : ""}</div>`;
+    return run && past ? `<div style="margin-top:4px"><button class="btn xs" data-ext="${esc(code)}" title="يسمح لهذا الطالب وحده بالتسليم بعد انتهاء الموعد، بعذر ولمدة تحددها">فتح تسليم استثنائي</button></div>` : "";
+  };
   // «لا يُقبل ممن غاب يوم التسليم»: مرفوض ما لم يُقبل عذره
-  const refusedFor = (t, e) => t.absent_rule === "refuse" && absentOnDue(t, e) && !excusedOf(t, e.student_code);
+  const refusedFor = (t, e) => t.absent_rule === "refuse" && absentOnDue(t, e) && !excusedOf(t, e.student_code) && !extnOf(t, e.student_code);
   const excBtn = (t, e) => canRun(course()) ? ` <button class="btn xs ${excusedOf(t, e.student_code) ? "ghost" : ""}" data-exc="${esc(e.student_code)}" data-on="${excusedOf(t, e.student_code) ? 0 : 1}">${excusedOf(t, e.student_code) ? "إلغاء قبول العذر" : "قبول بعذر"}</button>` : "";
   const absChip = (t, e) => !absentOnDue(t, e) ? ""
     : refusedFor(t, e) ? ` <span class="chip bad small" title="كان غائبًا في محاضرة ${DL(t)}، والتكليف لا يُقبل ممن غاب إلا بعذر تقبله.">مرفوض · غائب ${DL(t)}</span>${excBtn(t, e)}`
@@ -1544,6 +1557,7 @@
         <label class="btn" title="بعد ملء الكشف على الكمبيوتر">رفع كشف إكسل<input type="file" id="tkImpX" accept=".xlsx" hidden></label>
         <label class="btn" title="صورة الكشف المكتوب باليد، تظهر بجانب الأسماء لتنقل الدرجات منها">صورة كشف مكتوب باليد<input type="file" id="tkImpP" accept="image/*" multiple hidden></label>
       </div>` : ""}
+      ${extFor && extFor.tid === t.id ? extBox(t) : ""}
       ${lnk && lnk.tid === t.id ? linkBox(t) : ""}
       ${gimp && gimp.tid === t.id ? impBox(t) : ""}
       <div class="kpis">
@@ -1558,7 +1572,7 @@
       ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}<th class="c">الدرجة من ${gN(t.max_grade)}</th><th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
           return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td>${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
-            ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}` : `<span class="muted">لم يسلّم</span>`}</td>
+            ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}${extCell(t, e, s, run)}` : `<span class="muted">لم يسلّم</span>${extCell(t, e, s, run)}`}</td>
             <td class="small">${s && s.url ? `<button class="btn xs" data-view="${code}">عرض</button> <a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a">${esc(s.kind === "drive" ? (s.file_name || "الملف") : "رابط")}</a>${ck ? ` <span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted">«${esc(s.note)}»</div>` : ""}` : "—"}</td>`}
             <td class="c">${run ? `<input type="text" class="gin ${badVal(valOf(e.student_code, "grade", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? `disabled title="مرفوض: غاب ${DL(t)}. اقبل عذره أولًا لترصد درجته."` : ""} data-g="${code}" value="${esc(valOf(e.student_code, "grade", s))}" inputmode="decimal" autocomplete="off">` : gN(s && s.grade)}</td>
             <td class="c">${run ? `<input type="text" class="gin bin ${badVal(valOf(e.student_code, "bonus", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-b="${code}" value="${esc(valOf(e.student_code, "bonus", s))}" inputmode="decimal" autocomplete="off" placeholder="—">` : (s && Number(s.bonus) ? "+" + gN(s.bonus) : "")}</td>
@@ -1573,6 +1587,9 @@
     $("#tkBack").onclick = () => { if (Object.keys(tkEdits).length && confirmKey !== "tkleave") { confirmKey = "tkleave"; toast("لديك درجات لم تُحفظ. اضغط «حفظ الدرجات»، أو اضغط الرجوع مرة أخرى لتجاهلها."); setTimeout(() => { if (confirmKey === "tkleave") confirmKey = null; }, 5000); return; } confirmKey = null; tkSel = null; tkEdits = {}; tkForm = null; gimp = null; renderTasks(); };
     el.querySelectorAll("[data-tf]").forEach(b => b.onclick = () => { tkFilter = b.dataset.tf; renderTasks(); });
     el.querySelectorAll("[data-exc]").forEach(b => b.onclick = () => excuseToggle(t, b.dataset.exc, b.dataset.on === "1"));
+    el.querySelectorAll("[data-ext]").forEach(b => b.onclick = () => { extFor = { tid: t.id, code: b.dataset.ext, msg: "" }; renderTasks(); const x = $("#extBox"); if (x) { x.scrollIntoView({ block: "nearest", behavior: "smooth" }); const r = $("#extWhy"); if (r) r.focus(); } });
+    el.querySelectorAll("[data-extoff]").forEach(b => b.onclick = () => setExt(t, b.dataset.extoff, null, ""));
+    wireExt(t);
     const ax = $("#tkAddX"); if (ax) ax.onchange = () => { if (!ax.value) return; (tkExtra[t.id] = tkExtra[t.id] || new Set()).add(ax.value); tkQ = ""; toast("أُضيف " + nameOf(ax.value) + " إلى كشف هذا التكليف استثناءً. اكتب درجته واحفظ."); renderTasks(); };
     const qi = $("#tkQ"); if (qi) qi.oninput = () => { tkQ = qi.value; renderTasks(); const r2 = $("#tkQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
     const onIn = (i, code, k) => { setEdit(t, code, k, i.value.trim()); if (k !== "feedback") i.classList.toggle("bad", badVal(i.value, +t.max_grade));
@@ -1626,6 +1643,40 @@
       rows.push({ code, grade: g, bonus: b, feedback: "feedback" in e2 ? e2.feedback : (s ? s.feedback || "" : "") });
     }
     return rows;
+  }
+  /* ---------- تسليم استثنائي لطالب بعد انتهاء الموعد ---------- */
+  let extFor = null;   // { tid, code, msg }
+  function extBox(t) {
+    const code = extFor.code, e = D.enroll.find(x => x.student_code === code), x = extLive(t, code);
+    const d = new Date(Date.now() + 2 * 864e5), p = n => String(n).padStart(2, "0"), def = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T23:59";
+    return `<div class="imp-box" id="extBox"><div class="row between"><h3>تسليم استثنائي: ${esc(e ? e.name : code)} <small class="muted mono">${esc(code)}</small></h3><button class="btn sm ghost" id="extX">إلغاء</button></div>
+      <p class="small">انتهى موعد التسليم (${esc(dueStr(t.due_at))}). يُفتح التسليم لهذا الطالب وحده حتى الموعد الذي تختاره، ويظهر له في صفحته. لا يُعلَّم تسليمه «متأخرًا» ويظهر عندك «تسليم استثنائي»، ويُكتب في السجل.</p>
+      ${extFor.msg ? `<div class="msg bad small">${esc(extFor.msg)}</div>` : ""}
+      <div class="ext-f"><label class="f"><span>العذر</span><input type="text" id="extWhy" maxlength="300" placeholder="مثلًا: عذر مرضي بشهادة، ظرف عائلي…" value="${esc(x ? x.reason : "")}"></label>
+        <label class="f"><span>يُقبل تسليمه حتى</span><input type="datetime-local" id="extUntil" value="${esc(def)}"></label>
+        <div class="row" style="gap:6px">${[["يوم", 1], ["يومين", 2], ["3 أيام", 3], ["أسبوع", 7]].map(([l, n]) => `<button class="btn xs" data-extd="${n}">${l}</button>`).join("")}</div></div>
+      <div class="row"><button class="btn primary" id="extGo">فتح التسليم</button></div></div>`;
+  }
+  function wireExt(t) {
+    if (!extFor || extFor.tid !== t.id) return;
+    $("#extX").onclick = () => { extFor = null; renderTasks(); };
+    document.querySelectorAll("[data-extd]").forEach(b => b.onclick = () => { const d = new Date(Date.now() + Number(b.dataset.extd) * 864e5), p = n => String(n).padStart(2, "0"); $("#extUntil").value = d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T23:59"; });
+    $("#extGo").onclick = () => {
+      const v = $("#extUntil").value, why = $("#extWhy").value.trim(), u = v ? new Date(v) : null;
+      if (!u || isNaN(u) || u.getTime() <= Date.now()) { extFor.msg = "اختر موعدًا بعد الآن."; return renderTasks(); }
+      if (!why) { extFor.msg = "اكتب العذر (يظهر في السجل ولزملائك في فريق المادة)."; return renderTasks(); }
+      setExt(t, extFor.code, u.toISOString(), why);
+    };
+  }
+  async function setExt(t, code, until, reason) {
+    try {
+      await rpc("set_task_extension", { tid: t.id, code, p_until: until, p_reason: reason });
+      const m = (D.exts[t.id] = D.exts[t.id] || {});
+      if (until) m[code] = { task_id: t.id, student_code: code, until, reason, by_email: me.email, active: true }; else delete m[code];
+      extFor = null;
+      say("tasks", until ? "فُتح تسليم استثنائي لـ " + nameOf(code) + " حتى " + CM.fmtD(until) + " " + CM.fmtT(until) + ". يظهر له التكليف مفتوحًا في صفحته." : "أُلغي التسليم الاستثنائي لـ " + nameOf(code) + ".");
+      renderTasks();
+    } catch (e) { if (extFor) { extFor.msg = errText(e); renderTasks(); } else showErr(e); }
   }
   async function excuseToggle(t, code, on, after) {
     let note = "";
