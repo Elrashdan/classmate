@@ -21,6 +21,7 @@
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>window.HADRO_AUTH_KEY = "hadro-pg-auth";</script>
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script>
@@ -55,18 +56,20 @@
       ${st.step === "pass" ? `
         <h2>دخول طلبة الدراسات العليا</h2>
         <p class="muted small">ببريد الكلية الجامعي فقط (${esc(DOMAIN)}).</p>
-        <label class="f"><span>البريد الجامعي</span><input type="email" id="aEmail" dir="ltr" autocomplete="username" value="${esc(st.email)}" placeholder="name${esc(DOMAIN)}"></label>
-        <label class="f"><span>كلمة السر</span><input type="password" id="aPass" autocomplete="current-password"></label>
+        <label class="f"><span>البريد الجامعي</span><input type="email" id="aEmail" dir="ltr" autocomplete="off" readonly data-nofill value="${esc(st.email)}" placeholder="name${esc(DOMAIN)}"></label>
+        <label class="f"><span>كلمة السر</span><input type="password" id="aPass" autocomplete="off" readonly data-nofill></label>
         ${st.err ? `<div class="msg bad">${esc(st.err)}</div>` : ""}
         <button class="btn primary block" id="aGo" ${st.busy ? "disabled" : ""}>${st.busy ? `<span class="spinner"></span>` : "دخول"}</button>
         <div class="row" style="gap:16px"><button class="linkish" id="aNew">ليس لي حساب: إنشاء حساب</button><button class="linkish" id="aForgot">نسيت كلمة السر</button></div>`
       : st.step === "email" ? `
         <h2>${st.newUser ? "إنشاء حساب" : "استعادة كلمة السر"}</h2>
-        <p class="muted small">اكتب بريدك الجامعي، وسيصلك عليه رمز لتتأكد أنه بريدك، ثم تختار كلمة السر.</p>
-        <label class="f"><span>البريد الجامعي</span><input type="email" id="aEmail" dir="ltr" autocomplete="username" value="${esc(st.email)}" placeholder="name${esc(DOMAIN)}"></label>
+        <p class="muted small">اكتب بريدك الجامعي واختر كلمة السر التي ستدخل بها. سيصلك على بريدك رمز <b>مرة واحدة</b> لتأكيد أنه بريدك.</p>
+        <label class="f"><span>البريد الجامعي</span><input type="email" id="aEmail" dir="ltr" autocomplete="off" readonly data-nofill value="${esc(st.email)}" placeholder="name${esc(DOMAIN)}"></label>
+        <label class="f"><span>${st.newUser ? "كلمة السر" : "كلمة السر الجديدة"} (8 خانات على الأقل)</span><input type="password" id="aNew" autocomplete="new-password"></label>
+        <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="aNew2" autocomplete="new-password"></label>
         ${st.err ? `<div class="msg bad">${esc(st.err)}</div>` : ""}
-        <button class="btn primary block" id="aSend" ${st.busy ? "disabled" : ""}>${st.busy ? `<span class="spinner"></span>` : "إرسال الرمز"}</button>
-        <div class="row" style="gap:16px"><button class="linkish" id="aHave">وصلني رمز بالفعل</button><button class="linkish" id="aBack">رجوع</button></div>`
+        <button class="btn primary block" id="aSend" ${st.busy ? "disabled" : ""}>${st.busy ? `<span class="spinner"></span>` : "متابعة"}</button>
+        <button class="linkish" id="aBack">رجوع</button>`
       : `
         <div class="eyebrow mono" style="text-align:start">${esc(st.email)}</div>
         <h2>اكتب الرمز الذي وصلك</h2>
@@ -76,6 +79,8 @@
         <button class="btn primary block" id="aVerify" ${st.busy ? "disabled" : ""}>${st.busy ? `<span class="spinner"></span>` : "تأكيد"}</button>
         <button class="linkish" id="aBack">بريد آخر</button>`}
       </section>`;
+    app.querySelectorAll("[data-nofill]").forEach(i => { const on = () => i.removeAttribute("readonly"); i.addEventListener("focus", on); i.addEventListener("pointerdown", on); });
+    if (st.step === "pass") app.querySelector(".panel").insertAdjacentHTML("beforeend", `<p class="small" style="margin:0"><a class="linkish" href="./">→ صفحة الدخول الرئيسية</a></p>`);
     const back = $("#aBack"); if (back) back.onclick = () => { st = { ...st, step: st.step === "code" ? "email" : "pass", err: "" }; renderAuth(); };
     const okMail = e => e.endsWith(DOMAIN) && /^[^@\s]+@[^@\s]+$/.test(e);
     if (st.step === "pass") {
@@ -93,32 +98,44 @@
       $("#aForgot").onclick = () => { st = { step: "email", email: $("#aEmail").value.trim().toLowerCase(), err: "", busy: false, newUser: false }; renderAuth(); };
     } else if (st.step === "email") {
       const send = async () => {
-        const email = $("#aEmail").value.trim().toLowerCase(); st.email = email; st.err = "";
+        const email = $("#aEmail").value.trim().toLowerCase(), a = $("#aNew").value, b = $("#aNew2").value; st.email = email; st.err = "";
         if (!okMail(email)) { st.err = "اكتب بريدك الجامعي الذي ينتهي بـ " + DOMAIN; return renderAuth(); }
+        if (a.length < 8) { st.err = "اختر كلمة سر من 8 خانات على الأقل."; return renderAuth(); }
+        if (a !== b) { st.err = "كلمتا السر غير متطابقتين."; return renderAuth(); }
         st.busy = true; renderAuth();
-        try { const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } }); if (error) throw error; st.step = "code"; }
+        try { const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } }); if (error) throw error; st.step = "code"; pendingPw = a; store.set(PWK, JSON.stringify({ email, at: Date.now() })); }
         catch (e) { st.err = err(e); }
         st.busy = false; renderAuth();
       };
-      $("#aSend").onclick = send; $("#aEmail").onkeydown = e => { if (e.key === "Enter") send(); };
-      $("#aHave").onclick = () => { const email = $("#aEmail").value.trim().toLowerCase(); if (!okMail(email)) { st.err = "اكتب بريدك الجامعي أولًا."; return renderAuth(); } st = { ...st, step: "code", email, err: "" }; renderAuth(); };
+      $("#aSend").onclick = send; $("#aNew2").onkeydown = e => { if (e.key === "Enter") send(); };
     } else {
       const verify = async () => {
         const token = $("#aCode").value.trim(); if (!token) return; st.err = ""; st.busy = true; renderAuth();
-        try { const { error } = await sb.auth.verifyOtp({ email: st.email, token, type: "email" }); if (error) throw error; st.busy = false; needPass = true; return load(); }
+        try {
+          const { error } = await sb.auth.verifyOtp({ email: st.email, token, type: "email" }); if (error) throw error;
+          if (pendingPw) { const r = await sb.auth.updateUser({ password: pendingPw }); if (r.error) throw r.error; pendingPw = ""; store.del(PWK); }
+          st.busy = false; return load();
+        }
         catch (e) { st.err = err(e); }
         st.busy = false; renderAuth();
       };
       $("#aVerify").onclick = verify; $("#aCode").onkeydown = e => { if (e.key === "Enter") verify(); };
     }
   }
-  let needPass = false;
+  let needPass = false, pendingPw = "";
+  const PWK = "pg_pw_pending";
+  const pwWanted = email => { try { const p = JSON.parse(store.get(PWK) || "null"); return p && p.email === email && Date.now() - p.at < 3600e3; } catch (e) { return false; } };
+  document.addEventListener("hadro:home", e => { if (!D || !D.profile) return; e.preventDefault(); msg = null; needPass = false; render(); window.scrollTo({ top: 0 }); });
 
   async function load() {
     try {
       const { data } = await sb.auth.getSession();
       if (!data || !data.session) return renderAuth();
       D = await rpc("pg_me");
+      if (pwWanted((D.email || "").toLowerCase())) {   // دخل بالرابط الذي في البريد
+        if (pendingPw) { const r = await sb.auth.updateUser({ password: pendingPw }); if (!r.error) { pendingPw = ""; store.del(PWK); } }
+        else { needPass = true; store.del(PWK); }
+      }
       if (needPass || !D.profile) return renderProfile();
       render();
     } catch (e) {

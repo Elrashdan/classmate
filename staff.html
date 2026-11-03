@@ -74,75 +74,93 @@
   let ncManual = false;
   let tkExtra = {}; // tid -> Set: طلبة من مجموعة أخرى أضافهم المحاضر لهذا التكليف استثناءً (قبل رصد درجتهم)
   let tkSel = null, tkForm = null, tkFilter = "all", tkEdits = {}, tkQ = "", tkBusy = null, ncBylaw = null;
-  let login = { step: "email", email: "", err: "", busy: false };
+  let login = { step: "pass", email: "", err: "", busy: false };
 
   /* ======================= auth ======================= */
+  // الدخول: البريد + كلمة السر. أول مرة أو نسيت كلمة السر: يختار كلمة السر بنفسه، ويؤكد أن البريد بريده برمز يصله مرة واحدة
+  let pendingPw = "";
+  const PWK = "cm_pw_pending";
+  const pwWanted = email => { try { const p = JSON.parse(store.get(PWK) || "null"); return p && p.email === email && Date.now() - p.at < 3600e3; } catch (e) { return false; } };
+  const back = `<p class="small" style="margin:0"><a class="linkish" href="./">→ صفحة الدخول الرئيسية</a></p>`;
   function renderLogin() {
     stopLoops();
-    app.innerHTML = `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول المحاضرين والمعيدين</p></div></div>${CM.themeBtn()}</header>
-      <section class="panel" style="max-width:480px">
-      ${login.step === "pass" ? `
-        <h2>الدخول بكلمة السر</h2>
-        <p class="muted small">تعمل إذا كنت قد عيّنت كلمة سر لحسابك من زر «كلمة السر» داخل البرنامج.</p>
-        <label class="f"><span>البريد الجامعي</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
+    const st = login.step;
+    app.innerHTML = `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول أعضاء هيئة التدريس والمعيدين</p></div></div>${CM.themeBtn()}</header>
+      <section class="panel" style="max-width:480px;margin-inline:auto">
+      ${st === "pass" ? `
+        <h2>الدخول</h2>
+        <label class="f"><span>البريد</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
         <label class="f"><span>كلمة السر</span><input type="password" id="lgPass" autocomplete="current-password"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
-        <div class="row"><button class="btn primary" id="lgPwGo" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button><button class="btn ghost" id="lgBack">الدخول برمز على البريد</button></div>
-      ` : login.step === "email" ? `
-        <h2>الدخول بالبريد الجامعي</h2>
-        <p class="muted small">لا حاجة إلى كلمة مرور؛ سيصلك رمز على بريدك لتدخل به. وإن لم يكن بريدك مسجَّلًا، فاطلب من مسؤول القسم إضافتك.</p>
-        <label class="f"><span>البريد الجامعي</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
+        <button class="btn primary block" id="lgPwGo" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button>
+        <div class="row" style="gap:16px"><button class="linkish" id="lgFirst">أول مرة؟ اختر كلمة السر</button><button class="linkish" id="lgForgot">نسيت كلمة السر</button></div>
+        ${back}
+      ` : st === "setpw" ? `
+        <h2>${login.first ? "اختر كلمة السر لحسابك" : "كلمة سر جديدة"}</h2>
+        <p class="muted small">اكتب بريدك الذي أضافه مسؤول القسم، واختر كلمة السر التي ستدخل بها بعد ذلك. سيصلك رمز على بريدك <b>مرة واحدة</b> لتأكيد أنه بريدك.</p>
+        <label class="f"><span>البريد</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
+        <label class="f"><span>كلمة السر (8 خانات على الأقل)</span><input type="password" id="lgNew" autocomplete="new-password"></label>
+        <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="lgNew2" autocomplete="new-password"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
-        <button class="btn primary" id="lgSend" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "إرسال رمز الدخول"}</button>
-        <p class="small row" style="margin:0;gap:16px"><button class="linkish" id="lgHave">وصلتني رسالة دخول بالفعل</button><button class="linkish" id="lgPw">الدخول بكلمة السر</button></p>
-      ` : `
+        <button class="btn primary block" id="lgSend" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "متابعة"}</button>
+        <button class="linkish" id="lgBack">رجوع إلى الدخول</button>
+      ` : st === "code" ? `
         <div class="eyebrow mono" style="text-align:start">${esc(login.email)}</div>
-        <h2>تحقّق من بريدك</h2>
-        <p class="muted small">إذا احتوت الرسالة على رمز فاكتبه هنا، وإذا احتوت على رابط فافتحه <b>في هذا المتصفح نفسه</b> (لا في متصفح تطبيق البريد) لتدخل مباشرة. وإن لم تجدها فراجع مجلد Spam أو Junk.</p>
-        <p class="muted small">استخدم <b>آخر</b> رسالة وصلتك؛ فكل طلب جديد يُبطل الرسالة التي قبله، وعدد الرسائل محدود في الساعة.</p>
-        <label class="f"><span>رمز الدخول</span><input type="text" id="lgCode" class="codein" inputmode="numeric" maxlength="10" autocomplete="one-time-code"></label>
+        <h2>اكتب رمز التأكيد</h2>
+        <p class="muted small">أرسلنا رسالة إلى بريدك. اكتب الرمز الذي فيها، أو افتح الرابط الذي فيها <b>في هذا المتصفح</b>. وإن لم تجدها فراجع Spam، واستخدم آخر رسالة وصلتك.</p>
+        <label class="f"><span>رمز التأكيد</span><input type="text" id="lgCode" class="codein" inputmode="numeric" maxlength="10" autocomplete="one-time-code"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
-        <div class="row"><button class="btn primary" id="lgVerify" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button><button class="btn ghost" id="lgBack">بريد آخر</button></div>
+        <button class="btn primary block" id="lgVerify" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "تأكيد والدخول"}</button>
+        <button class="linkish" id="lgBack">رجوع</button>
+      ` : `
+        <h2>اختر كلمة السر</h2>
+        <p class="muted small">تأكّدنا من بريدك. اختر كلمة السر التي ستدخل بها من الآن.</p>
+        <label class="f"><span>كلمة السر (8 خانات على الأقل)</span><input type="password" id="lgNew" autocomplete="new-password"></label>
+        <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="lgNew2" autocomplete="new-password"></label>
+        ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
+        <button class="btn primary block" id="lgSave" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "حفظ والدخول"}</button>
       `}</section>`;
-    if (login.step === "pass") {
+    const bk = $("#lgBack"); if (bk) bk.onclick = () => { login = { step: login.step === "code" ? "setpw" : "pass", email: login.email, err: "", busy: false, first: login.first }; renderLogin(); };
+    const pwOk = () => {
+      const a = $("#lgNew").value, b2 = $("#lgNew2").value;
+      if (a.length < 8) { login.err = "كلمة السر 8 خانات على الأقل."; return null; }
+      if (a !== b2) { login.err = "كلمتا السر غير متطابقتين."; return null; }
+      return a;
+    };
+    if (st === "pass") {
       const go = async () => {
         const email = $("#lgEmail").value.trim().toLowerCase(), password = $("#lgPass").value; login.email = email; login.err = "";
         if (!email || !password) { login.err = "اكتب البريد وكلمة السر."; return renderLogin(); }
         login.busy = true; renderLogin();
         try {
           const { error } = await sb.auth.signInWithPassword({ email, password });
-          if (error) throw /invalid login credentials/i.test(error.message) ? { message: "البريد أو كلمة السر غير صحيحة. إذا لم تعيّن كلمة سر بعد، فادخل برمز على البريد ثم عيّنها من زر «كلمة السر»." } : error;
-          login = { step: "email", email: "", err: "", busy: false };
+          if (error) throw /invalid login credentials/i.test(error.message) ? { message: "البريد أو كلمة السر غير صحيحة. إن كانت أول مرة تدخل فاضغط «أول مرة؟ اختر كلمة السر»." } : error;
+          login = { step: "pass", email: "", err: "", busy: false };
           await afterLogin(); return;
-        } catch (e) { login.err = e.message && /[\u0600-\u06FF]/.test(e.message) ? e.message : errText(e); }
+        } catch (e) { login.err = e.message && /[؀-ۿ]/.test(e.message) ? e.message : errText(e); }
         login.busy = false; renderLogin();
       };
       $("#lgPwGo").onclick = go; $("#lgPass").onkeydown = e => { if (e.key === "Enter") go(); };
-      $("#lgBack").onclick = () => { login.step = "email"; login.err = ""; renderLogin(); };
-      return;
-    }
-    if (login.step === "email") {
+      const to = first => { login = { step: "setpw", email: $("#lgEmail").value.trim().toLowerCase(), err: "", busy: false, first }; renderLogin(); };
+      $("#lgFirst").onclick = () => to(true); $("#lgForgot").onclick = () => to(false);
+    } else if (st === "setpw") {
       const send = async () => {
         const email = $("#lgEmail").value.trim().toLowerCase(); login.email = email; login.err = "";
         if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { login.err = "اكتب بريدًا إلكترونيًّا صحيحًا."; return renderLogin(); }
+        const pw = pwOk(); if (!pw) return renderLogin();
         login.busy = true; renderLogin();
         try {
           const allowed = await rpc("staff_can_login", { p_email: email });
           if (!allowed) throw { message: "هذا البريد غير مسجَّل أو موقوف. اطلب من مسؤول القسم إضافتك." };
           const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } });
           if (error) throw error;
-          login.step = "code"; store.set("cm_otp", JSON.stringify({ email, at: Date.now() }));
-        } catch (e) { login.err = e.message && e.message.startsWith("البريد الإلكتروني") ? e.message : errText(e); }
+          pendingPw = pw; store.set(PWK, JSON.stringify({ email, at: Date.now() }));
+          login.step = "code";
+        } catch (e) { login.err = e.message && /[؀-ۿ]/.test(e.message) ? e.message : errText(e); }
         login.busy = false; renderLogin();
       };
-      $("#lgSend").onclick = send; $("#lgEmail").onkeydown = e => { if (e.key === "Enter") send(); };
-      $("#lgPw").onclick = () => { login = { step: "pass", email: $("#lgEmail").value.trim().toLowerCase(), err: "", busy: false }; renderLogin(); };
-      $("#lgHave").onclick = () => {
-        const email = $("#lgEmail").value.trim().toLowerCase();
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { login.err = "اكتب بريدك أولًا، ثم اضغط «وصلتني رسالة دخول بالفعل»."; return renderLogin(); }
-        login = { step: "code", email, err: "", busy: false }; renderLogin();
-      };
-    } else {
+      $("#lgSend").onclick = send; $("#lgNew2").onkeydown = e => { if (e.key === "Enter") send(); };
+    } else if (st === "code") {
       const verify = async () => {
         const token = $("#lgCode").value.trim(); login.err = "";
         if (!token) return;
@@ -150,20 +168,32 @@
         try {
           const { error } = await sb.auth.verifyOtp({ email: login.email, token, type: "email" });
           if (error) throw error;
-          login = { step: "email", email: "", err: "", busy: false }; store.set("cm_otp", "");
-          await afterLogin();
-          return;
+          if (pendingPw) { const r = await sb.auth.updateUser({ password: pendingPw }); if (r.error) throw r.error; store.del(PWK); }
+          pendingPw = ""; login = { step: "pass", email: "", err: "", busy: false };
+          await afterLogin(); return;
         } catch (e) { login.err = errText(e); }
         login.busy = false; renderLogin();
       };
       $("#lgVerify").onclick = verify; $("#lgCode").onkeydown = e => { if (e.key === "Enter") verify(); };
-      $("#lgBack").onclick = () => { login.step = "email"; login.err = ""; renderLogin(); };
+    } else {
+      const save = async () => {
+        login.err = ""; const pw = pwOk(); if (!pw) return renderLogin();
+        login.busy = true; renderLogin();
+        try { const r = await sb.auth.updateUser({ password: pw }); if (r.error) throw r.error; store.del(PWK); login = { step: "pass", email: "", err: "", busy: false }; await afterLogin(); return; }
+        catch (e) { login.err = errText(e); }
+        login.busy = false; renderLogin();
+      };
+      $("#lgSave").onclick = save; $("#lgNew2").onkeydown = e => { if (e.key === "Enter") save(); };
     }
   }
+  document.addEventListener("hadro:home", e => {
+    if (!me) return;   // غير داخل: إلى الصفحة الموحدة
+    e.preventDefault(); stopLoops(); view = "home"; render(); window.scrollTo({ top: 0 });
+  });
 
   async function signOut(msg) {
     stopLoops(); closeScanner(); await sb.auth.signOut().catch(() => {});
-    me = null; D = null; login = { step: "email", email: "", err: msg || "", busy: false }; renderLogin();
+    me = null; D = null; login = { step: "pass", email: "", err: msg || "", busy: false }; renderLogin();
   }
 
   async function afterLogin() {
@@ -2822,13 +2852,23 @@
   }
 
   /* ======================= start ======================= */
-  sb.auth.onAuthStateChange((ev) => {
+  // دخل بالرابط الذي في البريد (في هذا التبويب أو غيره): إن كان يختار كلمة سر، فتُحفظ أولًا
+  async function viaEmail(session) {
+    const email = ((session && session.user && session.user.email) || "").toLowerCase();
+    if (pendingPw && pwWanted(email)) {
+      const r = await sb.auth.updateUser({ password: pendingPw });
+      pendingPw = ""; if (!r.error) store.del(PWK);
+      login = { step: "pass", email: "", err: "", busy: false }; return afterLogin();
+    }
+    if (pwWanted(email)) { login = { step: "newpw", email, err: "", busy: false }; return renderLogin(); }
+    login = { step: "pass", email: "", err: "", busy: false }; return afterLogin();
+  }
+  sb.auth.onAuthStateChange((ev, session) => {
     if (ev === "SIGNED_OUT" && me) { me = null; renderLogin(); }
-    if (ev === "SIGNED_IN" && !me && login.step === "code" && !login.busy) { login = { step: "email", email: "", err: "", busy: false }; afterLogin(); } // opened the email link in another tab
+    if (ev === "SIGNED_IN" && !me && login.step === "code" && !login.busy) setTimeout(() => viaEmail(session), 0); // فتح رابط البريد في تبويب آخر
   });
   sb.auth.getSession().then(({ data }) => {
-    if (data.session) return afterLogin();
-    try { const o = JSON.parse(store.get("cm_otp") || "null"); if (o && o.email && Date.now() - o.at < 3600e3) login = { step: "code", email: o.email, err: "", busy: false }; } catch (e) {}
+    if (data.session) return viaEmail(data.session);
     renderLogin();
   });
 })();

@@ -321,7 +321,34 @@
     }, 4000);
   }
 
+  /* ---------------- الصفحة الموحدة: اختيار نوع الدخول ---------------- */
+  const ICO = {
+    ug: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2.5 9 2.5 12 0v-5"/><path d="M22 9v5"/></svg>`,
+    pg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h5"/></svg>`,
+    st: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M7 9l3 3 6-5"/></svg>`
+  };
+  function renderChoose() {
+    closeQr && closeQr();
+    app.innerHTML = header() + `
+      <section class="hero"><h2>أهلًا بك في Hadro</h2><p class="muted">اختر طريقة الدخول</p></section>
+      <div class="choose">
+        <button type="button" class="tile big" id="chUg">${ICO.ug}<b>طالب مرحلة البكالوريوس</b><span class="muted small">تسجيل الحضور، والتكليفات، والدرجات</span></button>
+        <a class="tile big" href="pg.html">${ICO.pg}<b>طالب الدراسات العليا</b><span class="muted small">الدبلوم والماجستير والدكتوراه · تسجيل المقررات</span></a>
+        <a class="tile big" href="staff.html">${ICO.st}<b>عضو هيئة التدريس أو معيد</b><span class="muted small">المحاضرات، والكشوف، والتكليفات</span></a>
+      </div>`;
+    $("#chUg").onclick = () => { chosen = true; authMsg = ""; renderAuth(); };
+  }
+  let chosen = false;
+  document.addEventListener("hadro:home", e => {
+    e.preventDefault();
+    if (up) return;
+    if (token) { if (tkId) closeTask(); else loadHome(); }
+    else { rf = null; move = null; chosen = false; renderChoose(); }
+    window.scrollTo({ top: 0 });
+  });
+
   function renderAuth() {
+    if (!chosen && !rf && !rs && !move && !sstore.get("cm_pending_qr")) return renderChoose();
     if (rf) return renderForm();
     if (rs) return renderReset();
     if (move) return renderMove();
@@ -349,7 +376,9 @@
         ${authTab === "login" && device ? pkBtn("pkIn") : ""}
         ${iosTip()}
       </section>
-      <p class="muted small" style="margin-top:14px;text-align:center">غيّرت هاتفك؟ ادخل بكودك وكلمة السر، وسيظهر لك زر لنقل الحساب. <button type="button" class="linkish" id="rsOpen">نسيت كلمة السر؟</button></p>`;
+      <p class="small" style="margin-top:14px;text-align:center"><button type="button" class="linkish" id="chBack">→ صفحة الدخول الرئيسية</button></p>
+      <p class="muted small" style="margin-top:6px;text-align:center">غيّرت هاتفك؟ ادخل بكودك وكلمة السر، وسيظهر لك زر لنقل الحساب. <button type="button" class="linkish" id="rsOpen">نسيت كلمة السر؟</button></p>`;
+    $("#chBack").onclick = () => { chosen = false; authMsg = ""; renderChoose(); };
     $("#tLogin").onclick = () => { authTab = "login"; authMsg = ""; renderAuth(); };
     $("#tReg").onclick = () => { authTab = "reg"; authMsg = ""; renderAuth(); };
     $("#go").onclick = submitAuth;

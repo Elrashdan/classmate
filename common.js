@@ -9,7 +9,7 @@
   const configured = cfg.SUPABASE_URL && !cfg.SUPABASE_URL.includes("YOUR-PROJECT") && cfg.SUPABASE_ANON_KEY && !cfg.SUPABASE_ANON_KEY.includes("YOUR-ANON");
   const CM = window.CM = {};
   CM.configured = configured;
-  CM.sb = configured && window.supabase ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
+  CM.sb = configured && window.supabase ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: Object.assign({ persistSession: true, autoRefreshToken: true }, window.HADRO_AUTH_KEY ? { storageKey: window.HADRO_AUTH_KEY } : {}) }) : null;
 
   CM.$ = s => document.querySelector(s);
   CM.$$ = s => Array.from(document.querySelectorAll(s));
@@ -200,12 +200,21 @@
   // شاشة التحميل: شعار Hadro يُرسَم ثم تقفز نقطته، حتى تجهز الصفحة
   CM.loaderHtml = (text) => `<div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">${text || "جارٍ التحميل…"}</span></div>`;
   CM.loader = (el, text) => { if (el) el.innerHTML = CM.loaderHtml(text); };
+  // الضغط على شعار Hadro أعلى الصفحة = «الرئيسية»: تتولاه الصفحة إن استمعت لحدث hadro:home، وإلا فالصفحة الموحدة
+  document.addEventListener("click", ev => {
+    const b = ev.target.closest && ev.target.closest("header.top .brand");
+    if (!b) return;
+    const e = new CustomEvent("hadro:home", { cancelable: true });
+    if (document.dispatchEvent(e)) location.href = "./";
+  });
+  document.addEventListener("keydown", ev => { if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches && ev.target.matches("header.top .brand")) { ev.preventDefault(); ev.target.click(); } });
+  new MutationObserver(() => document.querySelectorAll("header.top .brand:not([tabindex])").forEach(b => { b.tabIndex = 0; b.setAttribute("role", "link"); b.title = "الرئيسية"; b.setAttribute("aria-label", "Hadro · الرئيسية"); })).observe(document.documentElement, { childList: true, subtree: true });
   CM.copyright = () => `© ${CM.APP.year} ${CM.APP.author}. جميع الحقوق محفوظة.`;
   function legal() {
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b45)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b46)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

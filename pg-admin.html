@@ -33,6 +33,7 @@
   if (CM.loader) CM.loader(app);
   const STAGE = { diploma: "الدبلوم", master: "الماجستير", phd: "الدكتوراه" };
   const KIND = { general: "عام", mandatory: "إجباري", elective: "اختياري" };
+  document.addEventListener("hadro:home", e => { e.preventDefault(); location.href = "staff.html"; });
   const header = () => `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">إدارة الدراسات العليا · قسم الديكور</p></div></div><div class="row">${CM.themeBtn()}<a class="btn sm ghost" href="staff.html">صفحة المحاضرين</a></div></header>`;
   let A = null, termId = null, prog = null, tab = "offer", msg = null, q = "";
   const say = (k, t) => { msg = { k, t }; };
