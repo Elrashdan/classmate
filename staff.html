@@ -185,7 +185,7 @@
     ]);
     for (const r of [st, se, co, ta]) if (r.error) throw r.error;
     staff = st.data; settings = se.data; courses = co.data; tasAll = ta.data;
-    const fl = filtered(); if (!fl.find(c => c.id === curId)) curId = (fl.find(c => role(c) !== "viewer" && !c.archived) || fl[0] || {}).id || null;
+    const fl = filtered(); if (!fl.find(c => c.id === curId)) curId = (fl.find(c => !["viewer", "admin"].includes(role(c)) && !c.archived) || fl[0] || {}).id || null;
   }
 
   /* ======================= permissions & helpers ======================= */
@@ -270,12 +270,12 @@
     if (c.owner_email === me.email) return "owner";
     const t = tasAll.find(t => t.course_id === c.id && t.email === me.email);
     if (t) return t.kind === "co" ? "co" : "ta";
-    return me.role === "admin" ? "viewer" : null;
+    return me.role === "admin" ? "admin" : null;   // المسؤول: صلاحيات صاحب المادة في كل المواد
   }
   const course = () => courses.find(c => c.id === curId) || null;
-  const canRun = c => ["owner", "co", "ta"].includes(role(c));
-  const canManage = c => ["owner", "co"].includes(role(c)); // students, roster, ended lectures
-  const isOwner = c => role(c) === "owner";
+  const canRun = c => ["owner", "co", "ta", "admin"].includes(role(c));
+  const canManage = c => ["owner", "co", "admin"].includes(role(c)); // students, roster, ended lectures
+  const isOwner = c => role(c) === "owner" || role(c) === "admin";
   const canCreate = () => me && (me.role !== "ta" || !!settings.ta_can_create);                 // team, course settings, delete
   const isOwn = (s, e) => !s.grp || (e && s.grp === e.grp);
   const counted = r => r && r.status !== "pending";
@@ -527,12 +527,12 @@
           <label class="f"><span>العام الدراسي</span><select id="fYear"><option value="all" ${fYear === "all" ? "selected" : ""}>كل الأعوام</option>${yearList().map(v => `<option value="${v}" ${v === fYear ? "selected" : ""}>${v}${v === nowYear() ? " (الحالي)" : ""}</option>`).join("")}</select></label>
           <label class="f"><span>الفصل الدراسي</span><select id="fTerm"><option value="all" ${fTerm === "all" ? "selected" : ""}>كل الفصول الدراسية</option>${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === fTerm ? "selected" : ""}>${v}</option>`).join("")}</select></label>
           ${filtered().length ? `<label class="f" style="grid-column:span 2"><span>المادة</span><select id="pick">${(() => { const groups = new Map(); filtered().forEach(x => { const g = groupLabel(x); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(x); });
-            return [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(x => { const r = role(x); return `<option value="${x.id}" ${x.id === curId ? "selected" : ""}>${esc(x.name)}${x.archived ? " (أرشيف)" : ""}${r === "ta" ? " · معيد" : r === "co" ? " · محاضر مشارك" : r === "viewer" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`; }).join("")}</optgroup>`).join(""); })()}</select></label>` : ""}
+            return [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(x => { const r = role(x); return `<option value="${x.id}" ${x.id === curId ? "selected" : ""}>${esc(x.name)}${x.archived ? " (أرشيف)" : ""}${r === "ta" ? " · معيد" : r === "co" ? " · محاضر مشارك" : r === "viewer" || r === "admin" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`; }).join("")}</optgroup>`).join(""); })()}</select></label>` : ""}
         </div></div>` : ""}
       ${view === "admin" ? `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "لا توجد مواد في هذه الفترة" : "لا توجد مواد بعد"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الفصل من الأعلى، أو أنشئ مادة جديدة." : me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "اضغط «مادة جديدة» في الأعلى، ثم ارفع ملف الطلبة."}</div></div>` : `
       <div class="course-h"><div><h2>${esc(c.name)}</h2><p class="muted small">${esc(clsLabel(c))}${c.archived ? " · مؤرشفة" : ""}${c.auto_created ? " · أنشأها النظام من استمارات التسجيل" : ""}</p></div></div>
       ${c.auto_created && !tasAll.some(x => x.course_id === c.id) && isOwner(c) ? `<div class="msg warn" style="margin-bottom:16px"><b>أنشأ النظام هذه المادة تلقائيًّا</b> لأن طلبة سجّلوها في استمارات التسجيل، ولا يوجد لها فريق بعد. أضف المحاضر أو المعيد المسؤول عنها من تبويب «الفريق» (محاضر مشارك أو معيد).</div>` : ""}
-      ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `أنت محاضر مشارك في هذه المادة مع ${esc(staffName(c.owner_email))}. يمكنك القيام بكل ما يتعلق بالمحاضرات والطلبة والكشف، أما حذف المادة وتعديل بياناتها وإدارة الفريق فهي لصاحب المادة.` : role(c) === "ta" ? `أنت معيد في هذه المادة. يمكنك بدء المحاضرات والموافقة على الطلبات والتسجيل اليدوي وإضافة طالب، أما رفع ملف الطلبة وإدارة الفريق فهما للمحاضر ${esc(staffName(c.owner_email))}.` : `هذه مادة ${esc(staffName(c.owner_email))}. تطّلع عليها بصفتك مسؤولًا، للقراءة والتصدير فقط.`}</div>` : ""}
+      ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `أنت محاضر مشارك في هذه المادة مع ${esc(staffName(c.owner_email))}. يمكنك القيام بكل ما يتعلق بالمحاضرات والطلبة والكشف، أما حذف المادة وتعديل بياناتها وإدارة الفريق فهي لصاحب المادة.` : role(c) === "ta" ? `أنت معيد في هذه المادة. يمكنك بدء المحاضرات والموافقة على الطلبات والتسجيل اليدوي وإضافة طالب، أما رفع ملف الطلبة وإدارة الفريق فهما للمحاضر ${esc(staffName(c.owner_email))}.` : role(c) === "admin" ? `هذه مادة ${esc(staffName(c.owner_email))}. لك فيها صلاحيات صاحب المادة كاملة بصفتك مسؤولًا، وكل ما تفعله يُكتب في سجل المادة باسمك.` : `هذه مادة ${esc(staffName(c.owner_email))}. تطّلع عليها بصفتك مسؤولًا، للقراءة والتصدير فقط.`}</div>` : ""}
       <div id="rsReqs" hidden></div>
       <nav class="ctabs" role="tablist" aria-label="أقسام المادة">${CTABS.map(([k, t, ic]) => `<button role="tab" data-ct="${k}" aria-selected="${ctab === k}" aria-controls="pane-${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
       <div class="tabpane" id="pane-live" role="tabpanel" ${ctab === "live" ? "" : "hidden"}><div id="sessionArea"></div><section class="panel" id="livePanel"></section></div>
