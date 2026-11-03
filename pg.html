@@ -1,0 +1,217 @@
+<!doctype html>
+<!--
+  Hadro · نظام إدارة الحضور
+  © 2026 أحمد محمد راشد حامد (Ahmed Mohamed Rashed Hamed). جميع الحقوق محفوظة. All rights reserved.
+-->
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d6b58">
+<meta name="author" content="أحمد محمد راشد حامد">
+<script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+<title>Hadro · الدراسات العليا</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+(function () {
+  const { $, esc, rpc, store, sb } = CM;
+  const app = $("#app"), DOMAIN = "@f-arts.capu.edu.eg";
+  if (!CM.configured) { app.innerHTML = CM.setupNotice(); return; }
+  if (CM.loader) CM.loader(app);
+  const STAGE = { diploma: "الدبلوم", master: "الماجستير", phd: "الدكتوراه" };
+  const KIND = { general: "متطلبات عامة", mandatory: "متطلبات تخصصية إجبارية", elective: "متطلبات تخصصية اختيارية" };
+  const PGERR = {
+    pg_domain: "هذه الصفحة لطلبة الدراسات العليا ببريد الكلية (" + DOMAIN + ") فقط.",
+    pg_name: "اكتب اسمك الرباعي باللغة العربية (أربعة أسماء على الأقل، بحروف عربية فقط).",
+    pg_program_locked: "لا يمكن تغيير المرحلة أو الشعبة وأنت مسجّل في مواد. ألغِ تسجيلك أولًا أو راجِع إدارة الدراسات العليا.",
+    pg_no_profile: "أكمل بياناتك أولًا.",
+    pg_term_closed: "التسجيل مغلق الآن.",
+    pg_not_your_program: "هذا المقرر ليس من مقررات مرحلتك وشعبتك.",
+    pg_already: "سجّلت هذا المقرر من قبل.",
+    pg_full: "اكتمل العدد مع هذا الأستاذ. اختر أستاذًا آخر إن وُجد.",
+    pg_prereq: "لم تسجّل المتطلب السابق لهذا المقرر في ترم سابق: ",
+    pg_load_max: "تجاوزت الحد الأقصى لساعات الترم وهو ",
+    pg_elective_full: "اكتملت ساعات المتطلبات الاختيارية في لائحتك وهي ",
+    pg_mandatory_first: "سجّل المقررات الإجبارية المفتوحة هذا الترم أولًا: "
+  };
+  const err = e => { const m = String((e && (e.message || e.msg)) || e || ""); for (const k in PGERR) if (m.includes(k)) { const d = (m.split(k + ":")[1] || "").trim(); return PGERR[k] + (d ? d + (/load_max|elective_full/.test(k) ? " ساعة." : ".") : ""); } return CM.errText(e); };
+  const header = extra => `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">الدراسات العليا · قسم الديكور</p></div></div><div class="row">${CM.themeBtn()}${extra || ""}</div></header>`;
+  let st = { step: "pass", email: "", err: "", busy: false, newUser: false }, D = null, msg = null, busy = null;
+
+  /* ---------- الدخول: بريد الكلية + كلمة السر، أو رمز على البريد (حساب جديد أو نسيت كلمة السر) ---------- */
+  function renderAuth() {
+    app.innerHTML = header() + `<section class="panel col" style="max-width:520px;margin-inline:auto">
+      ${st.step === "pass" ? `
+        <h2>دخول طلبة الدراسات العليا</h2>
+        <p class="muted small">ببريد الكلية الجامعي فقط (${esc(DOMAIN)}).</p>
+        <label class="f"><span>البريد الجامعي</span><input type="email" id="aEmail" dir="ltr" autocomplete="username" value="${esc(st.email)}" placeholder="name${esc(DOMAIN)}"></label>
+        <label class="f"><span>كلمة السر</span><input type="password" id="aPass" autocomplete="current-password"></label>
+        ${st.err ? `<div class="msg bad">${esc(st.err)}</div>` : ""}
+        <button class="btn primary block" id="aGo" ${st.busy ? "disabled" : ""}>${st.busy ? `<span class="spinner"></span>` : "دخول"}</button>
+        <div class="row" style="gap:16px"><button class="linkish" id="aNew">ليس لي حساب: إنشاء حساب</button><button class="linkish" id="aForgot">نسيت كلمة السر</button></div>`
+      : st.step === "email" ? `
+        <h2>${st.newUser ? "إنشاء حساب" : "استعادة كلمة السر"}</h2>
+        <p class="muted small">اكتب بريدك الجامعي، وسيصلك عليه رمز لتتأكد أنه بريدك، ثم تختار كلمة السر.</p>
+        <label class="f"><span>البريد الجامعي</span><input type="email" id="aEmail" dir="ltr" autocomplete="username" value="${esc(st.email)}" placeholder="name${esc(DOMAIN)}"></label>
+        ${st.err ? `<div class="msg bad">${esc(st.err)}</div>` : ""}
+        <button class="btn primary block" id="aSend" ${st.busy ? "disabled" : ""}>${st.busy ? `<span class="spinner"></span>` : "إرسال الرمز"}</button>
+        <div class="row" style="gap:16px"><button class="linkish" id="aHave">وصلني رمز بالفعل</button><button class="linkish" id="aBack">رجوع</button></div>`
+      : `
+        <div class="eyebrow mono" style="text-align:start">${esc(st.email)}</div>
+        <h2>اكتب الرمز الذي وصلك</h2>
+        <p class="muted small">راجع بريدك (وإن لم تجد الرسالة فراجع Spam). استخدم آخر رسالة وصلتك.</p>
+        <label class="f"><span>الرمز</span><input type="text" id="aCode" class="codein" inputmode="numeric" maxlength="10" autocomplete="one-time-code"></label>
+        ${st.err ? `<div class="msg bad">${esc(st.err)}</div>` : ""}
+        <button class="btn primary block" id="aVerify" ${st.busy ? "disabled" : ""}>${st.busy ? `<span class="spinner"></span>` : "تأكيد"}</button>
+        <button class="linkish" id="aBack">بريد آخر</button>`}
+      </section>`;
+    const back = $("#aBack"); if (back) back.onclick = () => { st = { ...st, step: st.step === "code" ? "email" : "pass", err: "" }; renderAuth(); };
+    const okMail = e => e.endsWith(DOMAIN) && /^[^@\s]+@[^@\s]+$/.test(e);
+    if (st.step === "pass") {
+      const go = async () => {
+        const email = $("#aEmail").value.trim().toLowerCase(), password = $("#aPass").value; st.email = email; st.err = "";
+        if (!okMail(email)) { st.err = "اكتب بريدك الجامعي الذي ينتهي بـ " + DOMAIN; return renderAuth(); }
+        if (!password) { st.err = "اكتب كلمة السر."; return renderAuth(); }
+        st.busy = true; renderAuth();
+        try { const { error } = await sb.auth.signInWithPassword({ email, password }); if (error) throw error; st.busy = false; return load(); }
+        catch (e) { st.err = /invalid login credentials/i.test(e.message || "") ? "البريد أو كلمة السر غير صحيحة. إن لم يكن لك حساب فاختر «إنشاء حساب»." : err(e); }
+        st.busy = false; renderAuth();
+      };
+      $("#aGo").onclick = go; $("#aPass").onkeydown = e => { if (e.key === "Enter") go(); };
+      $("#aNew").onclick = () => { st = { step: "email", email: $("#aEmail").value.trim().toLowerCase(), err: "", busy: false, newUser: true }; renderAuth(); };
+      $("#aForgot").onclick = () => { st = { step: "email", email: $("#aEmail").value.trim().toLowerCase(), err: "", busy: false, newUser: false }; renderAuth(); };
+    } else if (st.step === "email") {
+      const send = async () => {
+        const email = $("#aEmail").value.trim().toLowerCase(); st.email = email; st.err = "";
+        if (!okMail(email)) { st.err = "اكتب بريدك الجامعي الذي ينتهي بـ " + DOMAIN; return renderAuth(); }
+        st.busy = true; renderAuth();
+        try { const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } }); if (error) throw error; st.step = "code"; }
+        catch (e) { st.err = err(e); }
+        st.busy = false; renderAuth();
+      };
+      $("#aSend").onclick = send; $("#aEmail").onkeydown = e => { if (e.key === "Enter") send(); };
+      $("#aHave").onclick = () => { const email = $("#aEmail").value.trim().toLowerCase(); if (!okMail(email)) { st.err = "اكتب بريدك الجامعي أولًا."; return renderAuth(); } st = { ...st, step: "code", email, err: "" }; renderAuth(); };
+    } else {
+      const verify = async () => {
+        const token = $("#aCode").value.trim(); if (!token) return; st.err = ""; st.busy = true; renderAuth();
+        try { const { error } = await sb.auth.verifyOtp({ email: st.email, token, type: "email" }); if (error) throw error; st.busy = false; needPass = true; return load(); }
+        catch (e) { st.err = err(e); }
+        st.busy = false; renderAuth();
+      };
+      $("#aVerify").onclick = verify; $("#aCode").onkeydown = e => { if (e.key === "Enter") verify(); };
+    }
+  }
+  let needPass = false;
+
+  async function load() {
+    try {
+      const { data } = await sb.auth.getSession();
+      if (!data || !data.session) return renderAuth();
+      D = await rpc("pg_me");
+      if (needPass || !D.profile) return renderProfile();
+      render();
+    } catch (e) {
+      if (/pg_domain/.test(e.message || "")) { await sb.auth.signOut(); st = { step: "pass", email: "", err: PGERR.pg_domain, busy: false }; return renderAuth(); }
+      app.innerHTML = header() + `<section class="panel col"><div class="msg bad">${esc(err(e))}</div><button class="btn" id="rl">إعادة المحاولة</button></section>`; $("#rl").onclick = load;
+    }
+  }
+  const signOut = async () => { try { await sb.auth.signOut(); } catch (e) {} D = null; st = { step: "pass", email: "", err: "", busy: false }; renderAuth(); };
+
+  /* ---------- البيانات الشخصية (أول مرة، أو تعديل) ---------- */
+  function renderProfile(edit) {
+    const p = D.profile || {}, groups = ["diploma", "master", "phd"];
+    app.innerHTML = header(D.profile ? `<button class="btn sm ghost" id="pOut">خروج</button>` : "") + `<section class="panel col" style="max-width:620px;margin-inline:auto">
+      <h2>${D.profile ? (edit ? "تعديل بياناتك" : "اختر كلمة سر جديدة") : "أكمل بياناتك"}</h2>
+      <p class="muted small mono">${esc(D.email)}</p>
+      ${needPass ? `<label class="f"><span>${D.profile ? "كلمة السر الجديدة" : "كلمة السر (للدخول بعد ذلك)"}</span><input type="password" id="pPass" autocomplete="new-password" placeholder="8 أحرف على الأقل"></label>
+        <label class="f"><span>تأكيد كلمة السر</span><input type="password" id="pPass2" autocomplete="new-password"></label>` : ""}
+      ${!D.profile || edit ? `
+      <label class="f"><span>الاسم الرباعي بالعربي (كما في الأوراق الرسمية)</span><input type="text" id="pName" value="${esc(p.full_name || "")}" placeholder="مثلًا: محمد أحمد علي حسن"></label>
+      <label class="f"><span>المرحلة والشعبة</span><select id="pProg"><option value="">اختر…</option>${groups.map(g => `<optgroup label="${STAGE[g]}">${D.programs.filter(x => x.stage === g).map(x => `<option value="${x.id}" ${p.program_id === x.id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</optgroup>`).join("")}</select></label>
+      <div class="settings"><label class="f"><span>رقم القيد (إن وُجد)</span><input type="text" id="pNo" value="${esc(p.student_no || "")}" inputmode="numeric"></label>
+      <label class="f"><span>رقم الهاتف (اختياري)</span><input type="tel" id="pPhone" dir="ltr" value="${esc(p.phone || "")}"></label></div>` : ""}
+      <div class="row"><button class="btn primary" id="pSave">حفظ</button>${D.profile ? `<button class="btn ghost" id="pCancel">رجوع</button>` : ""}</div></section>`;
+    const o = $("#pOut"); if (o) o.onclick = signOut;
+    const c = $("#pCancel"); if (c) c.onclick = () => { needPass = false; msg = null; render(); };
+    $("#pSave").onclick = async () => {
+      msg = null;
+      try {
+        if (needPass) {
+          const a = $("#pPass").value, b = $("#pPass2").value;
+          if (a.length < 8) throw { message: "اختر كلمة سر من 8 أحرف على الأقل." };
+          if (a !== b) throw { message: "كلمتا السر غير متطابقتين." };
+          const { error } = await sb.auth.updateUser({ password: a }); if (error) throw error;
+        }
+        if (!D.profile || edit) {
+          const name = $("#pName").value.trim().replace(/\s+/g, " "), prog = $("#pProg").value;
+          if (!/^[ء-ي]+( [ء-ي]+){3,}$/.test(name)) throw { message: PGERR.pg_name };
+          if (!prog) throw { message: "اختر المرحلة والشعبة." };
+          await rpc("pg_save_profile", { p_name: name, p_program: prog, p_no: $("#pNo").value, p_phone: $("#pPhone").value });
+        }
+        needPass = false; msg = { k: "ok", t: "حُفظت بياناتك." }; D = await rpc("pg_me"); render();
+      } catch (e) { const t = e.message && /[\u0600-\u06FF]/.test(e.message) ? e.message : err(e); let m = $("#pMsg"); if (!m) { m = document.createElement("div"); m.id = "pMsg"; m.className = "msg bad"; $("#pSave").parentNode.before(m); } m.textContent = t; }
+    };
+  }
+
+  /* ---------- التسجيل الأكاديمي ---------- */
+  function render() {
+    const P = D.program, term = D.term, regs = D.regs || [], now = term ? regs.filter(r => r.term_id === term.id) : [], past = regs.filter(r => !term || r.term_id !== term.id);
+    const hrs = now.reduce((a, r) => a + r.hours, 0), eleAll = regs.filter(r => r.kind === "elective").reduce((a, r) => a + r.hours, 0), doneAll = regs.reduce((a, r) => a + r.hours, 0);
+    const mine = code => now.find(r => r.code === code), taken = code => past.find(r => r.code === code);
+    const byCode = {}; (D.offerings || []).forEach(o => { (byCode[o.code] = byCode[o.code] || []).push(o); });
+    const courses = (D.courses || []).filter(c => byCode[c.code]);
+    const missMand = courses.filter(c => (c.kind === "mandatory" || (c.kind === "general" && P.stage === "diploma")) && !mine(c.code) && !taken(c.code));
+    const pct = Math.min(100, Math.round(hrs / Math.max(1, P.load_max) * 100));
+    app.innerHTML = header(`<button class="btn sm ghost" id="hEdit">بياناتي</button><button class="btn sm ghost" id="hPass">كلمة السر</button><button class="btn sm ghost" id="hOut">خروج</button>`) + `
+      <section class="hello"><div class="eyebrow mono">${esc(D.email)}</div><h2>${esc(D.profile.full_name)}</h2><p class="muted">${esc(P.name)}</p></section>
+      ${msg ? `<div class="msg ${msg.k}">${esc(msg.t)}</div>` : ""}
+      <section class="panel col">
+        <div class="row between"><h2>${term ? "التسجيل الأكاديمي · " + esc(term.name) : "التسجيل الأكاديمي"}</h2>${term ? `<span class="chip ok">التسجيل مفتوح</span>` : `<span class="chip none">مغلق</span>`}</div>
+        ${!term ? `<p class="muted">لا يوجد ترم مفتوح للتسجيل الآن. ستظهر هنا مقررات الترم وأساتذتها عندما تفتح إدارة الدراسات العليا التسجيل.</p>` : `
+        <div class="pg-sum">
+          <div><b>${hrs}</b><span>ساعة مسجّلة هذا الترم</span></div>
+          <div><b>${P.load_min}–${P.load_max}</b><span>الحد الأدنى والأقصى للترم</span></div>
+          <div><b>${eleAll} / ${P.elective_hours}</b><span>ساعات الاختياري (كل الدراسة)</span></div>
+          <div><b>${doneAll} / ${P.total_hours - P.thesis_hours}</b><span>ساعات المقررات (كل الدراسة)${P.thesis_hours ? " + الرسالة " + P.thesis_hours : ""}</span></div>
+        </div>
+        <div class="qbar"><i style="width:${pct}%"></i></div>
+        ${hrs && hrs < P.load_min ? `<div class="msg warn small">ساعاتك هذا الترم أقل من الحد الأدنى (${P.load_min} ساعات).</div>` : ""}
+        ${missMand.length ? `<div class="msg warn small"><b>سجّل المقررات الإجبارية أولًا:</b> ${missMand.map(c => esc(c.name)).join("، ")}. لا يُقبل تسجيل الاختياري قبلها.</div>` : ""}
+        ${["general", "mandatory", "elective"].map(k => { const list = courses.filter(c => c.kind === k); if (!list.length) return "";
+          return `<h3 class="pg-k">${KIND[k]}</h3><div class="pg-list">${list.map(c => { const m = mine(c.code), tk = taken(c.code);
+            return `<div class="pg-c ${m ? "on" : ""}"><div class="pg-ch"><b>${esc(c.name)}</b><span class="small muted">${esc(c.code)} · ${c.hours} ساعات${c.prereq ? " · متطلب سابق: " + esc((D.courses.find(x => x.code === c.prereq) || {}).name || c.prereq) : ""}</span></div>
+              ${tk ? `<span class="chip ok">سجّلته في ${esc(tk.term)}</span>` : m ? `<div class="row"><span class="chip ok">مسجّل مع ${esc(m.professor)}</span><button class="btn xs ghost" data-un="${m.id}" ${busy ? "disabled" : ""}>إلغاء التسجيل</button></div>`
+              : `<div class="pg-profs">${byCode[c.code].map(o => { const left = o.capacity - o.taken; return `<button class="btn sm ${left > 0 ? "" : "ghost"}" data-reg="${o.id}" ${left > 0 && !busy ? "" : "disabled"}><b>${esc(o.professor)}</b><small>${left > 0 ? "متبقٍ " + left + " من " + o.capacity : "اكتمل العدد"}</small></button>`; }).join("")}</div>`}
+            </div>`; }).join("")}</div>`; }).join("")}`}
+      </section>
+      ${past.length ? `<section class="panel col"><h2>مقررات ترمات سابقة</h2><div class="tbl-wrap"><table><thead><tr><th>الترم</th><th>المقرر</th><th class="c">الساعات</th><th>الأستاذ</th></tr></thead><tbody>${past.map(r => `<tr><td>${esc(r.term)}</td><td>${esc(r.name)}</td><td class="c">${r.hours}</td><td>${esc(r.professor)}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
+      <details class="panel col pg-bylaw"><summary><h2 style="display:inline">مقررات لائحتك</h2></summary><p class="small muted">${esc(P.name)} · إجمالي ${P.total_hours} ساعة معتمدة: عامة ${P.general_hours} · إجباري ${P.mandatory_hours} · اختياري ${P.elective_hours}${P.thesis_hours ? " · الرسالة " + P.thesis_hours : ""}</p>
+        <div class="tbl-wrap"><table><thead><tr><th>الكود</th><th>المقرر</th><th class="c">الساعات</th><th>النوع</th></tr></thead><tbody>${(D.courses || []).map(c => `<tr><td class="small nowrap">${esc(c.code)}</td><td>${esc(c.name)}</td><td class="c">${c.hours}</td><td class="small">${KIND[c.kind]}</td></tr>`).join("")}</tbody></table></div></details>`;
+    $("#hOut").onclick = signOut;
+    $("#hEdit").onclick = () => { msg = null; renderProfile(true); };
+    $("#hPass").onclick = () => { msg = null; needPass = true; renderProfile(false); };
+    app.querySelectorAll("[data-reg]").forEach(b => b.onclick = () => act(() => rpc("pg_register", { p_offering: b.dataset.reg }), "سُجّل المقرر."));
+    app.querySelectorAll("[data-un]").forEach(b => b.onclick = () => act(() => rpc("pg_unregister", { p_reg: b.dataset.un }), "أُلغي تسجيل المقرر."));
+  }
+  async function act(fn, okText) {
+    if (busy) return; busy = true; msg = null; render();
+    try { await fn(); msg = { k: "ok", t: okText }; } catch (e) { msg = { k: "bad", t: err(e) }; }
+    try { D = await rpc("pg_me"); } catch (e) {}
+    busy = null; render(); window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  load();
+})();
+</script>
+</body>
+</html>

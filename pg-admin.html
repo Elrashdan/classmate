@@ -1,0 +1,180 @@
+<!doctype html>
+<!--
+  Hadro · نظام إدارة الحضور
+  © 2026 أحمد محمد راشد حامد (Ahmed Mohamed Rashed Hamed). جميع الحقوق محفوظة. All rights reserved.
+-->
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d6b58">
+<meta name="robots" content="noindex,nofollow">
+<meta name="author" content="أحمد محمد راشد حامد">
+<script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}</script>
+<title>Hadro · إدارة الدراسات العليا</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="drive.js"></script>
+<script src="pack.js"></script>
+<script>
+(function () {
+  const { $, esc, rpc, sb } = CM;
+  const app = $("#app");
+  if (!CM.configured) { app.innerHTML = CM.setupNotice(); return; }
+  if (CM.loader) CM.loader(app);
+  const STAGE = { diploma: "الدبلوم", master: "الماجستير", phd: "الدكتوراه" };
+  const KIND = { general: "عام", mandatory: "إجباري", elective: "اختياري" };
+  const header = () => `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">إدارة الدراسات العليا · قسم الديكور</p></div></div><div class="row">${CM.themeBtn()}<a class="btn sm ghost" href="staff.html">صفحة المحاضرين</a></div></header>`;
+  let A = null, termId = null, prog = null, tab = "offer", msg = null, q = "";
+  const say = (k, t) => { msg = { k, t }; };
+  const err = e => { const m = String((e && e.message) || e || ""); return /pg_has_regs/.test(m) ? "لا يمكن حذف أستاذ سجّل معه طلبة. خفّض العدد أو احذف تسجيلاتهم أولًا." : /pg_capacity_below/.test(m) ? "العدد أقل من المسجلين فعلًا (" + (m.split(":")[1] || "") + ")." : /not_allowed/.test(m) ? "هذه الصفحة لمسؤول النظام فقط." : CM.errText(e); };
+
+  async function load(keep) {
+    try {
+      const { data } = await sb.auth.getSession();
+      if (!data || !data.session) { app.innerHTML = header() + `<section class="panel col"><h2>سجّل الدخول أولًا</h2><p>ادخل من صفحة المحاضرين بحساب المسؤول، ثم ارجع إلى هذه الصفحة.</p><a class="btn primary" href="staff.html">صفحة المحاضرين</a></section>`; return; }
+      A = await rpc("pg_admin_data");
+      if (!keep || !A.terms.find(t => t.id === termId)) termId = (A.terms.find(t => t.status === "open") || A.terms[0] || {}).id || null;
+      if (!prog) prog = A.programs[0].id;
+      render();
+    } catch (e) { app.innerHTML = header() + `<section class="panel col"><div class="msg bad">${esc(err(e))}</div></section>`; }
+  }
+  const P = id => A.programs.find(p => p.id === id);
+  const courseOf = (pid, code) => A.courses.find(c => c.program_id === pid && c.code === code) || {};
+  const stu = email => A.students.find(s => s.email === email) || { full_name: email, email };
+  const offersOf = (tid, pid) => A.offerings.filter(o => o.term_id === tid && (!pid || o.program_id === pid));
+  const regsOf = oid => A.regs.filter(r => r.offering_id === oid);
+
+  function render() {
+    const T = A.terms.find(t => t.id === termId), p = P(prog);
+    app.innerHTML = header() + `
+      ${msg ? `<div class="msg ${msg.k}">${esc(msg.t)}</div>` : ""}
+      <section class="panel col">
+        <div class="row between"><h2>الترم</h2><div class="row">${A.terms.length ? `<select id="tSel">${A.terms.map(t => `<option value="${t.id}" ${t.id === termId ? "selected" : ""}>${esc(t.name)} · ${t.status === "open" ? "مفتوح للتسجيل" : t.status === "closed" ? "مغلق" : "مسودة"}</option>`).join("")}</select>` : ""}</div></div>
+        ${T ? `<div class="row"><span class="small muted">حالة التسجيل:</span>${[["draft", "مسودة (تجهيز المواد)"], ["open", "مفتوح للتسجيل"], ["closed", "مغلق"]].map(([k, l]) => `<button class="btn sm ${T.status === k ? "primary" : ""}" data-st="${k}">${l}</button>`).join("")}</div>
+          <p class="small muted">جهّز مواد الترم وأساتذتها وهو «مسودة»، ثم اجعله «مفتوح للتسجيل» فيظهر للطلبة. يُفتح ترم واحد فقط في الوقت نفسه.</p>` : `<p class="muted">لا يوجد ترم بعد. أنشئ أول ترم.</p>`}
+        <div class="row"><input type="text" id="tName" placeholder="مثلًا: الفصل الدراسي الأول 2026/2027" style="flex:1;min-width:200px"><button class="btn" id="tNew">ترم جديد</button></div>
+      </section>
+      ${T ? `
+      <nav class="ctabs">${[["offer", "مواد الترم والأساتذة"], ["students", "الطلبة المسجلون"], ["limits", "حدود الساعات"]].map(([k, l]) => `<button data-tab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</nav>
+      <section class="panel col">
+        <div class="tabs pg-progs">${A.programs.map(x => { const n = new Set(offersOf(termId, x.id).flatMap(o => regsOf(o.id).map(r => r.email))).size; return `<button data-prog="${x.id}" aria-pressed="${prog === x.id}">${esc(STAGE[x.stage])} · ${x.track === "IA" ? "عمارة داخلية" : "مسرح وسينما"} <span class="small muted">${n}</span></button>`; }).join("")}</div>
+        <h3 style="margin:0">${esc(p.name)}</h3>
+        <p class="small muted" style="margin:0">إجمالي ${p.total_hours} ساعة: عامة ${p.general_hours} · إجباري ${p.mandatory_hours} · اختياري ${p.elective_hours}${p.thesis_hours ? " · الرسالة " + p.thesis_hours : ""} · ساعات الترم من ${p.load_min} إلى ${p.load_max}</p>
+        ${tab === "offer" ? offerHtml(T, p) : tab === "students" ? studentsHtml(T, p) : limitsHtml(p)}
+      </section>
+      <section class="panel col"><h2>الكشوف</h2>
+        <p class="small muted">كشف لكل مرحلة وشعبة بالطلبة المسجلين ومقرراتهم وأساتذتهم وساعاتهم، وكشف لكل أستاذ بطلبته في كل مقرر.</p>
+        <div class="row"><button class="btn" id="xXls">كشوف الترم (إكسل)</button><button class="btn" id="xPdf">كشوف الترم (PDF)</button></div></section>` : ""}`;
+    const ts = $("#tSel"); if (ts) ts.onchange = () => { termId = ts.value; msg = null; render(); };
+    $("#tNew").onclick = () => { const n = $("#tName").value.trim(); if (n.length < 3) { say("bad", "اكتب اسم الترم."); return render(); } act(async () => { termId = await rpc("pg_save_term", { p_id: null, p_name: n, p_status: "draft" }); }, "أُنشئ الترم «" + n + "» مسودةً. أضف مواده وأساتذتها ثم افتح التسجيل."); };
+    app.querySelectorAll("[data-st]").forEach(b => b.onclick = () => act(() => rpc("pg_save_term", { p_id: termId, p_name: T.name, p_status: b.dataset.st }), b.dataset.st === "open" ? "التسجيل مفتوح الآن للطلبة." : b.dataset.st === "closed" ? "أُغلق التسجيل." : "الترم مسودة: لا يراه الطلبة."));
+    app.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => { tab = b.dataset.tab; msg = null; render(); });
+    app.querySelectorAll("[data-prog]").forEach(b => b.onclick = () => { prog = b.dataset.prog; msg = null; render(); });
+    wire(T, p);
+    const xx = $("#xXls"); if (xx) xx.onclick = () => exportLists(T, false);
+    const xp = $("#xPdf"); if (xp) xp.onclick = () => exportLists(T, true);
+  }
+
+  function offerHtml(T, p) {
+    const cs = A.courses.filter(c => c.program_id === p.id), off = offersOf(T.id, p.id);
+    return `<datalist id="profs">${A.staff.map(s => `<option value="${esc(s.name)}">`).join("")}</datalist>
+      <div class="tbl-wrap"><table class="pg-tbl"><thead><tr><th>المقرر</th><th class="c">ساعات</th><th>النوع</th><th>الأساتذة هذا الترم (المسجلون / العدد)</th></tr></thead><tbody>
+      ${cs.map(c => { const os = off.filter(o => o.code === c.code);
+        return `<tr><td><b>${esc(c.name)}</b><div class="small muted">${esc(c.code)}${c.prereq ? " · متطلب: " + esc(courseOf(p.id, c.prereq).name || c.prereq) : ""}</div></td><td class="c">${c.hours}</td><td class="small">${KIND[c.kind]}</td>
+          <td><div class="pg-offs">${os.map(o => `<span class="pg-off"><b>${esc(o.professor)}</b> <span class="mono ${o.taken >= o.capacity ? "bad-t" : ""}">${o.taken} / <input type="number" class="capin" data-cap="${o.id}" value="${o.capacity}" min="1" max="500"></span><button class="btn xs ghost" data-rm="${o.id}" title="حذف">✕</button></span>`).join("")}
+            <span class="pg-add"><input type="text" list="profs" data-prof="${esc(c.code)}" placeholder="اسم الأستاذ"><input type="number" class="capin" data-newcap="${esc(c.code)}" value="15" min="1" max="500" aria-label="العدد"><button class="btn xs" data-add="${esc(c.code)}">+ إضافة</button></span></div></td></tr>`; }).join("")}
+      </tbody></table></div>
+      <p class="small muted">أضف لكل مقرر سيُدرَّس هذا الترم أستاذًا أو أكثر، ولكل أستاذ عدد الطلبة. يختار الطالب الأستاذ ويُقبل بأسبقية الحجز حتى يكتمل العدد. غيّر العدد من خانته مباشرة.</p>`;
+  }
+  function studentsHtml(T, p) {
+    const off = offersOf(T.id, p.id), by = {};
+    off.forEach(o => regsOf(o.id).forEach(r => { (by[r.email] = by[r.email] || []).push({ r, o, c: courseOf(p.id, o.code) }); }));
+    const list = Object.keys(by).map(stu).filter(s => !q || (s.full_name + " " + s.email + " " + (s.student_no || "")).includes(q)).sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
+    const others = A.students.filter(s => s.program_id === p.id && !by[s.email]);
+    return `<div class="rs-bar"><input type="search" id="sQ" placeholder="ابحث بالاسم أو البريد" value="${esc(q)}"></div>
+      ${list.length ? `<div class="tbl-wrap"><table><thead><tr><th class="c">م</th><th>الاسم</th><th>البريد</th><th>رقم القيد</th><th>المقررات (الأستاذ)</th><th class="c">الساعات</th></tr></thead><tbody>
+      ${list.map((s, i) => { const xs = by[s.email], h = xs.reduce((a, x) => a + x.c.hours, 0);
+        return `<tr><td class="c">${i + 1}</td><td><b>${esc(s.full_name)}</b></td><td class="mono small">${esc(s.email)}</td><td class="mono">${esc(s.student_no || "")}</td>
+          <td class="small">${xs.map(x => `<div>${esc(x.c.name)} <span class="muted">(${esc(x.o.professor)})</span> <button class="btn xs ghost" data-drop="${x.r.id}" title="حذف التسجيل">✕</button></div>`).join("")}</td>
+          <td class="c"><b class="${h < p.load_min ? "bad-t" : ""}">${h}</b></td></tr>`; }).join("")}</tbody></table></div>` : `<div class="empty">لم يسجّل أحد في هذه المرحلة والشعبة هذا الترم بعد.</div>`}
+      ${others.length ? `<p class="small muted">طلبة لهم حساب في هذه المرحلة والشعبة ولم يسجّلوا هذا الترم: ${others.map(s => esc(s.full_name)).join("، ")}</p>` : ""}`;
+  }
+  function limitsHtml(p) {
+    return `<div class="settings"><label class="f"><span>الحد الأدنى لساعات الترم</span><input type="number" id="lMin" value="${p.load_min}" min="0" max="40"></label>
+      <label class="f"><span>الحد الأقصى لساعات الترم</span><input type="number" id="lMax" value="${p.load_max}" min="1" max="40"></label></div>
+      <button class="btn primary" id="lSave">حفظ</button>
+      <p class="small muted">من اللائحة: الدبلوم من 9 إلى 15 ساعة في الترم، والماجستير من 9 إلى 16. ولم تحدد اللائحة حدًّا لترم الدكتوراه (مقرراتها 14 ساعة كلها).</p>`;
+  }
+  function wire(T, p) {
+    app.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
+      const code = b.dataset.add, prof = (app.querySelector(`[data-prof="${CSS.escape(code)}"]`).value || "").trim(), cap = +app.querySelector(`[data-newcap="${CSS.escape(code)}"]`).value;
+      if (prof.length < 2) { say("bad", "اكتب اسم الأستاذ."); return render(); }
+      const s = A.staff.find(x => x.name === prof);
+      act(() => rpc("pg_save_offering", { p_id: null, p_term: T.id, p_program: p.id, p_code: code, p_professor: prof, p_staff: s ? s.email : null, p_capacity: cap || 15 }), "أُضيف " + prof + " لمقرر «" + courseOf(p.id, code).name + "».");
+    });
+    app.querySelectorAll("[data-cap]").forEach(i => i.onchange = () => { const o = A.offerings.find(x => x.id === i.dataset.cap); act(() => rpc("pg_save_offering", { p_id: o.id, p_term: o.term_id, p_program: o.program_id, p_code: o.code, p_professor: o.professor, p_staff: o.staff_email, p_capacity: +i.value }), "عُدّل العدد: " + o.professor + " · " + i.value + " طالب."); });
+    app.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => act(() => rpc("pg_remove_offering", { p_id: b.dataset.rm }), "حُذف الأستاذ من المقرر."));
+    app.querySelectorAll("[data-drop]").forEach(b => b.onclick = () => { if (!confirm("حذف تسجيل الطالب في هذا المقرر؟ يتحرر مقعده لغيره.")) return; act(() => rpc("pg_admin_drop", { p_reg: b.dataset.drop }), "حُذف التسجيل."); });
+    const sq = $("#sQ"); if (sq) sq.oninput = () => { q = sq.value.trim(); render(); const x = $("#sQ"); x.focus(); x.setSelectionRange(x.value.length, x.value.length); };
+    const ls = $("#lSave"); if (ls) ls.onclick = () => act(() => rpc("pg_set_limits", { p_program: p.id, p_min: +$("#lMin").value, p_max: +$("#lMax").value }), "حُفظت حدود الساعات.");
+  }
+  async function act(fn, ok) { try { await fn(); say("ok", ok); } catch (e) { say("bad", err(e)); } await load(true); }
+
+  /* ---------- الكشوف: ورقة لكل مرحلة وشعبة + ورقة لكل أستاذ ---------- */
+  async function exportLists(T, pdf) {
+    const btn = $(pdf ? "#xPdf" : "#xXls"), lbl = btn.textContent; btn.disabled = true; btn.textContent = "جارٍ التجهيز…";
+    try {
+      await HP.loadExcelJS();
+      const wb = new ExcelJS.Workbook(), names = [];
+      const box = { top: { style: "thin", color: { argb: "FF9AA7A3" } }, bottom: { style: "thin", color: { argb: "FF9AA7A3" } }, left: { style: "thin", color: { argb: "FF9AA7A3" } }, right: { style: "thin", color: { argb: "FF9AA7A3" } } };
+      const row = (ws, r, vals, i) => { const x = ws.getRow(r); vals.forEach((v, j) => { const c = x.getCell(j + 1); c.value = v; c.border = box; c.font = { name: "Arial", size: 10.5 }; c.alignment = { horizontal: [1, 4].includes(j) ? "right" : "center", vertical: "middle", wrapText: j === 4, readingOrder: "rtl" }; if (i % 2) c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF6F8F7" } }; }); };
+      const sub = T.name + " · " + new Date().toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" });
+      A.programs.forEach(p => {
+        const off = offersOf(T.id, p.id), by = {};
+        off.forEach(o => regsOf(o.id).forEach(r => { (by[r.email] = by[r.email] || []).push({ o, c: courseOf(p.id, o.code) }); }));
+        const list = Object.keys(by).map(stu).sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
+        const nm = (STAGE[p.stage] + " " + (p.track === "IA" ? "عمارة داخلية" : "مسرح وسينما")).slice(0, 31); names.push(nm);
+        const ws = wb.addWorksheet(nm, { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
+        HP.sheetTitle(ws, 6, "كشف المسجلين · " + p.name, sub);
+        HP.headRow(ws, 4, ["م", "الاسم", "رقم القيد", "البريد الجامعي", "المقررات المسجلة (الأستاذ)", "الساعات"]);
+        list.forEach((s, i) => { const xs = by[s.email]; row(ws, 5 + i, [i + 1, s.full_name, s.student_no || "", s.email, xs.map(x => x.c.name + " (" + x.o.professor + ")").join("\n"), xs.reduce((a, x) => a + x.c.hours, 0)], i); });
+        if (!list.length) ws.getCell(5, 1).value = "لا يوجد طلبة مسجلون.";
+        [5, 30, 12, 30, 60, 9].forEach((w, j) => { ws.getColumn(j + 1).width = w; });
+        ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "4:4" };
+      });
+      // حسب الأستاذ
+      const wp = wb.addWorksheet("حسب الأستاذ", { views: [{ rightToLeft: true }] }); names.push("حسب الأستاذ");
+      HP.sheetTitle(wp, 5, "كشوف الأساتذة · " + T.name, "لكل أستاذ: المقرر والمرحلة وطلبته");
+      let r = 4;
+      const offs = offersOf(T.id).slice().sort((a, b) => a.professor.localeCompare(b.professor, "ar") || a.program_id.localeCompare(b.program_id));
+      offs.forEach(o => {
+        const c = courseOf(o.program_id, o.code), p = P(o.program_id), rs = regsOf(o.id).map(x => stu(x.email)).sort((a, b) => a.full_name.localeCompare(b.full_name, "ar"));
+        wp.mergeCells(r, 1, r, 5); const h = wp.getCell(r, 1); h.value = o.professor + " · " + c.name + " (" + o.code + ") · " + p.name + " · " + rs.length + " / " + o.capacity;
+        h.font = { name: "Arial", bold: true, size: 11, color: { argb: "FFFFFFFF" } }; h.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF16382F" } }; h.alignment = { horizontal: "right", vertical: "middle", readingOrder: "rtl" }; wp.getRow(r).height = 22; r++;
+        rs.forEach((s, i) => { row(wp, r, [i + 1, s.full_name, s.student_no || "", s.email, ""], i); r++; });
+        if (!rs.length) { wp.getCell(r, 2).value = "لا يوجد طلبة."; r++; }
+        r++;
+      });
+      [5, 30, 12, 32, 20].forEach((w, j) => { wp.getColumn(j + 1).width = w; });
+      wp.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+      const fn = HD.fileName("كشوف الدراسات العليا - " + T.name);
+      if (pdf) await HP.wbToPdf(wb, names, fn + ".pdf");
+      else { HP.finishWb(wb, fn + ".xlsx"); HD.saveBytes(await wb.xlsx.writeBuffer(), fn + ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); }
+    } catch (e) { say("bad", err(e)); render(); return; }
+    btn.disabled = false; btn.textContent = lbl;
+  }
+  load();
+})();
+</script>
+</body>
+</html>

@@ -22,7 +22,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="wrap" id="app"></div>
+<div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
 <div class="grov" id="grOv" hidden></div>
 <div class="grov" id="phOv" hidden></div>
 <div class="grov" id="vcOv" hidden></div>
@@ -64,7 +64,7 @@
   const REASON = { old_qr_code: "رمز QR قديم من الشاشة (غالبًا صورة أُرسلت إليه)", bad_qr_code: "رمز QR غير صحيح", wrong_code: "رمز خطأ", expired_code: "رمز منتهي الصلاحية (غالبًا أُرسل إليه)", device_used: "هاتف سُجِّل منه طالب آخر", other_group: "من مجموعة أخرى والتعويض غير متاح", rejected_by_staff: "رُفض طلبه", bad_qr: "بطاقة حضور غير صحيحة", old_qr: "بطاقة حضور قديمة (غالبًا صورة)" };
   const reasonText = r => r.startsWith("too_far:") ? "خارج نطاق القاعة (" + CM.dist(+r.split(":")[1]) + ")" : (REASON[r] || r);
 
-  let me = null, staff = [], settings = { domain: "" }, courses = [], tasAll = [], curId = store.get("cm_course"), view = "course";
+  let me = null, staff = [], settings = { domain: "" }, courses = [], tasAll = [], curId = store.get("cm_course"), view = store.get("cm_view") === "course" ? "course" : "home";   // يفتح على الرئيسية
   let D = null; // current course data
   let flash = {}; // per-panel messages
   let liveTab = "all", regGroup = "all", delSess = null, pastMark = null, confirmKey = null, startState = null, report = null;
@@ -495,6 +495,70 @@
     info.hidden = !e;
     if (e) info.innerHTML = `<b>${esc(e.n.replace(/\*$/, ""))}</b><span>${[e.p ? e.p + " " + e.c : e.c, e.l ? LEVELS[e.l] + " · " + SEMS(e.s) : "مقرر اختياري: اختر مستوى الطلبة", catProg(e) === "خاص" ? PROGRAMS["خاص"] : e.tr || (e.l ? "تخصص عام" : ""), e.cr ? e.cr + " ساعات معتمدة" : "", e.cw != null && e.tot ? "أعمال فصلية " + e.cw + (e.ex ? " · امتحان " + e.ex : "") : ""].filter(Boolean).map(esc).join(" · ")}</span>${e.note ? `<small class="muted">${esc(e.note)}</small>` : ""}`;
   }
+  /* ---------- الصفحة الرئيسية (أيقونات كبيرة) والملف الشخصي ---------- */
+  const TITLES = ["أستاذ", "أستاذ مساعد", "مدرس", "مدرس مساعد", "معيد", "أستاذ متفرغ", "محاضر"];
+  const myStaff = () => staff.find(x => x.email === me.email) || me;
+  const TILE_SUB = {
+    live: c => { const s = D && D.cid === c.id && D.sessions.find(x => !x.ended); return s ? "محاضرة جارية الآن · " + (s.grp ? "مجموعة " + s.grp : "الدفعة كاملة") : "ابدأ محاضرة وسجّل الحضور"; },
+    students: c => D && D.cid === c.id ? D.enroll.length + " طالب" : "الطلبة وأجهزتهم",
+    reg: () => "كشف الحضور والغياب والإنذارات",
+    report: () => "نسب الحضور والإنذارات",
+    tasks: c => D && D.cid === c.id ? D.tasks.length + " تكليف · الدرجات" : "التكليفات والدرجات",
+    team: () => "المحاضرون والمعيدون",
+    log: () => "كل ما حدث في المادة"
+  };
+  function homeHtml(c) {
+    const p = myStaff(), list = filtered();
+    return `<section class="home">
+      <div class="home-hi"><div><div class="eyebrow">${esc(ROLE[me.role])}${p.title ? " · " + esc(p.title) : ""}</div><h2>أهلًا ${esc(String(me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").split(" ")[0])}</h2></div>
+        ${list.length ? `<label class="f home-pick"><span>المادة</span><select id="homePick">${list.map(x => `<option value="${x.id}" ${c && x.id === c.id ? "selected" : ""}>${esc(x.name)}${role(x) === "ta" ? " · معيد" : role(x) === "co" ? " · محاضر مشارك" : role(x) === "admin" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`).join("")}</select></label>` : ""}</div>
+      ${c ? `<div class="tiles">${CTABS.map(([k, t, ic]) => `<button class="tile ${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? "hot" : ""}" data-tile="${k}">${ic}<b>${t}</b><small>${esc(TILE_SUB[k](c))}</small></button>`).join("")}</div>` : `<div class="empty">${me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "لا توجد مواد بعد. أنشئ مادة جديدة."}</div>`}
+      <div class="tiles small">
+        <button class="tile" data-go="profile">${ICO('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}<b>ملفي الشخصي</b><small>بياناتك وموادك</small></button>
+        ${canCreate() ? `<button class="tile" data-go="newc">${ICO('<path d="M12 5v14M5 12h14"/>')}<b>مادة جديدة</b><small>أضف مادة من اللائحة</small></button>` : ""}
+        ${me.role === "admin" ? `<button class="tile" data-go="admin">${ICO('<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>')}<b>لوحة المسؤول</b><small>المحاضرون والإعدادات</small></button>
+          <a class="tile" href="pg-admin.html">${ICO('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>')}<b>الدراسات العليا</b><small>مواد الترم والتسجيل</small></a>` : ""}
+      </div></section>`;
+  }
+  function profileHtml() {
+    const p = myStaff(), mine = courses.slice().sort((a, b) => String(b.academic_year || "").localeCompare(String(a.academic_year || "")) || a.name.localeCompare(b.name, "ar"));
+    const rl = x => { const r = role(x); return r === "owner" ? "صاحب المادة" : r === "co" ? "محاضر مشارك" : r === "ta" ? "معيد" : "مسؤول"; };
+    const own = mine.filter(x => role(x) !== "admin");
+    return `<section class="panel col prof">
+      <div class="prof-h">${CM.markHtml()}<div><h2>${esc(p.name || me.name)}</h2><p class="muted">${esc([p.title, ROLE[me.role]].filter(Boolean).join(" · "))}</p><p class="mono small muted">${esc(me.email)}</p></div></div>
+      <div class="settings">
+        <label class="f"><span>الاسم كما يظهر للطلبة والفريق</span><input type="text" id="prName" value="${esc(p.name || "")}" maxlength="80"></label>
+        <label class="f"><span>الدرجة العلمية</span><select id="prTitle"><option value="">—</option>${TITLES.map(t => `<option ${p.title === t ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label class="f"><span>التخصص</span><input type="text" id="prSpec" value="${esc(p.specialty || "")}" maxlength="120" placeholder="مثلًا: العمارة الداخلية"></label>
+        <label class="f"><span>الهاتف (اختياري)</span><input type="tel" id="prPhone" dir="ltr" value="${esc(p.phone || "")}" maxlength="30"></label>
+      </div>
+      <div class="row"><button class="btn primary" id="prSave">حفظ</button><span class="small" id="prMsg"></span></div>
+    </section>
+    <section class="panel col"><h2>موادي <span class="small muted">${own.length}</span></h2>
+      ${own.length ? `<div class="tbl-wrap"><table><thead><tr><th>المادة</th><th>الفترة</th><th>دوري</th><th></th></tr></thead><tbody>${own.map(x => `<tr><td><b>${esc(x.name)}</b>${x.archived ? ` <span class="chip none">أرشيف</span>` : ""}</td><td class="small">${esc(clsLabel(x))}</td><td><span class="chip ${role(x) === "ta" ? "warn" : "ok"}">${rl(x)}</span></td><td><button class="btn xs" data-open="${x.id}">فتح</button></td></tr>`).join("")}</tbody></table></div>` : `<div class="empty">لا توجد مواد مسجّل فيها بعد.</div>`}
+    </section>`;
+  }
+  function wireHome(c) {
+    const gh = $("#goHome"); if (gh) gh.onclick = () => { view = "home"; render(); window.scrollTo({ top: 0 }); };
+    const gp = $("#goProf"); if (gp) gp.onclick = () => { view = view === "profile" ? "home" : "profile"; render(); window.scrollTo({ top: 0 }); };
+    const hp = $("#homePick"); if (hp) hp.onchange = () => { curId = hp.value; store.set("cm_course", curId); flash = {}; liveTab = "all"; regGroup = "all"; startState = null; fYear = "all"; fTerm = "all"; loadCourse().catch(showErr); };
+    document.querySelectorAll("[data-tile]").forEach(b => b.onclick = () => { view = "course"; ctab = b.dataset.tile; store.set("cm_tab", ctab); render(); window.scrollTo({ top: 0 }); });
+    document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
+      const g = b.dataset.go;
+      if (g === "profile") { view = "profile"; render(); }
+      else if (g === "admin") { view = "admin"; stopLoops(); render(); }
+      else if (g === "newc") { view = "course"; render(); const f = $("#newCForm"); if (f) { f.hidden = false; f.scrollIntoView({ block: "start" }); } }
+      window.scrollTo({ top: 0 });
+    });
+    document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { curId = b.dataset.open; store.set("cm_course", curId); fYear = "all"; fTerm = "all"; view = "course"; loadCourse().catch(showErr); });
+    const ps = $("#prSave"); if (ps) ps.onclick = async () => {
+      const m = $("#prMsg"); ps.disabled = true;
+      try { await rpc("staff_update_me", { p_name: $("#prName").value, p_title: $("#prTitle").value, p_specialty: $("#prSpec").value, p_phone: $("#prPhone").value });
+        const r = await sb.from("staff").select("*").order("name"); if (!r.error) staff = r.data; me.name = $("#prName").value.trim(); m.className = "small ok-t"; m.textContent = "حُفظت بياناتك."; }
+      catch (e) { m.className = "small bad-t"; m.textContent = errText(e); }
+      ps.disabled = false;
+    };
+  }
   function render() {
     const c = course();
     const owned = courses.filter(x => x.owner_email === me.email).length;
@@ -502,9 +566,11 @@
       <header class="top">
         <div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}${owned ? " · " + owned + " مادة" : ""}</p></div></div>
         <div class="row">
+          ${view !== "home" ? `<button class="btn sm" id="goHome">الرئيسية</button>` : ""}
           ${canCreate() && view === "course" ? `<button class="btn sm" id="newC">مادة جديدة</button>` : ""}
           ${me.role === "admin" ? `<button class="btn sm ${view === "admin" ? "primary" : ""}" id="admin">${view === "admin" ? "رجوع للمواد" : "لوحة المسؤول"}</button>` : ""}
-          ${CM.themeBtn()}<button class="btn sm ghost" id="pwSet">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button>
+          ${me.role === "admin" ? `<a class="btn sm" href="pg-admin.html">الدراسات العليا</a>` : ""}
+          ${CM.themeBtn()}<button class="btn sm ghost ${view === "profile" ? "primary" : ""}" id="goProf">ملفي</button><button class="btn sm ghost" id="pwSet">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button>
         </div>
       </header>
       <div id="pwForm" class="panel" hidden style="margin-bottom:16px;max-width:520px">
@@ -529,6 +595,8 @@
           ${filtered().length ? `<label class="f" style="grid-column:span 2"><span>المادة</span><select id="pick">${(() => { const groups = new Map(); filtered().forEach(x => { const g = groupLabel(x); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(x); });
             return [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(x => { const r = role(x); return `<option value="${x.id}" ${x.id === curId ? "selected" : ""}>${esc(x.name)}${x.archived ? " (أرشيف)" : ""}${r === "ta" ? " · معيد" : r === "co" ? " · محاضر مشارك" : r === "viewer" || r === "admin" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`; }).join("")}</optgroup>`).join(""); })()}</select></label>` : ""}
         </div></div>` : ""}
+      ${view === "home" ? homeHtml(c) : view === "profile" ? profileHtml() : ""}
+      <div id="courseWrap" ${view === "home" || view === "profile" ? "hidden" : ""}>
       ${view === "admin" ? `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "لا توجد مواد في هذه الفترة" : "لا توجد مواد بعد"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الفصل من الأعلى، أو أنشئ مادة جديدة." : me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "اضغط «مادة جديدة» في الأعلى، ثم ارفع ملف الطلبة."}</div></div>` : `
       <div class="course-h"><div><h2>${esc(c.name)}</h2><p class="muted small">${esc(clsLabel(c))}${c.archived ? " · مؤرشفة" : ""}${c.auto_created ? " · أنشأها النظام من استمارات التسجيل" : ""}</p></div></div>
       ${c.auto_created && !tasAll.some(x => x.course_id === c.id) && isOwner(c) ? `<div class="msg warn" style="margin-bottom:16px"><b>أنشأ النظام هذه المادة تلقائيًّا</b> لأن طلبة سجّلوها في استمارات التسجيل، ولا يوجد لها فريق بعد. أضف المحاضر أو المعيد المسؤول عنها من تبويب «الفريق» (محاضر مشارك أو معيد).</div>` : ""}
@@ -541,8 +609,10 @@
       <div class="tabpane" id="pane-report" role="tabpanel" ${ctab === "report" ? "" : "hidden"}><section class="panel" id="reportPanel"></section></div>
       <div class="tabpane" id="pane-tasks" role="tabpanel" ${ctab === "tasks" ? "" : "hidden"}><section class="panel" id="tasksPanel"></section></div>
       <div class="tabpane" id="pane-team" role="tabpanel" ${ctab === "team" ? "" : "hidden"}><section class="panel" id="teamPanel"></section></div>
-      <div class="tabpane" id="pane-log" role="tabpanel" ${ctab === "log" ? "" : "hidden"}><section class="panel" id="auditPanel"></section></div>`}`;
-    document.body.classList.toggle("has-ctabs", !!$(".ctabs"));
+      <div class="tabpane" id="pane-log" role="tabpanel" ${ctab === "log" ? "" : "hidden"}><section class="panel" id="auditPanel"></section></div>`}
+      </div>`;
+    document.body.classList.toggle("has-ctabs", view === "course" && !!$(".ctabs"));
+    wireHome(c);
     document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));
     tabBadges();
     $("#out").onclick = () => signOut();

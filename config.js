@@ -13,5 +13,7 @@ window.CLASSMATE = {
   GOOGLE_API_KEY: "AIzaSyAEjU3kV6Qz9jR7r2fk8nJiPBSTz_55VeE",
   // اجعلها true بعد إضافة https://elrashdan.github.io/classmate/ إلى Authorized redirect URIs في Google Cloud Console
   // (تُظهر للطالب طريقة بديلة للاتصال بـ Google إن أُغلقت النافذة المنبثقة)
-  GOOGLE_REDIRECT: true
+  GOOGLE_REDIRECT: true,
+  // مفتاح إشعارات الهاتف (Web Push) العام؛ الخاص في أسرار دالة الحافة «push» فقط
+  VAPID_PUBLIC_KEY: "BPnjo_-EKjQK9CSi1rbYQHYxh4TyRogMYH0oX1DRtS1cgeFD_BNkaNrVQpXwIPHaJQFig2furf-yaNrMGK0XDIg"
 };
