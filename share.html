@@ -58,7 +58,7 @@
       <div class="msg"><b>طريقة التصحيح:</b> اضغط «تنزيل كل الملفات» فتنزل الملفات مرقّمة بأسماء الطلبة، ومعها ملف إكسل «000 - كشف الدرجات والفهرس». اكتب الدرجات في ورقة «كشف الرصد» (لا تغيّر عمود الكود)، ثم أرسل الملف للمعيد أو المحاضر، فيرفعه على Hadro وتُرصد الدرجات.</div>
       ${msg ? `<div class="msg ${msg.k}">${esc(msg.t)}</div>` : ""}
       ${files.length ? `<button class="btn primary block" id="dlAll" ${busy ? "disabled" : ""}>${busy ? esc(busy) : "تنزيل كل الملفات + كشف الدرجات"}</button>` : ""}
-      <button class="btn block" id="dlSheet">كشف الدرجات وحده (إكسل)</button>
+      <div class="row" style="gap:8px"><button class="btn" id="dlSheet" style="flex:1">كشف الدرجات وحده (إكسل)</button><button class="btn" id="dlPdf" style="flex:1">كشف الدرجات (PDF)</button></div>
       <p class="small muted">على Chrome في الكمبيوتر تختار مجلدًا فتُحفظ فيه الملفات مباشرة، وعلى غيره تنزل في ملف مضغوط. الرابط صالح حتى ${esc(CM.fmtD(D.expires_at))}.</p>
       </section>
       <section class="panel col"><div class="tbl-wrap"><table><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th><th>المجموعة</th><th>الحالة</th><th>العمل</th></tr></thead><tbody>
@@ -73,6 +73,12 @@
         if (r) msg = { k: r.bad ? "warn" : "ok", t: "نُزّل " + r.ok + " ملفًا من " + r.total + (r.dir ? " في المجلد الذي اخترته" : r.parts > 1 ? " في " + r.parts + " ملفات مضغوطة" : " في ملف مضغوط") + "، ومعها «" + r.sheet + "»." + (r.bad ? " تعذّر تنزيل " + r.bad + " (موضّحة في الفهرس)." : "") };
       } catch (e) { msg = { k: "bad", t: e && e.message && !/^[a-z_]+$/.test(e.message) ? e.message : "تعذّر التنزيل. أعد المحاولة." }; }
       busy = false; render();
+    };
+    $("#dlPdf").onclick = async () => {
+      const bp = $("#dlPdf"); bp.disabled = true; bp.textContent = "جارٍ التجهيز…";
+      try { await HP.loadExcelJS(); const o = pack(), wb = new ExcelJS.Workbook(); await HP.entrySheet(wb, { ...o, withWork: true }); await HP.wbToPdf(wb, ["كشف الرصد"], HD.fileName("كشف رصد - " + t.title + " - " + D.course) + ".pdf"); }
+      catch (e) { msg = { k: "bad", t: e.message || "تعذّر تجهيز الملف." }; render(); return; }
+      bp.disabled = false; bp.textContent = "كشف الدرجات (PDF)";
     };
     $("#dlSheet").onclick = async () => {
       try { await HP.loadExcelJS(); const o = pack(), wb = new ExcelJS.Workbook(); await HP.entrySheet(wb, { ...o, withWork: true }); HP.metaSheet(wb, o);

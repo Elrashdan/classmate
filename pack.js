@@ -50,6 +50,12 @@
     ws.getCell(3, 1).value = "الدرجة العظمى " + gN(max) + (P ? " (مقسّمة: " + P.map(p => p.name + " " + gN(p.max)).join(" + ") + ") · اكتب درجة كل مشروع فرعي في خانته، والمجموع يُحسب وحده" : " · اكتب الدرجة في خانتها") + "، والبونص (إن وجد) في خانته. لا تغيّر عمود الكود. بعد الملء يُرفع الملف من «رفع كشف إكسل» في صفحة التكليف على Hadro فتُرصد الدرجات.";
     ws.getCell(3, 1).font = { name: "Arial", size: 9.5, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl", wrapText: true }; ws.getRow(3).height = P ? 42 : 30;
     headRow(ws, 5, ["م", "الكود", "الاسم", "المجموعة", ...(P ? P.map((p, i) => "جزء " + (i + 1) + ": " + p.name + " (من " + gN(p.max) + ")") : []), (P ? "المجموع" : "الدرجة") + " (من " + gN(max) + ")", "بونص", "ملاحظة", ...(o.withWork ? ["العمل المسلَّم"] : []), ...(withFile ? ["رقم الملف في المجلد"] : [])]);
+    if (P) {   // صف فوق المشاريع الفرعية: اسم التكليف (المشروع) يعلوها كلها
+      for (let j = 1; j <= NC; j++) { const cl = ws.getCell(4, j); cl.fill = fill(j >= 5 && j < cG ? XC.head : "FFFFFFFF"); cl.border = j >= 5 && j < cG ? box : {}; }
+      ws.mergeCells(4, 5, 4, cG - 1);
+      const hc = ws.getCell(4, 5); hc.value = o.title + " (من " + gN(max) + ")"; hc.font = { name: "Arial", bold: true, size: 10.5, color: { argb: XC.headInk } }; hc.alignment = { horizontal: "center", vertical: "middle", readingOrder: "rtl" };
+      ws.getRow(4).height = 24;
+    }
     const line = { style: "thin", color: { argb: "FF9AA7A3" } };
     o.rows.forEach((x, i) => {
       const s = x.s, rn = 6 + i, r = ws.getRow(rn);
@@ -78,7 +84,7 @@
     const sg = ws.getRow(end + 1); ws.mergeCells(end + 1, 1, end + 1, NC); sg.height = 34;
     sg.getCell(1).value = "اسم المصحح وتوقيعه: ……………………………………     التاريخ: ……… / ……… / ………"; sg.getCell(1).font = { name: "Arial", size: 11, bold: true }; sg.getCell(1).alignment = { horizontal: "right", vertical: "bottom", readingOrder: "rtl" };
     [5, 12, 32, 10, ...(P ? P.map(() => 13) : []), 15, 10, 30, ...(o.withWork ? [34] : []), ...(withFile ? [12] : [])].forEach((w, j) => { ws.getColumn(j + 1).width = w; });
-    ws.pageSetup = { orientation: P && np > 2 ? "landscape" : "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "5:5", margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.6, header: 0.2, footer: 0.3 } };
+    ws.pageSetup = { orientation: P && np > 2 ? "landscape" : "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: P ? "4:5" : "5:5", margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.6, header: 0.2, footer: 0.3 } };
     await ws.protect("", { selectLockedCells: true, selectUnlockedCells: true, formatColumns: true, formatRows: true });
     return ws;
   };
@@ -146,5 +152,132 @@
     if (dir) { const fh = await dir.getFileHandle(xname, { create: true }); const wr = await fh.createWritable(); await wr.write(xbuf); await wr.close(); }
     else { await queue; zip.file(xname, xbuf); await flush(); }
     return { ok: okN, total: files.length, bad: files.length - okN, links: o.rows.filter(x => x.s && x.s.kind === "link").length, dir: !!dir, parts: part - 1, sheet: xname };
+  };
+
+  /* ---------- تحويل أوراق إكسل (ExcelJS) إلى PDF بنفس الشكل: الخلايا المدمجة والألوان والخطوط وعرض الأعمدة،
+     وتكرار صفوف العناوين (printTitlesRow) في كل صفحة. يُرسم بالـ canvas فيظهر الخط العربي كما في الصفحة. ---------- */
+  const DPI = 150, A4 = [8.27 * DPI, 11.69 * DPI], MARGIN = 0.45 * DPI, FOOT = 34;
+  const FONT = "'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif";
+  const colNum = s => s.split("").reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0);
+  const cellRef = ref => { const m = /^([A-Z]+)(\d+)$/.exec(ref); return m ? { c: colNum(m[1]), r: +m[2] } : null; };
+  const argb = (x, d) => x && x.argb ? "#" + String(x.argb).slice(-6) : d;
+  function cellText(cell) {
+    let v = cell.value;
+    if (v == null) return "";
+    if (v instanceof Date) return v.toLocaleDateString("ar-EG");
+    if (typeof v === "object") {
+      if (v.richText) v = v.richText.map(x => x.text).join("");
+      else if ("formula" in v || "sharedFormula" in v) v = v.result == null || typeof v.result === "object" ? "" : v.result;
+      else if (v.text != null) v = typeof v.text === "object" && v.text.richText ? v.text.richText.map(x => x.text).join("") : v.text;
+      else v = "";
+    }
+    if (typeof v === "number") return /%/.test(cell.numFmt || "") ? Math.round(v * 100) + "%" : Number(v).toLocaleString("en", { maximumFractionDigits: 2, useGrouping: false });
+    return String(v);
+  }
+  function wrap(ctx, text, w) {
+    const out = [];
+    String(text).split("\n").forEach(par => {
+      const words = par.split(/\s+/); let line = "";
+      words.forEach(wd => { const t = line ? line + " " + wd : wd; if (line && ctx.measureText(t).width > w) { out.push(line); line = wd; } else line = t; });
+      out.push(line);
+    });
+    return out;
+  }
+  function layoutSheet(ws, ctx) {
+    let N = 0, R = 0;
+    ws.eachRow({ includeEmpty: false }, (row, r) => { row.eachCell({ includeEmpty: false }, (c, j) => { if (c.value != null && c.value !== "") { N = Math.max(N, j); R = Math.max(R, r); } }); });
+    const merges = (ws.model.merges || []).map(m => { const [a, b] = m.split(":").map(cellRef); return { r1: a.r, c1: a.c, r2: b.r, c2: b.c }; });
+    merges.forEach(m => { N = Math.max(N, m.c2); });
+    const master = {}, covered = new Set();
+    merges.forEach(m => { master[m.r1 + ":" + m.c1] = m; for (let r = m.r1; r <= m.r2; r++) for (let c = m.c1; c <= m.c2; c++) if (r !== m.r1 || c !== m.c1) covered.add(r + ":" + c); });
+    // الأعمدة الطويلة (مثل الملاحظات الفارغة) لا تستحق عرضها في الإكسل
+    const used = Array.from({ length: N + 1 }, () => false);
+    for (let r = 1; r <= R; r++) for (let c = 1; c <= N; c++) { const m = master[r + ":" + c]; if (m && m.c2 - m.c1 > 2) continue; if (cellText(ws.getRow(r).getCell(c)).trim()) used[c] = true; }
+    const W = [0]; for (let c = 1; c <= N; c++) W[c] = Math.round(((ws.getColumn(c).width || 9) * (used[c] ? 7.2 : 4) + 10));
+    const X = [0]; for (let c = 1; c <= N; c++) X[c] = X[c - 1] + W[c];   // المسافة من الحافة اليمنى (الورقة من اليمين لليسار)
+    const tableW = X[N];
+    const cells = {}, H = [0];
+    for (let r = 1; r <= R; r++) {
+      const row = ws.getRow(r);
+      let h = row.height ? row.height * 1.333 : 26;
+      for (let c = 1; c <= N; c++) {
+        if (covered.has(r + ":" + c)) continue;
+        const cell = row.getCell(c), m = master[r + ":" + c], txt = cellText(cell);
+        const f = cell.font || {}, px = (f.size || 11) * 1.333;
+        ctx.font = (f.bold ? "600 " : "400 ") + px + "px " + FONT;
+        const w = (m ? X[m.c2] - X[m.c1 - 1] : W[c]) - 10;
+        const lines = txt ? (cell.alignment && cell.alignment.wrapText) || /\n/.test(txt) || (m && m.c2 - m.c1 > 2) ? wrap(ctx, txt, w) : [txt] : [];
+        cells[r + ":" + c] = { cell, m, txt, lines, px, bold: !!f.bold, color: argb(f.color, "#16231f"), u: !!f.underline };
+        if (!m || m.r1 === m.r2) h = Math.max(h, lines.length * px * 1.35 + 10);
+      }
+      H[r] = h;
+    }
+    const titles = String((ws.pageSetup || {}).printTitlesRow || "").split(":").map(Number).filter(Boolean);
+    const h1 = titles[0] || 0, h2 = titles[1] || h1;
+    return { N, R, W, X, H, cells, tableW, h1, h2 };
+  }
+  function drawRows(ctx, L, rows, y0) {
+    let y = y0; const ys = {};
+    rows.forEach(r => { ys[r] = y; y += L.H[r]; });
+    // الخلفيات ثم الحدود ثم النص
+    const each = fn => rows.forEach(r => { for (let c = 1; c <= L.N; c++) { const k = L.cells[r + ":" + c]; if (!k) continue;
+      const m = k.m, c2 = m ? m.c2 : c, r2 = m ? Math.min(m.r2, rows[rows.length - 1]) : r;
+      let h = 0; for (let rr = r; rr <= r2; rr++) h += L.H[rr] || 0;
+      const x = L.tableW - L.X[c2], w = L.X[c2] - L.X[c - 1];
+      fn(k, x, ys[r], w, h); } });
+    each((k, x, y, w, h) => { const fl = k.cell.fill && k.cell.fill.fgColor; if (fl && fl.argb) { ctx.fillStyle = argb(fl); ctx.fillRect(x, y, w, h); } });
+    ctx.strokeStyle = "#9aa7a3"; ctx.lineWidth = 1;
+    each((k, x, y, w, h) => { const b = k.cell.border; if (b && (b.top || b.bottom || b.left || b.right)) ctx.strokeRect(x + .5, y + .5, w, h); });
+    each((k, x, y, w, h) => {
+      if (!k.lines.length) return;
+      const b = k.cell.border, boxed = b && (b.top || b.bottom || b.left || b.right);
+      ctx.save(); if (boxed || k.m) { ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); }   // النص خارج الجدول (التوقيعات) يمتد كما في الإكسل
+      ctx.font = (k.bold ? "600 " : "400 ") + k.px + "px " + FONT; ctx.fillStyle = k.color; ctx.direction = "rtl"; ctx.textBaseline = "middle";
+      const al = (k.cell.alignment || {}).horizontal || (typeof k.cell.value === "number" ? "center" : "right");
+      const lh = k.px * 1.35, top = y + h / 2 - (k.lines.length - 1) * lh / 2;
+      k.lines.forEach((ln, i) => { ctx.textAlign = al === "center" ? "center" : al === "left" ? "left" : "right";
+        const tx = al === "center" ? x + w / 2 : al === "left" ? x + 5 : x + w - 5, ty = top + i * lh;
+        ctx.fillText(ln, tx, ty);
+        if (k.u) { const mw = ctx.measureText(ln).width, sx = al === "center" ? tx - mw / 2 : al === "left" ? tx : tx - mw; ctx.fillRect(sx, ty + k.px * .5, mw, 1); } });
+      ctx.restore();
+    });
+    return y;
+  }
+  HP.sheetPages = async ws => {
+    const land = ((ws.pageSetup || {}).orientation || "portrait") === "landscape";
+    const PW = land ? A4[1] : A4[0], PH = land ? A4[0] : A4[1];
+    const probe = document.createElement("canvas").getContext("2d");
+    const L = layoutSheet(ws, probe);
+    const scale = Math.min(1.7, (PW - 2 * MARGIN) / L.tableW), avail = (PH - 2 * MARGIN - FOOT) / scale;
+    const head = L.h1 ? Array.from({ length: L.h2 - L.h1 + 1 }, (_, i) => L.h1 + i) : [];
+    const pre = Array.from({ length: Math.max(0, (L.h1 || 1) - 1) }, (_, i) => i + 1);
+    const body = Array.from({ length: L.R - (L.h2 || 0) }, (_, i) => (L.h2 || 0) + i + 1);
+    const hh = rs => rs.reduce((a, r) => a + L.H[r], 0);
+    const pages = []; let cur = [...pre, ...head], used = hh(cur);
+    body.forEach(r => { if (used + L.H[r] > avail && cur.length > pre.length + head.length) { pages.push(cur); cur = [...head]; used = hh(cur); } cur.push(r); used += L.H[r]; });
+    pages.push(cur);
+    return pages.map((rows, i) => {
+      const cv = document.createElement("canvas"); cv.width = PW; cv.height = PH;
+      const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, PW, PH);
+      ctx.save(); ctx.translate(PW - MARGIN - L.tableW * scale, MARGIN); ctx.scale(scale, scale); drawRows(ctx, L, rows, 0); ctx.restore();
+      ctx.font = "400 17px " + FONT; ctx.fillStyle = "#5a6a66"; ctx.textBaseline = "alphabetic"; ctx.direction = "rtl"; ctx.textAlign = "center";
+      ctx.fillText((ws.name || "") + " · صفحة " + (i + 1) + " من " + pages.length + " · Hadro", PW / 2, PH - MARGIN / 2);
+      return { cv, land };
+    });
+  };
+  HP.wbToPdf = async (wb, names, fileName) => {
+    await HD.loadPdfLib();
+    try { await Promise.all(["400 20px 'IBM Plex Sans Arabic'", "600 20px 'IBM Plex Sans Arabic'"].map(f => document.fonts.load(f, "عربي"))); } catch (e) {}
+    const pdf = await window.PDFLib.PDFDocument.create();
+    pdf.setTitle(fileName.replace(/\.pdf$/i, "")); pdf.setCreator("Hadro"); pdf.setAuthor(((window.CM && CM.APP) || {}).author || "Hadro");
+    for (const nm of names) {
+      const ws = typeof nm === "string" ? wb.getWorksheet(nm) : nm; if (!ws) continue;
+      for (const { cv, land } of await HP.sheetPages(ws)) {
+        const bytes = await new Promise(ok => cv.toBlob(b => b.arrayBuffer().then(x => ok(new Uint8Array(x))), "image/jpeg", 0.9));
+        const img = await pdf.embedJpg(bytes), W = land ? 841.89 : 595.28, H = land ? 595.28 : 841.89;
+        pdf.addPage([W, H]).drawImage(img, { x: 0, y: 0, width: W, height: H });
+      }
+    }
+    HD.saveBytes(await pdf.save(), fileName, "application/pdf");
   };
 })();

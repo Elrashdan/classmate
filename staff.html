@@ -957,7 +957,7 @@
       return `<button class="fh ${(srt && rg.sort) || flt ? "on" : ""}" data-rcol="${k}" aria-haspopup="true" title="ترتيب وتصفية">${extra || C.t}<span class="fh-i">${srt ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button>`; };
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[CM.lvl(absences(e))]++);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.length} محاضرة · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
-      <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}<button class="btn sm" id="exp" ${D.enroll.length ? "" : "disabled"}>تصدير إلى إكسل</button></div></div>
+      <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}<button class="btn sm" id="exp" ${D.enroll.length ? "" : "disabled"}>تصدير إلى إكسل</button><button class="btn sm" id="expPdf" ${D.enroll.length ? "" : "disabled"}>تصدير PDF</button></div></div>
       ${msgHtml("reg")}
       ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات سبقت البرنامج؟</span><button class="btn sm ghost" id="tplBtn">تنزيل ملف التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات سابقة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden></div>` : ""}
       ${impBoxHtml()}
@@ -983,7 +983,7 @@
       const sid = delSess; confirmKey = null; delSess = null;
       act(() => rpc("delete_session", { sid }), loadCourse);
     };
-    $("#exp").onclick = exportXlsx;
+    $("#exp").onclick = () => exportXlsx(false); $("#expPdf").onclick = () => exportXlsx(true);
     const tb = $("#tplBtn"); if (tb) tb.onclick = exportTemplate;
     const px = $("#pastX"); if (px) px.onchange = ev => { importPast(ev.target.files[0]); ev.target.value = ""; };
     wireImp(el);
@@ -1048,17 +1048,19 @@
     ws.columns.forEach((col, j) => { col.width = j === 0 ? 12 : j === 1 ? 30 : j === 2 ? 9 : j < 3 + ss.length ? 7 : j === N - 2 ? 16 : j === N - 1 ? 18 : 8; });
     ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "5:5" };
   }
-  async function exportXlsx() {
-    const btn = $("#exp"); if (btn) { btn.disabled = true; btn.textContent = "جارٍ تجهيز الملف…"; }
+  async function exportXlsx(pdf) {
+    const btn = $(pdf ? "#expPdf" : "#exp"), lbl = btn ? btn.textContent : ""; if (btn) { btn.disabled = true; btn.textContent = "جارٍ تجهيز الملف…"; }
     try {
       await loadExcelJS();
       const c = course(), gs = groupsOf(), wb = new ExcelJS.Workbook(); wb.created = new Date();
       const all = D.enroll.slice().sort(byGroupName);
       registerSheet(wb, "الكل", all, D.sessions, c);
       if (gs.length > 1) gs.forEach(g => { const rows = all.filter(e => e.grp === g); registerSheet(wb, "مجموعة " + g, rows, D.sessions.filter(s => !s.grp || s.grp === g || rows.some(e => (D.att[s.id] || {})[e.student_code])), c); });
-      await saveWb(wb, "حضور " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
+      const nm = HD.fileName("حضور " + c.name + " " + new Date().toLocaleDateString("en-CA"));
+      if (pdf) { wb.eachSheet(w => { w.headerFooter = {}; }); await HP.wbToPdf(wb, regGroup && regGroup !== "all" ? ["مجموعة " + regGroup] : ["الكل"], nm + ".pdf"); }
+      else await saveWb(wb, nm + ".xlsx");
     } catch (e) { showErr(e); }
-    if (btn) { btn.disabled = false; btn.textContent = "تصدير إلى إكسل"; }
+    if (btn) { btn.disabled = false; btn.textContent = lbl; }
   }
   async function exportTemplate() {
     const btn = $("#tplBtn"); if (btn) btn.disabled = true;
@@ -1519,7 +1521,7 @@
     if (t) return renderTask(el, c, t);
     const totalMax = D.tasks.reduce((a, x) => a + Number(x.max_grade), 0);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
-      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${D.tasks.length ? `<button class="btn sm" id="tkXls" title="كشف الكنترول (مسلسل · الكود · الاسم · متوسط الدرجات) وتفاصيل الدرجات والتسليم">كشف الكنترول (إكسل)</button>` : ""}</div></div>
+      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${D.tasks.length ? `<button class="btn sm" id="tkXls" title="كشف الكنترول (مسلسل · الكود · الاسم · متوسط الدرجات) وتفاصيل الدرجات والتسليم">كشف الكنترول (إكسل)</button><button class="btn sm" id="tkPdf" title="كشف الكنترول وتفاصيل الدرجات في ملف PDF">كشف الكنترول (PDF)</button>` : ""}</div></div>
       ${msgHtml("tasks")}
       ${bylawLine(c)}
       ${tkForm === "new" ? taskFormHtml(null) : ""}
@@ -1534,7 +1536,8 @@
       ${!HD.ready ? `<p class="small muted">رفع الملفات إلى Google Drive لم يُفعَّل بعد في إعدادات الموقع، لذلك يسلّم الطلبة روابط فقط.</p>` : ""}`;
     wireTaskForm(el, null);
     const nb = $("#tkNew"); if (nb) nb.onclick = () => { tkForm = "new"; tkMode = "submit"; renderTasks(); const i = $("#tfTitle"); if (i) i.focus(); };
-    const xb = $("#tkXls"); if (xb) xb.onclick = exportGrades;
+    const xb = $("#tkXls"); if (xb) xb.onclick = () => exportGrades(false);
+    const xp = $("#tkPdf"); if (xp) xp.onclick = () => exportGrades(true);
     el.querySelectorAll("[data-tk]").forEach(b => b.onclick = () => { tkSel = b.dataset.tk; tkForm = null; tkEdits = {}; tkFilter = "all"; tkQ = ""; gimp = null; flash.tasks = ""; renderTasks(); el.scrollIntoView({ block: "start" }); });
   }
   // القيم الأصلية كما تُعرض في الخانات
@@ -1589,6 +1592,7 @@
         <span class="tk-sep"></span>
         ${partsOf(t) ? "" : `<button class="btn" id="tkVoice" title="قل اسم الطالب ثم درجته، فيكتبها البرنامج في الكشف بعد مراجعتك">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} رصد بالصوت</button>`}
         <button class="btn" id="tkSheet" title="كشف بأسماء الطلبة وخانات الدرجة، يُملأ على الكمبيوتر أو يُطبع ويُكتب باليد">كشف رصد للطباعة (إكسل)</button>
+        <button class="btn" id="tkSheetPdf" title="نفس كشف الرصد في ملف PDF للطباعة">كشف رصد (PDF)</button>
         <label class="btn" title="بعد ملء الكشف على الكمبيوتر">رفع كشف إكسل<input type="file" id="tkImpX" accept=".xlsx" hidden></label>
         ${partsOf(t) ? "" : `<label class="btn" title="صورة الكشف المكتوب باليد، تظهر بجانب الأسماء لتنقل الدرجات منها">صورة كشف مكتوب باليد<input type="file" id="tkImpP" accept="image/*" multiple hidden></label>`}
       </div>` : ""}
@@ -1604,7 +1608,7 @@
       <div class="rs-bar no-print"><div class="tabs">${FT.map(([k, l, n]) => `<button data-tf="${k}" aria-pressed="${tkFilter === k}">${l} <span class="small muted">${n}</span></button>`).join("")}</div>
         <input type="search" id="tkQ" placeholder="ابحث بالاسم أو الكود" value="${esc(tkQ)}" autocomplete="off" style="max-width:240px"></div>
       ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" style="max-width:320px"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select></div>` : ""; })() : ""}
-      ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}${partsOf(t) ? partsOf(t).map((p, i) => `<th class="c pth" title="${esc(p.name)}">${esc(p.name)}<small>من ${gN(p.max)}</small></th>`).join("") : `<th class="c">الدرجة من ${gN(t.max_grade)}</th>`}<th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
+      ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}${partsOf(t) ? partsOf(t).map((p, i) => `<th class="c pth" title="${esc(p.name)}">${esc(p.name)}<br><small>(من ${gN(p.max)})</small></th>`).join("") : `<th class="c">الدرجة من ${gN(t.max_grade)}</th>`}<th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
           return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td>${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
             ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}${extCell(t, e, s, run)}` : `<span class="muted">لم يسلّم</span>${extCell(t, e, s, run)}`}</td>
@@ -1662,6 +1666,7 @@
     el.querySelectorAll("[data-view]").forEach(b => b.onclick = () => openGrader(t, b.dataset.view));
     const gb = $("#tkGrader"); if (gb) gb.onclick = () => openGrader(t);
     const sh = $("#tkSheet"); if (sh) sh.onclick = () => exportEntrySheet(t);
+    const shp = $("#tkSheetPdf"); if (shp) shp.onclick = () => exportEntrySheet(t, true);
     const vb = $("#tkVoice"); if (vb) vb.onclick = () => openVoice(t);
     const dla = $("#tkDl"); if (dla) dla.onclick = () => downloadAll(t);
     const shb = $("#tkShare"); if (shb) shb.onclick = () => openLinks(t);
@@ -1694,6 +1699,45 @@
     }
     return rows;
   }
+  /* ---------- البحث بالصوت: زر ميكروفون بجانب كل خانة بحث عن طالب ---------- */
+  const MIC = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+  let micRec = null;
+  function micSearch(inp, btn) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
+    if (micRec) { try { micRec.abort(); } catch (e) {} micRec = null; return; }
+    const rec = new SR(); rec.lang = "ar-EG"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 3;
+    const id = inp.id; let said = "", alts = [];
+    const live = () => document.getElementById(id) || inp, mb = () => { const x = live(); return x && x.parentNode && x.parentNode.querySelector(".mic-s"); };
+    const state = on => { const b = mb(); if (b) { b.classList.toggle("on", on); b.title = on ? "جارٍ الاستماع… قل اسم الطالب أو كوده" : "ابحث بالصوت"; } };
+    rec.onresult = ev => { const r = ev.results[ev.results.length - 1]; said = r[0].transcript.trim(); alts = [...r].map(x => x.transcript.trim()); const x = live(); if (x) x.placeholder = "«" + said + "»…"; };
+    rec.onerror = ev => { if (ev.error === "not-allowed" || ev.error === "service-not-allowed") toast("اسمح للمتصفح باستخدام الميكروفون لتبحث بالصوت."); };
+    rec.onend = () => { micRec = null; state(false); if (!said) return; const x = live(); if (!x) return; x.value = voiceQuery(alts.length ? alts : [said]); x.dispatchEvent(new Event("input", { bubbles: true })); };
+    micRec = rec; state(true);
+    try { rec.start(); } catch (e) { micRec = null; state(false); }
+  }
+  // يحوّل ما قيل إلى نص بحث: رقم/كود كما هو، أو أقرب اسم في كشف المادة إن كان واضحًا، وإلا الكلام نفسه
+  function voiceQuery(alts) {
+    const digits = alts.map(a => CM.digits ? CM.digits(a) : a).map(a => a.replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/\s+/g, "")).find(a => /^\d{3,}$/.test(a));
+    if (digits) return digits;
+    const roster = ((D && D.enroll) || []).map(e => ({ code: e.student_code, name: e.name }));
+    let best = null;
+    alts.forEach(a => { const c = HV.match({ name: a }, roster); if (c[0] && (!best || c[0].score > best.c[0].score)) best = { a, c }; });
+    if (best && HV.sure(best.c)) return nameOf(best.c[0].code);
+    if (best && best.c[0] && best.c[0].score >= .72) { const q = normAr(best.a); return roster.some(e => normAr(e.name).includes(q)) ? best.a : nameOf(best.c[0].code).split(" ").slice(0, 2).join(" "); }
+    return alts[0];
+  }
+  function micify(root) {
+    if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) return;
+    (root || document).querySelectorAll('input[type="search"]').forEach(inp => {
+      if (inp.dataset.mic) return; inp.dataset.mic = "1";
+      const b = document.createElement("button"); b.type = "button"; b.className = "btn sm ghost icon mic-s"; b.title = "ابحث بالصوت"; b.setAttribute("aria-label", "ابحث بالصوت"); b.innerHTML = MIC;
+      if (micRec && micRec._for === inp.id) b.classList.add("on");
+      b.onclick = () => micSearch(inp, b);
+      const w = document.createElement("span"); w.className = "mic-w"; inp.parentNode.insertBefore(w, inp); w.appendChild(inp); w.appendChild(b);
+    });
+  }
+  new MutationObserver(() => micify()).observe(document.body, { childList: true, subtree: true });
+
   /* ---------- تسليم استثنائي لطالب بعد انتهاء الموعد ---------- */
   let extFor = null;   // { tid, code, msg }
   function extBox(t) {
@@ -1790,7 +1834,7 @@
         ${s && s.submitted_at ? `<span class="small">سلّم ${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.version > 1 ? " · التسليم " + s.version : ""}</span>` : `<span class="small muted">لم يسلّم</span>`}
         <div class="row">${refusedFor(t, e) ? `<span class="chip bad">مرفوض · غائب ${DL(t)}</span><button class="btn xs" id="grExc">قبول بعذر</button>` : absentOnDue(t, e) ? `<span class="chip ${excusedOf(t, code) ? "ok" : "bad"}">${excusedOf(t, code) ? "غاب " + DL(t) + " · مقبول بعذر" : "غائب " + DL(t) + " · راجِع العذر"}</span>` : ""}${s && s.late ? `<span class="chip warn">متأخر</span>` : ""}${ck ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s && s.grade != null ? `<span class="chip ok">مرصودة: ${gN(totalOf(s))}</span>` : ""}</div>
         ${s && s.note ? `<p class="small">«${esc(s.note)}»</p>` : ""}</div>
-      ${partsOf(t) ? `<div class="gr-parts">${partsOf(t).map((p, i) => `<label class="f"><span>${esc(p.name)} <small class="muted">من ${gN(p.max)}</small></span><input type="text" class="grP" data-pi="${i}" inputmode="decimal" autocomplete="off" value="${esc(v("p" + i))}"></label>`).join("")}</div>` : ""}
+      ${partsOf(t) ? `<div class="gr-parts">${partsOf(t).map((p, i) => `<label class="f"><span>${esc(p.name)} <small class="muted">(من ${gN(p.max)})</small></span><input type="text" class="grP" data-pi="${i}" inputmode="decimal" autocomplete="off" value="${esc(v("p" + i))}"></label>`).join("")}</div>` : ""}
       <div class="gr-grade">
         <label class="f" ${partsOf(t) ? "hidden" : ""}><span>الدرجة من ${gN(t.max_grade)}</span><input type="text" id="grG" inputmode="decimal" autocomplete="off" value="${esc(v("grade"))}"></label>
         <label class="f"><span>بونص</span><input type="text" id="grB" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(v("bonus"))}"></label>
@@ -1921,16 +1965,17 @@
   }
 
   /* ---------- كشف الرصد: تنزيل للطباعة أو للملء، ثم رفعه ---------- */
-  async function exportEntrySheet(t) {
-    const btn = $("#tkSheet"); if (btn) { btn.disabled = true; btn.textContent = "جارٍ التجهيز…"; }
+  async function exportEntrySheet(t, pdf) {
+    const btn = $(pdf ? "#tkSheetPdf" : "#tkSheet"), lbl = btn ? btn.textContent : ""; if (btn) { btn.disabled = true; btn.textContent = "جارٍ التجهيز…"; }
     try {
       await loadExcelJS();
       const c = course(), wb = new ExcelJS.Workbook(), o = packOf(t);
       await HP.entrySheet(wb, { ...o, withWork: !isManual(t) });
       HP.metaSheet(wb, o);
-      await saveWb(wb, HD.fileName("كشف رصد - " + t.title + " - " + c.name) + ".xlsx");
+      const nm = HD.fileName("كشف رصد - " + t.title + " - " + c.name);
+      if (pdf) await HP.wbToPdf(wb, ["كشف الرصد"], nm + ".pdf"); else await saveWb(wb, nm + ".xlsx");
     } catch (e) { showErr(e); }
-    if (btn) { btn.disabled = false; btn.textContent = "كشف رصد للطباعة (إكسل)"; }
+    if (btn) { btn.disabled = false; btn.textContent = lbl; }
   }
   async function importEntrySheet(t, file) {
     try {
@@ -2259,8 +2304,8 @@
     } catch (e) { showErr(e); }
     btn.disabled = false; btn.textContent = old;
   }
-  async function exportGrades() {
-    const btn = $("#tkXls"); if (btn) { btn.disabled = true; btn.textContent = "جارٍ التجهيز…"; }
+  async function exportGrades(pdf) {
+    const btn = $(pdf ? "#tkPdf" : "#tkXls"), lbl = btn ? btn.textContent : ""; if (btn) { btn.disabled = true; btn.textContent = "جارٍ التجهيز…"; }
     try {
       await loadExcelJS();
       const c = course(), wb = new ExcelJS.Workbook(), ts = D.tasks.slice().sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
@@ -2292,40 +2337,64 @@
       [["المحاضر", 1], ["رئيس القسم", 3]].forEach(([tt, cc]) => { const cl = wk.getRow(ke + 2).getCell(cc); cl.value = tt + ": ……………………"; cl.font = { name: "Arial", size: 11, bold: true }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
       [8, 14, 38, 16].forEach((w, j) => { wk.getColumn(j + 1).width = w; });
       wk.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "6:6" };
-      const ws = wb.addWorksheet("تفاصيل الدرجات", { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 6 }] });
-      const head = ["م", "الكود", "الاسم", "المجموعة", ...ts.map(t => t.title + "\n(من " + gN(t.max_grade) + ")"), "مجموع التكليفات\n(من " + gN(S) + ")"];
-      if (hasCw) head.push("الأعمال الفصلية\n(من " + cw + ")");
-      if (hasCw && ex) head.push("الامتحان\n(من " + ex + ")", "المجموع\n(من " + (cw + ex) + ")");
-      head.push("الغياب", "حالة الغياب");
-      const N = head.length;
+      const ws = wb.addWorksheet("تفاصيل الدرجات", { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 7 }] });
+      // كل تكليف عمود واحد، والتكليف المقسّم: اسمه فوق أعمدة مشاريعه الفرعية ثم عمود مجموعه
+      const blocks = []; let cc = 5;
+      ts.forEach(t => { const P = partsOf(t); blocks.push({ t, P, c0: cc, tot: cc + (P ? P.length : 0) }); cc += P ? P.length + 1 : 1; });
+      const sumC = cc, totCols = blocks.map(b => b.tot);
+      const tail = ["مجموع التكليفات\n(من " + gN(S) + ")"];
+      if (hasCw) tail.push("الأعمال الفصلية\n(من " + cw + ")");
+      if (hasCw && ex) tail.push("الامتحان\n(من " + ex + ")", "المجموع\n(من " + (cw + ex) + ")");
+      tail.push("الغياب", "حالة الغياب");
+      const N = sumC - 1 + tail.length;
       sheetTitle(ws, N, "كشف درجات الأعمال الفصلية · " + c.name, courseSub(c));
       ws.mergeCells(3, 1, 3, N);
       ws.getCell(3, 1).value = [c.bylaw_code ? "كود المقرر " + c.bylaw_code : "", c.credits ? c.credits + " ساعات معتمدة" : "", hasCw ? "النهاية العظمى: أعمال فصلية " + cw + (ex ? "، امتحان " + ex + "، المجموع " + (cw + ex) : "") : "المادة غير مربوطة بمقرر في اللائحة", "قسم الديكور · " + ((window.CLASSMATE || {}).UNIVERSITY_NAME || "")].filter(Boolean).join(" · ");
       ws.getCell(3, 1).font = { name: "Arial", size: 10, bold: true, color: { argb: XC.title } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
       ws.mergeCells(4, 1, 4, N);
-      ws.getCell(4, 1).value = hasCw ? "الأعمال الفصلية = مجموع درجات التكليفات ÷ " + gN(S) + " × " + cw + "، مقرّبة إلى أقرب عدد صحيح، ولا تتجاوز " + cw + " مع البونص. درجة كل تكليف تشمل البونص. الخلية الفارغة: لم تُرصد درجة. الخلية الوردية: لم يسلّم." : "الخلية الفارغة: لم تُرصد درجة. الخلية الوردية: لم يسلّم.";
-      ws.getCell(4, 1).font = { name: "Arial", size: 9, color: { argb: XC.muted } }; ws.getCell(4, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
-      headRow(ws, 6, head, true);
-      const col = i => ws.getColumn(i).letter, first = 5, last = 4 + ts.length, sumC = last + 1;
+      ws.getCell(4, 1).value = (hasCw ? "الأعمال الفصلية = مجموع درجات التكليفات ÷ " + gN(S) + " × " + cw + "، مقرّبة إلى أقرب عدد صحيح، ولا تتجاوز " + cw + " مع البونص. " : "") + "درجة كل تكليف تشمل البونص، والتكليف المقسّم تظهر تحته درجات مشاريعه الفرعية ثم مجموعه. الخلية الفارغة: لم تُرصد درجة. الخلية الوردية: لم يسلّم.";
+      ws.getCell(4, 1).font = { name: "Arial", size: 9, color: { argb: XC.muted } }; ws.getCell(4, 1).alignment = { horizontal: "right", readingOrder: "rtl", wrapText: true }; ws.getRow(4).height = 28;
+      const hc = (r, c2, v, sub) => { const cl = ws.getCell(r, c2); cl.value = v; cl.fill = fill(sub ? "FF2C5A4E" : XC.head); cl.font = { name: "Arial", bold: true, size: sub ? 9 : 10, color: { argb: XC.headInk } }; cl.alignment = { horizontal: "center", vertical: "middle", wrapText: true, readingOrder: "rtl" }; cl.border = box; };
+      const both = (c2, v) => { hc(6, c2, v); hc(7, c2, ""); ws.mergeCells(6, c2, 7, c2); };
+      ["م", "الكود", "الاسم", "المجموعة"].forEach((v, k) => both(k + 1, v));
+      blocks.forEach(b => {
+        if (!b.P) return both(b.c0, b.t.title + "\n(من " + gN(b.t.max_grade) + ")");
+        hc(6, b.c0, b.t.title + " (من " + gN(b.t.max_grade) + ")"); for (let k = b.c0 + 1; k <= b.tot; k++) hc(6, k, ""); ws.mergeCells(6, b.c0, 6, b.tot);
+        b.P.forEach((p, k) => hc(7, b.c0 + k, (k + 1) + ". " + p.name + "\n(من " + gN(p.max) + ")", true));
+        hc(7, b.tot, "المجموع", true);
+      });
+      tail.forEach((v, k) => both(sumC + k, v));
+      ws.getRow(6).height = 40; ws.getRow(7).height = 40;
+      const col = i => ws.getColumn(i).letter, sumF = r => totCols.map(k => col(k) + r).join(",");
       rows.forEach((e, i) => {
-        const r = 7 + i, row = ws.getRow(r), ab = absences(e), w = CM.lvl(ab);
-        const vals = [i + 1, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—", ...ts.map(t => { if (!inTaskGrp(t, e) && !hasWork(t, e.student_code)) return "—"; const s = subOf(t, e.student_code); return s && s.grade != null ? totalOf(s) : null; })];
-        vals.forEach((v, j) => { row.getCell(j + 1).value = v; });
-        row.getCell(sumC).value = ts.length ? { formula: `IF(COUNT(${col(first)}${r}:${col(last)}${r})=0,"",SUM(${col(first)}${r}:${col(last)}${r}))` } : null;
+        const r = 8 + i, row = ws.getRow(r), ab = absences(e), w = CM.lvl(ab);
+        [i + 1, isNaN(+e.student_code) ? e.student_code : +e.student_code, e.name, e.grp || "—"].forEach((v, j) => { row.getCell(j + 1).value = v; });
+        let sumV = null;
+        blocks.forEach(b => {
+          const t = b.t, inT = inTaskGrp(t, e) || hasWork(t, e.student_code), s2 = subOf(t, e.student_code);
+          const tv = !inT ? "—" : s2 && s2.grade != null ? totalOf(s2) : null;
+          if (typeof tv === "number") sumV = (sumV || 0) + tv;
+          if (b.P) b.P.forEach((p, k) => { row.getCell(b.c0 + k).value = !inT ? "—" : s2 && Array.isArray(s2.parts) && s2.parts[k] != null ? Number(s2.parts[k]) : null; });
+          row.getCell(b.tot).value = tv;
+        });
+        sumV = sumV == null ? "" : Math.round(sumV * 100) / 100;
+        row.getCell(sumC).value = ts.length ? { formula: `IF(COUNT(${sumF(r)})=0,"",SUM(${sumF(r)}))`, result: sumV } : null;
         let k = sumC + 1;
-        if (hasCw) { row.getCell(k).value = { formula: `IF(${col(sumC)}${r}="","",MIN(${cw},ROUND(${col(sumC)}${r}/${S}*${cw},0)))` }; k++; }
-        if (hasCw && ex) { row.getCell(k).value = null; row.getCell(k + 1).value = { formula: `IF(OR(${col(k - 1)}${r}="",${col(k)}${r}=""),"",${col(k - 1)}${r}+${col(k)}${r})` }; k += 2; }
+        if (hasCw) { row.getCell(k).value = { formula: `IF(${col(sumC)}${r}="","",MIN(${cw},ROUND(${col(sumC)}${r}/${S}*${cw},0)))`, result: sumV === "" ? "" : Math.min(cw, Math.round(sumV / S * cw)) }; k++; }
+        if (hasCw && ex) { row.getCell(k).value = null; row.getCell(k + 1).value = { formula: `IF(OR(${col(k - 1)}${r}="",${col(k)}${r}=""),"",${col(k - 1)}${r}+${col(k)}${r})`, result: "" }; k += 2; }
         row.getCell(k).value = ab; row.getCell(k + 1).value = CM.warnOf(ab).t;
         row.eachCell({ includeEmpty: true }, (cl, j) => { if (j > N) return; cl.border = box; cl.font = { name: "Arial", size: 10.5 }; cl.alignment = { horizontal: j === 3 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
-        ts.forEach((t, j) => { const s = subOf(t, e.student_code); if ((inTaskGrp(t, e) || hasWork(t, e.student_code)) && !(s && s.submitted_at) && !(s && s.grade != null)) row.getCell(first + j).fill = fill("FFF7E0DD"); });
+        blocks.forEach(b => { const t = b.t, s2 = subOf(t, e.student_code);
+          if ((inTaskGrp(t, e) || hasWork(t, e.student_code)) && !(s2 && s2.submitted_at) && !(s2 && s2.grade != null)) for (let x = b.c0; x <= b.tot; x++) row.getCell(x).fill = fill("FFF7E0DD");
+          if (b.P) row.getCell(b.tot).font = { name: "Arial", size: 10.5, bold: true }; });
         [sumC, ...(hasCw ? [sumC + 1] : [])].forEach(j => { row.getCell(j).font = { name: "Arial", size: 10.5, bold: true }; });
         const stc = row.getCell(k + 1); stc.fill = fill(WARNX[w][0]); stc.font = { name: "Arial", size: 10, bold: true, color: { argb: WARNX[w][1] } };
       });
-      const end = 7 + rows.length;
-      ws.autoFilter = { from: { row: 6, column: 1 }, to: { row: end - 1, column: N } };
-      ws.columns.forEach((cl, j) => { cl.width = j === 0 ? 5 : j === 1 ? 12 : j === 2 ? 30 : j === 3 ? 9 : j < last ? 12 : 14; });
-      const sig = ws.getRow(end + 2); [["المحاضر", 2], ["رئيس القسم", Math.max(5, Math.floor(N / 2))], ["رئيس الكنترول", Math.max(7, N - 2)]].forEach(([t, cc]) => { const cl = sig.getCell(Math.min(cc, N)); cl.value = t + ": ……………………"; cl.font = { name: "Arial", size: 10.5, bold: true }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
-      ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "6:6" };
+      const end = 8 + rows.length;
+      ws.autoFilter = { from: { row: 7, column: 1 }, to: { row: end - 1, column: N } };
+      for (let j = 1; j <= N; j++) ws.getColumn(j).width = j === 1 ? 5 : j === 2 ? 12 : j === 3 ? 30 : j === 4 ? 9 : j < sumC ? (blocks.some(b => b.P && j >= b.c0 && j < b.tot) ? 10 : 12) : 14;
+      const sig = ws.getRow(end + 2); [["المحاضر", 2], ["رئيس القسم", Math.max(5, Math.floor(N / 2))], ["رئيس الكنترول", Math.max(7, N - 2)]].forEach(([t, cc2]) => { const cl = sig.getCell(Math.min(cc2, N)); cl.value = t + ": ……………………"; cl.font = { name: "Arial", size: 10.5, bold: true }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
+      ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "6:7" };
       // تفاصيل التسليم
       const wd = wb.addWorksheet("تفاصيل التسليم", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
       sheetTitle(wd, 12, "تفاصيل التسليم · " + c.name, courseSub(c));
@@ -2339,9 +2408,10 @@
         rr++; }));
       wd.autoFilter = { from: { row: 4, column: 1 }, to: { row: Math.max(rr - 1, 5), column: 12 } };
       [24, 12, 28, 9, 18, 7, 13, 30, 16, 8, 8, 30].forEach((w2, j) => { wd.getColumn(j + 1).width = w2; });
-      await saveWb(wb, "كشف الكنترول - " + c.name + " " + new Date().toLocaleDateString("en-CA") + ".xlsx");
+      const nm = HD.fileName("كشف الكنترول - " + c.name + " " + new Date().toLocaleDateString("en-CA"));
+      if (pdf) await HP.wbToPdf(wb, ["كشف الكنترول", "تفاصيل الدرجات"], nm + ".pdf"); else await saveWb(wb, nm + ".xlsx");
     } catch (e) { showErr(e); }
-    if (btn) { btn.disabled = false; btn.textContent = "كشف الكنترول (إكسل)"; }
+    if (btn) { btn.disabled = false; btn.textContent = lbl; }
   }
 
 
