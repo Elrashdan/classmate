@@ -73,6 +73,8 @@
     device_mismatch: "هذا الحساب مرتبط بهاتف أو متصفح آخر. ادخل بكودك وكلمة السر لترى أين، ولتنقله إلى هنا إن أردت.",
     absent_on_due: "لا يُقبل تسليمك لأنك غبت في محاضرة يوم طرح المشروع (أو يوم التسليم). إن كان لك عذر فراجِع المحاضر ليقبله.",
     bad_until: "اختر موعدًا بعد الآن، وفي حدود 60 يومًا.",
+    bad_parts: "اكتب من 2 إلى 10 مشاريع فرعية، لكل منها اسم ودرجة عظمى أكبر من صفر.",
+    parts_in_use: "رُصدت درجات على المشاريع الفرعية الحالية، فلا يمكن تغيير عددها. يمكنك تغيير أسمائها ودرجاتها العظمى فقط.",
     bad_rule: "اختيار غير صحيح.",
     unknown_passkey: "هذه البصمة غير مسجلة في Hadro. ادخل بكودك وكلمة السر، ثم فعّل الدخول بالبصمة من صفحتك.",
     challenge_expired: "انتهت مهلة العملية. حاول مرة أخرى.",
@@ -200,7 +202,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b42)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b43)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

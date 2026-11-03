@@ -524,3 +524,14 @@ fieldset.abs-rule input{width:auto;margin:0}
 .ext-f { display: grid; grid-template-columns: 1fr 220px; gap: 10px; align-items: end; }
 .ext-f > .row { grid-column: 1 / -1; }
 @media (max-width: 640px) { .ext-f { grid-template-columns: 1fr; } }
+/* تقسيم الدرجة على مشاريع فرعية */
+.tf-parts { display: grid; gap: 8px; }
+.tf-parts .chk { display: flex; gap: 8px; align-items: center; }
+#tfParts { display: grid; gap: 6px; padding: 10px; border: 1px dashed var(--line, #d5ddda); border-radius: 12px; }
+.tfp-row { display: grid; grid-template-columns: 22px 1fr 110px auto; gap: 8px; align-items: center; }
+.tk-tbl th.pth { max-width: 110px; white-space: normal; line-height: 1.25; }
+.tk-tbl th.pth small { display: block; font-weight: 400; opacity: .75; }
+.tk-tbl .pin { width: 64px; }
+.gr-parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.tk-parts { display: grid; gap: 4px; margin-top: 6px; }
+.tk-parts div { display: flex; justify-content: space-between; gap: 8px; font-size: .9em; }

@@ -65,7 +65,7 @@
       ${rows.map(x => { const [k, s] = stateOf(x); return `<tr><td class="c">${x.n}</td><td class="mono">${esc(x.code)}</td><td>${esc(x.name)}</td><td>${esc(x.grp || "—")}</td><td><span class="chip ${k}">${esc(s)}</span></td><td>${x.s && x.s.url ? `<a href="${esc(x.s.url)}" target="_blank" rel="noopener noreferrer">${x.s.kind === "drive" ? "فتح الملف" : "فتح الرابط"}</a>${x.s.kind === "drive" && x.s.size ? ` <small class="muted">${esc(HD.size(x.s.size))}</small>` : ""}` : ""}</td></tr>`; }).join("")}
       </tbody></table></div></section>`;
     const pack = () => ({ base: HD.fileName(t.title + " - " + D.course + (t.grp ? " - مجموعة " + t.grp : "")), title: t.title, sub: D.course + (t.grp ? " · مجموعة " + t.grp : "") + " · " + new Date().toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }),
-      max: t.max_grade, dl: DL(t), taskId: t.id, taskTitle: t.title, cid: t.course_id, rows });
+      max: t.max_grade, parts: t.parts, dl: DL(t), taskId: t.id, taskTitle: t.title, cid: t.course_id, rows });
     const b = $("#dlAll"); if (b) b.onclick = async () => {
       if (busy) return; busy = "جارٍ التحضير…"; msg = null; render();
       try {

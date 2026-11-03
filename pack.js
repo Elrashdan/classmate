@@ -40,29 +40,45 @@
   /* «كشف الرصد»: o = { title, sub, max, dl, withWork, taskId, taskTitle, cid, rows: [{ n, code, name, grp, s, refused }], files?: {code: اسم الملف} }
      يقرؤه «رفع كشف إكسل» في صفحة فريق المادة (أول ورقة ظاهرة + ورقة hadro المخفية بمعرّف التكليف) */
   HP.entrySheet = async (wb, o) => {
-    const max = Number(o.max), withFile = !!o.files, NC = (o.withWork ? 8 : 7) + (withFile ? 1 : 0);
+    const max = Number(o.max), withFile = !!o.files, P = Array.isArray(o.parts) && o.parts.length ? o.parts : null, np = P ? P.length : 0;
+    // الأعمدة: م · الكود · الاسم · المجموعة · [المشاريع الفرعية…] · الدرجة · بونص · ملاحظة · [العمل] · [رقم الملف]
+    const cG = 5 + np, cB = cG + 1, cF = cG + 2, cW = o.withWork ? cG + 3 : 0, cN = withFile ? cG + 3 + (o.withWork ? 1 : 0) : 0, NC = cG + 2 + (o.withWork ? 1 : 0) + (withFile ? 1 : 0);
+    const L = n => { let x = ""; while (n > 0) { const m = (n - 1) % 26; x = String.fromCharCode(65 + m) + x; n = Math.floor((n - 1) / 26); } return x; };
     const ws = wb.addWorksheet("كشف الرصد", { views: [{ rightToLeft: true, state: "frozen", ySplit: 5 }] });
     sheetTitle(ws, NC, "كشف رصد: " + o.title, o.sub);
     ws.mergeCells(3, 1, 3, NC);
-    ws.getCell(3, 1).value = "الدرجة العظمى " + gN(max) + " · اكتب الدرجة في خانتها والبونص (إن وجد) في خانته. لا تغيّر عمود الكود. بعد الملء يُرفع الملف من «رفع كشف إكسل» في صفحة التكليف على Hadro فتُرصد الدرجات.";
-    ws.getCell(3, 1).font = { name: "Arial", size: 9.5, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl", wrapText: true }; ws.getRow(3).height = 30;
-    headRow(ws, 5, ["م", "الكود", "الاسم", "المجموعة", "الدرجة (من " + gN(max) + ")", "بونص", "ملاحظة", ...(o.withWork ? ["العمل المسلَّم"] : []), ...(withFile ? ["رقم الملف في المجلد"] : [])]);
+    ws.getCell(3, 1).value = "الدرجة العظمى " + gN(max) + (P ? " (مقسّمة: " + P.map(p => p.name + " " + gN(p.max)).join(" + ") + ") · اكتب درجة كل مشروع فرعي في خانته، والمجموع يُحسب وحده" : " · اكتب الدرجة في خانتها") + "، والبونص (إن وجد) في خانته. لا تغيّر عمود الكود. بعد الملء يُرفع الملف من «رفع كشف إكسل» في صفحة التكليف على Hadro فتُرصد الدرجات.";
+    ws.getCell(3, 1).font = { name: "Arial", size: 9.5, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl", wrapText: true }; ws.getRow(3).height = P ? 42 : 30;
+    headRow(ws, 5, ["م", "الكود", "الاسم", "المجموعة", ...(P ? P.map((p, i) => "جزء " + (i + 1) + ": " + p.name + " (من " + gN(p.max) + ")") : []), (P ? "المجموع" : "الدرجة") + " (من " + gN(max) + ")", "بونص", "ملاحظة", ...(o.withWork ? ["العمل المسلَّم"] : []), ...(withFile ? ["رقم الملف في المجلد"] : [])]);
+    const line = { style: "thin", color: { argb: "FF9AA7A3" } };
     o.rows.forEach((x, i) => {
-      const s = x.s, r = ws.getRow(6 + i);
-      [x.n, codeVal(x.code), x.name + (x.refused ? " (مرفوض: غائب " + o.dl + ")" : ""), x.grp || "—", s && s.grade != null ? Number(s.grade) : null, s && Number(s.bonus) ? Number(s.bonus) : null, (s && s.feedback) || ""].forEach((v, j) => { r.getCell(j + 1).value = v; });
-      if (o.withWork) r.getCell(8).value = s && s.url ? { text: (s.kind === "drive" ? s.file_name || "فتح الملف" : "فتح الرابط") + (s.late ? " (متأخر)" : ""), hyperlink: s.url } : x.refused ? "مرفوض: غائب " + o.dl : "لم يسلّم";
-      if (withFile) r.getCell(NC).value = o.files[x.code] || (s && s.kind === "link" ? "رابط خارجي" : "");
+      const s = x.s, rn = 6 + i, r = ws.getRow(rn);
+      [x.n, codeVal(x.code), x.name + (x.refused ? " (مرفوض: غائب " + o.dl + ")" : ""), x.grp || "—"].forEach((v, j) => { r.getCell(j + 1).value = v; });
+      if (P) {
+        P.forEach((p, k) => { const v = s && Array.isArray(s.parts) ? s.parts[k] : null; r.getCell(5 + k).value = v != null ? Number(v) : null; });
+        const has = s && s.grade != null;
+        r.getCell(cG).value = { formula: `IF(COUNT(${L(5)}${rn}:${L(4 + np)}${rn})=0,"",SUM(${L(5)}${rn}:${L(4 + np)}${rn}))`, result: has ? Number(s.grade) : "" };
+      } else r.getCell(cG).value = s && s.grade != null ? Number(s.grade) : null;
+      r.getCell(cB).value = s && Number(s.bonus) ? Number(s.bonus) : null;
+      r.getCell(cF).value = (s && s.feedback) || "";
+      if (cW) r.getCell(cW).value = s && s.url ? { text: (s.kind === "drive" ? s.file_name || "فتح الملف" : "فتح الرابط") + (s.late ? " (متأخر)" : ""), hyperlink: s.url } : x.refused ? "مرفوض: غائب " + o.dl : "لم يسلّم";
+      if (cN) r.getCell(cN).value = o.files[x.code] || (s && s.kind === "link" ? "رابط خارجي" : "");
       r.height = 24;
-      r.eachCell({ includeEmpty: true }, (cl, j) => { if (j > NC) return; cl.border = { top: { style: "thin", color: { argb: "FF9AA7A3" } }, bottom: { style: "thin", color: { argb: "FF9AA7A3" } }, left: { style: "thin", color: { argb: "FF9AA7A3" } }, right: { style: "thin", color: { argb: "FF9AA7A3" } } };
-        cl.font = { name: "Arial", size: j === 5 || j === 6 ? 13 : j >= 8 ? 10 : 11, bold: j === 5, ...(j === 8 && o.withWork && s && s.url ? { color: { argb: "FF1D6B58" }, underline: true } : {}) }; cl.alignment = { horizontal: j === 3 || j === 7 || j === 8 ? "right" : "center", vertical: "middle", readingOrder: "rtl", ...(j === 8 ? { shrinkToFit: true } : {}) }; if (i % 2) cl.fill = fill(XC.band); });
-      [5, 6].forEach(j => { r.getCell(j).dataValidation = { type: "decimal", operator: "between", formulae: [0, max], allowBlank: true, showErrorMessage: true, errorTitle: "درجة غير صحيحة", error: "اكتب رقمًا من 0 إلى " + gN(max) }; r.getCell(j).protection = { locked: false }; });
-      r.getCell(7).protection = { locked: false };
+      r.eachCell({ includeEmpty: true }, (cl, j) => { if (j > NC) return; cl.border = { top: line, bottom: line, left: line, right: line };
+        const num = (j >= 5 && j <= cB);
+        cl.font = { name: "Arial", size: num ? 13 : j >= cW && cW ? 10 : 11, bold: j === cG, ...(j === cW && s && s.url ? { color: { argb: "FF1D6B58" }, underline: true } : {}) };
+        cl.alignment = { horizontal: j === 3 || j === cF || j === cW ? "right" : "center", vertical: "middle", readingOrder: "rtl", ...(j === cW ? { shrinkToFit: true } : {}) };
+        if (i % 2) cl.fill = fill(XC.band); });
+      const val = (cell, mx) => { cell.dataValidation = { type: "decimal", operator: "between", formulae: [0, mx], allowBlank: true, showErrorMessage: true, errorTitle: "درجة غير صحيحة", error: "اكتب رقمًا من 0 إلى " + gN(mx) }; cell.protection = { locked: false }; };
+      if (P) P.forEach((p, k) => val(r.getCell(5 + k), Number(p.max))); else val(r.getCell(cG), max);
+      val(r.getCell(cB), max);
+      r.getCell(cF).protection = { locked: false };
     });
     const end = 6 + o.rows.length;
     const sg = ws.getRow(end + 1); ws.mergeCells(end + 1, 1, end + 1, NC); sg.height = 34;
     sg.getCell(1).value = "اسم المصحح وتوقيعه: ……………………………………     التاريخ: ……… / ……… / ………"; sg.getCell(1).font = { name: "Arial", size: 11, bold: true }; sg.getCell(1).alignment = { horizontal: "right", vertical: "bottom", readingOrder: "rtl" };
-    [5, 12, 32, 10, 15, 10, 30, ...(o.withWork ? [34] : []), ...(withFile ? [12] : [])].forEach((w, j) => { ws.getColumn(j + 1).width = w; });
-    ws.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "5:5", margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.6, header: 0.2, footer: 0.3 } };
+    [5, 12, 32, 10, ...(P ? P.map(() => 13) : []), 15, 10, 30, ...(o.withWork ? [34] : []), ...(withFile ? [12] : [])].forEach((w, j) => { ws.getColumn(j + 1).width = w; });
+    ws.pageSetup = { orientation: P && np > 2 ? "landscape" : "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "5:5", margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.6, header: 0.2, footer: 0.3 } };
     await ws.protect("", { selectLockedCells: true, selectUnlockedCells: true, formatColumns: true, formatRows: true });
     return ws;
   };
