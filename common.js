@@ -200,46 +200,34 @@
   // شاشة التحميل: شعار Hadro يُرسَم ثم تقفز نقطته، حتى تجهز الصفحة
   CM.loaderHtml = (text) => `<div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">${text || "جارٍ التحميل…"}</span></div>`;
   CM.loader = (el, text) => { if (el) el.innerHTML = CM.loaderHtml(text); };
-  // واجهة البطل: شبكة وتوهّج بلون الثيم، وكتاب مفتوح كبير مرسوم بنقاط بارامترية يملأ الخلفية كلها:
-  // صفحاته ترتفع من الكعب نحو الجانبين، وعليها أسطر نصّ منقّطة، وتضيء نقاط منها كأنها تُقرأ (تُولَّد مرة وتُحفظ)
+  // واجهة البطل: شبكة خفيفة وتوهّج بلون الثيم، وخلفية هادئة متصلة (تُولَّد مرة وتُحفظ)
+  //  A: خطوط انسيابية بارامترية كأسطر كرّاسة تنحني بهدوء   B: ورقة رسم هندسي بنقاط متساوية القياس تتلاشى نحو الوسط
   let artCache = null;
   CM.heroArt = () => {
     if (artCache) return artCache;
-    const W = 1200, H = 420, K = 2, X0 = W / 2, WP = 560, step = 6.5;
-    let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    let img = ""; const lit = [];
-    const lift = u => 78 * Math.sin(Math.min(1, u * 1.18) * Math.PI / 2) - 10 * u * u;   // ارتفاع الصفحة عن الكعب
-    const yT = u => 128 - lift(u), yB = u => 396 - lift(u) * .82;
-    try {
-      const d = document.createElement("canvas"); d.width = W * K; d.height = H * K; const dx = d.getContext("2d");
-      if (dx) {
-        dx.scale(K, K); dx.fillStyle = "#5cc4a6";
-        const dot = (x, y, r, a) => { dx.globalAlpha = a; dx.beginPath(); dx.arc(x, y, r, 0, 7); dx.fill(); };
-        for (const sd of [-1, 1]) {
-          // حواف الصفحة: العليا والسفلى والخارجية، مع سُمك الصفحات أسفل الحافة
-          for (let x = 0; x <= WP; x += step) { const u = x / WP, X = X0 + sd * x;
-            dot(X, yT(u), 1.5 + .5 * u, .85); dot(X, yB(u), 1.5 + .5 * u, .85);
-            for (let k = 1; k <= 4; k++) if (u > .04) dot(X + sd * k * 2.2 * u, yB(u) + k * 4.5, 1.1 + .3 * u, .55 - k * .1);
-          }
-          for (let y = yT(1); y <= yB(1); y += step) dot(X0 + sd * WP, y, 1.9, .85);
-          for (let k = 1; k <= 4; k++) for (let y = yT(1) + k * 3; y <= yB(1) + k * 4.5; y += step) dot(X0 + sd * (WP + k * 2.2), y, 1.2, .5 - k * .09);
-          // أسطر النص: كلمات منقّطة متفاوتة الطول، تنحني مع الصفحة
-          const rows = 15;
-          for (let r = 1; r < rows; r++) {
-            const v = r / rows; let x = WP * .07, on = rnd() < .8, run = 3 + Math.floor(rnd() * 9);
-            const endU = r === rows - 1 ? .55 : .93;
-            while (x < WP * endU) {
-              const u = x / WP, X = X0 + sd * x, Y = yT(u) + v * (yB(u) - yT(u));
-              if (on) { if (rnd() < .035 && lit.length < 60) lit.push([X, Y]); else dot(X, Y, 1.05 + .55 * u, .34 + .22 * Math.sin(u * 3 + r) ** 2); }
-              x += step; if (--run <= 0) { on = !on; run = on ? 3 + Math.floor(rnd() * 10) : 1 + Math.floor(rnd() * 2); }
-            }
-          }
+    const W = 1200, H = 420, style = window.HADRO_ART || "A";
+    let body = "";
+    if (style === "A") {
+      const N = 26, P = [];
+      for (let i = 0; i < N; i++) {
+        const t = i / (N - 1), base = 40 + t * 360, pts = [];
+        for (let x = -20; x <= W + 20; x += 20) {
+          const u = x / W;
+          const y = base + 26 * Math.sin(u * Math.PI * 2 * 1.1 + t * 2.4) + 14 * Math.sin(u * Math.PI * 2 * 2.3 - t * 3.1) + 40 * (t - .5) * Math.cos(u * Math.PI);
+          pts.push((x === -20 ? "M" : "L") + x + " " + y.toFixed(1));
         }
-        for (let y = yT(0) - 6; y <= yB(0) + 22; y += step * .8) dot(X0, y, 2, .95);   // الكعب
-        img = `<image href="${d.toDataURL("image/png")}" x="0" y="0" width="${W}" height="${H}"/>`;
+        P.push(`<path d="${pts.join("")}" opacity="${(.1 + .22 * Math.sin(t * Math.PI)).toFixed(2)}"/>`);
       }
-    } catch (e) { img = ""; }
-    return artCache = `<svg class="hx-art" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${img}${lit.map(([x, y]) => `<circle class="lt" style="animation-delay:${(rnd() * 7).toFixed(2)}s" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.2"/>`).join("")}</svg>`;
+      body = `<g class="hx-flow" fill="none" stroke="#7fd6bb" stroke-width="1.1">${P.join("")}</g>`;
+    } else {
+      const S = 26, h = S * Math.sqrt(3) / 2, D = [];
+      for (let r = 0, y = 8; y < H; r++, y += h) for (let x = (r % 2) * S / 2; x < W; x += S) {
+        const dx = (x - W / 2) / (W / 2), dy = (y - H * .4) / H, k = Math.min(1, Math.sqrt(dx * dx + dy * dy * 3) * 1.1);
+        D.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(.8 + .9 * k).toFixed(2)}" opacity="${(.08 + .32 * k).toFixed(2)}"/>`);
+      }
+      body = `<g fill="#7fd6bb">${D.join("")}</g>`;
+    }
+    return artCache = `<svg class="hx-art" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${body}</svg>`;
   };
   CM.hero = (o) => `<section class="hx${o.small ? " sm" : ""}">${CM.heroArt()}<div class="hx-in">
     <div class="hx-logo">${CM.markHtml()}</div>${o.eyebrow ? `<div class="hx-eb">${o.eyebrow}</div>` : ""}<h2>${o.title}</h2>${o.sub ? `<p>${o.sub}</p>` : ""}${o.cta ? `<div class="hx-cta">${o.cta}</div>` : ""}${o.extra || ""}</div></section>`;
@@ -258,7 +246,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b48)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b49)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
