@@ -333,12 +333,27 @@
       <section class="hero"><h2>أهلًا بك في Hadro</h2><p class="muted">اختر طريقة الدخول</p></section>
       <div class="choose">
         <button type="button" class="tile big" id="chUg">${ICO.ug}<b>طالب مرحلة البكالوريوس</b><span class="muted small">تسجيل الحضور، والتكليفات، والدرجات</span></button>
-        <a class="tile big" href="pg.html">${ICO.pg}<b>طالب الدراسات العليا</b><span class="muted small">الدبلوم والماجستير والدكتوراه · تسجيل المقررات</span></a>
-        <a class="tile big" href="staff.html">${ICO.st}<b>عضو هيئة التدريس أو معيد</b><span class="muted small">المحاضرات، والكشوف، والتكليفات</span></a>
+        <a class="tile big" href="pg.html" data-role="pg">${ICO.pg}<b>طالب الدراسات العليا</b><span class="muted small">الدبلوم والماجستير والدكتوراه · تسجيل المقررات</span></a>
+        <a class="tile big" href="staff.html" data-role="staff">${ICO.st}<b>عضو هيئة التدريس أو معيد</b><span class="muted small">المحاضرات، والكشوف، والتكليفات</span></a>
       </div>`;
-    $("#chUg").onclick = () => { chosen = true; authMsg = ""; renderAuth(); };
+    $("#chUg").onclick = () => { chosen = true; authMsg = ""; try { history.pushState({ auth: 1 }, ""); } catch (e) {} renderAuth(); };
+    // الانتقال بلا ترك الصفحة الموحدة في سجل الرجوع: «رجوع» من صفحة المحاضر لا يعيد إلى هنا
+    app.querySelectorAll("[data-role]").forEach(a => a.onclick = ev => { ev.preventDefault(); store.set("cm_role", a.dataset.role); location.replace(a.getAttribute("href")); });
+  }
+  // من اختار قبل ذلك ودخوله ما زال قائمًا: إلى صفحته مباشرة
+  function autoRole() {
+    const r = store.get("cm_role"); let keys = [];
+    try { keys = Object.keys(localStorage); } catch (e) {}
+    if (r === "staff" && keys.some(k => /^sb-.*-auth-token$/.test(k))) { location.replace("staff.html"); return true; }
+    if (r === "pg" && keys.includes("hadro-pg-auth")) { location.replace("pg.html"); return true; }
+    return false;
   }
   let chosen = false;
+  window.addEventListener("popstate", e => {
+    const st = e.state || {};
+    if (tkId && !st.tk) { if (up) { try { history.pushState({ tk: tkId }, ""); } catch (x) {} return; } tkId = null; $("#tkOv").hidden = true; renderHome(); return; }
+    if (!token && chosen && !st.auth && !rf && !rs && !move && !busy) { chosen = false; authMsg = ""; renderChoose(); }
+  });
   document.addEventListener("hadro:home", e => {
     e.preventDefault();
     if (up) return;
@@ -419,6 +434,7 @@
 
   /* ---------------- home ---------------- */
   async function loadHome(silent) {
+    if (!silent && !home && !rf) CM.loader(app, "جارٍ تجهيز صفحتك…");
     try {
       home = await rpc("student_home", { p_token: token });
       if (!limited && pk.ok && pk.count == null) rpc("student_passkey_count", { p_token: token }).then(n => { pk.count = Number(n) || 0; if (home && !rf && !tkId) renderHome(); }).catch(() => {});
@@ -699,8 +715,9 @@
     tkId = id; pickFile = null; linkMode = !HD.ready; tkMsg = null;
     if (HD.ready) HD.loadGis().catch(() => {});
     $("#tkOv").hidden = false; renderTask(); loadTasks(true);
+    try { if (!(history.state && history.state.tk)) history.pushState({ tk: id }, ""); } catch (e) {}
   }
-  function closeTask() { if (up) return; tkId = null; $("#tkOv").hidden = true; renderHome(); }
+  function closeTask() { if (up) return; if (history.state && history.state.tk) { history.back(); return; } tkId = null; $("#tkOv").hidden = true; renderHome(); }
   const extTxt = t => new Date(t.ext_until).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
   const canSubmit = t => t.mode !== "manual" && !t.refused && !(t.mine && t.mine.graded) && (t.late === "accept" || !!t.ext_until || new Date(t.due_at).getTime() >= nowS());
   function renderTask() {
@@ -990,7 +1007,7 @@
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && token && !busy) loadHome(true); });
 
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
-  if (token) loadHome(); else renderAuth();
+  if (token) loadHome(); else if (!autoRole()) renderAuth();
 })();
 </script>
 </body>

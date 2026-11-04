@@ -192,12 +192,12 @@
   });
 
   async function signOut(msg) {
-    stopLoops(); closeScanner(); await sb.auth.signOut().catch(() => {});
+    stopLoops(); closeScanner(); store.del("cm_role"); await sb.auth.signOut().catch(() => {});
     me = null; D = null; login = { step: "pass", email: "", err: msg || "", busy: false }; renderLogin();
   }
 
   async function afterLogin() {
-    app.innerHTML = `<div class="empty" style="margin-top:40px"><span class="spinner"></span></div>`;
+    CM.loader(app, "جارٍ تجهيز صفحتك…");
     try {
       me = await rpc("staff_me");
       if (!me) return signOut("هذا البريد غير مسجَّل لمحاضر، أو أن حسابه موقوف. تواصل مع مسؤول القسم.");
@@ -488,8 +488,24 @@
     ["log", "السجل", ICO('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>')]
   ];
   let ctab = ["live", "students", "reg", "report", "tasks", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live";
+  // زر «رجوع» في الهاتف: يتنقّل بين أقسام البرنامج بدل أن يخرج منه
+  function navMark() {
+    try {
+      const st = { v: view, t: view === "course" ? ctab : null }, cur = history.state;
+      if (!cur || cur.v === undefined) history.replaceState(st, "");
+      else if (cur.v !== st.v || cur.t !== st.t) history.pushState(st, "");
+    } catch (e) {}
+  }
+  window.addEventListener("popstate", e => {
+    const s = e.state; if (!me || !s || s.v === undefined) return;
+    closeFpop(); const was = view; view = s.v;
+    if (s.t) { ctab = s.t; store.set("cm_tab", ctab); }
+    if (was === "admin" && view === "course") loadCourse().catch(showErr);
+    else { if (view === "admin") stopLoops(); render(); }
+    window.scrollTo({ top: 0 });
+  });
   function showTab(k) {
-    ctab = k; store.set("cm_tab", k); closeFpop();
+    ctab = k; store.set("cm_tab", k); closeFpop(); navMark();
     document.querySelectorAll("[data-ct]").forEach(b => b.setAttribute("aria-selected", b.dataset.ct === k));
     document.querySelectorAll(".tabpane").forEach(p => p.hidden = p.id !== "pane-" + k);
     const nav = $(".ctabs"); if (nav && nav.getBoundingClientRect().top < 0 && getComputedStyle(nav).position === "sticky") window.scrollTo({ top: window.scrollY + nav.getBoundingClientRect().top - 2 });
@@ -642,7 +658,7 @@
       <div class="tabpane" id="pane-log" role="tabpanel" ${ctab === "log" ? "" : "hidden"}><section class="panel" id="auditPanel"></section></div>`}
       </div>`;
     document.body.classList.toggle("has-ctabs", view === "course" && !!$(".ctabs"));
-    wireHome(c);
+    wireHome(c); navMark();
     document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));
     tabBadges();
     $("#out").onclick = () => signOut();

@@ -131,6 +131,7 @@
     try {
       const { data } = await sb.auth.getSession();
       if (!data || !data.session) return renderAuth();
+      if (!D) CM.loader(app, "جارٍ تجهيز صفحتك…");
       D = await rpc("pg_me");
       if (pwWanted((D.email || "").toLowerCase())) {   // دخل بالرابط الذي في البريد
         if (pendingPw) { const r = await sb.auth.updateUser({ password: pendingPw }); if (!r.error) { pendingPw = ""; store.del(PWK); } }
@@ -143,7 +144,7 @@
       app.innerHTML = header() + `<section class="panel col"><div class="msg bad">${esc(err(e))}</div><button class="btn" id="rl">إعادة المحاولة</button></section>`; $("#rl").onclick = load;
     }
   }
-  const signOut = async () => { try { await sb.auth.signOut(); } catch (e) {} D = null; st = { step: "pass", email: "", err: "", busy: false }; renderAuth(); };
+  const signOut = async () => { store.del("cm_role"); try { await sb.auth.signOut(); } catch (e) {} D = null; st = { step: "pass", email: "", err: "", busy: false }; renderAuth(); };
 
   /* ---------- البيانات الشخصية (أول مرة، أو تعديل) ---------- */
   function renderProfile(edit) {
