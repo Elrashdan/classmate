@@ -490,6 +490,13 @@
   ];
   let ctab = ["live", "students", "reg", "report", "tasks", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live";
   // زر «رجوع» في الهاتف: يتنقّل بين أقسام البرنامج بدل أن يخرج منه
+  // شريط المادة: خلفيته مستمدة من أيقونة القسم المفتوح، ويتغيّر مع التبويب
+  const TAB_SUB = { live: "ابدأ محاضرة وتابع الحضور لحظة بلحظة", students: "ملف الطلبة والمجموعات والأجهزة", reg: "كشف الحضور والغياب والإنذارات", report: "نسب الحضور وتقارير المادة", tasks: "التكليفات والتسليم والدرجات", team: "المحاضرون والمعيدون في المادة", log: "كل ما حدث في المادة" };
+  const icoInner = ic => ic.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
+  function courseBand(c) {
+    const t = CTABS.find(x => x[0] === ctab) || CTABS[0];
+    return CM.band({ id: "cband", cls: "course-h", icon: icoInner(t[2]), eyebrow: t[1] + " · " + esc(TAB_SUB[t[0]] || ""), title: esc(c.name), sub: esc(clsLabel(c)) + (c.archived ? " · مؤرشفة" : "") + (c.auto_created ? " · أنشأها النظام من استمارات التسجيل" : "") });
+  }
   let lastRise = null;
   function navMark() {
     try {
@@ -508,6 +515,7 @@
   });
   function showTab(k) {
     ctab = k; store.set("cm_tab", k); closeFpop(); navMark();
+    const cb = $("#cband"), c0 = course(); if (cb && c0) { cb.outerHTML = courseBand(c0); const nb = $("#cband"); if (nb) { nb.classList.add("swap"); } }
     document.querySelectorAll("[data-ct]").forEach(b => b.setAttribute("aria-selected", b.dataset.ct === k));
     document.querySelectorAll(".tabpane").forEach(p => p.hidden = p.id !== "pane-" + k);
     const nav = $(".ctabs"); if (nav && nav.getBoundingClientRect().top < 0 && getComputedStyle(nav).position === "sticky") window.scrollTo({ top: window.scrollY + nav.getBoundingClientRect().top - 2 });
@@ -555,10 +563,54 @@
     team: () => "المحاضرون والمعيدون",
     log: () => "كل ما حدث في المادة"
   };
+  /* ---------- اختيار المادة على مراحل: العام ← الفصل ← المستوى ← الشعبة ← المادة ---------- */
+  let pk = { open: false, lvl: "all", tr: "all" };
+  const lvKey = x => progOf(x) + "|" + (x.level || 0);
+  const lvLabel = k => { const [pr, l] = k.split("|"); return (pr === "خاص" ? "الخاص · " : "") + (+l ? LEVELS[+l] : "غير مصنَّفة"); };
+  const CHEV = `<svg class="cpk-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
+  function pickerHtml(where) {
+    const c = course(), list = filtered();
+    const lvls = [...new Set(list.map(lvKey))].sort((a, b) => (a.startsWith("خاص") - b.startsWith("خاص")) || (+a.split("|")[1] || 9) - (+b.split("|")[1] || 9));
+    if (pk.lvl !== "all" && !lvls.includes(pk.lvl)) pk.lvl = "all";
+    const atLvl = list.filter(x => pk.lvl === "all" || lvKey(x) === pk.lvl);
+    const trs = [...new Set(atLvl.map(x => x.track).filter(Boolean))];
+    if (pk.tr !== "all" && !trs.includes(pk.tr)) pk.tr = "all";
+    const shown = atLvl.filter(x => pk.tr === "all" || x.track === pk.tr);
+    const chip = (attr, v, cur, label) => `<button type="button" class="cchip" ${attr}="${esc(v)}" aria-pressed="${v === cur}">${label}</button>`;
+    const rl = x => { const r = role(x); return r === "ta" ? "معيد" : r === "co" ? "محاضر مشارك" : r === "viewer" || r === "admin" ? staffName(x.owner_email) : ""; };
+    let n = 0;
+    const step = (t, body) => `<div class="cpk-step"><span class="cpk-n">${++n}</span><div class="cpk-sb"><b>${t}</b>${body}</div></div>`;
+    return `<div class="cpk ${pk.open ? "open" : ""}" data-where="${where}">
+      <button type="button" class="cpk-cur" data-pk="toggle" aria-expanded="${pk.open}">
+        <span class="cpk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg></span>
+        <span class="cpk-t"><small>${c ? "المادة المفتوحة" : "اختر المادة"}</small><b>${c ? esc(c.name) : courses.length ? "لم تُختر مادة" : "لا توجد مواد بعد"}</b>${c ? `<span>${esc(clsLabel(c))}</span>` : ""}</span>${CHEV}</button>
+      ${pk.open ? `<div class="cpk-pop">
+        ${step("العام الدراسي", `<div class="cchips">${chip("data-pky", "all", fYear, "كل الأعوام")}${yearList().map(v => chip("data-pky", v, fYear, v + (v === nowYear() ? " · الحالي" : ""))).join("")}</div>`)}
+        ${step("الفصل الدراسي", `<div class="cchips">${chip("data-pkt", "all", fTerm, "كل الفصول")}${Object.entries(TERMS).map(([k, v]) => chip("data-pkt", k, fTerm, v.replace("الفصل الدراسي ", "").replace("الفصل ", ""))).join("")}</div>`)}
+        ${lvls.length ? step("المستوى", `<div class="cchips">${chip("data-pkl", "all", pk.lvl, "كل المستويات")}${lvls.map(k => chip("data-pkl", k, pk.lvl, lvLabel(k))).join("")}</div>`) : ""}
+        ${trs.length ? step("الشعبة", `<div class="cchips">${chip("data-pkr", "all", pk.tr, "كل الشعب")}${trs.map(t => chip("data-pkr", t, pk.tr, esc(t))).join("")}</div>`) : ""}
+        ${step("المادة", shown.length ? `<div class="cpk-list">${shown.map(x => `<button type="button" class="cpk-c ${c && x.id === c.id ? "on" : ""}" data-pkc="${x.id}"><b>${esc(x.name)}${x.archived ? ` <span class="chip none">أرشيف</span>` : ""}</b><span>${esc(clsLabel(x))}</span>${rl(x) ? `<em>${esc(rl(x))}</em>` : ""}</button>`).join("")}</div>` : `<p class="muted small">لا توجد مواد بهذه الاختيارات. غيّر العام أو الفصل${courses.length ? "" : "، أو أنشئ مادة جديدة"}.</p>`)}
+      </div>` : ""}
+    </div>`;
+  }
+  function pickerRedraw() { document.querySelectorAll(".cpk").forEach(el => { el.outerHTML = pickerHtml(el.dataset.where); }); wirePicker(); }
+  function wirePicker() {
+    document.querySelectorAll(".cpk [data-pk=toggle]").forEach(b => b.onclick = () => { pk.open = !pk.open; pickerRedraw(); });
+    document.querySelectorAll("[data-pky]").forEach(b => b.onclick = () => { fYear = b.dataset.pky; store.set("cm_year", fYear); pickerRedraw(); });
+    document.querySelectorAll("[data-pkt]").forEach(b => b.onclick = () => { fTerm = b.dataset.pkt; store.set("cm_term", fTerm); pickerRedraw(); });
+    document.querySelectorAll("[data-pkl]").forEach(b => b.onclick = () => { pk.lvl = b.dataset.pkl; pk.tr = "all"; pickerRedraw(); });
+    document.querySelectorAll("[data-pkr]").forEach(b => b.onclick = () => { pk.tr = b.dataset.pkr; pickerRedraw(); });
+    document.querySelectorAll("[data-pkc]").forEach(b => b.onclick = () => {
+      pk.open = false; curId = b.dataset.pkc; store.set("cm_course", curId);
+      flash = {}; liveTab = "all"; regGroup = "all"; startState = null; loadCourse().catch(showErr);
+    });
+  }
+  document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
   function homeHtml(c) {
     const p = myStaff(), list = filtered();
     return `<section class="home">
-      ${CM.hero({ eyebrow: esc(ROLE[me.role]) + (p.title ? " · " + esc(p.title) : ""), title: "أهلًا " + esc(String(me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").split(" ")[0]), sub: c ? "المادة المفتوحة: " + esc(c.name) : "", extra: list.length ? `<label class="f home-pick"><span>اختر المادة</span><select id="homePick">${list.map(x => `<option value="${x.id}" ${c && x.id === c.id ? "selected" : ""}>${esc(x.name)}${role(x) === "ta" ? " · معيد" : role(x) === "co" ? " · محاضر مشارك" : role(x) === "admin" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`).join("")}</select></label>` : "" })}
+      ${CM.hero({ eyebrow: esc(ROLE[me.role]) + (p.title ? " · " + esc(p.title) : ""), title: "أهلًا " + esc(String(me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").split(" ")[0]), sub: c ? "المادة المفتوحة: " + esc(c.name) : "", extra: pickerHtml("home") })}
       ${c ? `<h3 class="sec-t">أقسام المادة</h3><div class="tiles">${CTABS.map(([k, t, ic]) => `<button class="tile ${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? "hot" : ""}" data-tile="${k}">${ic}<b>${t}</b><small>${esc(TILE_SUB[k](c))}</small></button>`).join("")}</div>` : `<div class="empty">${me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "لا توجد مواد بعد. أنشئ مادة جديدة."}</div>`}
       <h3 class="sec-t">اختصارات</h3>
       <div class="tiles small">
@@ -572,7 +624,7 @@
     const p = myStaff(), mine = courses.slice().sort((a, b) => String(b.academic_year || "").localeCompare(String(a.academic_year || "")) || a.name.localeCompare(b.name, "ar"));
     const rl = x => { const r = role(x); return r === "owner" ? "صاحب المادة" : r === "co" ? "محاضر مشارك" : r === "ta" ? "معيد" : "مسؤول"; };
     const own = mine.filter(x => role(x) !== "admin");
-    return `<section class="panel col prof">
+    return CM.band({ icon: CM.ICONS.profile, eyebrow: "ملفي الشخصي", title: esc(p.name || me.name), sub: esc([p.title, ROLE[me.role], p.specialty].filter(Boolean).join(" · ")) }) + `<section class="panel col prof">
       <div class="prof-h">${CM.markHtml()}<div><h2>${esc(p.name || me.name)}</h2><p class="muted">${esc([p.title, ROLE[me.role]].filter(Boolean).join(" · "))}</p><p class="mono small muted">${esc(me.email)}</p></div></div>
       <div class="settings">
         <label class="f"><span>الاسم كما يظهر للطلبة والفريق</span><input type="text" id="prName" value="${esc(p.name || "")}" maxlength="80"></label>
@@ -618,7 +670,7 @@
           ${canCreate() && view === "course" ? `<button class="btn sm" id="newC">مادة جديدة</button>` : ""}
           ${me.role === "admin" ? `<button class="btn sm ${view === "admin" ? "primary" : ""}" id="admin">${view === "admin" ? "رجوع للمواد" : "لوحة المسؤول"}</button>` : ""}
           ${me.role === "admin" ? `<a class="btn sm" href="pg-admin.html">الدراسات العليا</a>` : ""}
-          ${CM.themeBtn()}<button class="btn sm ghost ${view === "profile" ? "primary" : ""}" id="goProf">ملفي</button><button class="btn sm ghost" id="pwSet">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button>
+          ${CM.themeBtn()}<button class="btn sm ${view === "profile" ? "primary" : "ghost"}" id="goProf">ملفي</button><button class="btn sm ghost" id="pwSet">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button>
         </div>
       </header>
       <div id="pwForm" class="panel" hidden style="margin-bottom:16px;max-width:520px">
@@ -636,17 +688,11 @@
           <label class="f" id="ncNameBox" style="grid-column:1/-1" hidden><span>اسم المادة</span><input type="text" id="ncName" placeholder="اكتب اسم المادة كما في اللائحة"></label></div>
         <div class="row"><button class="btn primary" id="ncSave">أضف المادة</button><span class="muted small">اختر البرنامج والفصل الدراسي، ثم المادة من القائمة، فتُملأ بقية بياناتها من اللائحة: المستوى والشعبة والكود والساعات والدرجات العظمى.</span></div>
       </div>
-      ${view === "course" ? `<div class="panel filters">
-        <div class="settings" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
-          <label class="f"><span>العام الدراسي</span><select id="fYear"><option value="all" ${fYear === "all" ? "selected" : ""}>كل الأعوام</option>${yearList().map(v => `<option value="${v}" ${v === fYear ? "selected" : ""}>${v}${v === nowYear() ? " (الحالي)" : ""}</option>`).join("")}</select></label>
-          <label class="f"><span>الفصل الدراسي</span><select id="fTerm"><option value="all" ${fTerm === "all" ? "selected" : ""}>كل الفصول الدراسية</option>${Object.entries(TERMS).map(([k, v]) => `<option value="${k}" ${k === fTerm ? "selected" : ""}>${v}</option>`).join("")}</select></label>
-          ${filtered().length ? `<label class="f" style="grid-column:span 2"><span>المادة</span><select id="pick">${(() => { const groups = new Map(); filtered().forEach(x => { const g = groupLabel(x); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(x); });
-            return [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(x => { const r = role(x); return `<option value="${x.id}" ${x.id === curId ? "selected" : ""}>${esc(x.name)}${x.archived ? " (أرشيف)" : ""}${r === "ta" ? " · معيد" : r === "co" ? " · محاضر مشارك" : r === "viewer" || r === "admin" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`; }).join("")}</optgroup>`).join(""); })()}</select></label>` : ""}
-        </div></div>` : ""}
+      ${view === "course" ? `<div class="filters">${pickerHtml("course")}</div>` : ""}
       ${view === "home" ? homeHtml(c) : view === "profile" ? profileHtml() : ""}
       <div id="courseWrap" ${view === "home" || view === "profile" ? "hidden" : ""}>
-      ${view === "admin" ? `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "لا توجد مواد في هذه الفترة" : "لا توجد مواد بعد"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الفصل من الأعلى، أو أنشئ مادة جديدة." : me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "اضغط «مادة جديدة» في الأعلى، ثم ارفع ملف الطلبة."}</div></div>` : `
-      <div class="course-h"><div><h2>${esc(c.name)}</h2><p class="muted small">${esc(clsLabel(c))}${c.archived ? " · مؤرشفة" : ""}${c.auto_created ? " · أنشأها النظام من استمارات التسجيل" : ""}</p></div></div>
+      ${view === "admin" ? CM.band({ icon: CM.ICONS.admin, eyebrow: "لوحة المسؤول", title: "إدارة القسم", sub: "المحاضرون والمعيدون والإعدادات وتقارير القسم" }) + `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "لا توجد مواد في هذه الفترة" : "لا توجد مواد بعد"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الفصل من الأعلى، أو أنشئ مادة جديدة." : me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "اضغط «مادة جديدة» في الأعلى، ثم ارفع ملف الطلبة."}</div></div>` : `
+      ${courseBand(c)}
       ${c.auto_created && !tasAll.some(x => x.course_id === c.id) && isOwner(c) ? `<div class="msg warn" style="margin-bottom:16px"><b>أنشأ النظام هذه المادة تلقائيًّا</b> لأن طلبة سجّلوها في استمارات التسجيل، ولا يوجد لها فريق بعد. أضف المحاضر أو المعيد المسؤول عنها من تبويب «الفريق» (محاضر مشارك أو معيد).</div>` : ""}
       ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `أنت محاضر مشارك في هذه المادة مع ${esc(staffName(c.owner_email))}. يمكنك القيام بكل ما يتعلق بالمحاضرات والطلبة والكشف، أما حذف المادة وتعديل بياناتها وإدارة الفريق فهي لصاحب المادة.` : role(c) === "ta" ? `أنت معيد في هذه المادة. يمكنك بدء المحاضرات والموافقة على الطلبات والتسجيل اليدوي وإضافة طالب، أما رفع ملف الطلبة وإدارة الفريق فهما للمحاضر ${esc(staffName(c.owner_email))}.` : role(c) === "admin" ? `هذه مادة ${esc(staffName(c.owner_email))}. لك فيها صلاحيات صاحب المادة كاملة بصفتك مسؤولًا، وكل ما تفعله يُكتب في سجل المادة باسمك.` : `هذه مادة ${esc(staffName(c.owner_email))}. تطّلع عليها بصفتك مسؤولًا، للقراءة والتصدير فقط.`}</div>` : ""}
       <div id="rsReqs" hidden></div>
@@ -660,7 +706,7 @@
       <div class="tabpane" id="pane-log" role="tabpanel" ${ctab === "log" ? "" : "hidden"}><section class="panel" id="auditPanel"></section></div>`}
       </div>`;
     document.body.classList.toggle("has-ctabs", view === "course" && !!$(".ctabs"));
-    wireHome(c); navMark();
+    wireHome(c); wirePicker(); navMark();
     if (lastRise !== view + (view === "course" ? "" : "")) { lastRise = view; CM.rise(app); }
     document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));
     tabBadges();

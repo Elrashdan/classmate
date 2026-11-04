@@ -57,7 +57,7 @@
 
   function render() {
     const T = A.terms.find(t => t.id === termId), p = P(prog);
-    app.innerHTML = header() + `
+    app.innerHTML = header() + CM.band({ icon: CM.ICONS.ug, eyebrow: "الدراسات العليا · قسم الديكور", title: "إدارة التسجيل الأكاديمي", sub: T ? esc(T.name) + " · " + (T.status === "open" ? "التسجيل مفتوح" : T.status === "closed" ? "مغلق" : "مسودة") : "أنشئ ترمًا لتبدأ" }) + `
       ${msg ? `<div class="msg ${msg.k}">${esc(msg.t)}</div>` : ""}
       <section class="panel col">
         <div class="row between"><h2>الترم</h2><div class="row">${A.terms.length ? `<select id="tSel">${A.terms.map(t => `<option value="${t.id}" ${t.id === termId ? "selected" : ""}>${esc(t.name)} · ${t.status === "open" ? "مفتوح للتسجيل" : t.status === "closed" ? "مغلق" : "مسودة"}</option>`).join("")}</select>` : ""}</div></div>

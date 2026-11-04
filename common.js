@@ -231,6 +231,16 @@
   };
   CM.hero = (o) => `<section class="hx${o.small ? " sm" : ""}">${CM.heroArt()}<div class="hx-in">
     <div class="hx-logo">${CM.markHtml()}</div>${o.eyebrow ? `<div class="hx-eb">${o.eyebrow}</div>` : ""}<h2>${o.title}</h2>${o.sub ? `<p>${o.sub}</p>` : ""}${o.cta ? `<div class="hx-cta">${o.cta}</div>` : ""}${o.extra || ""}</div></section>`;
+  // شريط القسم: خلفية الخطوط الانسيابية نفسها، وفوقها أيقونة القسم مكبّرة وصداها يتّسع ويخفت (تصميم مستمد من أيقونة كل صفحة)
+  CM.iconEcho = d => `<svg class="sb-echo" viewBox="-48 -48 120 120" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${[4.4, 3.5, 2.75, 2.1, 1.55, 1.1].map((k, i) => `<g transform="translate(12 12) rotate(${(-i * 2.5).toFixed(1)}) scale(${k}) translate(-12 -12)" opacity="${[.05, .07, .1, .14, .2, .3][i]}" stroke-width="${(1.2 / k).toFixed(3)}">${d}</g>`).join("")}</svg>`;
+  CM.band = o => `<section class="sband${o.cls ? " " + o.cls : ""}"${o.id ? ` id="${o.id}"` : ""}>${CM.heroArt()}${o.icon ? CM.iconEcho(o.icon) : ""}<div class="sb-in">${o.icon ? `<span class="sb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${o.icon}</svg></span>` : ""}<div class="sb-t">${o.eyebrow ? `<div class="sb-eb">${o.eyebrow}</div>` : ""}<h2>${o.title}</h2>${o.sub ? `<p>${o.sub}</p>` : ""}</div>${o.extra ? `<div class="sb-x">${o.extra}</div>` : ""}</div></section>`;
+  CM.ICONS = {
+    ug: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2.5 9 2.5 12 0v-5"/><path d="M22 9v5"/>',
+    pg: '<path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h5"/>',
+    share: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/>',
+    admin: '<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>',
+    profile: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
+  };
   CM.rise = el => { if (!el) return; el.classList.remove("rise"); void el.offsetWidth; el.classList.add("rise"); clearTimeout(el._rt); el._rt = setTimeout(() => el.classList.remove("rise"), 900); };
   // الضغط على شعار Hadro أعلى الصفحة = «الرئيسية»: تتولاه الصفحة إن استمعت لحدث hadro:home، وإلا فالصفحة الموحدة
   document.addEventListener("click", ev => {
@@ -246,7 +256,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b49)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b50)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

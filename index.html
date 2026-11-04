@@ -625,7 +625,7 @@
       <section class="col">
         ${nt.open ? ntPanel() : ""}
         ${pushCta()}
-        <div><div class="eyebrow mono" style="text-align:start">${esc(home.code)}</div><h2>أهلًا ${esc((home.name || "").split(" ")[0])}</h2></div>
+        ${CM.band({ icon: CM.ICONS.ug, eyebrow: `<span class="mono">${esc(home.code)}</span>`, title: "أهلًا " + esc((home.name || "").split(" ")[0]), sub: home.courses.length ? home.courses.length + (home.courses.length > 2 && home.courses.length < 11 ? " مواد" : " مادة") : "" })}
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
         ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : home.courses.length ? qrCta() : ""}

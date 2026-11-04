@@ -50,9 +50,7 @@
   function render() {
     const t = D.task, rows = rowsOf(), sub = rows.filter(x => x.s && x.s.url), files = rows.filter(x => x.s && x.s.kind === "drive" && x.s.file_id);
     const stateOf = x => !x.s || !x.s.url ? (x.refused ? ["bad", "مرفوض: غائب " + DL(t)] : ["none", "لم يسلّم"]) : x.s.late || (x.absent && !x.excused) ? ["warn", "سُلِّم · متأخر" + (x.absent && !x.excused && !x.s.late ? " (غاب " + DL(t) + ")" : "")] : ["ok", "سُلِّم"];
-    app.innerHTML = header() + `<section class="panel col">
-      <div class="eyebrow">${esc(D.course)}${t.grp ? " · مجموعة " + esc(t.grp) : ""}</div>
-      <h2>${esc(t.title)}</h2>
+    app.innerHTML = header() + CM.band({ icon: CM.ICONS.share, eyebrow: esc(D.course) + (t.grp ? " · مجموعة " + esc(t.grp) : ""), title: esc(t.title), sub: "تنزيل ملفات الطلبة وكشف الدرجات" }) + `<section class="panel col">
       <p class="small muted">${t.present_day ? "يوم طرح المشروع " + esc(new Date(t.present_day + "T12:00:00").toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })) + " · " : ""}آخر موعد لرفع الملفات ${esc(new Date(t.due_at).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" }))} · الدرجة العظمى ${gN(t.max_grade)}</p>
       <p><b>${sub.length}</b> سلّموا من <b>${rows.length}</b> طالبًا${files.length !== sub.length ? ` (${files.length} ملفًا على Drive، والباقي روابط)` : ""}.</p>
       <div class="msg"><b>طريقة التصحيح:</b> اضغط «تنزيل كل الملفات» فتنزل الملفات مرقّمة بأسماء الطلبة، ومعها ملف إكسل «000 - كشف الدرجات والفهرس». اكتب الدرجات في ورقة «كشف الرصد» (لا تغيّر عمود الكود)، ثم أرسل الملف للمعيد أو المحاضر، فيرفعه على Hadro وتُرصد الدرجات.</div>
