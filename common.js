@@ -241,6 +241,27 @@
     admin: '<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>',
     profile: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
   };
+  // زجاج سائل: فلتر انكسار خفيف (يعمل في كروم، وغيره يكتفي بالتغبيش)، ولمعة تتبع المؤشر
+  (function liquidGlass() {
+    if (document.getElementById("lgDefs")) return;
+    const put = () => {
+      if (document.getElementById("lgDefs") || !document.body) return;
+      const d = document.createElement("div"); d.id = "lgDefs"; d.setAttribute("aria-hidden", "true"); d.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+      d.innerHTML = `<svg width="0" height="0"><filter id="lgRefract" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="4" result="n"/><feGaussianBlur in="n" stdDeviation="2" result="nb"/><feDisplacementMap in="SourceGraphic" in2="nb" scale="64" xChannelSelector="R" yChannelSelector="G"/></filter></svg>`;
+      document.body.appendChild(d);
+    };
+    if (document.body) put(); else document.addEventListener("DOMContentLoaded", put);
+    let raf = 0, last = null;
+    document.addEventListener("pointermove", e => {
+      last = e; if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0; const el = last.target.closest && last.target.closest(".lg");
+        if (!el) return; const r = el.getBoundingClientRect();
+        el.style.setProperty("--mx", ((last.clientX - r.left) / r.width * 100).toFixed(1) + "%");
+        el.style.setProperty("--my", ((last.clientY - r.top) / r.height * 100).toFixed(1) + "%");
+      });
+    }, { passive: true });
+  })();
   CM.rise = el => { if (!el) return; el.classList.remove("rise"); void el.offsetWidth; el.classList.add("rise"); clearTimeout(el._rt); el._rt = setTimeout(() => el.classList.remove("rise"), 900); };
   // الضغط على شعار Hadro أعلى الصفحة = «الرئيسية»: تتولاه الصفحة إن استمعت لحدث hadro:home، وإلا فالصفحة الموحدة
   document.addEventListener("click", ev => {
@@ -256,7 +277,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b51)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b53)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

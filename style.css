@@ -790,3 +790,72 @@ tbody tr{ transition: background-color .15s; }
 .panel h2{ display: flex; align-items: center; gap: 8px; }
 @media (max-width: 520px){ .sband{ padding: 16px; min-height: 96px; } .sb-ic{ width: 44px; height: 44px; } .sb-echo{ inset-inline-end: -6%; height: 190%; opacity: .8; } .cpk-list{ grid-template-columns: 1fr; } }
 @media print{ .sband, .filters{ display: none !important; } }
+/* ===== زجاج سائل (b52) ===== */
+:root{ --lg-tint: rgba(255,255,255,.55); --lg-tint2: rgba(255,255,255,.28); --lg-edge: rgba(255,255,255,.75); --lg-edge2: rgba(255,255,255,.18); --lg-shine: rgba(255,255,255,.65); --lg-shadow: 0 12px 34px -16px rgba(16,40,34,.35); }
+:root[data-theme="dark"]{ --lg-tint: rgba(255,255,255,.09); --lg-tint2: rgba(255,255,255,.025); --lg-edge: rgba(255,255,255,.32); --lg-edge2: rgba(255,255,255,.06); --lg-shine: rgba(255,255,255,.22); --lg-shadow: 0 14px 38px -16px rgba(0,0,0,.6); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --lg-tint: rgba(255,255,255,.09); --lg-tint2: rgba(255,255,255,.025); --lg-edge: rgba(255,255,255,.32); --lg-edge2: rgba(255,255,255,.06); --lg-shine: rgba(255,255,255,.22); --lg-shadow: 0 14px 38px -16px rgba(0,0,0,.6); } }
+/* داخل الواجهات الغامقة يبقى الزجاج داكنًا في الوضعين */
+.hx, .sband{ --lg-tint: rgba(255,255,255,.1); --lg-tint2: rgba(255,255,255,.03); --lg-edge: rgba(255,255,255,.34); --lg-edge2: rgba(255,255,255,.07); --lg-shine: rgba(255,255,255,.24); }
+.lg, header.top, .hx .cpk-cur, .sb-ic, .hx-eb, .hx-logo{
+  position: relative; isolation: isolate;
+  background: linear-gradient(135deg, var(--lg-tint), var(--lg-tint2)) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.8); backdrop-filter: blur(18px) saturate(1.8);
+  backdrop-filter: url(#lgRefract) blur(16px) saturate(1.8);
+  border: 1px solid var(--lg-edge2) !important;
+  box-shadow: inset 0 1px 0 var(--lg-edge), inset 1px 0 0 var(--lg-edge2), inset 0 -1px 0 var(--lg-edge2), inset 0 0 24px rgba(255,255,255,.04), var(--lg-shadow) !important;
+}
+/* لمعة سطحية تتبع المؤشر، وانعكاس منحنٍ على الحافة العليا */
+header.top::after, .hx .cpk-cur::after, .sb-ic::after, .hx-logo::after, .lg::after{
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1;
+  background: radial-gradient(140px 90px at var(--mx, 30%) var(--my, 0%), var(--lg-shine), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.12), transparent 42%);
+  mix-blend-mode: soft-light; opacity: .9; transition: opacity .3s;
+}
+header.top > *, .hx .cpk-cur > *, .sb-ic > *, .hx-logo > *{ position: relative; z-index: 2; }
+.sb-ic{ border-radius: 18px; color: #c9f5e4; }
+.hx-logo{ border-radius: 50%; }
+.hx-logo .mark{ box-shadow: 0 6px 18px -6px rgba(0,0,0,.5); }
+.hx .cpk-cur{ border-radius: 20px; color: #f1faf6; }
+header.top{ border-radius: 22px; }
+/* شريط التبويبات السفلي في الموبايل: كبسولة زجاجية عائمة */
+@media (max-width: 760px){
+  .ctabs{ inset: auto 10px calc(10px + env(safe-area-inset-bottom,0px)) 10px !important; padding: 6px !important; border-radius: 24px !important; border: 1px solid var(--lg-edge2) !important;
+    background: linear-gradient(135deg, var(--lg-tint), var(--lg-tint2)) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(1.9); backdrop-filter: blur(20px) saturate(1.9); backdrop-filter: url(#lgRefract) blur(18px) saturate(1.9);
+    box-shadow: inset 0 1px 0 var(--lg-edge), var(--lg-shadow) !important; }
+  .ctabs button{ border-radius: 18px !important; }
+  body.has-ctabs{ padding-bottom: calc(86px + env(safe-area-inset-bottom,0px)); }
+}
+.nt-panel.panel, .cpk-pop{ background: color-mix(in srgb, var(--surface) 82%, transparent); -webkit-backdrop-filter: blur(16px) saturate(1.6); backdrop-filter: blur(16px) saturate(1.6); box-shadow: inset 0 1px 0 var(--lg-edge2), 0 24px 60px -30px rgba(0,0,0,.55); }
+@media (prefers-reduced-transparency: reduce){
+  .lg, header.top, .hx .cpk-cur, .sb-ic, .hx-eb, .hx-logo, .ctabs, .nt-panel.panel, .cpk-pop{ -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: var(--surface) !important; }
+  .hx .cpk-cur, .sb-ic, .hx-eb, .hx-logo{ background: #12211d !important; }
+}
+@media (max-width: 760px){ .ctabs:not(.admin){ grid-template-columns: none !important; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); } .ctabs button{ font-size: .66rem !important; padding: 7px 1px !important; } }
+/* زجاج أوضح: حافة لامعة متدرّجة، ولمعة أقوى، وانعكاس سفلي */
+:root{ --lg-edge: rgba(255,255,255,.95); --lg-shine: rgba(255,255,255,.85); }
+:root[data-theme="dark"], .hx, .sband{ --lg-edge: rgba(255,255,255,.5); --lg-shine: rgba(255,255,255,.4); --lg-tint: rgba(255,255,255,.13); --lg-tint2: rgba(255,255,255,.035); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --lg-edge: rgba(255,255,255,.5); --lg-shine: rgba(255,255,255,.4); --lg-tint: rgba(255,255,255,.13); --lg-tint2: rgba(255,255,255,.035); } }
+header.top::before, .hx .cpk-cur::before, .sb-ic::before, .hx-logo::before, .lg::before, .ctabs::before{
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.3px; pointer-events: none; z-index: 3;
+  background: linear-gradient(140deg, rgba(255,255,255,.9), rgba(255,255,255,.08) 32%, rgba(255,255,255,0) 55%, rgba(255,255,255,.18) 78%, rgba(255,255,255,.6));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: .85;
+}
+:root:not([data-theme="dark"]) header.top::before{ background: linear-gradient(140deg, rgba(255,255,255,1), rgba(255,255,255,.3) 35%, rgba(29,107,88,.12) 60%, rgba(255,255,255,.9)); }
+header.top::after, .hx .cpk-cur::after, .sb-ic::after, .hx-logo::after, .lg::after{
+  background: radial-gradient(180px 110px at var(--mx, 28%) var(--my, 0%), var(--lg-shine), transparent 70%), linear-gradient(180deg, rgba(255,255,255,.22), transparent 38%), radial-gradient(70% 40% at 50% 115%, rgba(159,224,201,.28), transparent 70%);
+  mix-blend-mode: screen; opacity: .55;
+}
+:root:not([data-theme="dark"]) header.top::after{ mix-blend-mode: soft-light; opacity: 1; }
+.lg, header.top, .hx .cpk-cur, .sb-ic, .hx-eb, .hx-logo{ -webkit-backdrop-filter: blur(14px) saturate(2) brightness(1.08); backdrop-filter: blur(14px) saturate(2) brightness(1.08); backdrop-filter: url(#lgRefract) blur(12px) saturate(2) brightness(1.08); }
+.ctabs{ position: relative; }
+@media (max-width: 760px){ .ctabs{ position: fixed !important; } }
+/* لمعة الزجاج بلون الثيم الأخضر */
+:root{ --lg-shine: rgba(79,179,152,.55); --lg-edge: rgba(159,224,201,.9); --lg-rim1: rgba(159,224,201,.95); --lg-rim2: rgba(79,179,152,.55); --lg-glow: rgba(79,179,152,.32); }
+:root[data-theme="dark"], .hx, .sband{ --lg-shine: rgba(111,214,182,.5); --lg-edge: rgba(159,224,201,.55); --lg-rim1: rgba(159,224,201,.9); --lg-rim2: rgba(79,179,152,.5); --lg-glow: rgba(79,179,152,.35); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --lg-shine: rgba(111,214,182,.5); --lg-edge: rgba(159,224,201,.55); --lg-rim1: rgba(159,224,201,.9); --lg-rim2: rgba(79,179,152,.5); --lg-glow: rgba(79,179,152,.35); } }
+header.top::before, .hx .cpk-cur::before, .sb-ic::before, .hx-logo::before, .lg::before, .ctabs::before, :root:not([data-theme="dark"]) header.top::before{
+  background: linear-gradient(140deg, var(--lg-rim1), rgba(79,179,152,.12) 32%, rgba(79,179,152,0) 55%, rgba(79,179,152,.2) 78%, var(--lg-rim2)) !important; }
+header.top::after, .hx .cpk-cur::after, .sb-ic::after, .hx-logo::after, .lg::after{
+  background: radial-gradient(180px 110px at var(--mx, 28%) var(--my, 0%), var(--lg-shine), transparent 70%), linear-gradient(180deg, rgba(159,224,201,.18), transparent 38%), radial-gradient(70% 40% at 50% 115%, var(--lg-glow), transparent 70%) !important; }
+:root:not([data-theme="dark"]) header.top::after{ mix-blend-mode: multiply; opacity: .35; }
