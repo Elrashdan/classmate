@@ -86,7 +86,8 @@
     stopLoops();
     const st = login.step;
     app.innerHTML = `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول أعضاء هيئة التدريس والمعيدين</p></div></div>${CM.themeBtn()}</header>
-      <section class="panel" style="max-width:480px;margin-inline:auto">
+      ${CM.hero({ small: true, eyebrow: "أعضاء هيئة التدريس والمعيدون", title: st === "pass" ? "تسجيل الدخول" : st === "code" ? "تأكيد البريد" : "كلمة السر" })}
+      <section class="panel over" style="max-width:480px;margin-inline:auto">
       ${st === "pass" ? `
         <h2>الدخول</h2>
         <label class="f"><span>البريد</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
@@ -489,6 +490,7 @@
   ];
   let ctab = ["live", "students", "reg", "report", "tasks", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live";
   // زر «رجوع» في الهاتف: يتنقّل بين أقسام البرنامج بدل أن يخرج منه
+  let lastRise = null;
   function navMark() {
     try {
       const st = { v: view, t: view === "course" ? ctab : null }, cur = history.state;
@@ -556,9 +558,9 @@
   function homeHtml(c) {
     const p = myStaff(), list = filtered();
     return `<section class="home">
-      <div class="home-hi"><div><div class="eyebrow">${esc(ROLE[me.role])}${p.title ? " · " + esc(p.title) : ""}</div><h2>أهلًا ${esc(String(me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").split(" ")[0])}</h2></div>
-        ${list.length ? `<label class="f home-pick"><span>المادة</span><select id="homePick">${list.map(x => `<option value="${x.id}" ${c && x.id === c.id ? "selected" : ""}>${esc(x.name)}${role(x) === "ta" ? " · معيد" : role(x) === "co" ? " · محاضر مشارك" : role(x) === "admin" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`).join("")}</select></label>` : ""}</div>
-      ${c ? `<div class="tiles">${CTABS.map(([k, t, ic]) => `<button class="tile ${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? "hot" : ""}" data-tile="${k}">${ic}<b>${t}</b><small>${esc(TILE_SUB[k](c))}</small></button>`).join("")}</div>` : `<div class="empty">${me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "لا توجد مواد بعد. أنشئ مادة جديدة."}</div>`}
+      ${CM.hero({ eyebrow: esc(ROLE[me.role]) + (p.title ? " · " + esc(p.title) : ""), title: "أهلًا " + esc(String(me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").split(" ")[0]), sub: c ? "المادة المفتوحة: " + esc(c.name) : "", extra: list.length ? `<label class="f home-pick"><span>اختر المادة</span><select id="homePick">${list.map(x => `<option value="${x.id}" ${c && x.id === c.id ? "selected" : ""}>${esc(x.name)}${role(x) === "ta" ? " · معيد" : role(x) === "co" ? " · محاضر مشارك" : role(x) === "admin" ? " · " + esc(staffName(x.owner_email)) : ""}</option>`).join("")}</select></label>` : "" })}
+      ${c ? `<h3 class="sec-t">أقسام المادة</h3><div class="tiles">${CTABS.map(([k, t, ic]) => `<button class="tile ${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? "hot" : ""}" data-tile="${k}">${ic}<b>${t}</b><small>${esc(TILE_SUB[k](c))}</small></button>`).join("")}</div>` : `<div class="empty">${me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "لا توجد مواد بعد. أنشئ مادة جديدة."}</div>`}
+      <h3 class="sec-t">اختصارات</h3>
       <div class="tiles small">
         <button class="tile" data-go="profile">${ICO('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}<b>ملفي الشخصي</b><small>بياناتك وموادك</small></button>
         ${canCreate() ? `<button class="tile" data-go="newc">${ICO('<path d="M12 5v14M5 12h14"/>')}<b>مادة جديدة</b><small>أضف مادة من اللائحة</small></button>` : ""}
@@ -659,6 +661,7 @@
       </div>`;
     document.body.classList.toggle("has-ctabs", view === "course" && !!$(".ctabs"));
     wireHome(c); navMark();
+    if (lastRise !== view + (view === "course" ? "" : "")) { lastRise = view; CM.rise(app); }
     document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));
     tabBadges();
     $("#out").onclick = () => signOut();

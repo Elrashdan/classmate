@@ -330,12 +330,13 @@
   function renderChoose() {
     closeQr && closeQr();
     app.innerHTML = header() + `
-      <section class="hero"><h2>أهلًا بك في Hadro</h2><p class="muted">اختر طريقة الدخول</p></section>
-      <div class="choose">
+      ${CM.hero({ eyebrow: esc((window.CLASSMATE || {}).UNIVERSITY_NAME || ""), title: "أهلًا بك في Hadro", sub: "الحضور والتكليفات والدرجات والتسجيل الأكاديمي في مكان واحد. اختر طريقة الدخول." })}
+      <div class="choose over">
         <button type="button" class="tile big" id="chUg">${ICO.ug}<b>طالب مرحلة البكالوريوس</b><span class="muted small">تسجيل الحضور، والتكليفات، والدرجات</span></button>
         <a class="tile big" href="pg.html" data-role="pg">${ICO.pg}<b>طالب الدراسات العليا</b><span class="muted small">الدبلوم والماجستير والدكتوراه · تسجيل المقررات</span></a>
         <a class="tile big" href="staff.html" data-role="staff">${ICO.st}<b>عضو هيئة التدريس أو معيد</b><span class="muted small">المحاضرات، والكشوف، والتكليفات</span></a>
       </div>`;
+    CM.rise(app);
     $("#chUg").onclick = () => { chosen = true; authMsg = ""; try { history.pushState({ auth: 1 }, ""); } catch (e) {} renderAuth(); };
     // الانتقال بلا ترك الصفحة الموحدة في سجل الرجوع: «رجوع» من صفحة المحاضر لا يعيد إلى هنا
     app.querySelectorAll("[data-role]").forEach(a => a.onclick = ev => { ev.preventDefault(); store.set("cm_role", a.dataset.role); location.replace(a.getAttribute("href")); });
@@ -367,8 +368,8 @@
     if (rf) return renderForm();
     if (rs) return renderReset();
     if (move) return renderMove();
-    app.innerHTML = header() + `
-      <section class="panel">
+    app.innerHTML = header() + CM.hero({ small: true, eyebrow: "مرحلة البكالوريوس", title: authTab === "login" ? "دخول الطلبة" : "حساب جديد" }) + `
+      <section class="panel over">
         <div class="tabs" role="group"><button id="tLogin" aria-pressed="${authTab === "login"}">دخول</button><button id="tReg" aria-pressed="${authTab === "reg"}">إنشاء حساب</button></div>
         ${authTab === "login" ? `
           <h2>الدخول بكود الطالب</h2>
