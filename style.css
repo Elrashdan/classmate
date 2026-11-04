@@ -716,7 +716,7 @@ footer.legal::before { content: ""; position: absolute; inset: -1px 10% auto; he
   background: radial-gradient(60% 120% at 100% 0%, rgba(79,179,152,.32), transparent 60%), linear-gradient(160deg, #0f1f1b, #0a1210 80%); }
 .sband .hx-art{ -webkit-mask-image: linear-gradient(90deg, #000, rgba(0,0,0,.35) 70%); mask-image: linear-gradient(90deg, #000, rgba(0,0,0,.35) 70%); }
 .sband::before{ content: ""; position: absolute; inset: 0; z-index: -1; background-image: linear-gradient(rgba(159,224,201,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(159,224,201,.06) 1px, transparent 1px); background-size: 36px 36px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 60%); mask-image: linear-gradient(90deg, transparent, #000 60%); }
-.sb-echo{ position: absolute; z-index: -1; top: 50%; inset-inline-end: 4%; height: 320%; width: auto; aspect-ratio: 1; transform: translateY(-50%); color: #9fe0c9; pointer-events: none; }
+.sb-echo{ position: absolute; z-index: -1; top: 50%; inset-inline-end: 5%; height: 210%; width: auto; aspect-ratio: 1; transform: translateY(-50%); color: #9fe0c9; pointer-events: none; filter: drop-shadow(0 0 10px rgba(79,179,152,.35)); }
 .sband.swap .sb-echo{ animation: sbIn .5s cubic-bezier(.2,.7,.2,1); }
 @keyframes sbIn{ from { opacity: 0; transform: translateY(-50%) scale(.9) rotate(-8deg); } }
 .sb-in{ display: flex; align-items: center; gap: 16px; width: 100%; flex-wrap: wrap; }
@@ -788,5 +788,5 @@ tbody tr{ transition: background-color .15s; }
 .msg{ border-radius: 14px; }
 .chip{ border-radius: 999px; }
 .panel h2{ display: flex; align-items: center; gap: 8px; }
-@media (max-width: 520px){ .sband{ padding: 16px; min-height: 96px; } .sb-ic{ width: 44px; height: 44px; } .sb-echo{ inset-inline-end: -25%; height: 300%; } .cpk-list{ grid-template-columns: 1fr; } }
+@media (max-width: 520px){ .sband{ padding: 16px; min-height: 96px; } .sb-ic{ width: 44px; height: 44px; } .sb-echo{ inset-inline-end: -6%; height: 190%; opacity: .8; } .cpk-list{ grid-template-columns: 1fr; } }
 @media print{ .sband, .filters{ display: none !important; } }

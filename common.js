@@ -232,7 +232,7 @@
   CM.hero = (o) => `<section class="hx${o.small ? " sm" : ""}">${CM.heroArt()}<div class="hx-in">
     <div class="hx-logo">${CM.markHtml()}</div>${o.eyebrow ? `<div class="hx-eb">${o.eyebrow}</div>` : ""}<h2>${o.title}</h2>${o.sub ? `<p>${o.sub}</p>` : ""}${o.cta ? `<div class="hx-cta">${o.cta}</div>` : ""}${o.extra || ""}</div></section>`;
   // شريط القسم: خلفية الخطوط الانسيابية نفسها، وفوقها أيقونة القسم مكبّرة وصداها يتّسع ويخفت (تصميم مستمد من أيقونة كل صفحة)
-  CM.iconEcho = d => `<svg class="sb-echo" viewBox="-48 -48 120 120" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${[4.4, 3.5, 2.75, 2.1, 1.55, 1.1].map((k, i) => `<g transform="translate(12 12) rotate(${(-i * 2.5).toFixed(1)}) scale(${k}) translate(-12 -12)" opacity="${[.05, .07, .1, .14, .2, .3][i]}" stroke-width="${(1.2 / k).toFixed(3)}">${d}</g>`).join("")}</svg>`;
+  CM.iconEcho = d => `<svg class="sb-echo" viewBox="-14 -14 52 52" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="23" stroke-width=".25" opacity=".22"/><circle cx="12" cy="12" r="19" stroke-width=".25" opacity=".14" stroke-dasharray="1 1.6"/><g opacity=".34" stroke-width=".9">${d}</g></svg>`;
   CM.band = o => `<section class="sband${o.cls ? " " + o.cls : ""}"${o.id ? ` id="${o.id}"` : ""}>${CM.heroArt()}${o.icon ? CM.iconEcho(o.icon) : ""}<div class="sb-in">${o.icon ? `<span class="sb-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${o.icon}</svg></span>` : ""}<div class="sb-t">${o.eyebrow ? `<div class="sb-eb">${o.eyebrow}</div>` : ""}<h2>${o.title}</h2>${o.sub ? `<p>${o.sub}</p>` : ""}</div>${o.extra ? `<div class="sb-x">${o.extra}</div>` : ""}</div></section>`;
   CM.ICONS = {
     ug: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2.5 9 2.5 12 0v-5"/><path d="M22 9v5"/>',
@@ -256,7 +256,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b50)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b51)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
