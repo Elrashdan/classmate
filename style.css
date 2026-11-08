@@ -859,3 +859,5 @@ header.top::before, .hx .cpk-cur::before, .sb-ic::before, .hx-logo::before, .lg:
 header.top::after, .hx .cpk-cur::after, .sb-ic::after, .hx-logo::after, .lg::after{
   background: radial-gradient(180px 110px at var(--mx, 28%) var(--my, 0%), var(--lg-shine), transparent 70%), linear-gradient(180deg, rgba(159,224,201,.18), transparent 38%), radial-gradient(70% 40% at 50% 115%, var(--lg-glow), transparent 70%) !important; }
 :root:not([data-theme="dark"]) header.top::after{ mix-blend-mode: multiply; opacity: .35; }
+.tpw{ display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--tint); margin-bottom: 12px; }
+.tpw-v{ font-size: 1.5rem; letter-spacing: .08em; font-weight: 700; color: var(--accent); margin: 4px 0; user-select: all; }
