@@ -907,3 +907,8 @@ input.has-mic + .mic-s{ flex: none; margin-inline-start: 4px; }
 .tk-sec{ margin: 14px 0 8px; }
 .tk-sec .muted{ font-weight: 400; }
 .sel-sm{ width: auto; padding: 4px 34px 4px 12px; border-radius: 999px; font-size: .86rem; min-height: 0; }
+.xbox{ display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 6px 4px 6px; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 999px; background: var(--tint); }
+.xbox-l{ font-size: .82rem; font-weight: 600; color: var(--accent); padding-inline: 8px 2px; display: inline-flex; align-items: center; gap: 6px; }
+.xbox-l::before{ content: ""; width: 14px; height: 14px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12M7 10l5 5 5-5'/%3E%3Cpath d='M4 17v3h16v-3'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12M7 10l5 5 5-5'/%3E%3Cpath d='M4 17v3h16v-3'/%3E%3C/svg%3E") center / contain no-repeat; }
+.xbox-g{ display: inline-flex; align-items: center; gap: 4px; font-size: .82rem; color: var(--muted); }
+.xbox .btn{ background: var(--surface); }
