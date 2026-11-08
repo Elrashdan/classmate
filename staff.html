@@ -108,7 +108,7 @@
       ` : st === "code" ? `
         <div class="eyebrow mono" style="text-align:start">${esc(login.email)}</div>
         <h2>اكتب رمز التأكيد</h2>
-        <p class="muted small">أرسلنا رسالة إلى بريدك. اكتب الرمز الذي فيها، أو افتح الرابط الذي فيها <b>في هذا المتصفح</b>. وإن لم تجدها فراجع Spam، واستخدم آخر رسالة وصلتك.</p>
+        <p class="muted small">أرسلنا إلى بريدك رسالة عنوانها «رمز Hadro» فيها رمز من أرقام. اكتبه هنا. وإن لم تجدها خلال دقيقة فراجع Spam، واستخدم آخر رسالة وصلتك.</p>
         <label class="f"><span>رمز التأكيد</span><input type="text" id="lgCode" class="codein" inputmode="numeric" maxlength="10" autocomplete="one-time-code"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
         <button class="btn primary block" id="lgVerify" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "تأكيد والدخول"}</button>
