@@ -903,3 +903,7 @@ input.has-mic + .mic-s{ flex: none; margin-inline-start: 4px; }
 .mimp-f{ display: grid; grid-template-columns: minmax(0, 2fr) 90px minmax(120px, 1fr); gap: 8px; }
 .mimp-s{ grid-column: 2; color: var(--muted); }
 @media (max-width: 620px){ .mimp-f{ grid-template-columns: 1fr 1fr; } .mimp-f .f:first-child{ grid-column: 1 / -1; } }
+.tk-tools{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 10px; }
+.tk-sec{ margin: 14px 0 8px; }
+.tk-sec .muted{ font-weight: 400; }
+.sel-sm{ width: auto; padding: 4px 34px 4px 12px; border-radius: 999px; font-size: .86rem; min-height: 0; }

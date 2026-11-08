@@ -1681,30 +1681,51 @@
       } catch (e) { sv.disabled = false; showErr(e); }
     };
   }
+  /* ---------- ترتيب قائمة التكليفات وتقسيمها حسب المجموعة ---------- */
+  let tkSort = store.get("cm_tksort") || "az", tkSplit = store.get("cm_tksplit") !== "0", tkXg = store.get("cm_tkxg") || "all";
+  const courseGroups = () => [...new Set(D.enroll.map(e => e.grp).filter(Boolean))].sort((a, b) => GORD(a) - GORD(b) || a.localeCompare(b, "ar"));
+  // مفتاح الترتيب الأبجدي: الأرقام العربية والكلمات الترتيبية (الأول، الثاني…) تُقرأ أعدادًا، فيأتي «المشروع العاشر» بعد «التاسع»
+  const ORDW = [["الحادي عشر", 11], ["الثاني عشر", 12], ["الأول", 1], ["الأولى", 1], ["الاول", 1], ["الاولى", 1], ["الثاني", 2], ["الثانية", 2], ["الثالث", 3], ["الثالثة", 3], ["الرابع", 4], ["الرابعة", 4], ["الخامس", 5], ["الخامسة", 5], ["السادس", 6], ["السادسة", 6], ["السابع", 7], ["السابعة", 7], ["الثامن", 8], ["الثامنة", 8], ["التاسع", 9], ["التاسعة", 9], ["العاشر", 10], ["العاشرة", 10]];
+  const tkKey = t => { let k = " " + toNum(t.title).replace(/[أإآ]/g, "ا").replace(/ة(?=\s|$)/g, "ه") + " "; ORDW.forEach(([w, n]) => { const w2 = w.replace(/[أإآ]/g, "ا").replace(/ة$/, "ه"); k = k.split(" " + w2 + " ").join(" " + n + " "); }); return k.replace(/\s+/g, " ").trim(); };
+  const tkCmp = { az: (a, b) => tkKey(a).localeCompare(tkKey(b), "ar", { numeric: true, sensitivity: "base" }), new: (a, b) => new Date(b.created_at) - new Date(a.created_at), old: (a, b) => new Date(a.created_at) - new Date(b.created_at), due: (a, b) => (a.due_at ? new Date(a.due_at) : 8e15) - (b.due_at ? new Date(b.due_at) : 8e15) };
+  const tkOrdered = list => list.slice().sort((a, b) => (tkCmp[tkSort] || tkCmp.az)(a, b) || tkCmp.az(a, b));
+  function tkSections() {
+    const all = tkOrdered(D.tasks), gs = courseGroups();
+    if (!tkSplit || gs.length < 2 || !all.some(t => t.grp)) return [["", all]];
+    const out = [];
+    gs.forEach(g => { const l = all.filter(t => t.grp === g); if (l.length) out.push(["مجموعة " + esc(g), l]); });
+    const common = all.filter(t => !t.grp || !gs.includes(t.grp)); if (common.length) out.push(["لكل المجموعات", common]);
+    return out;
+  }
+  const tkToolbar = () => `<div class="tk-tools no-print"><span class="small muted">ترتيب:</span><div class="cchips">${[["az", "أبجدي"], ["new", "الأحدث"], ["old", "الأقدم"], ["due", "موعد التسليم"]].map(([k, l]) => `<button type="button" class="cchip" data-tksort="${k}" aria-pressed="${tkSort === k}">${l}</button>`).join("")}</div>
+    ${courseGroups().length > 1 && D.tasks.some(t => t.grp) ? `<label class="row small" style="gap:6px;margin-inline-start:auto"><input type="checkbox" id="tkSplit" ${tkSplit ? "checked" : ""}> تقسيم حسب المجموعة</label>` : ""}</div>`;
   function renderTasks() {
     const el = $("#tasksPanel"); if (!el || !D) return;
     const c = course(), t = tkSel && D.tasks.find(x => x.id === tkSel);
     if (t) return renderTask(el, c, t);
     const totalMax = D.tasks.reduce((a, x) => a + Number(x.max_grade), 0);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
-      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button><button class="btn sm" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات من إكسل</button>` : ""}${D.tasks.length ? `<button class="btn sm" id="tkXls" title="كشف الكنترول (مسلسل · الكود · الاسم · متوسط الدرجات) وتفاصيل الدرجات والتسليم">كشف الكنترول (إكسل)</button><button class="btn sm" id="tkPdf" title="كشف الكنترول وتفاصيل الدرجات في ملف PDF">كشف الكنترول (PDF)</button>` : ""}</div></div>
+      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button><button class="btn sm" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات من إكسل</button>` : ""}${D.tasks.length ? `${courseGroups().length > 1 ? `<select id="tkXg" class="sel-sm" aria-label="مجموعة الكشف"><option value="all">كشف كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>كشف مجموعة ${esc(g)}</option>`).join("")}</select>` : ""}<button class="btn sm" id="tkXls" title="كشف الكنترول (مسلسل · الكود · الاسم · متوسط الدرجات) وتفاصيل الدرجات والتسليم">كشف الكنترول (إكسل)</button><button class="btn sm" id="tkPdf" title="كشف الكنترول وتفاصيل الدرجات في ملف PDF">كشف الكنترول (PDF)</button>` : ""}</div></div>
       ${msgHtml("tasks")}
       ${mimp ? mimpBox() : ""}
       ${bylawLine(c)}
       ${tkForm === "new" ? taskFormHtml(null) : ""}
-      ${D.tasks.length ? `<div class="tk-grid">${D.tasks.map(x => { const st = taskStats(x), past = new Date(x.due_at) < new Date(), man = isManual(x);
+      ${D.tasks.length ? tkToolbar() + tkSections().map(([lab, list]) => `${lab ? `<h3 class="sec-t tk-sec">${lab} <span class="muted small">${list.length}</span></h3>` : ""}<div class="tk-grid">${list.map(x => { const st = taskStats(x), past = new Date(x.due_at) < new Date(), man = isManual(x);
         return `<button class="tk-card" data-tk="${x.id}">
           <span class="row between" style="align-items:flex-start"><b class="tk-name">${esc(x.title)}</b><span class="chip ${x.released ? "ok" : "none"}">${x.released ? "الدرجات معلنة" : "غير معلنة"}</span></span>
           <span class="small muted">${man ? `<span class="chip man">رصد يدوي</span> ${hasDueDay(x) ? "الاستلام " + esc(dayStr(cmpDate(x))) + " · " : ""}` : (x.present_day ? "الطرح " + esc(dayStr(cmpDate(x))) + " · " : "") + (past ? "انتهى رفع الملفات" : "رفع الملفات حتى") + " " + esc(dueStr(x.due_at)) + " · "}من ${gN(x.max_grade)}${x.grp ? " · مجموعة " + esc(x.grp) : ""}${!man && x.late === "close" ? " · يُغلق بعد الموعد" : ""}</span>
           ${man ? "" : `<span class="tk-bars"><span><i style="width:${st.n ? st.sub / st.n * 100 : 0}%"></i></span><small>سلّم ${st.sub} من ${st.n}${st.late ? ` · متأخر ${st.late}` : ""}</small></span>`}
           <span class="tk-bars g"><span><i style="width:${st.n ? st.graded / st.n * 100 : 0}%"></i></span><small>رُصدت ${st.graded} من ${st.n}${st.avg != null ? " · المتوسط " + gN(Math.round(st.avg * 10) / 10) : ""}${st.issues ? ` · <b class="bad-t">${st.issues} ملف تغيّر</b>` : ""}</small></span>
-        </button>`; }).join("")}</div>`
+        </button>`; }).join("")}</div>`).join("")
       : `<div class="empty">${canRun(c) ? "لا توجد تكليفات بعد. اضغط «تكليف أو رصد جديد»: إما تكليف يسلّمه الطلبة من صفحتهم، أو كشف رصد يدوي لدرجات عمل لم يُسلَّم إلكترونيًّا." : "لا توجد تكليفات في هذه المادة بعد."}</div>`}
       ${!HD.ready ? `<p class="small muted">رفع الملفات إلى Google Drive لم يُفعَّل بعد في إعدادات الموقع، لذلك يسلّم الطلبة روابط فقط.</p>` : ""}`;
     wireTaskForm(el, null);
     const nb = $("#tkNew"); if (nb) nb.onclick = () => { tkForm = "new"; tkMode = "submit"; renderTasks(); const i = $("#tfTitle"); if (i) i.focus(); };
     const mb = $("#tkMulti"); if (mb) mb.onclick = () => { const f = document.createElement("input"); f.type = "file"; f.accept = ".xlsx,.xls"; f.onchange = () => { if (f.files[0]) importMulti(f.files[0]); }; f.click(); };
     wireMimp();
+    const xg = $("#tkXg"); if (xg) xg.onchange = () => { tkXg = xg.value; store.set("cm_tkxg", tkXg); };
+    el.querySelectorAll("[data-tksort]").forEach(b => b.onclick = () => { tkSort = b.dataset.tksort; store.set("cm_tksort", tkSort); renderTasks(); });
+    const sp = $("#tkSplit"); if (sp) sp.onchange = () => { tkSplit = sp.checked; store.set("cm_tksplit", tkSplit ? "1" : "0"); renderTasks(); };
     const xb = $("#tkXls"); if (xb) xb.onclick = () => exportGrades(false);
     const xp = $("#tkPdf"); if (xp) xp.onclick = () => exportGrades(true);
     el.querySelectorAll("[data-tk]").forEach(b => b.onclick = () => { tkSel = b.dataset.tk; tkForm = null; tkEdits = {}; tkFilter = "all"; tkQ = ""; gimp = null; flash.tasks = ""; renderTasks(); el.scrollIntoView({ block: "start" }); });
@@ -2602,8 +2623,9 @@
     const btn = $(pdf ? "#tkPdf" : "#tkXls"), lbl = btn ? btn.textContent : ""; if (btn) { btn.disabled = true; btn.textContent = "جارٍ التجهيز…"; }
     try {
       await loadExcelJS();
-      const c = course(), wb = new ExcelJS.Workbook(), ts = D.tasks.slice().sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
-      const rows = D.enroll.slice().sort(byGroupName), S = ts.reduce((a, t) => a + Number(t.max_grade), 0);
+      const G = tkXg !== "all" && courseGroups().includes(tkXg) ? tkXg : null, gl = G ? " · مجموعة " + G : "";
+      const c0 = course(), c = G ? { ...c0, name: c0.name + gl } : c0, wb = new ExcelJS.Workbook(), ts = tkOrdered(D.tasks.filter(t => !G || !t.grp || t.grp === G));
+      const rows = D.enroll.filter(e => !G || e.grp === G).slice().sort(byGroupName), S = ts.reduce((a, t) => a + Number(t.max_grade), 0);
       const cw = c.cw_max, ex = c.exam_max || 0, hasCw = cw != null && cw > 0;
       // ---- كشف الكنترول: مسلسل · كود الطالب · اسم الطالب · متوسط الدرجات ----
       const tgt = hasCw ? cw : 100;
@@ -2702,7 +2724,7 @@
         rr++; }));
       wd.autoFilter = { from: { row: 4, column: 1 }, to: { row: Math.max(rr - 1, 5), column: 12 } };
       [24, 12, 28, 9, 18, 7, 13, 30, 16, 8, 8, 30].forEach((w2, j) => { wd.getColumn(j + 1).width = w2; });
-      const nm = HD.fileName("كشف الكنترول - " + c.name + " " + new Date().toLocaleDateString("en-CA"));
+      const nm = HD.fileName("كشف الكنترول - " + c0.name + (G ? " - مجموعة " + G : "") + " " + new Date().toLocaleDateString("en-CA"));
       if (pdf) await HP.wbToPdf(wb, ["كشف الكنترول", "تفاصيل الدرجات"], nm + ".pdf"); else await saveWb(wb, nm + ".xlsx");
     } catch (e) { showErr(e); }
     if (btn) { btn.disabled = false; btn.textContent = lbl; }
