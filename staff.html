@@ -1797,7 +1797,7 @@
       </div>
       <div class="rs-bar no-print"><div class="tabs">${FT.map(([k, l, n]) => `<button data-tf="${k}" aria-pressed="${tkFilter === k}">${l} <span class="small muted">${n}</span></button>`).join("")}</div>
         <input type="search" id="tkQ" placeholder="ابحث بالاسم أو الكود" value="${esc(tkQ)}" autocomplete="off" style="max-width:240px"></div>
-      ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" style="max-width:320px"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select>${(() => { const og = [...new Set(out.map(e => e.grp || ""))].sort((a, b) => GORD(a) - GORD(b)); return og.map(g => `<button type="button" class="btn sm" data-addgrp="${esc(g)}">إضافة كل ${g ? "مجموعة " + esc(g) : "الطلبة بلا مجموعة"} (${out.filter(e => (e.grp || "") === g).length})</button>`).join("") + (og.length > 1 ? `<button type="button" class="btn sm" data-addgrp="*">إضافة الكل (${out.length})</button>` : ""); })()}</div>` : ""; })() : ""}
+      ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" style="max-width:320px"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select></div>` : ""; })() : ""}
       ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}${partsOf(t) ? partsOf(t).map((p, i) => `<th class="c pth" title="${esc(p.name)}">${esc(p.name)}<br><small>(من ${gN(p.max)})</small></th>`).join("") : `<th class="c">الدرجة من ${gN(t.max_grade)}</th>`}<th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
           return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td>${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
@@ -1820,11 +1820,6 @@
     el.querySelectorAll("[data-ext]").forEach(b => b.onclick = () => { extFor = { tid: t.id, code: b.dataset.ext, msg: "" }; renderTasks(); const x = $("#extBox"); if (x) { x.scrollIntoView({ block: "nearest", behavior: "smooth" }); const r = $("#extWhy"); if (r) r.focus(); } });
     el.querySelectorAll("[data-extoff]").forEach(b => b.onclick = () => setExt(t, b.dataset.extoff, null, ""));
     wireExt(t);
-    el.querySelectorAll("[data-addgrp]").forEach(b => b.onclick = () => {
-      const g = b.dataset.addgrp, rws = taskRows(t), add = D.enroll.filter(e => !rws.includes(e) && (g === "*" || (e.grp || "") === g));
-      const set = tkExtra[t.id] = tkExtra[t.id] || new Set(); add.forEach(e => set.add(e.student_code)); tkQ = "";
-      toast("أُضيف " + add.length + " طالب إلى كشف هذا التكليف استثناءً. اكتب درجاتهم واحفظ؛ ومن لا تُرصد له درجة لا يُحسب عليه التكليف."); renderTasks();
-    });
     const ax = $("#tkAddX"); if (ax) ax.onchange = () => { if (!ax.value) return; (tkExtra[t.id] = tkExtra[t.id] || new Set()).add(ax.value); tkQ = ""; toast("أُضيف " + nameOf(ax.value) + " إلى كشف هذا التكليف استثناءً. اكتب درجته واحفظ."); renderTasks(); };
     const qi = $("#tkQ"); if (qi) qi.oninput = () => { tkQ = qi.value; renderTasks(); const r2 = $("#tkQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
     const onIn = (i, code, k) => { setEdit(t, code, k, i.value.trim()); if (k !== "feedback") i.classList.toggle("bad", badVal(i.value, +t.max_grade));
@@ -2629,13 +2624,18 @@
     try {
       await loadExcelJS();
       const G = tkXg !== "all" && courseGroups().includes(tkXg) ? tkXg : null, gl = G ? " · مجموعة " + G : "";
-      const c0 = course(), c = G ? { ...c0, name: c0.name + gl } : c0, wb = new ExcelJS.Workbook(), ts = tkOrdered(D.tasks.filter(t => !G || !t.grp || t.grp === G));
-      const rows = D.enroll.filter(e => !G || e.grp === G).slice().sort(byGroupName), S = ts.reduce((a, t) => a + Number(t.max_grade), 0);
+      const c0 = course(), c = G ? { ...c0, name: c0.name + gl } : c0, wb = new ExcelJS.Workbook();
+      // كشف مجموعة: طلبتها، ثم طلبة المجموعات الأخرى الذين رُصدت لهم درجة في تكليفات هذه المجموعة (استثناءً) في آخر الكشف
+      const own = D.enroll.filter(e => !G || e.grp === G).slice().sort(byGroupName);
+      const exc = G ? D.enroll.filter(e => e.grp !== G && D.tasks.some(t => t.grp === G && hasWork(t, e.student_code))).slice().sort(byGroupName).map(e => ({ ...e, name: e.name + " (استثناء · " + (e.grp ? "مجموعة " + e.grp : "بلا مجموعة") + ")" })) : [];
+      const rows = own.concat(exc);
+      // التكليفات: تكليفات المجموعة والعامة، وأي تكليف لمجموعة أخرى رُصدت فيه درجة لأحد طلبة هذا الكشف
+      const ts = tkOrdered(D.tasks.filter(t => !G || !t.grp || t.grp === G || own.some(e => hasWork(t, e.student_code)))), S = ts.reduce((a, t) => a + Number(t.max_grade), 0);
       const cw = c.cw_max, ex = c.exam_max || 0, hasCw = cw != null && cw > 0;
       // ---- كشف الكنترول: مسلسل · كود الطالب · اسم الطالب · متوسط الدرجات ----
       const tgt = hasCw ? cw : 100;
       const avgOf = e => {
-        const mine = ts.filter(t => inTaskGrp(t, e) || hasWork(t, e.student_code)); if (!mine.length) return null;
+        const mine = D.tasks.filter(t => inTaskGrp(t, e) || hasWork(t, e.student_code)); if (!mine.length) return null;   // متوسط الطالب من كل تكليفاته، فيتطابق في كل الكشوف
         let got = 0, den = 0, any = false;
         mine.forEach(t => { den += Number(t.max_grade); const sb = subOf(t, e.student_code); if (sb && sb.grade != null) { any = true; got += totalOf(sb); } });
         return any && den ? Math.min(tgt, Math.round(got / den * tgt)) : null;
