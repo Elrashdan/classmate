@@ -2336,6 +2336,7 @@
     if (said.length) vcSay(said.join("، "));
   }
   function paintInterim() { const el = $("#vcInterim"); if (el && voice) el.textContent = voice.interim ? "…" + voice.interim.slice(-70) : (voice.listening ? (voice.speaking ? "يؤكّد بالصوت…" : "أسمعك…") : ""); }
+  const vcWhy = (t, e) => { if (!e.code) return "اختر الطالب"; const w = D.enroll.find(x => x.student_code === e.code); if (w && refusedFor(t, w)) return "مرفوض لغيابه " + DL(t); if (e.grade === "") return "اكتب الدرجة"; if (badVal(e.grade, +t.max_grade)) return "الدرجة يجب أن تكون من 0 إلى " + gN(t.max_grade); if (badVal(e.bonus, +t.max_grade)) return "البونص غير صحيح"; return ""; };
   const vcValid = (t, e) => e.code && !(D.enroll.find(x => x.student_code === e.code) && refusedFor(t, D.enroll.find(x => x.student_code === e.code))) && e.grade !== "" && !badVal(e.grade, +t.max_grade) && !badVal(e.bonus, +t.max_grade);
   function drawVoice() {
     const t = D.tasks.find(x => x.id === voice.tid), ov = $("#vcOv"), sup = HV.supported();
@@ -2349,17 +2350,18 @@
           <div class="vc-state ${voice.listening ? "on" : voice.started ? "paused" : ""}"><i></i>${voice.listening ? "يستمع الآن" : voice.started ? "متوقف مؤقتًا، ولن يُسجَّل أي كلام" : "لم يبدأ الاستماع بعد"}${voice.entries.length ? " · " + voice.entries.length + " درجة في القائمة" : ""}</div>
           <div class="vc-int" id="vcInterim" aria-live="polite"></div>
           <div id="vcMsg" class="msg small ${voice.msg.startsWith("!") ? "bad" : "ok"}" ${voice.msg ? "" : "hidden"}>${esc(voice.msg.replace(/^!/, ""))}</div>
-          <div class="vc-tips small">
-            <b>قل اسم الطالب ثم درجته، ثم الطالب التالي:</b>
+          <details class="vc-tips small" ${store.get("cm_vc_tips") === "1" || (store.get("cm_vc_tips") == null && innerWidth > 820) ? "open" : ""}><summary><b>قل اسم الطالب ثم درجته، ثم الطالب التالي</b></summary>
             <span>«محمد أحمد علي سبعتاشر» · «سلمى خالد خمستاشر ونص»</span>
             <span>للبونص: «… ستاشر وبونص اتنين»</span>
             <span>للأسماء المتشابهة استخدم رقمه في الكشف: «رقم ٧ … ١٨»، أو آخر أرقام كوده: «كود ١٠٥ … ١٢»</span>
-          </div>
+          </details>
           <label class="f"><span>أو اكتب الجملة واضغط Enter</span><input type="text" id="vcType" placeholder="مثلًا: يوسف طارق 14" autocomplete="off"></label>
           ${sup ? "" : `<div class="msg warn small">هذا المتصفح لا يدعم الإملاء الصوتي. افتح البرنامج من Google Chrome، أو اكتب الجمل في الخانة أعلاه.</div>`}
         </section>
         <section class="vc-list" id="vcList"></section>
-      </div></div>`;
+      </div>
+      <footer class="vc-bar" id="vcBar"></footer></div>`;
+    const tp = ov.querySelector(".vc-tips"); if (tp) tp.ontoggle = () => store.set("cm_vc_tips", tp.open ? "1" : "0");
     $("#vcClose").onclick = () => closeVoice();
     $("#vcSpeak").onchange = e => { voice.speak = e.target.checked; store.set("cm_vc_speak", voice.speak ? "1" : "0"); };
     $("#vcMic").onclick = () => { if (voice.listening) { vcStop(); voice.msg = ""; drawVoice(); } else vcStart(); };
@@ -2380,13 +2382,20 @@
           <select data-vk="code" aria-label="الطالب"><option value="">— اختر الطالب —</option>${ids.map((c, i) => { const r = roster.find(x => x.student_code === c); if (!r) return ""; const sc = e.cands.find(x => x.code === c); return `<option value="${esc(c)}" ${c === e.code ? "selected" : ""}>${roster.indexOf(r) < nIn ? (roster.indexOf(r) + 1) + ". " : "استثناء: "}${esc(r.name)} · ${esc(c)}${isExtra(t, r) ? " · مجموعة " + esc(r.grp || "—") : ""}${sc && i < e.cands.length ? ` (${Math.round(sc.score * 100)}%)` : ""}</option>`; }).join("")}</select>
           <input type="text" data-vk="grade" class="gin ${badVal(e.grade, +t.max_grade) ? "bad" : ""}" value="${esc(e.grade)}" inputmode="decimal" aria-label="الدرجة">
           <input type="text" data-vk="bonus" class="gin bin ${badVal(e.bonus, +t.max_grade) ? "bad" : ""}" value="${esc(e.bonus)}" placeholder="بونص" inputmode="decimal" aria-label="بونص">
-          <button class="btn xs ghost danger" data-vdel="${e.id}" aria-label="حذف">✕</button></div>`; }).join("")}</div>
-      <div class="row"><button class="btn primary" id="vcSave" ${n ? "" : "disabled"}>اعتماد ${n} درجة</button><span class="small muted">${voice.entries.length - n ? (voice.entries.length - n) + " تحتاج إلى مراجعة ولن تُعتمد" : ""}</span></div>`
+          <button class="btn xs ghost danger" data-vdel="${e.id}" aria-label="حذف">✕</button>
+          ${!ok || !e.sure ? `<div class="vc-fix">${!ok ? `<span class="vc-why">${esc(vcWhy(t, e))}</span>` : `<span class="vc-why soft">تأكد من الطالب</span>`}${(!e.code || !e.sure ? e.cands : []).filter(c => c.code !== e.code).slice(0, 3).map(c => { const r = roster.find(x => x.student_code === c.code); return r ? `<button type="button" class="vc-pick" data-vpick="${esc(c.code)}">${esc(r.name.split(" ").slice(0, 3).join(" "))}<small>رقم ${roster.indexOf(r) + 1}</small></button>` : ""; }).join("")}${e.code && !e.sure ? `<button type="button" class="vc-pick ok" data-vsure="1">✓ صحيح</button>` : ""}</div>` : ""}</div>`; }).join("")}</div>`
       : `<div class="empty">اضغط «ابدأ الإملاء» واسمح للمتصفح باستخدام الميكروفون، ثم تكلّم بصوت واضح.</div>`}`;
     el.querySelectorAll("[data-vc]").forEach(row => {
       const e = voice.entries.find(x => x.id === +row.dataset.vc);
       row.querySelectorAll("[data-vk]").forEach(inp => inp.onchange = () => { e[inp.dataset.vk] = inp.value.trim(); if (inp.dataset.vk === "code") e.sure = !!e.code; drawVoiceList(); });
     });
+    el.querySelectorAll("[data-vc]").forEach(row => {
+      const e = voice.entries.find(x => x.id === +row.dataset.vc);
+      row.querySelectorAll("[data-vpick]").forEach(b => b.onclick = () => { e.code = b.dataset.vpick; e.sure = true; drawVoiceList(); });
+      const sb2 = row.querySelector("[data-vsure]"); if (sb2) sb2.onclick = () => { e.sure = true; drawVoiceList(); };
+    });
+    const bar = $("#vcBar"), nBad = voice.entries.length - n;
+    if (bar) bar.innerHTML = voice.entries.length ? `<button class="btn primary vc-save" id="vcSave" ${n ? "" : "disabled"}>اعتماد ${n} درجة</button><span class="vc-bar-s">${nBad ? `<b>${nBad}</b> تحتاج إلى مراجعة` : "كل الدرجات جاهزة"}</span>` : `<span class="vc-bar-s">ستظهر هنا الدرجات التي تمليها</span>`;
     el.querySelectorAll("[data-vdel]").forEach(b => b.onclick = () => { voice.entries = voice.entries.filter(x => x.id !== +b.dataset.vdel); drawVoiceList(); });
     const cl = $("#vcClear"); if (cl) cl.onclick = () => { voice.entries = []; drawVoiceList(); };
     voice.flash = null; el.scrollTop = keepScroll2;
