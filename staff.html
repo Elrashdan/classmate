@@ -1682,6 +1682,7 @@
     };
   }
   /* ---------- ترتيب قائمة التكليفات وتقسيمها حسب المجموعة ---------- */
+  let tkLay = store.get("cm_tklay") || "cards", gbG = "all", gbQ = "", gbPend = {}, gbTimer = null;
   let tkSort = store.get("cm_tksort") || "az", tkSplit = store.get("cm_tksplit") !== "0", tkXg = store.get("cm_tkxg") || "all";
   const courseGroups = () => [...new Set(D.enroll.map(e => e.grp).filter(Boolean))].sort((a, b) => GORD(a) - GORD(b) || a.localeCompare(b, "ar"));
   // مفتاح الترتيب الأبجدي: الأرقام العربية والكلمات الترتيبية (الأول، الثاني…) تُقرأ أعدادًا، فيأتي «المشروع العاشر» بعد «التاسع»
@@ -1697,8 +1698,68 @@
     const common = all.filter(t => !t.grp || !gs.includes(t.grp)); if (common.length) out.push(["لكل المجموعات", common]);
     return out;
   }
-  const tkToolbar = () => `<div class="tk-tools no-print"><span class="small muted">ترتيب:</span><div class="cchips">${[["az", "أبجدي"], ["new", "الأحدث"], ["old", "الأقدم"], ["due", "موعد التسليم"]].map(([k, l]) => `<button type="button" class="cchip" data-tksort="${k}" aria-pressed="${tkSort === k}">${l}</button>`).join("")}</div>
-    ${courseGroups().length > 1 && D.tasks.some(t => t.grp) ? `<label class="row small" style="gap:6px;margin-inline-start:auto"><input type="checkbox" id="tkSplit" ${tkSplit ? "checked" : ""}> تقسيم حسب المجموعة</label>` : ""}</div>`;
+  const tkToolbar = () => `<div class="tk-tools no-print"><div class="cchips seg">${[["cards", "بطاقات التكليفات"], ["sheet", "كشف الدرجات"]].map(([k, l]) => `<button type="button" class="cchip" data-tklay="${k}" aria-pressed="${tkLay === k}">${l}</button>`).join("")}</div><span class="small muted">ترتيب:</span><div class="cchips">${[["az", "أبجدي"], ["new", "الأحدث"], ["old", "الأقدم"], ["due", "موعد التسليم"]].map(([k, l]) => `<button type="button" class="cchip" data-tksort="${k}" aria-pressed="${tkSort === k}">${l}</button>`).join("")}</div>
+    ${tkLay !== "sheet" && courseGroups().length > 1 && D.tasks.some(t => t.grp) ? `<label class="row small" style="gap:6px;margin-inline-start:auto"><input type="checkbox" id="tkSplit" ${tkSplit ? "checked" : ""}> تقسيم حسب المجموعة</label>` : ""}</div>`;
+  /* ---------- كشف الدرجات: الطلبة صفوف والتكليفات أعمدة، والرصد في الخانة مباشرة ويُحفظ تلقائيًّا ---------- */
+  const gbAvg = e => { let got = 0, den = 0, any = false; D.tasks.forEach(t => { if (!(inTaskGrp(t, e) || hasWork(t, e.student_code))) return; den += Number(t.max_grade); const sb = subOf(t, e.student_code); if (sb && sb.grade != null) { any = true; got += totalOf(sb); } }); return any && den ? Math.round(got / den * 100) : null; };
+  function gbHtml() {
+    const gs = courseGroups(); if (gbG !== "all" && !gs.includes(gbG)) gbG = "all";
+    const ts = tkOrdered(D.tasks.filter(t => gbG === "all" || !t.grp || t.grp === gbG));
+    const q = normAr(gbQ), run = canRun(course());
+    const rows = D.enroll.filter(e => (gbG === "all" || e.grp === gbG || ts.some(t => t.grp === gbG && hasWork(t, e.student_code))) && (!q || normAr(e.name).includes(q) || e.student_code.includes(q))).slice().sort(byGroupName);
+    const showG = gs.length > 1 && gbG === "all";
+    return `<div class="gb-bar no-print">${gs.length > 1 ? `<div class="cchips">${["all", ...gs].map(g => `<button type="button" class="cchip" data-gbg="${esc(g)}" aria-pressed="${gbG === g}">${g === "all" ? "كل المجموعات" : "مجموعة " + esc(g)}</button>`).join("")}</div>` : ""}
+      <input type="search" id="gbQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(gbQ)}" autocomplete="off">
+      <span class="small muted" id="gbSt">${run ? "اكتب الدرجة في خانتها؛ تُحفظ تلقائيًّا. Enter للطالب التالي." : "للعرض فقط."}</span></div>
+      <div class="tbl-wrap gb-wrap"><table class="gb"><thead><tr><th class="c gb-n">م</th><th class="gb-nm">الطالب</th>${showG ? `<th class="c">مج</th>` : ""}${ts.map(t => `<th class="c gb-th"><button type="button" class="gb-tt" data-tk="${t.id}" title="فتح التكليف">${esc(t.title)}</button><small>من ${gN(t.max_grade)}${t.grp ? " · " + esc(t.grp) : ""}${t.released ? "" : " · غير معلنة"}</small></th>`).join("")}<th class="c gb-avg">المتوسط %</th></tr></thead>
+      <tbody>${rows.map((e, i) => `<tr data-gbr="${esc(e.student_code)}"><td class="c mono muted">${i + 1}</td><td class="gb-nm"><b>${esc(e.name)}</b><small class="mono">${esc(e.student_code)}${!showG && gbG !== "all" && e.grp !== gbG ? " · استثناء من " + esc(e.grp || "") : ""}</small></td>${showG ? `<td class="c">${esc(e.grp || "")}</td>` : ""}
+        ${ts.map(t => { const sb = subOf(t, e.student_code), na = !inTaskGrp(t, e) && !hasWork(t, e.student_code), P = partsOf(t), k = t.id + "|" + e.student_code, pend = gbPend[t.id] && k.split("|")[1] in gbPend[t.id];
+          return `<td class="c gb-c${na ? " na" : ""}">${P ? `<span class="gb-ro" title="مقسّم إلى مشاريع فرعية؛ افتح التكليف لرصدها">${sb && sb.grade != null ? gN(totalOf(sb)) : "—"}</span>` : `<input class="gb-in${pend ? " pend" : ""}" data-gb="${k}" inputmode="decimal" autocomplete="off" value="${pend ? esc(String(gbPend[t.id][e.student_code] ?? "")) : sb && sb.grade != null ? esc(gN(sb.grade)) : ""}" placeholder="${na ? "·" : ""}" ${run ? "" : "readonly"} aria-label="${esc(e.name)} · ${esc(t.title)}">${sb && Number(sb.bonus) ? `<i class="gb-b">+${gN(sb.bonus)}</i>` : ""}`}</td>`; }).join("")}
+        <td class="c mono gb-avg" data-gbavg="${esc(e.student_code)}">${gbAvg(e) ?? "—"}</td></tr>`).join("")}</tbody></table></div>
+      ${!rows.length ? `<div class="empty">لا يوجد طلبة بهذا البحث.</div>` : ""}<p class="small muted">الخانة الرمادية: الطالب ليس من مجموعة هذا التكليف؛ إن كتبت له درجة أُضيف إليه استثناءً. البونص يظهر صغيرًا بجوار الدرجة ويُعدَّل من داخل التكليف.</p>`;
+  }
+  function gbStatus(t, cls) { const el = $("#gbSt"); if (el) { el.textContent = t; el.className = "small " + (cls || "muted"); } }
+  async function gbFlush() {
+    clearTimeout(gbTimer); gbTimer = null;
+    const pend = gbPend; gbPend = {};
+    const ids = Object.keys(pend); if (!ids.length) return;
+    gbStatus("جارٍ الحفظ…");
+    let n = 0, bad = 0;
+    for (const tid of ids) {
+      const t = D.tasks.find(x => x.id === tid); if (!t) continue;
+      const rows = Object.entries(pend[tid]).map(([code, g]) => ({ code, grade: g === "" ? null : Number(toNum(g)) }));
+      try { n += await rpc("grade_many", { tid, rows, p_source: "من كشف الدرجات" }); await refreshSubs(t);
+        rows.forEach(r => { const inp = document.querySelector(`[data-gb="${tid}|${r.code}"]`); if (inp) { inp.classList.remove("pend"); inp.classList.add("saved"); setTimeout(() => inp.classList.remove("saved"), 900); } });
+      } catch (e) { bad++; rows.forEach(r => { const inp = document.querySelector(`[data-gb="${tid}|${r.code}"]`); if (inp) { inp.classList.remove("pend"); inp.classList.add("bad"); } }); showErr(e); }
+    }
+    D.enroll.forEach(e => { const c = document.querySelector(`[data-gbavg="${CSS.escape(e.student_code)}"]`); if (c) c.textContent = gbAvg(e) ?? "—"; });
+    gbStatus(bad ? "تعذّر حفظ بعض الدرجات (باللون الأحمر)." : "حُفظت " + n + " درجة · " + new Date().toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" }), bad ? "bad-t" : "ok-t");
+  }
+  function wireGb(el) {
+    if (tkLay !== "sheet") return;
+    el.querySelectorAll("[data-gbg]").forEach(b => b.onclick = () => { gbFlush(); gbG = b.dataset.gbg; renderTasks(); });
+    const q = $("#gbQ"); if (q) q.oninput = () => { gbQ = q.value; gbFlush(); renderTasks(); const r2 = $("#gbQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
+    const ins = [...el.querySelectorAll(".gb-in")];
+    const at = (inp, dr) => { const td = inp.closest("td"), tr = td.parentElement, ci = [...tr.children].indexOf(td); let r = tr; do { r = dr > 0 ? r.nextElementSibling : r.previousElementSibling; } while (r && !(r.children[ci] && r.children[ci].querySelector(".gb-in"))); return r && r.children[ci].querySelector(".gb-in"); };
+    ins.forEach(inp => {
+      if (inp.readOnly) return;
+      inp.onfocus = () => inp.select();
+      inp.onchange = () => {
+        const [tid, code] = inp.dataset.gb.split("|"), t = D.tasks.find(x => x.id === tid), v = toNum(inp.value);
+        inp.classList.remove("bad", "saved");
+        if (v !== "" && (isNaN(Number(v)) || Number(v) < 0 || Number(v) > Number(t.max_grade))) { inp.classList.add("bad"); gbStatus("الدرجة في «" + t.title + "» يجب أن تكون من 0 إلى " + gN(t.max_grade) + ".", "bad-t"); return; }
+        const sb = subOf(t, code); if (v === "" ? !sb || sb.grade == null : sb && sb.grade != null && Number(sb.grade) === Number(v)) return;
+        if (v === "" && sb && sb.grade != null && !confirm("مسح درجة " + nameOf(code) + " في «" + t.title + "»؟")) { inp.value = gN(sb.grade); return; }
+        (gbPend[tid] = gbPend[tid] || {})[code] = v; inp.classList.add("pend"); gbStatus("سيُحفظ بعد لحظة…");
+        clearTimeout(gbTimer); gbTimer = setTimeout(gbFlush, 900);
+      };
+      inp.onkeydown = ev => {
+        if (ev.key === "Enter" || ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); inp.dispatchEvent(new Event("change")); const nx = at(inp, ev.key === "ArrowUp" ? -1 : 1); if (nx) nx.focus(); else inp.blur(); }
+        if (ev.key === "Escape") { const [tid, code] = inp.dataset.gb.split("|"), sb = subOf(D.tasks.find(x => x.id === tid), code); inp.value = sb && sb.grade != null ? gN(sb.grade) : ""; inp.classList.remove("bad"); inp.blur(); }
+      };
+    });
+  }
+  window.addEventListener("beforeunload", e => { if (Object.keys(gbPend).length) { gbFlush(); e.preventDefault(); e.returnValue = ""; } });
   function renderTasks() {
     const el = $("#tasksPanel"); if (!el || !D) return;
     const c = course(), t = tkSel && D.tasks.find(x => x.id === tkSel);
@@ -1710,13 +1771,13 @@
       ${mimp ? mimpBox() : ""}
       ${bylawLine(c)}
       ${tkForm === "new" ? taskFormHtml(null) : ""}
-      ${D.tasks.length ? tkToolbar() + tkSections().map(([lab, list]) => `${lab ? `<h3 class="sec-t tk-sec">${lab} <span class="muted small">${list.length}</span></h3>` : ""}<div class="tk-grid">${list.map(x => { const st = taskStats(x), past = new Date(x.due_at) < new Date(), man = isManual(x);
+      ${D.tasks.length ? tkToolbar() + (tkLay === "sheet" ? gbHtml() : tkSections().map(([lab, list]) => `${lab ? `<h3 class="sec-t tk-sec">${lab} <span class="muted small">${list.length}</span></h3>` : ""}<div class="tk-grid">${list.map(x => { const st = taskStats(x), past = new Date(x.due_at) < new Date(), man = isManual(x);
         return `<button class="tk-card" data-tk="${x.id}">
           <span class="row between" style="align-items:flex-start"><b class="tk-name">${esc(x.title)}</b><span class="chip ${x.released ? "ok" : "none"}">${x.released ? "الدرجات معلنة" : "غير معلنة"}</span></span>
           <span class="small muted">${man ? `<span class="chip man">رصد يدوي</span> ${hasDueDay(x) ? "الاستلام " + esc(dayStr(cmpDate(x))) + " · " : ""}` : (x.present_day ? "الطرح " + esc(dayStr(cmpDate(x))) + " · " : "") + (past ? "انتهى رفع الملفات" : "رفع الملفات حتى") + " " + esc(dueStr(x.due_at)) + " · "}من ${gN(x.max_grade)}${x.grp ? " · مجموعة " + esc(x.grp) : ""}${!man && x.late === "close" ? " · يُغلق بعد الموعد" : ""}</span>
           ${man ? "" : `<span class="tk-bars"><span><i style="width:${st.n ? st.sub / st.n * 100 : 0}%"></i></span><small>سلّم ${st.sub} من ${st.n}${st.late ? ` · متأخر ${st.late}` : ""}</small></span>`}
           <span class="tk-bars g"><span><i style="width:${st.n ? st.graded / st.n * 100 : 0}%"></i></span><small>رُصدت ${st.graded} من ${st.n}${st.avg != null ? " · المتوسط " + gN(Math.round(st.avg * 10) / 10) : ""}${st.issues ? ` · <b class="bad-t">${st.issues} ملف تغيّر</b>` : ""}</small></span>
-        </button>`; }).join("")}</div>`).join("")
+        </button>`; }).join("")}</div>`).join(""))
       : `<div class="empty">${canRun(c) ? "لا توجد تكليفات بعد. اضغط «تكليف أو رصد جديد»: إما تكليف يسلّمه الطلبة من صفحتهم، أو كشف رصد يدوي لدرجات عمل لم يُسلَّم إلكترونيًّا." : "لا توجد تكليفات في هذه المادة بعد."}</div>`}
       ${!HD.ready ? `<p class="small muted">رفع الملفات إلى Google Drive لم يُفعَّل بعد في إعدادات الموقع، لذلك يسلّم الطلبة روابط فقط.</p>` : ""}`;
     wireTaskForm(el, null);
@@ -1724,6 +1785,8 @@
     const mb = $("#tkMulti"); if (mb) mb.onclick = () => { const f = document.createElement("input"); f.type = "file"; f.accept = ".xlsx,.xls"; f.onchange = () => { if (f.files[0]) importMulti(f.files[0]); }; f.click(); };
     wireMimp();
     const xg = $("#tkXg"); if (xg) xg.onchange = () => { tkXg = xg.value; store.set("cm_tkxg", tkXg); };
+    el.querySelectorAll("[data-tklay]").forEach(b => b.onclick = () => { tkLay = b.dataset.tklay; store.set("cm_tklay", tkLay); renderTasks(); });
+    wireGb(el);
     el.querySelectorAll("[data-tksort]").forEach(b => b.onclick = () => { tkSort = b.dataset.tksort; store.set("cm_tksort", tkSort); renderTasks(); });
     const sp = $("#tkSplit"); if (sp) sp.onchange = () => { tkSplit = sp.checked; store.set("cm_tksplit", tkSplit ? "1" : "0"); renderTasks(); };
     const xb = $("#tkXls"); if (xb) xb.onclick = () => exportGrades(false);
