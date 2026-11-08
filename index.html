@@ -741,7 +741,7 @@
         <a href="${esc(m.url)}" target="_blank" rel="noopener" class="tk-file"><b>${esc(m.kind === "drive" ? m.file_name || "الملف" : m.url)}</b><small>${m.kind === "drive" ? "على Google Drive الخاص بك" + (m.size ? " · " + HD.size(m.size) : "") : "رابط"} · ${CM.fmtD(m.submitted_at)} ${CM.fmtT(m.submitted_at)}${m.version > 1 ? " · التسليم رقم " + m.version : ""}</small></a>
         ${m.late ? `<span class="small warn-t">سُلِّم بعد الموعد، ويظهر ذلك للمحاضر.</span>` : ""}
         ${m.kind === "drive" ? `<p class="small muted">لا تحذف هذا الملف من Drive ولا تعدّله؛ فالتطبيق يحفظ بصمته، وأي تعديل بعد التسليم يظهر للمحاضر.</p>` : ""}</div>` : ""}
-      ${tkMsg ? `<div class="msg ${tkMsg.k}">${esc(tkMsg.t)}${tkMsg.redir ? `<button class="btn primary block" id="tkRedir" style="margin-top:10px">جرّب طريقة أخرى: افتح صفحة Google في نفس الصفحة</button><small class="muted" style="display:block;margin-top:6px">ستنتقل إلى صفحة Google لتختار حسابك وتوافق، ثم ترجع إلى هنا ويُكمَل التسليم وحده.</small>` : ""}</div>` : ""}
+      ${tkMsg ? `<div class="msg ${tkMsg.k}">${esc(tkMsg.t)}${tkMsg.alt && open && HD.ready ? `<div class="alt-sub"><b>أو سلّم رابطًا بدلًا من الرفع:</b><ol class="small"><li>افتح تطبيق Google Drive وارفع الملف منه.</li><li>اضغط ⋮ على الملف ← «مشاركة» ← «أي شخص لديه الرابط» ← «نسخ الرابط».</li><li>ارجع هنا والصقه.</li></ol><button class="btn block" id="tkAlt">سلّم رابطًا بدلًا من ذلك</button><small class="muted">وإن كنت تستخدم Safari وظهرت لك صفحة خطأ من Google، فجرّب فتح الموقع من Google Chrome.</small></div>` : ""}${tkMsg.redir ? `<button class="btn primary block" id="tkRedir" style="margin-top:10px">جرّب طريقة أخرى: افتح صفحة Google في نفس الصفحة</button><small class="muted" style="display:block;margin-top:6px">ستنتقل إلى صفحة Google لتختار حسابك وتوافق، ثم ترجع إلى هنا ويُكمَل التسليم وحده.</small>` : ""}</div>` : ""}
       ${up ? `<div class="tk-up"><div class="row between small"><span>${esc(up.phase)}</span><span class="mono" id="upPct">${up.pct != null ? Math.round(up.pct * 100) + "%" : ""}</span></div><div class="qbar"><i id="upBar" style="width:${Math.round((up.pct || 0) * 100)}%"></i></div><p class="small muted">لا تغلق الصفحة حتى يكتمل التسليم.</p></div>`
       : open ? `<div class="tk-form">
         <h3>${sub ? "استبدال التسليم" : "سلّم التكليف"}</h3>
@@ -770,6 +770,7 @@
       } else pickFile = f;
       renderTask(); };
     const go = $("#tkGo"); if (go) go.onclick = () => submitDrive(t, ($("#tkNote") || {}).value || "");
+    const al = $("#tkAlt"); if (al) al.onclick = () => { linkMode = true; tkMsg = null; renderTask(); const u = $("#tkUrl"); if (u) u.focus(); };
     const rd = $("#tkRedir"); if (rd) rd.onclick = () => driveRedirect(t, ($("#tkNote") || {}).value || "", rd);
     const gl = $("#tkLink"); if (gl) gl.onclick = () => submitLink(t, $("#tkUrl").value.trim(), ($("#tkNote") || {}).value || "");
     const sp = $("#tkStamp"); if (sp) sp.onclick = () => myStamped(t, sp);
@@ -809,7 +810,7 @@
       const net = /Failed to fetch|NetworkError|network|Load failed/i.test(String(e && e.message || ""));
       const WHERE = { auth: "أثناء الاتصال بحساب Google", folder: "أثناء تجهيز المجلد على Google Drive", upload: "أثناء رفع الملف إلى Google Drive", share: "أثناء إتاحة الملف للمحاضر", submit: "أثناء تسجيل التسليم في Hadro" };
       const redir = stage === "auth" && /drive_closed|drive_denied/.test(String(e && e.message || "")) && !!(window.CLASSMATE || {}).GOOGLE_REDIRECT;
-      tkMsg = { k: "bad", redir, t: redir ? "لم تكتمل الموافقة في نافذة Google (أُغلقت النافذة أو لم تظهر). اضغط «سلّم» مرة أخرى، وإن تكرر ذلك فاستخدم الطريقة الأخرى بالأسفل." : net ? "انقطع الاتصال " + WHERE[stage] + ". إن تكرر ذلك: أغلق الصفحة وافتحها من جديد واختر الملف مرة أخرى، أو جرّب متصفحًا آخر، أو سلّم «رابط» لملفك على Drive." : errText(e) };
+      tkMsg = { k: "bad", redir, alt: stage === "auth", t: redir ? "لم تكتمل الموافقة في نافذة Google (أُغلقت النافذة أو لم تظهر). اضغط «سلّم» مرة أخرى، وإن تكرر ذلك فاستخدم الطريقة الأخرى بالأسفل." : net ? "انقطع الاتصال " + WHERE[stage] + ". إن تكرر ذلك: أغلق الصفحة وافتحها من جديد واختر الملف مرة أخرى، أو جرّب متصفحًا آخر، أو سلّم «رابط» لملفك على Drive." : errText(e) };
       logErr("submit_" + stage, e, f);
     }
     up = null; await loadTasks(true); renderTask();
@@ -843,7 +844,7 @@
     await loadTasks(true);
     if (!(tasks || []).some(x => x.id === p.tid)) return;
     openTask(p.tid);
-    if (!res || !res.ok || !HD.hasToken()) { tkMsg = { k: "bad", t: errText({ message: (res && res.error) || "drive_denied" }) }; return renderTask(); }
+    if (!res || !res.ok || !HD.hasToken()) { tkMsg = { k: "bad", alt: true, t: errText({ message: (res && res.error) || "drive_denied" }) }; logErr("redirect_return", { message: res ? res.error : "no_result" }, rec && rec.file); return renderTask(); }
     const t = tasks.find(x => x.id === p.tid);
     if (rec && rec.file) { pickFile = rec.file instanceof File ? rec.file : new File([rec.file], rec.name || "file", { type: rec.type || "" }); renderTask(); submitDrive(t, p.note || ""); }
     else { tkMsg = { k: "ok", t: "تم الاتصال بحساب Google. اختر الملف مرة أخرى ثم اضغط «سلّم»." }; renderTask(); }

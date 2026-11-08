@@ -946,3 +946,5 @@ table.gb thead .gb-nm{ z-index: 3; }
 .cchips.seg .cchip:not([aria-pressed=true]){ color: var(--ink); }
 table.gb{ min-width: 0; }
 .gb-wrap{ display: block; width: fit-content; max-width: 100%; }
+.alt-sub{ margin-top: 12px; padding-top: 10px; border-top: 1px dashed color-mix(in srgb, currentColor 30%, transparent); display: grid; gap: 6px; color: var(--ink); }
+.alt-sub ol{ margin: 0; padding-inline-start: 18px; display: grid; gap: 2px; }
