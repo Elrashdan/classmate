@@ -1687,8 +1687,9 @@
     if (t) return renderTask(el, c, t);
     const totalMax = D.tasks.reduce((a, x) => a + Number(x.max_grade), 0);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
-      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${D.tasks.length ? `<button class="btn sm" id="tkXls" title="كشف الكنترول (مسلسل · الكود · الاسم · متوسط الدرجات) وتفاصيل الدرجات والتسليم">كشف الكنترول (إكسل)</button><button class="btn sm" id="tkPdf" title="كشف الكنترول وتفاصيل الدرجات في ملف PDF">كشف الكنترول (PDF)</button>` : ""}</div></div>
+      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button><button class="btn sm" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات من إكسل</button>` : ""}${D.tasks.length ? `<button class="btn sm" id="tkXls" title="كشف الكنترول (مسلسل · الكود · الاسم · متوسط الدرجات) وتفاصيل الدرجات والتسليم">كشف الكنترول (إكسل)</button><button class="btn sm" id="tkPdf" title="كشف الكنترول وتفاصيل الدرجات في ملف PDF">كشف الكنترول (PDF)</button>` : ""}</div></div>
       ${msgHtml("tasks")}
+      ${mimp ? mimpBox() : ""}
       ${bylawLine(c)}
       ${tkForm === "new" ? taskFormHtml(null) : ""}
       ${D.tasks.length ? `<div class="tk-grid">${D.tasks.map(x => { const st = taskStats(x), past = new Date(x.due_at) < new Date(), man = isManual(x);
@@ -1702,6 +1703,8 @@
       ${!HD.ready ? `<p class="small muted">رفع الملفات إلى Google Drive لم يُفعَّل بعد في إعدادات الموقع، لذلك يسلّم الطلبة روابط فقط.</p>` : ""}`;
     wireTaskForm(el, null);
     const nb = $("#tkNew"); if (nb) nb.onclick = () => { tkForm = "new"; tkMode = "submit"; renderTasks(); const i = $("#tfTitle"); if (i) i.focus(); };
+    const mb = $("#tkMulti"); if (mb) mb.onclick = () => { const f = document.createElement("input"); f.type = "file"; f.accept = ".xlsx,.xls"; f.onchange = () => { if (f.files[0]) importMulti(f.files[0]); }; f.click(); };
+    wireMimp();
     const xb = $("#tkXls"); if (xb) xb.onclick = () => exportGrades(false);
     const xp = $("#tkPdf"); if (xp) xp.onclick = () => exportGrades(true);
     el.querySelectorAll("[data-tk]").forEach(b => b.onclick = () => { tkSel = b.dataset.tk; tkForm = null; tkEdits = {}; tkFilter = "all"; tkQ = ""; gimp = null; flash.tasks = ""; renderTasks(); el.scrollIntoView({ block: "start" }); });
@@ -1899,7 +1902,8 @@
       const b = document.createElement("button"); b.type = "button"; b.className = "btn sm ghost icon mic-s"; b.title = "ابحث بالصوت"; b.setAttribute("aria-label", "ابحث بالصوت"); b.innerHTML = MIC;
       if (micRec && micRec._for === inp.id) b.classList.add("on");
       b.onclick = () => micSearch(inp, b);
-      const w = document.createElement("span"); w.className = "mic-w"; inp.parentNode.insertBefore(w, inp); w.appendChild(inp); w.appendChild(b);
+      // يُضاف الزر بجوار خانة البحث دون نقلها، فلا تفقد التركيز ولا تختفي لوحة المفاتيح أثناء الكتابة
+      inp.classList.add("has-mic"); inp.after(b);
     });
   }
   new MutationObserver(() => micify()).observe(document.body, { childList: true, subtree: true });
@@ -2204,6 +2208,121 @@
       renderTasks();
       const box = $("#impBox"); if (box) box.scrollIntoView({ block: "nearest", behavior: "smooth" });
     } catch (e) { showErr(e.message && !/[a-z_]{6,}/.test(e.message) ? e : { message: "تعذّرت قراءة الملف: " + (e.message || e) }); }
+  }
+  /* ---------- استيراد عدة تكليفات من ملف إكسل: عمود لكل تكليف باسمه وتحته درجات الطلبة ---------- */
+  let mimp = null;   // { file, cols: [{ j, title, max, grp, on, rows: [{code, grade}], errs: [], exist }], unk: [], warn: [] }
+  const NICE = [5, 10, 15, 20, 25, 30, 40, 50, 100, 150, 200];
+  async function importMulti(file) {
+    try {
+      await loadExcelJS();
+      const wb = new ExcelJS.Workbook(); await wb.xlsx.load(await file.arrayBuffer());
+      const ws = wb.worksheets.find(w => w.state !== "veryHidden" && w.state !== "hidden" && w.name !== "hadro");
+      const cellTxt = v => v && typeof v === "object" ? (v.text || (v.richText ? v.richText.map(x => x.text).join("") : v.result != null ? v.result : "")) : v;
+      const val = (r, j) => String(cellTxt(ws.getRow(r).getCell(j).value) ?? "").trim();
+      const SKIP = /^(م|مسلسل|م\.|رقم|#|n|no\.?|المجموع(?!ة)|الإجمالي|الاجمالي|total|ملاحظات?|notes?|التقدير|النسبة|%|البريد|الإيميل|email|الهاتف|رقم الهاتف|phone)$/i;
+      let hr = 0, cCode = 0, cName = 0, cGrp = 0, tcols = [];
+      for (let r = 1; r <= Math.min(ws.rowCount, 30) && !hr; r++) {
+        cCode = cName = cGrp = 0; tcols = [];
+        ws.getRow(r).eachCell((cl, j) => {
+          const v = String(cellTxt(cl.value) ?? "").trim(); if (!v) return;
+          if (/^(الكود|كود|رقم الجلوس|رقم القيد|كود الطالب|code|id|student id)$/i.test(v)) cCode = cCode || j;
+          else if (/^(الاسم|اسم الطالب|الإسم|اسم|الطالب|name|student|student name)$/i.test(v)) cName = cName || j;
+          else if (/^(المجموعة|مجموعة|الجروب|جروب|السكشن|سكشن|group|section)$/i.test(v)) cGrp = cGrp || j;
+          else if (!SKIP.test(v) && !/^\d+([.,]\d+)?$/.test(toNum(v))) tcols.push({ j, head: v });
+        });
+        if ((cCode || cName) && tcols.length) hr = r;
+      }
+      if (!hr) throw { message: "لم أجد صف العناوين. اكتب في الصف الأول: «الاسم» (أو «الكود»)، و«المجموعة» إن أردت، ثم عمودًا لكل تكليف باسمه، وتحت كل عمود درجات الطلبة." };
+      const warn = [];
+      if (!cCode) warn.push("لا يوجد عمود للكود، فطوبقت الأسماء بكشف المادة (مستعينًا بعمود المجموعة إن وُجد). راجِع النتيجة قبل الاعتماد.");
+      const roster = D.enroll.map(e => ({ code: e.student_code, name: e.name, grp: e.grp }));
+      const students = [], unk = [];
+      for (let r = hr + 1; r <= ws.rowCount; r++) {
+        let code = cCode ? toNum(val(r, cCode)).replace(/\.0+$/, "") : "";
+        const nm = cName ? val(r, cName) : "", fg = cGrp ? val(r, cGrp).replace(/^(مجموعة|جروب|المجموعة)\s*/, "") : "";
+        if (!code && !nm) continue;
+        if (code && !D.enroll.some(e => e.student_code === code)) { unk.push((nm || code) + " (" + code + "): ليس من طلبة المادة"); continue; }
+        if (!code) {
+          const pool = fg && roster.some(x => x.grp === fg) ? roster.filter(x => x.grp === fg) : roster;
+          let cands = HV.match({ name: nm }, pool);
+          if (!HV.sure(cands) && pool !== roster) cands = HV.match({ name: nm }, roster);
+          if (!HV.sure(cands)) { unk.push("«" + nm + "»: لم أتأكد من الطالب" + (cands[0] ? " (أقرب اسم: " + nameOf(cands[0].code) + ")" : "")); continue; }
+          code = cands[0].code;
+        }
+        students.push({ r, code, fg });
+      }
+      const dupe = new Set(), seen = new Set(); students.forEach(x => { if (seen.has(x.code)) dupe.add(x.code); seen.add(x.code); });
+      dupe.forEach(c => unk.push(nameOf(c) + ": مكرر في الملف، فأُخذ آخر صف له"));
+      const grpOf = code => (D.enroll.find(e => e.student_code === code) || {}).grp || "";
+      const cols = tcols.map(({ j, head }) => {
+        const mm = /(?:\(|\[)?\s*(?:من|\/|out of)\s*(\d+(?:[.,]\d+)?)\s*(?:\)|\])?\s*$/i.exec(toNum(head));
+        const title = head.replace(/(?:\(|\[)?\s*(?:من|\/|out of)\s*[\d٠-٩]+(?:[.,٫][\d٠-٩]+)?\s*(?:\)|\])?\s*$/i, "").trim() || head;
+        const last = {}, errs = [];
+        students.forEach(({ r, code }) => {
+          const raw = val(r, j); if (raw === "") return;
+          const n = Number(toNum(raw));
+          if (isNaN(n)) { if (!/^(غ|غائب|غياب|-|—|x)$/i.test(raw)) errs.push(nameOf(code) + ": «" + raw + "» ليست درجة"); return; }
+          last[code] = n;
+        });
+        const rows = Object.entries(last).map(([code, grade]) => ({ code, grade }));
+        const hi = rows.reduce((a, x) => Math.max(a, x.grade), 0);
+        const max = mm ? Number(mm[1].replace(",", ".")) : (NICE.find(v => v >= hi) || Math.ceil(hi));
+        const gs = [...new Set(rows.map(x => grpOf(x.code)))];
+        const exist = D.tasks.find(t => t.title.trim() === title);
+        return { j, title, max, grp: exist ? exist.grp || "" : gs.length === 1 && gs[0] && new Set(D.enroll.map(e => e.grp).filter(Boolean)).size > 1 ? gs[0] : "", on: rows.length > 0, rows, errs, exist: exist ? exist.id : null };
+      }).filter(c => c.rows.length || c.errs.length);
+      if (!cols.length) throw { message: "وجدت أعمدة التكليفات لكن لا توجد تحتها درجات." };
+      mimp = { file: file.name, cols, unk, warn };
+      renderTasks();
+      const box = $("#mimpBox"); if (box) box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    } catch (e) { showErr(e.message && !/[a-z_]{6,}/.test(e.message) ? e : { message: "تعذّرت قراءة الملف: " + (e.message || e) }); }
+  }
+  function mimpBox() {
+    const g = mimp, groups = [...new Set(D.enroll.map(e => e.grp).filter(Boolean))].sort((a, b) => GORD(a) - GORD(b));
+    const on = g.cols.filter(c => c.on), n = on.reduce((a, c) => a + c.rows.filter(r => r.grade <= c.max).length, 0);
+    return `<div class="imp-box mimp" id="mimpBox"><div class="row between"><h3>تكليفات من «${esc(g.file)}»</h3><button class="btn sm ghost" id="mimpX">إلغاء</button></div>
+      ${g.warn.map(w => `<div class="msg warn small">${esc(w)}</div>`).join("")}
+      <p class="small muted">كل عمود سيصبح تكليف «رصد يدوي» بنفس اسمه، وتُرصد فيه درجة كل طالب. راجِع الدرجة العظمى والمجموعة لكل تكليف. وإن وُجد تكليف بالاسم نفسه رُصدت الدرجات فيه.</p>
+      <div class="mimp-list">${g.cols.map((c, i) => { const over = c.rows.filter(r => r.grade > c.max || r.grade < 0).length;
+        return `<div class="mimp-c ${c.on ? "" : "off"}">
+          <label class="mimp-on"><input type="checkbox" data-mon="${i}" ${c.on ? "checked" : ""}></label>
+          <div class="mimp-f"><label class="f"><span>اسم التكليف</span><input type="text" data-mt="${i}" value="${esc(c.title)}" ${c.exist ? "disabled" : ""}></label>
+            <label class="f"><span>من</span><input type="text" inputmode="decimal" data-mm="${i}" value="${esc(gN(c.max))}" ${c.exist ? "disabled" : ""}></label>
+            <label class="f"><span>المجموعة</span><select data-mg="${i}" ${c.exist ? "disabled" : ""}><option value="">كل المجموعات</option>${groups.map(x => `<option value="${esc(x)}" ${c.grp === x ? "selected" : ""}>مجموعة ${esc(x)}</option>`).join("")}</select></label></div>
+          <div class="mimp-s small">${c.exist ? `<span class="chip warn">موجود بالفعل · سيُرصد فيه</span> ` : `<span class="chip ok">جديد</span> `}<b>${c.rows.length}</b> درجة${over ? ` · <b class="bad-t">${over}</b> أكبر من ${gN(c.max)} ولن تُرصد` : ""}${c.errs.length ? ` · <span class="bad-t">${c.errs.length} خانة غير مفهومة</span>` : ""}</div>
+        </div>`; }).join("")}</div>
+      ${g.unk.length ? `<details class="small"><summary class="bad-t">${g.unk.length} صف لم يُطابَق بطالب من المادة</summary><ul class="imp-err">${g.unk.slice(0, 40).map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
+      ${g.cols.some(c => c.errs.length) ? `<details class="small"><summary>الخانات غير المفهومة</summary><ul class="imp-err">${g.cols.flatMap(c => c.errs.map(x => c.title + " · " + x)).slice(0, 40).map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
+      <div class="row"><button class="btn primary" id="mimpGo" ${n ? "" : "disabled"}>${on.filter(c => !c.exist).length ? "إنشاء " + on.filter(c => !c.exist).length + " تكليف و" : ""}رصد ${n} درجة</button></div></div>`;
+  }
+  function wireMimp() {
+    if (!mimp) return;
+    const box = $("#mimpBox"); if (!box) return;
+    $("#mimpX").onclick = () => { mimp = null; renderTasks(); };
+    box.querySelectorAll("[data-mon]").forEach(x => x.onchange = () => { mimp.cols[+x.dataset.mon].on = x.checked; renderTasks(); });
+    box.querySelectorAll("[data-mt]").forEach(x => x.onchange = () => { mimp.cols[+x.dataset.mt].title = x.value.trim(); });
+    box.querySelectorAll("[data-mm]").forEach(x => x.onchange = () => { const v = Number(toNum(x.value)); if (v > 0) mimp.cols[+x.dataset.mm].max = v; renderTasks(); });
+    box.querySelectorAll("[data-mg]").forEach(x => x.onchange = () => { mimp.cols[+x.dataset.mg].grp = x.value; });
+    $("#mimpGo").onclick = async () => {
+      const go = $("#mimpGo"); go.disabled = true; go.textContent = "جارٍ الإنشاء والرصد…";
+      let made = 0, graded = 0;
+      try {
+        for (const c of mimp.cols.filter(c => c.on)) {
+          if (!c.title) throw { message: "اكتب اسم كل تكليف." };
+          let tid = c.exist;
+          if (!tid) {
+            tid = await rpc("create_task", { cid: D.cid, p_title: c.title, p_details: "", p_max: c.max, p_due: null, p_late: "accept", p_grp: c.grp || null, p_mode: "manual" });
+            await rpc("set_task_place", { tid, p_home: true }); made++;
+          }
+          const max = c.exist ? Number((D.tasks.find(t => t.id === c.exist) || {}).max_grade) : c.max;
+          const rows = c.rows.filter(r => r.grade >= 0 && r.grade <= max).map(r => ({ code: r.code, grade: r.grade, bonus: 0 }));
+          if (rows.length) graded += await rpc("grade_many", { tid, rows, p_source: "من ملف إكسل «" + mimp.file + "»" });
+          c.on = false;
+        }
+        say("tasks", (made ? "أُنشئ " + made + " تكليف، و" : "") + "رُصدت " + graded + " درجة من الملف. الدرجات غير معلنة للطلبة حتى تعلنها من كل تكليف.");
+        mimp = null; await loadCourse();
+      } catch (e) { showErr(e); say("tasks", (made ? "أُنشئ " + made + " تكليف ورُصدت " + graded + " درجة قبل التوقف. " : "")); renderTasks(); }
+    };
   }
   function impBox(t) {
     const g = gimp;
