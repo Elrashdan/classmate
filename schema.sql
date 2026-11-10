@@ -4666,3 +4666,20 @@ begin
 end $$;
 revoke all on function public.warning_notify(uuid, text[], text) from public, anon;
 grant execute on function public.warning_notify(uuid, text[], text) to authenticated;
+-- update-44: الخادم يرفض UPDATE بدون WHERE (حماية safeupdate)، فإعدادات القسم صارت بـ where true
+create or replace function public.admin_set_domain(p_domain text) returns void
+language plpgsql security definer set search_path = public as $$
+declare d text := lower(trim(both '@ ' from coalesce(p_domain, '')));
+begin
+  if staff_role() is distinct from 'admin' then raise exception 'not_allowed'; end if;
+  if d <> '' and my_email() not like '%@' || d then raise exception 'domain_locks_you_out'; end if;
+  update settings set domain = d where true;
+  perform log_audit(null, 'غيّر نطاق بريد الجامعة إلى ' || case when d = '' then '(أي نطاق)' else d end);
+end $$;
+create or replace function public.admin_set_ta_create(p_on boolean) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if staff_role() is distinct from 'admin' then raise exception 'not_allowed'; end if;
+  update settings set ta_can_create = coalesce(p_on, false) where true;
+  perform log_audit(null, case when p_on then 'سمح للمعيدين بإنشاء مواد' else 'منع المعيدين من إنشاء مواد' end);
+end $$;
