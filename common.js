@@ -95,6 +95,7 @@
     due_required: "حدّد موعد التسليم.",
     bad_late: "اختر ما يحدث بعد موعد التسليم.",
     max_below_grades: "لا يمكن جعل الدرجة العظمى أقل من درجة رُصدت بالفعل لأحد الطلبة.",
+    appeal_not_released: "لا يمكن التظلم قبل إعلان الدرجات.", appeal_note: "اكتب سبب التظلم.", appeal_photo: "أرفق صورة المشروع.", appeal_open: "لديك تظلم قيد المراجعة في هذا التكليف.", appeal_limit: "وصلت إلى الحد الأقصى للتظلمات في هذا التكليف (3).", appeal_decided: "تم البت في هذا التظلم بالفعل.", appeal_reply: "اكتب سبب الرفض.", bad_reason: "اختر سبب التظلم.", bad_groups: "أسماء المجموعات غير صالحة (من ٢ إلى ١٢ اسمًا مختلفًا).", no_ungrouped: "كل الطلبة موزَّعون على مجموعات بالفعل.",
     grade_range: "توجد درجة أكبر من الدرجة العظمى للتكليف أو أقل من صفر.",
     bad_grade: "الدرجة غير صحيحة.",
     task_closed: "انتهى موعد التسليم، وأُغلق التسليم في هذا التكليف.",
@@ -126,8 +127,37 @@
     return "حدثت مشكلة: " + m;
   };
 
+  // استدعاء دالة على الخادم مباشرة (صفحة الطالب لا تحتاج مكتبة Supabase كلها؛ أخف وأسرع، ولا تعتمد على خادم خارجي للمكتبة)
+  // ويُعاد الطلب تلقائيًّا مرتين إن انقطع الاتصال لحظيًّا (شائع على شبكات الهاتف وSafari)
+  const REST = configured ? cfg.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/rpc/" : "";
+  CM.rpcFetch = async (name, args) => {
+    let r;
+    for (let k = 0; ; k++) {
+      try {
+        const ctl = window.AbortController ? new AbortController() : null, tm = ctl ? setTimeout(() => ctl.abort(), 20000) : 0;
+        r = await fetch(REST + name, { method: "POST", headers: { apikey: cfg.SUPABASE_ANON_KEY, Authorization: "Bearer " + cfg.SUPABASE_ANON_KEY, "Content-Type": "application/json" }, body: JSON.stringify(args || {}), signal: ctl ? ctl.signal : undefined, cache: "no-store" });
+        clearTimeout(tm); break;
+      } catch (e) {
+        if (k >= 2) {
+          // نحفظ وصف الفشل لنرسله للتشخيص حين يعود الاتصال (لمعرفة سبب «لا يوجد إنترنت» على آيفون)
+          try { const f = JSON.parse(localStorage.getItem("hadro_netfail") || "null") || { n: 0 }; f.n++; f.at = new Date().toISOString(); f.fn = name; f.err = String((e && (e.name || "") + ": " + (e.message || "")) || e).slice(0, 160); f.online = navigator.onLine; f.ua = navigator.userAgent.slice(0, 180); f.sa = !!(navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches)); localStorage.setItem("hadro_netfail", JSON.stringify(f)); } catch (x) {}
+          throw { message: "Failed to fetch" };
+        }
+        await new Promise(ok => setTimeout(ok, 700 * (k + 1)));
+      }
+    }
+    if (name !== "client_log") try { const f = localStorage.getItem("hadro_netfail"); if (f) { localStorage.removeItem("hadro_netfail"); const j = JSON.parse(f); CM.rpcFetch("client_log", { p_token: null, p_where: "net:" + j.fn, p_msg: j.n + "× " + j.err, p_info: j }).catch(() => {}); } } catch (x) {}
+    const txt = await r.text(); let data = null; try { data = txt ? JSON.parse(txt) : null; } catch (e) { data = txt; }
+    if (!r.ok) throw { message: (data && data.message) || "http_" + r.status, code: data && data.code, details: data && data.details };
+    return data;
+  };
   CM.rpc = async (name, args) => {
-    if (!CM.sb) throw { message: "Failed to fetch" }; // supabase script didn't load (offline)
+    if (!CM.sb) {
+      if (!configured) throw { message: "Failed to fetch" };
+      const data = await CM.rpcFetch(name, args);
+      if (data && typeof data === "object" && !Array.isArray(data) && data.error) throw { message: data.error };
+      return data;
+    }
     const { data, error } = await CM.sb.rpc(name, args || {});
     if (error) throw error;
     if (data && typeof data === "object" && !Array.isArray(data) && data.error) throw { message: data.error };
@@ -262,6 +292,23 @@
       });
     }, { passive: true });
   })();
+  // قائمة منسدلة بسيطة (details/summary): تجمع الأزرار الثانوية تحت زر واحد. تُغلق عند اختيار عنصر أو الضغط خارجها
+  CM.dd = (label, items, o = {}) => items.filter(Boolean).length ? `<details class="dd${o.end ? " end" : ""}${o.cls ? " " + o.cls : ""}"><summary class="btn sm${o.primary ? " primary" : ""}${o.ghost ? " ghost" : ""}"${o.title ? ` title="${o.title}"` : ""}>${label}<svg class="dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><div class="dd-m" role="menu">${items.filter(Boolean).join("")}</div></details>` : "";
+  document.addEventListener("click", e => {
+    document.querySelectorAll("details.dd[open]").forEach(d => {
+      if (!d.contains(e.target)) d.open = false;
+      else if (e.target.closest(".dd-m") && e.target.closest("button, a") && !e.target.closest("[data-keep]")) setTimeout(() => { d.open = false; }, 0);
+    });
+  });
+  // أبقِ القائمة داخل حدود الشاشة (على الموبايل أي جزء خارج الشاشة يصغّر الصفحة كلها)
+  document.addEventListener("toggle", e => {
+    const d = e.target; if (!(d instanceof HTMLDetailsElement) || !d.classList.contains("dd") || !d.open) return;
+    const m = d.querySelector(".dd-m"); if (!m) return;
+    m.style.translate = ""; const r = m.getBoundingClientRect(), W = document.documentElement.clientWidth;
+    const dx = r.left < 8 ? 8 - r.left : r.right > W - 8 ? W - 8 - r.right : 0;
+    if (dx) m.style.translate = Math.round(dx) + "px 0";
+  }, true);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll("details.dd[open]").forEach(d => { d.open = false; }); });
   CM.rise = el => { if (!el) return; el.classList.remove("rise"); void el.offsetWidth; el.classList.add("rise"); clearTimeout(el._rt); el._rt = setTimeout(() => el.classList.remove("rise"), 900); };
   // الضغط على شعار Hadro أعلى الصفحة = «الرئيسية»: تتولاه الصفحة إن استمعت لحدث hadro:home، وإلا فالصفحة الموحدة
   document.addEventListener("click", ev => {
@@ -277,7 +324,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b63)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b65)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

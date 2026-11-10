@@ -4207,3 +4207,246 @@ grant execute on function public.staff_temp_pw_check(text, text), public.staff_t
 -- ---------------------------------------------------------------------
 insert into public.staff(email, name, role, status)
 values (lower('ahmed.rashed@f-arts.capu.edu.eg'), 'أحمد', 'admin', 'active');
+-- تحديث 34: تشديد الصلاحيات
+--  - لا يصل الزائر (anon) إلى أي جدول مباشرة؛ كل شيء عبر الدوال التي تتحقق من الهوية.
+--  - المستخدم المسجَّل (authenticated) يقرأ فقط الجداول التي لها سياسة قراءة، ولا يكتب في أي جدول مباشرة.
+--  - الجداول الجديدة لا تأخذ صلاحيات تلقائيًّا.
+--  - دوال المحفّزات الداخلية لا تُستدعى من الخارج، وتثبيت search_path لكل الدوال.
+do $$
+declare r record; has_pol boolean;
+begin
+  for r in select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind = 'r' loop
+    execute format('revoke all on table public.%I from anon', r.relname);
+    execute format('revoke insert, update, delete, truncate, references, trigger on table public.%I from authenticated', r.relname);
+    select exists (select 1 from pg_policies p where p.schemaname = 'public' and p.tablename = r.relname and p.cmd in ('SELECT', 'ALL') and 'authenticated' = any(p.roles)) into has_pol;
+    if not has_pol then execute format('revoke select on table public.%I from authenticated', r.relname); end if;
+  end loop;
+  for r in select p.oid::regprocedure as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and (p.prorettype = 'trigger'::regtype or p.proname in ('notify_wake')) loop
+    execute format('revoke execute on function %s from public, anon, authenticated', r.f);
+  end loop;
+  for r in select p.oid::regprocedure as f from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.prokind = 'f' and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) x where x like 'search_path=%')
+             and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e') loop
+    execute format('alter function %s set search_path = public, extensions', r.f);
+  end loop;
+end $$;
+revoke execute on function public.staff_pw_changed() from anon;
+alter default privileges in schema public revoke all on tables from anon, authenticated;
+revoke all on all sequences in schema public from anon;
+alter default privileges in schema public revoke all on sequences from anon;
+-- تحديث 35: التظلم على درجة تكليف
+--   الطالب: يختار السبب (سلّمت ولم تُرصد / الدرجة مرصودة خطأ / سبب آخر) ويرفع صورة المشروع إلى Drive الخاص به (إلزامية).
+--   المحاضر أو المعيد: يقبل ويكتب الدرجة الجديدة (تُرصد في الكشف مباشرة) أو يرفض ويكتب السبب، ويصل الطالب تنبيه بالقرار.
+create table if not exists public.grade_appeals (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references public.tasks(id) on delete cascade,
+  student_code text not null,
+  reason text not null check (reason in ('not_graded', 'wrong_grade', 'other')),
+  note text not null default '',
+  file_id text, file_url text not null, file_name text, mime text, size bigint,
+  old_grade numeric,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected', 'withdrawn')),
+  new_grade numeric, reply text not null default '',
+  decided_by text, decided_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists grade_appeals_one_open on public.grade_appeals(task_id, student_code) where status = 'pending';
+create index if not exists grade_appeals_task on public.grade_appeals(task_id, status);
+create index if not exists grade_appeals_student on public.grade_appeals(student_code, created_at desc);
+alter table public.grade_appeals enable row level security;
+revoke all on public.grade_appeals from anon, authenticated;
+
+-- الطالب: تقديم تظلم
+create or replace function public.student_appeal(p_token text, tid uuid, p_reason text, p_note text, p_file_id text, p_url text, p_name text, p_mime text, p_size bigint)
+returns json language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token); t tasks; s submissions; a grade_appeals; n int;
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  select * into t from tasks where id = tid;
+  if t.id is null or not exists (select 1 from enrollments where course_id = t.course_id and student_code = code) then raise exception 'not_found'; end if;
+  if not t.released then raise exception 'appeal_not_released'; end if;
+  if p_reason not in ('not_graded', 'wrong_grade', 'other') then raise exception 'bad_reason'; end if;
+  if p_reason = 'other' and length(trim(coalesce(p_note, ''))) < 5 then raise exception 'appeal_note'; end if;
+  if coalesce(p_url, '') !~ '^https://' or length(p_url) > 600 then raise exception 'appeal_photo'; end if;
+  if exists (select 1 from grade_appeals where task_id = tid and student_code = code and status = 'pending') then raise exception 'appeal_open'; end if;
+  select count(*) into n from grade_appeals where task_id = tid and student_code = code;
+  if n >= 3 then raise exception 'appeal_limit'; end if;
+  select * into s from submissions where task_id = tid and student_code = code;
+  insert into grade_appeals(task_id, student_code, reason, note, file_id, file_url, file_name, mime, size, old_grade)
+    values (tid, code, p_reason, left(trim(coalesce(p_note, '')), 1000), nullif(p_file_id, ''), p_url, left(coalesce(p_name, ''), 200), left(coalesce(p_mime, ''), 100), p_size, s.grade + coalesce(s.bonus, 0))
+    returning * into a;
+  insert into audit(actor, course_id, action) values (coalesce((select name from enrollments where course_id = t.course_id and student_code = code), code), t.course_id, 'قدّم تظلمًا على درجة «' || t.title || '»');
+  return json_build_object('id', a.id);
+end $$;
+
+-- الطالب: تظلماته (لعرض الحالة في كل تكليف)
+create or replace function public.student_appeals(p_token text) returns json
+language plpgsql stable security definer set search_path = public as $$
+declare code text := student_from_token(p_token);
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  return coalesce((select json_agg(json_build_object('id', a.id, 'task_id', a.task_id, 'reason', a.reason, 'note', a.note, 'status', a.status, 'new_grade', a.new_grade, 'reply', a.reply, 'created_at', a.created_at, 'decided_at', a.decided_at) order by a.created_at desc)
+    from grade_appeals a where a.student_code = code and a.created_at > now() - interval '200 days'), '[]'::json);
+end $$;
+
+-- الطالب: سحب تظلم لم يُبت فيه
+create or replace function public.student_appeal_withdraw(p_token text, aid uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token);
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  update grade_appeals set status = 'withdrawn', decided_at = now() where id = aid and student_code = code and status = 'pending';
+end $$;
+
+-- فريق المادة: تظلمات المادة
+create or replace function public.course_appeals(cid uuid) returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if course_role(cid) is null then raise exception 'not_allowed'; end if;
+  return coalesce((select json_agg(json_build_object('id', a.id, 'task_id', a.task_id, 'task', t.title, 'max', t.max_grade, 'student_code', a.student_code,
+      'name', e.name, 'grp', e.grp, 'reason', a.reason, 'note', a.note, 'file_url', a.file_url, 'file_id', a.file_id, 'file_name', a.file_name,
+      'old_grade', a.old_grade, 'cur_grade', s.grade, 'cur_bonus', s.bonus, 'status', a.status, 'new_grade', a.new_grade, 'reply', a.reply,
+      'decided_by', staff_name(a.decided_by), 'decided_at', a.decided_at, 'created_at', a.created_at) order by (a.status = 'pending') desc, a.created_at desc)
+    from grade_appeals a join tasks t on t.id = a.task_id
+    left join enrollments e on e.course_id = t.course_id and e.student_code = a.student_code
+    left join submissions s on s.task_id = a.task_id and s.student_code = a.student_code
+    where t.course_id = cid and (a.status = 'pending' or a.created_at > now() - interval '120 days') and a.status <> 'withdrawn'), '[]'::json);
+end $$;
+
+-- فريق المادة: قبول (بدرجة جديدة) أو رفض (بسبب)
+create or replace function public.appeal_decide(aid uuid, p_accept boolean, p_grade numeric, p_reply text) returns void
+language plpgsql security definer set search_path = public as $$
+declare a grade_appeals; t tasks; nm text;
+begin
+  select * into a from grade_appeals where id = aid for update;
+  if a.id is null then raise exception 'not_found'; end if;
+  select * into t from tasks where id = a.task_id;
+  if coalesce(course_role(t.course_id), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  if a.status <> 'pending' then raise exception 'appeal_decided'; end if;
+  nm := coalesce((select name from enrollments where course_id = t.course_id and student_code = a.student_code), a.student_code);
+  if p_accept then
+    if p_grade is null or p_grade < 0 or p_grade > t.max_grade then raise exception 'grade_range'; end if;
+    insert into submissions(task_id, student_code, grade, bonus, feedback, graded_by, graded_at)
+      values (t.id, a.student_code, p_grade, 0, '', my_email(), now())
+    on conflict (task_id, student_code) do update set grade = excluded.grade, parts = null, graded_by = excluded.graded_by, graded_at = excluded.graded_at;
+    update grade_appeals set status = 'accepted', new_grade = p_grade, reply = left(trim(coalesce(p_reply, '')), 1000), decided_by = my_email(), decided_at = now() where id = aid;
+    perform log_audit(t.course_id, 'قبول تظلم ' || nm || ' في «' || t.title || '»: الدرجة الجديدة ' || trim_scale(p_grade) || coalesce(' (كانت ' || trim_scale(a.old_grade) || ')', ''));
+    insert into notifications(student_code, kind, title, body, url)
+      values (a.student_code, 'appeal', 'قُبل تظلمك في «' || t.title || '»', (select name from courses where id = t.course_id) || ' · درجتك الجديدة ' || trim_scale(p_grade) || ' من ' || trim_scale(t.max_grade) || coalesce(' · ' || nullif(trim(p_reply), ''), ''), 'https://elrashdan.github.io/classmate/');
+  else
+    if length(trim(coalesce(p_reply, ''))) < 3 then raise exception 'appeal_reply'; end if;
+    update grade_appeals set status = 'rejected', reply = left(trim(p_reply), 1000), decided_by = my_email(), decided_at = now() where id = aid;
+    perform log_audit(t.course_id, 'رفض تظلم ' || nm || ' في «' || t.title || '»');
+    insert into notifications(student_code, kind, title, body, url)
+      values (a.student_code, 'appeal', 'رُفض تظلمك في «' || t.title || '»', 'السبب: ' || trim(p_reply), 'https://elrashdan.github.io/classmate/');
+  end if;
+end $$;
+
+-- عدد التظلمات المعلّقة لكل مادة من مواد المستخدم (للتنبيه في الصفحة الرئيسية)
+create or replace function public.my_open_appeals() returns json
+language sql stable security definer set search_path = public as $$
+  select coalesce(json_object_agg(course_id, n), '{}'::json) from (
+    select t.course_id, count(*) n from grade_appeals a join tasks t on t.id = a.task_id
+    where a.status = 'pending' and course_role(t.course_id) is not null group by t.course_id) x;
+$$;
+
+revoke execute on function public.student_appeal(text, uuid, text, text, text, text, text, text, bigint), public.student_appeals(text), public.student_appeal_withdraw(text, uuid), public.course_appeals(uuid), public.appeal_decide(uuid, boolean, numeric, text), public.my_open_appeals() from public;
+grant execute on function public.student_appeal(text, uuid, text, text, text, text, text, text, bigint), public.student_appeals(text), public.student_appeal_withdraw(text, uuid) to anon, authenticated;
+grant execute on function public.course_appeals(uuid), public.appeal_decide(uuid, boolean, numeric, text), public.my_open_appeals() to authenticated;
+-- update-36: تقسيم طلبة المادة غير الموزَّعين على مجموعات تلقائيًا
+create or replace function public.split_groups(cid uuid, p_names text[], p_order text default 'name') returns json
+language plpgsql security definer set search_path = public as $$
+declare k int; n int; nm text; res json;
+begin
+  if course_role(cid) is null or course_role(cid) not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  k := coalesce(array_length(p_names, 1), 0);
+  if k < 2 or k > 12 then raise exception 'bad_groups'; end if;
+  foreach nm in array p_names loop
+    if nm is null or length(trim(nm)) = 0 or length(trim(nm)) > 30 then raise exception 'bad_groups'; end if;
+  end loop;
+  if (select count(distinct trim(x)) from unnest(p_names) x) <> k then raise exception 'bad_groups'; end if;
+  select count(*) into n from enrollments where course_id = cid and coalesce(grp, '') = '';
+  if n = 0 then raise exception 'no_ungrouped'; end if;
+  with u as (
+    select student_code, ntile(k) over (order by case when p_order = 'code' then student_code else name end, student_code) b
+    from enrollments where course_id = cid and coalesce(grp, '') = ''
+  )
+  update enrollments e set grp = trim(p_names[u.b]) from u
+   where e.course_id = cid and e.student_code = u.student_code;
+  select json_object_agg(g, c) into res from (
+    select grp g, count(*) c from enrollments where course_id = cid and grp = any (select trim(x) from unnest(p_names) x) group by grp) s;
+  perform log_audit(cid, 'تقسيم ' || n || ' طالب دون مجموعة تلقائيًا على ' || k || ' مجموعات: ' || array_to_string(p_names, '، '));
+  return json_build_object('moved', n, 'groups', res);
+end $$;
+revoke all on function public.split_groups(uuid, text[], text) from public, anon;
+grant execute on function public.split_groups(uuid, text[], text) to authenticated;
+-- update-37: تنبيه فريق المادة بالطلبة الذين وصلوا إلى إنذار جديد ولم يُبلَّغوا بعد
+create table if not exists public.warning_announced (
+  course_id uuid not null references public.courses(id) on delete cascade,
+  student_code text not null,
+  level int not null check (level between 1 and 4),
+  announced_at timestamptz not null default now(),
+  announced_by text,
+  primary key (course_id, student_code, level)
+);
+alter table public.warning_announced enable row level security;
+drop policy if exists announced_read on public.warning_announced;
+create policy announced_read on public.warning_announced for select to authenticated using (course_role(course_id) is not null);
+revoke all on public.warning_announced from anon, authenticated;
+grant select on public.warning_announced to authenticated;
+
+-- الفريق يسجّل أنه أبلغ هؤلاء الطلبة بإنذارهم الحالي (وما قبله)
+create or replace function public.warning_mark_announced(cid uuid, p_codes text[]) returns int
+language plpgsql security definer set search_path = public as $$
+declare code text; l int; n int := 0;
+begin
+  if course_role(cid) is null or course_role(cid) not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  if coalesce(array_length(p_codes, 1), 0) > 2000 then raise exception 'too_many'; end if;
+  foreach code in array coalesce(p_codes, '{}') loop
+    if not exists (select 1 from enrollments where course_id = cid and student_code = code) then continue; end if;
+    l := warn_level(course_absences(cid, code));
+    if l > 0 then
+      insert into warning_announced(course_id, student_code, level, announced_by)
+        select cid, code, g, my_email() from generate_series(1, l) g on conflict do nothing;
+      n := n + 1;
+    end if;
+  end loop;
+  if n > 0 then perform log_audit(cid, 'إبلاغ ' || n || ' طالب بإنذارات الغياب'); end if;
+  return n;
+end $$;
+revoke all on function public.warning_mark_announced(uuid, text[]) from public, anon;
+grant execute on function public.warning_mark_announced(uuid, text[]) to authenticated;
+
+-- ملخص لكل مواد عضو الفريق: كم طالبًا وصل إلى مستوى إنذار لم يطّلع عليه ولم يُبلَّغ به
+create or replace function public.my_warning_alerts() returns json
+language sql stable security definer set search_path = public as $$
+  with my as (
+    select c.id, c.name from courses c where not c.archived and course_role(c.id) is not null
+  ), lv as (
+    select m.id cid, m.name, e.student_code, warn_level(course_absences(m.id, e.student_code)) l
+    from my m join enrollments e on e.course_id = m.id
+  ), pend as (
+    select * from lv where l > 0
+      and not exists (select 1 from warning_notices w where w.course_id = lv.cid and w.student_code = lv.student_code and w.level = lv.l)
+      and not exists (select 1 from warning_announced a where a.course_id = lv.cid and a.student_code = lv.student_code and a.level = lv.l)
+  )
+  select coalesce(json_agg(json_build_object('course_id', cid, 'name', name, 'n', n, 'levels', levels) order by n desc), '[]'::json)
+  from (select cid, name, sum(k)::int n, json_object_agg(l, k) levels
+        from (select cid, name, l, count(*)::int k from pend group by cid, name, l) x group by cid, name) y
+$$;
+revoke all on function public.my_warning_alerts() from public, anon;
+grant execute on function public.my_warning_alerts() to authenticated;
+-- update-38: دوال الفريق لا يستدعيها الزائر غير المسجَّل
+do $$ declare r record; begin
+  for r in select p.oid::regprocedure f from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public' and p.proname in ('appeal_decide','course_appeals','my_open_appeals','course_bindings','create_course','create_task','grade_many','update_course_info','split_groups','warning_mark_announced','my_warning_alerts')
+  loop execute format('revoke execute on function %s from anon, public', r.f); execute format('grant execute on function %s to authenticated', r.f); end loop;
+end $$;
+alter default privileges in schema public revoke execute on functions from anon;
+-- update-39: فهارس للمفاتيح الأجنبية (أسرع مع زيادة عدد المعيدين والطلبة)
+create index if not exists course_tas_email on public.course_tas(email);
+create index if not exists courses_owner_email on public.courses(owner_email);
+create index if not exists student_tokens_code on public.student_tokens(student_code);
+create index if not exists pg_students_program on public.pg_students(program_id);
+create index if not exists pg_offerings_prog_code on public.pg_offerings(program_id, code);

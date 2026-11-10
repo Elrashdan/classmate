@@ -18,7 +18,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media=\'all\'">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -45,9 +45,8 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="vendor/qrcode.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script src="drive.js"></script>
@@ -67,6 +66,7 @@
   let me = null, staff = [], settings = { domain: "" }, courses = [], tasAll = [], curId = store.get("cm_course"), view = store.get("cm_view") === "course" ? "course" : "home";   // يفتح على الرئيسية
   let D = null; // current course data
   let flash = {}; // per-panel messages
+  let walerts = null, walertsAt = 0; // تنبيهات الإنذارات في كل موادي
   let liveTab = "all", regGroup = "all", delSess = null, pastMark = null, confirmKey = null, startState = null, report = null;
   let qrState = null, qrTimer = null, codeState = null, codeTimer = null, liveTimer = null, manFor = null, manDraft = "";
   let addOpen = false, addDraft = { code: "", name: "", grp: "", pin: "" };
@@ -351,21 +351,33 @@
     const focus = sessions.find(s => !s.ended) || sessions[sessions.length - 1];
     let attempts = [];
     if (focus) { const r = await sb.from("attempts").select("*").eq("session_id", focus.id).order("at", { ascending: false }).limit(300); if (r.error) throw r.error; attempts = r.data; }
-    let bindings = {};
-    try { (await rpc("course_bindings2", { cid: c.id }).catch(() => rpc("course_bindings", { cid: c.id }))).forEach(b => bindings[b.student_code] = b); } catch (e) {}
-    const notices = {};
-    try { const nr = await sb.from("warning_notices").select("student_code,level,seen_at").eq("course_id", c.id); if (!nr.error) nr.data.forEach(n => { (notices[n.student_code] = notices[n.student_code] || {})[n.level] = n.seen_at; }); } catch (e) {}
-    const tk = await sb.from("tasks").select("*").eq("course_id", c.id).order("due_at");
-    const tasks = tk.error ? [] : tk.data, subs = {};
-    if (tasks.length) (await CM.fetchAll(() => sb.from("submissions").select("*").in("task_id", tasks.map(t => t.id)).order("task_id"))).forEach(r => { (subs[r.task_id] = subs[r.task_id] || {})[r.student_code] = r; });
-    const excuses = {};
-    if (tasks.length) try { const xr = await sb.from("task_excuses").select("*").in("task_id", tasks.map(t => t.id)); if (!xr.error) xr.data.forEach(x => { if (x.active) (excuses[x.task_id] = excuses[x.task_id] || {})[x.student_code] = x; }); } catch (e) {}
+    // الطلبات الثانوية تُرسل معًا بالتوازي (أسرع بكثير على شبكات الهاتف)
+    const safe = p => p.then(r => r, () => null);
+    const [bnd, nr, tk, rsq, apq, anq] = await Promise.all([
+      safe(rpc("course_bindings2", { cid: c.id }).catch(() => rpc("course_bindings", { cid: c.id }))),
+      safe(sb.from("warning_notices").select("student_code,level,seen_at").eq("course_id", c.id)),
+      sb.from("tasks").select("*").eq("course_id", c.id).order("due_at"),
+      canRun(c) ? safe(rpc("course_reset_requests", { cid: c.id })) : null,
+      safe(rpc("course_appeals", { cid: c.id })),
+      safe(sb.from("warning_announced").select("student_code,level,announced_at").eq("course_id", c.id))
+    ]);
+    const announced = {}; if (anq && !anq.error) anq.data.forEach(n => { (announced[n.student_code] = announced[n.student_code] || {})[n.level] = n.announced_at; });
+    const bindings = {}; (bnd || []).forEach(b => bindings[b.student_code] = b);
+    const notices = {}; if (nr && !nr.error) nr.data.forEach(n => { (notices[n.student_code] = notices[n.student_code] || {})[n.level] = n.seen_at; });
+    const tasks = tk.error ? [] : tk.data, subs = {}, excuses = {}, exts = {}, tids = tasks.map(t => t.id);
+    if (tids.length) {
+      const [sr, xr, er] = await Promise.all([
+        CM.fetchAll(() => sb.from("submissions").select("*").in("task_id", tids).order("task_id")),
+        safe(sb.from("task_excuses").select("*").in("task_id", tids)),
+        safe(sb.from("task_extensions").select("*").in("task_id", tids))
+      ]);
+      sr.forEach(r => { (subs[r.task_id] = subs[r.task_id] || {})[r.student_code] = r; });
+      if (xr && !xr.error) xr.data.forEach(x => { if (x.active) (excuses[x.task_id] = excuses[x.task_id] || {})[x.student_code] = x; });
+      if (er && !er.error) er.data.forEach(x => { if (x.active) (exts[x.task_id] = exts[x.task_id] || {})[x.student_code] = x; });
+    }
     if (tkSel && !tasks.some(t => t.id === tkSel)) tkSel = null;
-    let resets = [];
-    if (canRun(c)) try { resets = await rpc("course_reset_requests", { cid: c.id }) || []; } catch (e) {}
-    const exts = {};
-    if (tasks.length) try { const xr = await sb.from("task_extensions").select("*").in("task_id", tasks.map(t => t.id)); if (!xr.error) xr.data.forEach(x => { if (x.active) (exts[x.task_id] = exts[x.task_id] || {})[x.student_code] = x; }); } catch (e) {}
-    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, tasks, subs, excuses, resets, exts };
+    const resets = rsq || [], appeals = apq || [];
+    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, announced, tasks, subs, excuses, resets, exts, appeals };
     clearInterval(rsPollT); if (canRun(c)) rsPollT = setInterval(pollResets, 10000);
     if (scan && !sessions.some(x => x.id === scan.sid && !x.ended)) closeScanner();
     render();
@@ -527,6 +539,7 @@
     const put = (k, html) => { const el = document.querySelector(`[data-tbx="${k}"]`); if (el) el.outerHTML = `<i class="tbx" data-tbx="${k}">${html}</i>`; };
     put("live", s && !s.ended ? (pend ? `<b class="tb" title="${pend} طلب معلّق">${pend}</b>` : `<b class="live-dot" title="توجد محاضرة جارية"></b>`) : "");
     put("students", "");
+    const wp = warnPending().length; put("report", wp ? `<b class="tb" title="${wp} طالب وصلوا إلى إنذار جديد ولم يُبلَّغوا">${wp}</b>` : "");
   }
   // المادة الجديدة: القائمة بحسب البرنامج والفصل الدراسي
   function ncRefresh() {
@@ -560,7 +573,7 @@
     students: c => D && D.cid === c.id ? D.enroll.length + " طالب" : "الطلبة وأجهزتهم",
     reg: () => "كشف الحضور والغياب والإنذارات",
     report: () => "نسب الحضور والإنذارات",
-    tasks: c => D && D.cid === c.id ? D.tasks.length + " تكليف · الدرجات" : "التكليفات والدرجات",
+    tasks: c => D && D.cid === c.id ? D.tasks.length + " تكليف · الدرجات" + ((D.appeals || []).filter(a => a.status === "pending").length ? " · " + (D.appeals || []).filter(a => a.status === "pending").length + " تظلم ينتظر" : "") : "التكليفات والدرجات",
     team: () => "المحاضرون والمعيدون",
     log: () => "كل ما حدث في المادة"
   };
@@ -613,6 +626,7 @@
     return `<section class="home">
       ${CM.hero({ eyebrow: esc(ROLE[me.role]) + (p.title ? " · " + esc(p.title) : ""), title: "أهلًا " + esc(String(me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").split(" ")[0]), sub: c ? "المادة المفتوحة: " + esc(c.name) : "", extra: pickerHtml("home") })}
       ${c ? `<h3 class="sec-t">أقسام المادة</h3><div class="tiles">${CTABS.map(([k, t, ic]) => `<button class="tile ${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? "hot" : ""}" data-tile="${k}">${ic}<b>${t}</b><small>${esc(TILE_SUB[k](c))}</small></button>`).join("")}</div>` : `<div class="empty">${me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "لا توجد مواد بعد. أنشئ مادة جديدة."}</div>`}
+      ${homeAlertsHtml()}
       <h3 class="sec-t">اختصارات</h3>
       <div class="tiles small">
         <button class="tile" data-go="profile">${ICO('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}<b>ملفي الشخصي</b><small>بياناتك وموادك</small></button>
@@ -620,6 +634,24 @@
         ${me.role === "admin" ? `<button class="tile" data-go="admin">${ICO('<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>')}<b>لوحة المسؤول</b><small>المحاضرون والإعدادات</small></button>
           <a class="tile" href="pg-admin.html">${ICO('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>')}<b>الدراسات العليا</b><small>مواد الترم والتسجيل</small></a>` : ""}
       </div></section>`;
+  }
+  function homeAlertsHtml() {
+    if (!walerts || Date.now() - walertsAt > 120000) {
+      if (!homeAlertsHtml.busy) { homeAlertsHtml.busy = true; rpc("my_warning_alerts").then(r => { walerts = r || []; walertsAt = Date.now(); }, () => { walerts = walerts || []; walertsAt = Date.now(); })
+        .finally(() => { homeAlertsHtml.busy = false; const h = $("#homeAlerts"); if (h && view === "home") { h.outerHTML = homeAlertsHtml(); wireHomeAlerts(); } }); }
+      return `<div id="homeAlerts">${walerts && walerts.length ? alertsBody() : ""}</div>`;
+    }
+    return `<div id="homeAlerts">${walerts.length ? alertsBody() : ""}</div>`;
+    function alertsBody() {
+      return `<h3 class="sec-t">تنبيهات</h3><div class="walerts">${walerts.map(a => `<button class="walert-c" data-wal="${a.course_id}">${ICO('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>')}<span><b>${esc(a.name)}</b><small>${a.n} طالب وصلوا إلى إنذار جديد ولم يُبلَّغوا · ${Object.entries(a.levels || {}).sort((x, y) => y[0] - x[0]).map(([l, k]) => CM.WARN[l].t + " " + k).join("، ")}</small></span><em>عرض وإبلاغ ←</em></button>`).join("")}</div>`;
+    }
+  }
+  function wireHomeAlerts() {
+    document.querySelectorAll("[data-wal]").forEach(b => b.onclick = () => {
+      curId = b.dataset.wal; store.set("cm_course", curId); ctab = "report"; store.set("cm_tab", ctab); view = "course";
+      flash = {}; liveTab = "all"; regGroup = "all"; rpGroup = "all"; rpLevel = null; startState = null;
+      loadCourse().then(() => { const w = $("#wAlert"); if (w) w.scrollIntoView({ block: "center" }); }).catch(showErr);
+    });
   }
   function profileHtml() {
     const p = myStaff(), mine = courses.slice().sort((a, b) => String(b.academic_year || "").localeCompare(String(a.academic_year || "")) || a.name.localeCompare(b.name, "ar"));
@@ -640,6 +672,7 @@
     </section>`;
   }
   function wireHome(c) {
+    wireHomeAlerts();
     const gh = $("#goHome"); if (gh) gh.onclick = () => { view = "home"; render(); window.scrollTo({ top: 0 }); };
     const gp = $("#goProf"); if (gp) gp.onclick = () => { view = view === "profile" ? "home" : "profile"; render(); window.scrollTo({ top: 0 }); };
     const hp = $("#homePick"); if (hp) hp.onchange = () => { curId = hp.value; store.set("cm_course", curId); flash = {}; liveTab = "all"; regGroup = "all"; startState = null; fYear = "all"; fTerm = "all"; loadCourse().catch(showErr); };
@@ -668,10 +701,10 @@
         <div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}${owned ? " · " + owned + " مادة" : ""}</p></div></div>
         <div class="row">
           ${view !== "home" ? `<button class="btn sm" id="goHome">الرئيسية</button>` : ""}
-          ${canCreate() && view === "course" ? `<button class="btn sm" id="newC">مادة جديدة</button>` : ""}
-          ${me.role === "admin" ? `<button class="btn sm ${view === "admin" ? "primary" : ""}" id="admin">${view === "admin" ? "رجوع للمواد" : "لوحة المسؤول"}</button>` : ""}
-          ${me.role === "admin" ? `<a class="btn sm" href="pg-admin.html">الدراسات العليا</a>` : ""}
-          ${CM.themeBtn()}<button class="btn sm ${view === "profile" ? "primary" : "ghost"}" id="goProf">ملفي</button><button class="btn sm ghost" id="pwSet">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button>
+          ${view === "admin" ? `<button class="btn sm primary" id="admin">رجوع للمواد</button>` : ""}
+          ${CM.dd("أدوات", [canCreate() && view === "course" ? `<button class="dd-i" id="newC">مادة جديدة</button>` : "", me.role === "admin" && view !== "admin" ? `<button class="dd-i" id="admin">لوحة المسؤول</button>` : "", me.role === "admin" ? `<a class="dd-i" href="pg-admin.html">الدراسات العليا</a>` : ""])}
+          ${CM.themeBtn()}
+          ${CM.dd(`<span class="dd-ava">${esc(String(me.name || "؟").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().charAt(0))}</span><span class="dd-hide">حسابي</span>`, [`<button class="dd-i" id="goProf">ملفي الشخصي</button>`, `<button class="dd-i" id="pwSet">كلمة السر</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي" })}
         </div>
       </header>
       <div id="pwForm" class="panel" hidden style="margin-bottom:16px;max-width:520px">
@@ -779,7 +812,7 @@
     try { if (navigator.vibrate) navigator.vibrate(ok ? 80 : [60, 60, 60]); } catch (e) {}
     try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; scan.ac = scan.ac || new A(); const o = scan.ac.createOscillator(), g = scan.ac.createGain(); o.frequency.value = ok ? 880 : 220; g.gain.value = .08; o.connect(g); g.connect(scan.ac.destination); o.start(); o.stop(scan.ac.currentTime + (ok ? .12 : .3)); } catch (e) {}
   }
-  const loadJsQR = () => window.jsQR ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
+  const loadJsQR = () => window.jsQR ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "vendor/jsQR.js"; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
   async function openScanner(s) {
     closeScanner();
     scan = { sid: s.id, busy: false, last: "", lastAt: 0 };
@@ -1123,7 +1156,7 @@
       return `<button class="fh ${(srt && rg.sort) || flt ? "on" : ""}" data-rcol="${k}" aria-haspopup="true" title="ترتيب وتصفية">${extra || C.t}<span class="fh-i">${srt ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button>`; };
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[CM.lvl(absences(e))]++);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.length} محاضرة · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
-      <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}<button class="btn sm" id="exp" ${D.enroll.length ? "" : "disabled"}>تصدير إلى إكسل</button><button class="btn sm" id="expPdf" ${D.enroll.length ? "" : "disabled"}>تصدير PDF</button></div></div>
+      <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}${D.enroll.length ? CM.dd("تصدير الكشف", [`<button class="dd-i" id="exp">إكسل</button>`, `<button class="dd-i" id="expPdf">PDF للطباعة</button>`], { end: true }) : ""}</div></div>
       ${msgHtml("reg")}
       ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات سبقت البرنامج؟</span><button class="btn sm ghost" id="tplBtn">تنزيل ملف التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات سابقة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden></div>` : ""}
       ${impBoxHtml()}
@@ -1279,11 +1312,14 @@
   }
   const markOf = v => { const s = digits(v).trim().toLowerCase().replace(/[ً-ْـ\s]/g, ""); if (!s) return ""; if (/^(ح|حاضر|حاضره|حاضرة|حضر|ي|ت|✓|✔|1|p|present)$/.test(s)) return "p"; if (/^(غ|غايب|غائب|غياب|غايبه|غائبة|x|✗|✘|0|a|absent)$/.test(s)) return "a"; return "?"; };
   let imp = null;
+  // مكتبة قراءة ملفات إكسل القديمة (xls) كبيرة، فتُحمَّل عند أول استيراد فقط لا مع فتح الصفحة
+  const loadXLSX = () => window.XLSX ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"; sc.onload = ok; sc.onerror = () => bad({ message: "تعذّر تحميل أداة قراءة إكسل. تأكّد من الاتصال وأعد المحاولة." }); document.head.appendChild(sc); });
   function importPast(file) {
     if (!file) return;
     const fr = new FileReader();
-    fr.onload = ev => {
+    fr.onload = async ev => {
       try {
+        await loadXLSX();
         const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array" });
         const sn = wb.SheetNames.find(n => n.trim() === "التحضير") || wb.SheetNames[0];
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: "", raw: true });
@@ -1360,6 +1396,55 @@
       return { s, own: own.length, pres, mk, pct: own.length ? Math.round(pres / own.length * 100) : 0 };
     });
   }
+  // طلبة وصلوا إلى مستوى إنذار لم يطّلعوا عليه ولم يُبلّغهم الفريق به
+  function warnPending(rows) {
+    if (!D) return [];
+    return (rows || D.enroll).map(e => { const ab = absences(e), l = CM.lvl(ab); return { e, ab, l }; })
+      .filter(x => x.l > 0 && !((D.notices || {})[x.e.student_code] || {})[x.l] && !((D.announced || {})[x.e.student_code] || {})[x.l])
+      .sort((a, b) => b.l - a.l || byGroupName(a.e, b.e));
+  }
+  function warnAlertHtml(c, rows) {
+    const p = warnPending(rows); if (!p.length) return "";
+    const by = [4, 3, 2, 1].map(l => [l, p.filter(x => x.l === l)]).filter(([, a]) => a.length);
+    return `<div class="walert no-print" id="wAlert" role="alert">
+      <div class="walert-h">${ICO('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>')}<div><b>${p.length} طالب وصلوا إلى إنذار جديد ولم يُبلَّغوا بعد</b>
+        <p class="small">${by.map(([l, a]) => `${CM.WARN[l].t}: ${a.length}`).join(" · ")} — أعلِن لهم في المحاضرة أو جروب المادة، ثم اضغط «تم إبلاغهم» لتختفي هذه التنبيهات.</p></div></div>
+      <details class="walert-l"><summary>عرض الأسماء</summary><ul>${p.map(x => `<li><span class="chip ${CM.WARN[x.l].k}">${CM.WARN[x.l].t}</span> <span class="mono">${esc(x.e.student_code)}</span> ${esc(x.e.name)}${x.e.grp ? ` <span class="muted small">· مجموعة ${esc(x.e.grp)}</span>` : ""} <span class="muted small">· غياب ${x.ab}</span></li>`).join("")}</ul></details>
+      <div class="row">
+        ${CM.dd("تنزيل الكشف", [`<button class="dd-i" id="waXls">إكسل</button>`, `<button class="dd-i" id="waPdf">PDF للطباعة أو التعليق</button>`])}
+        <button class="btn sm" id="waCopy">نسخ نص إعلان للجروب</button>
+        ${canRun(c) ? `<button class="btn sm primary" id="waDone">تم إبلاغهم</button>` : ""}
+      </div>
+    </div>`;
+  }
+  function warnAnnounceText(c, p) {
+    const by = [4, 3, 2, 1].map(l => [l, p.filter(x => x.l === l)]).filter(([, a]) => a.length);
+    return `تنبيه بخصوص الغياب في مادة «${c.name}»\n` + by.map(([l, a]) => `\n${CM.WARN[l].t}:\n` + a.map(x => `- ${x.e.student_code} ${x.e.name}${x.e.grp ? " (مجموعة " + x.e.grp + ")" : ""} — غياب ${x.ab}`).join("\n")).join("\n")
+      + `\n\nيرجى الالتزام بالحضور. يمكن لكل طالب مراجعة غيابه من صفحة حضّر.`;
+  }
+  async function warnSheet(c, p, pdf) {
+    await loadExcelJS();
+    const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("الإنذارات", { views: [{ rightToLeft: true }] });
+    ws.addRow([`طلبة وصلوا إلى إنذار غياب — ${c.name}`]); ws.getRow(1).font = { bold: true, size: 14 };
+    ws.addRow([`حتى ${new Date().toLocaleDateString("ar-EG")}`]); ws.addRow([]);
+    ws.addRow(["م", "الكود", "الاسم", "المجموعة", "مرات الغياب", "الحالة", "توقيع الطالب"]); ws.getRow(4).font = { bold: true };
+    p.forEach((x, i) => ws.addRow([i + 1, isNaN(+x.e.student_code) ? x.e.student_code : +x.e.student_code, x.e.name, x.e.grp || "—", x.ab, CM.WARN[x.l].t, ""]));
+    [5, 12, 30, 10, 11, 18, 18].forEach((w, j) => { ws.getColumn(j + 1).width = w; });
+    for (let r = 4; r <= p.length + 4; r++) ws.getRow(r).eachCell({ includeEmpty: true }, cl => { cl.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }; cl.alignment = { horizontal: "center", vertical: "middle" }; });
+    const nm = HD.fileName("إنذارات الغياب - " + c.name + " " + new Date().toLocaleDateString("en-CA"));
+    if (pdf) await HP.wbToPdf(wb, ["الإنذارات"], nm + ".pdf"); else await saveWb(wb, nm + ".xlsx");
+  }
+  function wireWarnAlert(c, rows, after) {
+    const p = () => warnPending(rows);
+    const x = $("#waXls"); if (x) x.onclick = () => warnSheet(c, p(), false).catch(showErr);
+    const pf = $("#waPdf"); if (pf) pf.onclick = () => warnSheet(c, p(), true).catch(showErr);
+    const cp = $("#waCopy"); if (cp) cp.onclick = async () => { const t = warnAnnounceText(c, p()); try { await navigator.clipboard.writeText(t); cp.textContent = "تم النسخ ✓"; } catch { prompt("انسخ النص:", t); } setTimeout(() => { cp.textContent = "نسخ نص إعلان للجروب"; }, 2500); };
+    const d = $("#waDone"); if (d) d.onclick = async () => {
+      d.disabled = true; d.textContent = "جارٍ الحفظ…";
+      try { await rpc("warning_mark_announced", { cid: c.id, p_codes: p().map(x => x.e.student_code) }); walerts = null; await loadCourse(); }
+      catch (e) { showErr(e); d.disabled = false; d.textContent = "تم إبلاغهم"; }
+    };
+  }
   // هل اطّلع الطالب على إشعار إنذاره الحالي؟
   function seenOf(e, ab) {
     const l = CM.lvl(ab); if (!l) return null;
@@ -1411,6 +1496,7 @@
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${rows.length} طالب · ${st.length} محاضرة محتسبة</div><h2>تقرير الغياب والإنذارات</h2></div>
       <div class="row no-print">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rpg="${esc(k)}" aria-pressed="${rpGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}
         <button class="btn sm" id="rpXls" title="ملف فيه: الملخص، والإنذارات، والغائبون في كل محاضرة">تصدير التقرير إلى إكسل</button><button class="btn sm ghost" id="rpPrint">طباعة</button></div></div>
+      ${warnAlertHtml(c, rows)}
       <div class="kpis">
         <div class="kpi"><b>${avg}%</b><span>متوسط الحضور</span></div>
         <div class="kpi"><b>${warned}</b><span>طالب لديهم إنذار</span></div>
@@ -1435,6 +1521,7 @@
         </tbody></table></div>` : `<div class="empty">${q ? "لا يوجد طالب بهذا الاسم أو الكود." : "لا يوجد طلبة لديهم غياب هنا."}</div>`}
       </div>`;
     const ae = document.activeElement;
+    wireWarnAlert(c, rows);
     el.querySelectorAll("[data-rpg]").forEach(b => b.onclick = () => { rpGroup = b.dataset.rpg; renderReport(); });
     el.querySelectorAll("[data-lvl]").forEach(b => b.onclick = () => { const v = +b.dataset.lvl; rpLevel = rpLevel === v || v === 0 ? null : v; renderReport(); });
     const ra = $("#rpAll"); if (ra) ra.onclick = () => { rpLevel = null; renderReport(); };
@@ -1766,8 +1853,9 @@
     if (t) return renderTask(el, c, t);
     const totalMax = D.tasks.reduce((a, x) => a + Number(x.max_grade), 0);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
-      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button><button class="btn sm" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات من إكسل</button>` : ""}${D.tasks.length ? `<div class="xbox" role="group" aria-label="تصدير كشف الكنترول"><span class="xbox-l">تصدير كشف الكنترول</span>${courseGroups().length > 1 ? `<label class="xbox-g"><span>لـ</span><select id="tkXg" class="sel-sm" aria-label="المجموعة التي يُصدَّر كشفها"><option value="all">كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}<button class="btn sm" id="tkXls" title="تنزيل كشف الكنترول (مسلسل · الكود · الاسم · متوسط الدرجات) وتفاصيل الدرجات والتسليم">إكسل</button><button class="btn sm" id="tkPdf" title="تنزيل كشف الكنترول وتفاصيل الدرجات في ملف PDF">PDF</button></div>` : ""}</div></div>
+      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${CM.dd(D.tasks.length ? "تصدير واستيراد" : "استيراد", [D.tasks.length ? `<div class="dd-h">كشف الكنترول${courseGroups().length > 1 ? ` لـ <select id="tkXg" class="sel-sm" data-keep aria-label="المجموعة التي يُصدَّر كشفها"><option value="all">كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select>` : ""}</div>` : "", D.tasks.length ? `<button class="dd-i" id="tkXls">تنزيل كشف الكنترول (إكسل)</button>` : "", D.tasks.length ? `<button class="dd-i" id="tkPdf">تنزيل كشف الكنترول (PDF)</button>` : "", canRun(c) ? `${D.tasks.length ? "<hr>" : ""}<button class="dd-i" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات ودرجاتها من إكسل</button>` : ""], { end: true })}</div></div>
       ${msgHtml("tasks")}
+      ${appealsHtml(c)}
       ${mimp ? mimpBox() : ""}
       ${bylawLine(c)}
       ${tkForm === "new" ? taskFormHtml(null) : ""}
@@ -1783,7 +1871,7 @@
     wireTaskForm(el, null);
     const nb = $("#tkNew"); if (nb) nb.onclick = () => { tkForm = "new"; tkMode = "submit"; renderTasks(); const i = $("#tfTitle"); if (i) i.focus(); };
     const mb = $("#tkMulti"); if (mb) mb.onclick = () => { const f = document.createElement("input"); f.type = "file"; f.accept = ".xlsx,.xls"; f.onchange = () => { if (f.files[0]) importMulti(f.files[0]); }; f.click(); };
-    wireMimp();
+    wireMimp(); wireAppeals(el);
     const xg = $("#tkXg"); if (xg) xg.onchange = () => { tkXg = xg.value; store.set("cm_tkxg", tkXg); };
     el.querySelectorAll("[data-tklay]").forEach(b => b.onclick = () => { tkLay = b.dataset.tklay; store.set("cm_tklay", tkLay); renderTasks(); });
     wireGb(el);
@@ -1839,15 +1927,19 @@
         <div class="row"><button class="btn sm danger" id="tdGo">حذف</button><button class="btn sm ghost" id="tdCancel">إلغاء</button></div></div>` : ""}
       ${run ? `<div class="tk-tools no-print">
         ${man ? "" : `<button class="btn primary" id="tkGrader" ${st.sub ? "" : "disabled"}>${ICO('<rect x="3" y="4" width="13" height="16" rx="2"/><path d="M19 8v12M7 9h5M7 13h5"/>')} عرض الأعمال وتصحيحها</button>`}
-        ${!man && HD.canCheck && drive ? `<button class="btn" id="tkDl" title="ينزّل كل الملفات مرقّمة بأسماء الطلبة، مع فهرس إكسل">${tkBusy === "dl" ? "جارٍ التنزيل…" : "تنزيل كل الملفات"}</button>` : ""}
-        ${!man && HD.canCheck && drive ? `<button class="btn" id="tkShare" title="رابط تفتحه دون حساب، ينزّل منه الدكتور كل الملفات ومعها كشف الدرجات">${ICO('<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>')} رابط تنزيل للدكتور</button>` : ""}
-        ${!man && HD.canCheck && drive ? `<button class="btn" id="tkCheck" title="يقارن كل ملف على Drive ببصمته وقت التسليم">${tkBusy === "check" ? "جارٍ الفحص…" : "فحص الملفات على Drive"}</button>` : ""}
-        <span class="tk-sep"></span>
         ${partsOf(t) ? "" : `<button class="btn" id="tkVoice" title="قل اسم الطالب ثم درجته، فيكتبها البرنامج في الكشف بعد مراجعتك">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} رصد بالصوت</button>`}
-        <button class="btn" id="tkSheet" title="كشف بأسماء الطلبة وخانات الدرجة، يُملأ على الكمبيوتر أو يُطبع ويُكتب باليد">كشف رصد للطباعة (إكسل)</button>
-        <button class="btn" id="tkSheetPdf" title="نفس كشف الرصد في ملف PDF للطباعة">كشف رصد (PDF)</button>
-        <label class="btn" title="بعد ملء الكشف على الكمبيوتر">رفع كشف إكسل<input type="file" id="tkImpX" accept=".xlsx" hidden></label>
-        ${partsOf(t) ? "" : `<label class="btn" title="صورة الكشف المكتوب باليد، تظهر بجانب الأسماء لتنقل الدرجات منها">صورة كشف مكتوب باليد<input type="file" id="tkImpP" accept="image/*" multiple hidden></label>`}
+        ${CM.dd(tkBusy === "dl" ? "جارٍ التنزيل…" : tkBusy === "check" ? "جارٍ الفحص…" : "تنزيل ومشاركة", [
+          `<div class="dd-h">كشف الرصد</div>`,
+          `<button class="dd-i" id="tkSheet" title="كشف بأسماء الطلبة وخانات الدرجة، يُملأ على الكمبيوتر أو يُطبع ويُكتب باليد">كشف رصد للطباعة (إكسل)</button>`,
+          `<button class="dd-i" id="tkSheetPdf" title="نفس كشف الرصد في ملف PDF للطباعة">كشف رصد (PDF)</button>`,
+          !man && HD.canCheck && drive ? `<hr><div class="dd-h">أعمال الطلبة</div><button class="dd-i" id="tkDl" title="ينزّل كل الملفات مرقّمة بأسماء الطلبة، مع فهرس إكسل">تنزيل كل الملفات</button>` : "",
+          !man && HD.canCheck && drive ? `<button class="dd-i" id="tkShare" title="رابط تفتحه دون حساب، ينزّل منه الدكتور كل الملفات ومعها كشف الدرجات">رابط تنزيل للدكتور</button>` : "",
+          !man && HD.canCheck && drive ? `<button class="dd-i" id="tkCheck" title="يقارن كل ملف على Drive ببصمته وقت التسليم">فحص الملفات على Drive</button>` : ""
+        ])}
+        ${CM.dd("رفع درجات", [
+          `<label class="dd-i" title="بعد ملء الكشف على الكمبيوتر">رفع كشف إكسل مملوء<input type="file" id="tkImpX" accept=".xlsx" hidden></label>`,
+          partsOf(t) ? "" : `<label class="dd-i" title="صورة الكشف المكتوب باليد، تظهر بجانب الأسماء لتنقل الدرجات منها">صورة كشف مكتوب باليد<input type="file" id="tkImpP" accept="image/*" multiple hidden></label>`
+        ])}
       </div>` : ""}
       ${extFor && extFor.tid === t.id ? extBox(t) : ""}
       ${lnk && lnk.tid === t.id ? linkBox(t) : ""}
@@ -2361,6 +2453,44 @@
       const box = $("#mimpBox"); if (box) box.scrollIntoView({ block: "nearest", behavior: "smooth" });
     } catch (e) { showErr(e.message && !/[a-z_]{6,}/.test(e.message) ? e : { message: "تعذّرت قراءة الملف: " + (e.message || e) }); }
   }
+  /* ---------- تظلمات الطلبة على الدرجات ---------- */
+  const AP_R = { not_graded: "سلّم ولم تُرصد درجته", wrong_grade: "الدرجة مرصودة خطأ", other: "سبب آخر" };
+  let apShowOld = false;
+  function appealsHtml(c) {
+    const all = (D.appeals || []), open = all.filter(a => a.status === "pending"), old = all.filter(a => a.status !== "pending");
+    if (!all.length) return "";
+    const can = canRun(c);
+    const imgOf = a => a.file_id ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(a.file_id)}&sz=w600` : "";
+    return `<section class="ap-box" id="apBox"><div class="row between"><h3>${open.length ? `تظلمات بانتظار قرارك <span class="chip warn">${open.length}</span>` : "التظلمات"}</h3>${old.length ? `<button class="btn sm ghost" id="apOld">${apShowOld ? "إخفاء" : "عرض"} القرارات السابقة (${old.length})</button>` : ""}</div>
+      ${open.map(a => `<article class="ap-c" data-ap="${a.id}">
+        <div class="ap-who"><b>${esc(a.name || a.student_code)}</b><span class="small muted mono">${esc(a.student_code)}${a.grp ? " · مجموعة " + esc(a.grp) : ""}</span></div>
+        <div class="ap-what"><span class="chip">${esc(a.task)}</span><span class="chip warn">${esc(AP_R[a.reason])}</span><span class="small">الدرجة الحالية: <b>${a.cur_grade != null ? gN(Number(a.cur_grade) + Number(a.cur_bonus || 0)) : "لم تُرصد"}</b> من ${gN(a.max)}</span></div>
+        ${a.note ? `<p class="ap-note">«${esc(a.note)}»</p>` : ""}
+        <a class="ap-img" href="${esc(a.file_url)}" target="_blank" rel="noopener">${imgOf(a) ? `<img src="${esc(imgOf(a))}" alt="صورة المشروع" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}<span>افتح صورة المشروع ↗</span></a>
+        ${can ? `<div class="ap-act">
+          <label class="f"><span>الدرجة الجديدة (من ${gN(a.max)})</span><input type="text" inputmode="decimal" data-apg="${a.id}" value="${a.cur_grade != null ? esc(gN(a.cur_grade)) : ""}"></label>
+          <button class="btn primary" data-apok="${a.id}">قبول ورصد الدرجة</button>
+          <label class="f"><span>أو سبب الرفض</span><input type="text" data-apr="${a.id}" maxlength="300" placeholder="مثلًا: الصورة لا تُظهر الدرجة"></label>
+          <button class="btn danger" data-apno="${a.id}">رفض التظلم</button></div>` : `<p class="small muted">القرار لصاحب المادة أو المعيد.</p>`}
+      </article>`).join("")}
+      ${apShowOld ? `<div class="tbl-wrap"><table><thead><tr><th>الطالب</th><th>التكليف</th><th>السبب</th><th>القرار</th><th>بواسطة</th></tr></thead><tbody>${old.map(a => `<tr><td>${esc(a.name || a.student_code)}</td><td>${esc(a.task)}</td><td class="small">${esc(AP_R[a.reason])}</td><td class="small">${a.status === "accepted" ? `<span class="ok-t">قُبل · ${gN(a.old_grade ?? 0)} ← ${gN(a.new_grade)}</span>` : `<span class="bad-t">رُفض</span> · ${esc(a.reply)}`}</td><td class="small muted">${esc(a.decided_by || "")}</td></tr>`).join("")}</tbody></table></div>` : ""}
+    </section>`;
+  }
+  function wireAppeals(el) {
+    const ob = $("#apOld"); if (ob) ob.onclick = () => { apShowOld = !apShowOld; renderTasks(); };
+    el.querySelectorAll("[data-apok]").forEach(b => b.onclick = () => act(async () => {
+      const id = b.dataset.apok, a = D.appeals.find(x => x.id === id), v = toNum(el.querySelector(`[data-apg="${id}"]`).value);
+      if (v === "" || isNaN(Number(v)) || Number(v) < 0 || Number(v) > Number(a.max)) throw { message: "اكتب الدرجة الجديدة من 0 إلى " + gN(a.max) + "." };
+      await rpc("appeal_decide", { aid: id, p_accept: true, p_grade: Number(v), p_reply: "" });
+      say("tasks", "قُبل تظلم " + (a.name || a.student_code) + " ورُصدت درجته الجديدة " + gN(v) + "، ووصله تنبيه.");
+    }, () => loadCourse()));
+    el.querySelectorAll("[data-apno]").forEach(b => b.onclick = () => act(async () => {
+      const id = b.dataset.apno, a = D.appeals.find(x => x.id === id), r = el.querySelector(`[data-apr="${id}"]`).value.trim();
+      if (r.length < 3) { el.querySelector(`[data-apr="${id}"]`).focus(); throw { message: "اكتب سبب الرفض ليصل إلى الطالب." }; }
+      await rpc("appeal_decide", { aid: id, p_accept: false, p_grade: null, p_reply: r });
+      say("tasks", "رُفض تظلم " + (a.name || a.student_code) + "، ووصله تنبيه بالسبب.");
+    }, () => loadCourse()));
+  }
   function mimpBox() {
     const g = mimp, groups = [...new Set(D.enroll.map(e => e.grp).filter(Boolean))].sort((a, b) => GORD(a) - GORD(b));
     const on = g.cols.filter(c => c.on), n = on.reduce((a, c) => a + c.rows.filter(r => r.grade <= c.max).length, 0);
@@ -2799,6 +2929,46 @@
   }
 
 
+  /* ---------- تقسيم تلقائي للطلبة دون مجموعة ---------- */
+  const SPLIT_NAMES = { letters: ["أ", "ب", "ج", "د", "هـ", "و", "ز", "ح", "ط", "ي", "ك", "ل"], ordinal: ["الأولى", "الثانية", "الثالثة", "الرابعة", "الخامسة", "السادسة", "السابعة", "الثامنة", "التاسعة", "العاشرة", "الحادية عشرة", "الثانية عشرة"] };
+  let split = null; // { k, style, order }
+  const splitNames = sp => SPLIT_NAMES[sp.style].slice(0, sp.k);
+  function splitHtml(c) {
+    if (!canRun(c)) return "";
+    const un = D.enroll.filter(e => !e.grp), ex = groupsOf();
+    if (!un.length || D.enroll.length < 2) return "";
+    if (!split) return `<div class="split-hint"><span>${ICO('<circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5M14 15c3 0 7 1 7 5"/>')} <b>${un.length}</b> طالب ${un.length === D.enroll.length ? "في المادة غير مقسَّمين على مجموعات" : "دون مجموعة"}</span><button class="btn sm primary" id="spOpen">تقسيمهم تلقائيًا</button></div>`;
+    const names = splitNames(split), base = Math.floor(un.length / split.k), extra = un.length % split.k;
+    const clash = names.filter(n => ex.includes(n));
+    return `<div class="split-box" role="group" aria-label="تقسيم تلقائي">
+      <div class="split-h"><b>تقسيم ${un.length} طالب على مجموعات</b><button class="btn sm ghost" id="spX" aria-label="إغلاق">إلغاء</button></div>
+      <div class="split-f">
+        <label class="f"><span>عدد المجموعات</span><select id="spK">${[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter(k => k <= un.length).map(k => `<option value="${k}" ${split.k === k ? "selected" : ""}>${k}</option>`).join("")}</select></label>
+        <label class="f"><span>التسمية</span><select id="spS"><option value="letters" ${split.style === "letters" ? "selected" : ""}>مجموعة أ، ب، ج…</option><option value="ordinal" ${split.style === "ordinal" ? "selected" : ""}>المجموعة الأولى، الثانية…</option></select></label>
+        <label class="f"><span>الترتيب</span><select id="spO"><option value="name" ${split.order === "name" ? "selected" : ""}>أبجديًا بالاسم</option><option value="code" ${split.order === "code" ? "selected" : ""}>بالكود</option></select></label>
+      </div>
+      <div class="split-pv">${names.map((n, i) => `<span class="chip">${split.style === "ordinal" ? "المجموعة" : "مجموعة"} ${esc(n)} · ${base + (i < extra ? 1 : 0)} طالب</span>`).join("")}</div>
+      ${clash.length ? `<p class="small muted">مجموعة ${clash.map(esc).join("، ")} موجودة بالفعل، وسيُضاف إليها الطلبة الجدد.</p>` : ""}
+      <p class="small muted">يُقسَّم الطلبة ${split.order === "code" ? "بترتيب الكود" : "بالترتيب الأبجدي"} إلى أجزاء متساوية تقريبًا، ولا يتغير الطلبة الموزَّعون بالفعل. يمكنك نقل أي طالب بعدها من عمود المجموعة.</p>
+      <div class="row"><button class="btn primary" id="spGo">تقسيم الآن</button></div>
+    </div>`;
+  }
+  function wireSplit(c) {
+    const o = $("#spOpen"); if (o) o.onclick = () => { const n = D.enroll.filter(e => !e.grp).length; split = { k: n >= 40 ? 2 : 2, style: "letters", order: "name" }; renderRoster(); };
+    const x = $("#spX"); if (x) x.onclick = () => { split = null; renderRoster(); };
+    const k = $("#spK"); if (k) k.onchange = () => { split.k = +k.value; renderRoster(); };
+    const st = $("#spS"); if (st) st.onchange = () => { split.style = st.value; renderRoster(); };
+    const od = $("#spO"); if (od) od.onchange = () => { split.order = od.value; renderRoster(); };
+    const g = $("#spGo"); if (g) g.onclick = async () => {
+      g.disabled = true; g.textContent = "جارٍ التقسيم…";
+      try {
+        const r = await rpc("split_groups", { cid: c.id, p_names: splitNames(split), p_order: split.order });
+        flash.roster = `تم تقسيم ${r.moved} طالب على ${split.k} مجموعات.`; split = null;
+        await loadCourse();
+      } catch (e) { showErr(e); g.disabled = false; g.textContent = "تقسيم الآن"; }
+    };
+  }
+
   /* ---------- roster ---------- */
   function renderRoster() {
     const c = course(), el = $("#rosterPanel"), mng = canManage(c), add = canRun(c);
@@ -2806,6 +2976,7 @@
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.enroll.length} طالب</div><h2>طلبة المادة</h2></div>
       <div class="row">${add ? `<button class="btn sm ${addOpen ? "primary" : ""}" id="stAddT">إضافة طالب</button>` : ""}${mng ? `<label class="btn sm" for="xls">رفع ملف إكسل</label><input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
       ${msgHtml("roster")}
+      ${splitHtml(c)}
       ${add && addOpen ? `<div class="manbox" style="background:var(--sunk);border-radius:8px;padding:12px">
         <div class="settings" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
           <label class="f"><span>كود الطالب</span><input type="text" id="stCode" class="mono" style="text-align:start" inputmode="numeric" value="${esc(addDraft.code)}"></label>
@@ -2824,6 +2995,7 @@
         <div class="tbl-wrap" id="rsWrap" style="max-height:480px;overflow:auto"><table id="rsTbl"></table></div>` : `<div class="empty">${mng ? "ارفع ملف إكسل يتضمن أكواد الطلبة وأسماءهم." : "لم يرفع المحاضر ملف الطلبة بعد."}</div>`}
       ${mng && D.enroll.length ? `<p class="muted small">«فك ربط الهاتف» إذا غيّر الطالب هاتفه، فيدخل من الهاتف الجديد بكلمة السر نفسها. «حذف الحساب» إذا نسي كلمة السر أو أنشأ شخص آخر حسابًا بكوده، فينشئ حسابًا جديدًا. «إزالة من المادة» تحذفه من الكشف، وإذا أعدته لاحقًا عاد حضوره السابق.</p>` : ""}`;
     const x = $("#xls"); if (x) x.onchange = ev => importFile(ev.target.files[0]);
+    wireSplit(c);
     const at = $("#stAddT"); if (at) at.onclick = () => { addOpen = !addOpen; renderRoster(); const i = $("#stCode"); if (i) i.focus(); };
     const keep = () => { addDraft = { code: $("#stCode").value, name: $("#stName").value, grp: $("#stGrp").value, pin: $("#stPin").value }; };
     ["#stCode", "#stName", "#stPin"].forEach(q => { const i = $(q); if (i) i.oninput = keep; });
@@ -2953,6 +3125,7 @@
     const c = course(), fr = new FileReader();
     fr.onload = async ev => {
       try {
+        await loadXLSX();
         const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array" });
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "" }).filter(r => r.some(v => String(v).trim()));
         if (!rows.length) throw { message: "empty_roster" };

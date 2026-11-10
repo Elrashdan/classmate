@@ -18,7 +18,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media=\'all\'">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -27,8 +27,7 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="vendor/qrcode.js"></script>
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script src="drive.js"></script>
@@ -451,9 +450,10 @@
       if (m.includes("not_signed_in")) { signOut(); return; }
       if (m.includes("device_mismatch")) { signOut(); authMsg = errText(e); renderAuth(); return; }
       if (silent && home) return;
-      const net = /Failed to fetch|NetworkError|network|Load failed/i.test(m);
+      const net = /Failed to fetch|NetworkError|network|Load failed|aborted/i.test(m);
+      if (net) { clearTimeout(netRetry); netRetry = setTimeout(() => loadHome(), 5000); }
       app.innerHTML = header() + `<section class="col">
-        <div class="msg ${net ? "warn" : "bad"}">${net ? "لا يوجد اتصال بالإنترنت الآن." : esc(errText(e))}</div>
+        <div class="msg ${net ? "warn" : "bad"}">${net ? "تعذّر الاتصال بالخادم الآن. سنحاول مرة أخرى تلقائيًّا خلال ثوانٍ… وإن تكرر ذلك فجرّب شبكة أخرى (واي فاي أو بيانات الهاتف)." : esc(errText(e))}</div>
         ${qrCta()}
         <p><button class="btn" id="retry">أعد المحاولة</button></p></section>`;
       $("#retry").onclick = () => loadHome();
@@ -521,6 +521,14 @@
     closeQr(); token = null; home = null; results = {}; tasks = null; tasksAt = 0; tkId = null; $("#tkOv").hidden = true; store.del("cm_token"); store.del("cm_qr"); setLim(false); authTab = "login"; renderAuth();
   }
 
+  // أعلى الصفحة: أي محاضرة جارية الآن مع خانة الرمز وزر المسح مباشرة (لا يحتاج الطالب إلى النزول بحثًا عنها)
+  function nowHtml() {
+    if (!home) return "";
+    const live = home.courses.filter(c => c.session && !limited);
+    if (!live.length) return limited ? "" : `<div class="now-idle"><span class="small muted">لا توجد محاضرة جارية الآن. عندما يبدأ المحاضر تظهر هنا خانة الرمز مباشرة.</span><button class="btn sm" id="qrBtn2">بطاقة الحضور</button></div>`;
+    return `<section class="now" id="now">${live.map(c => { const done = c.session.mine && c.session.mine.status !== "pending";
+      return `<article class="now-c ${done ? "done" : ""}" data-course="${c.id}"><div class="now-h">${done ? "" : `<span class="pulse" aria-hidden="true"></span>`}<b>${done ? "سُجِّل حضورك" : "محاضرة جارية الآن"}</b><span class="now-n">${esc(c.name)}</span></div>${sessionBlock(c)}</article>`; }).join("")}</section>`;
+  }
   function sessionBlock(c) {
     const s = c.session, res = results[c.id];
     if (limited) return s ? `<div class="msg small">محاضرة جارية الآن. سجّل حضورك من هاتفك المرتبط بالحساب.</div>` : "";
@@ -618,17 +626,20 @@
     if (!ntTimer) { ntTimer = setInterval(() => { if (document.visibilityState === "visible") loadNotifs(); }, 60000); loadNotifs(); checkSub(); }
   }
 
+  let netRetry = null;
+  window.addEventListener("online", () => { if (token && !home) loadHome(); });
   function renderHome() {
     if (rf) return renderForm();
     const active = document.activeElement && document.activeElement.id;
     app.innerHTML = header(`<div class="row"><button class="btn sm ghost icon bell" id="ntBtn" aria-label="التنبيهات" title="التنبيهات">${BELL}${nt.unread ? `<span class="nt-badge">${nt.unread > 9 ? "9+" : nt.unread}</span>` : ""}</button><button class="btn sm ghost" id="pwBtn">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button></div>`) + `
       <section class="col">
         ${nt.open ? ntPanel() : ""}
-        ${pushCta()}
+        ${nowHtml()}
         ${CM.band({ icon: CM.ICONS.ug, eyebrow: `<span class="mono">${esc(home.code)}</span>`, title: "أهلًا " + esc((home.name || "").split(" ")[0]), sub: home.courses.length ? home.courses.length + (home.courses.length > 2 && home.courses.length < 11 ? " مواد" : " مادة") : "" })}
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
         ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : home.courses.length ? qrCta() : ""}
+        ${pushCta()}
         ${!limited && pk.ok && pk.count === 0 && !store.get("cm_pk_skip") ? `<div class="pk-cta"><div><b>فعّل الدخول ببصمة الوجه أو الإصبع</b><span class="small muted">إن مسح المتصفح بياناتك (يحدث كثيرًا في آيفون) أو غيّرت المتصفح، تعود إلى حسابك بلمسة دون كلمة السر ودون مراجعة المحاضر.</span>${pkMsg ? `<span class="small ${pkMsg.startsWith("!") ? "bad-t" : "ok-t"}">${esc(pkMsg.replace(/^!/, ""))}</span>` : ""}</div><div class="row"><button class="btn primary" id="pkOn">تفعيل</button><button class="btn ghost sm" id="pkSkip">لاحقًا</button></div></div>` : pkMsg && !pkMsg.startsWith("!") ? `<div class="msg ok small">${esc(pkMsg)}</div>` : ""}
         ${iosTip()}
         ${pwOpen ? `<div class="panel"><h3>تغيير كلمة السر</h3>
@@ -641,12 +652,13 @@
           <article class="course" data-course="${c.id}">
             <div class="row between"><div><h2>${esc(c.name)}</h2>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ""}${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
             ${c.absences ? `<p class="small muted">غبت ${CM.times(c.absences)}${missedTxt(c)}. ${afterTxt(c.absences)}</p>` : ""}
-            ${sessionBlock(c)}
+            ${c.session && !limited ? `<a class="now-link small" href="#now">● محاضرة جارية الآن: سجّل حضورك من أعلى الصفحة ↑</a>` : sessionBlock(c)}
             ${tasksBlock(c)}
           </article>`).join("") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. أضف موادك من استمارة التسجيل بالزر بالأسفل، أو تواصل مع المحاضر.</div>`}
         <div class="rf-cta"><div><b>سجّلت مواد جديدة؟</b><span class="small muted">ارفع استمارة التسجيل من نظام ابن الهيثم، فتُضاف إلى موادك هنا.</span></div><button class="btn" id="rfSync">إضافة موادي من الاستمارة</button></div>
       </section>`;
     $("#out").onclick = signOut;
+    const q2 = $("#qrBtn2"); if (q2) q2.onclick = openQr;
     wireNotifs();
     $("#rfSync").onclick = () => openForm("sync");
     if ($("#gLink")) HD.loadGis().catch(() => {});
@@ -674,9 +686,12 @@
 
   /* ---------------- التكليفات والتسليم ---------------- */
   let tasks = null, tasksAt = 0, tkId = null, pickFile = null, linkMode = false, tkMsg = null, up = null, tkOff = 0;
+  let appeals = [], ap = null;   // ap: نموذج التظلم المفتوح { reason, note, file, mode, url, err }
+  const AP_R = { not_graded: "سلّمت المشروع ولم تُرصد درجتي", wrong_grade: "درجتي مرصودة خطأ", other: "سبب آخر" };
   async function loadTasks(force) {
     if (!token || (!force && Date.now() - tasksAt < 120000)) return;
     try {
+      rpc("student_appeals", { p_token: token }).then(a => { appeals = a || []; if (tkId) renderTask(); }).catch(() => {});
       const r = await rpc("student_tasks", { p_token: token });
       tasks = r.tasks || []; tasksAt = Date.now(); tkOff = Number(r.now_ms) - Date.now();
       if (home) renderHome();
@@ -737,6 +752,7 @@
       ${t.refused && m.grade == null ? `<div class="msg bad">لا يُقبل ${t.mode === "manual" ? "مشروعك" : "تسليمك"} في هذا التكليف لأنك غبت في محاضرة ${sDL(t)}. إن كان لك عذر (مرضي أو غيره) فراجِع المحاضر ليقبله.</div>` : ""}
       ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${Array.isArray(t.parts) && t.parts.length && Array.isArray(m.parts) ? `<div class="tk-parts">${t.parts.map((p, i) => `<div><span>${esc(p.name)}</span><b>${m.parts[i] == null ? "—" : gNum(m.parts[i])} / ${gNum(p.max)}</b></div>`).join("")}</div>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}
+      ${appealHtml(t)}
       ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div>
         <a href="${esc(m.url)}" target="_blank" rel="noopener" class="tk-file"><b>${esc(m.kind === "drive" ? m.file_name || "الملف" : m.url)}</b><small>${m.kind === "drive" ? "على Google Drive الخاص بك" + (m.size ? " · " + HD.size(m.size) : "") : "رابط"} · ${CM.fmtD(m.submitted_at)} ${CM.fmtT(m.submitted_at)}${m.version > 1 ? " · التسليم رقم " + m.version : ""}</small></a>
         ${m.late ? `<span class="small warn-t">سُلِّم بعد الموعد، ويظهر ذلك للمحاضر.</span>` : ""}
@@ -774,6 +790,77 @@
     const rd = $("#tkRedir"); if (rd) rd.onclick = () => driveRedirect(t, ($("#tkNote") || {}).value || "", rd);
     const gl = $("#tkLink"); if (gl) gl.onclick = () => submitLink(t, $("#tkUrl").value.trim(), ($("#tkNote") || {}).value || "");
     const sp = $("#tkStamp"); if (sp) sp.onclick = () => myStamped(t, sp);
+    wireAppeal(t);
+  }
+  /* ---------- التظلم على الدرجة ---------- */
+  function appealHtml(t) {
+    if (!t.released || limited) return "";
+    const mine = appeals.filter(a => a.task_id === t.id), last = mine[0], m = t.mine || {};
+    const stTxt = a => a.status === "pending" ? "قيد المراجعة" : a.status === "accepted" ? "مقبول" : a.status === "rejected" ? "مرفوض" : "مسحوب";
+    let out = "";
+    if (last && last.status !== "withdrawn") out += `<div class="ap-st ${last.status}"><div class="row between"><b>تظلمك: ${stTxt(last)}</b><span class="small muted">${esc(CM.fmtD(last.created_at))}</span></div>
+      <span class="small">${esc(AP_R[last.reason])}${last.note ? " · " + esc(last.note) : ""}</span>
+      ${last.status === "accepted" ? `<span>الدرجة الجديدة: <b>${gNum(last.new_grade)}</b> من ${gNum(t.max)}${last.reply ? " · " + esc(last.reply) : ""}</span>` : ""}
+      ${last.status === "rejected" ? `<span>سبب الرفض: ${esc(last.reply)}</span>` : ""}
+      ${last.status === "pending" ? `<span class="small muted">سيراجعه المحاضر أو المعيد، ويصلك تنبيه بالقرار.</span><button class="btn sm ghost" id="apWd" style="justify-self:start">سحب التظلم</button>` : ""}</div>`;
+    const canNew = (!last || last.status !== "pending") && mine.length < 3;
+    if (!canNew) return out;
+    if (!ap || ap.tid !== t.id) return out + `<button class="btn block ap-open" id="apOpen">${last ? "تظلم مرة أخرى" : m.grade != null ? "تظلم على درجتي" : "سلّمت ولم تُرصد درجتي؟ قدّم تظلمًا"}</button>`;
+    return out + `<div class="ap-form" id="apForm"><h3>تظلم على درجة «${esc(t.title)}»</h3>
+      <div class="ap-rs" role="radiogroup">${Object.entries(AP_R).map(([k, l]) => `<label class="ap-r"><input type="radio" name="apR" value="${k}" ${ap.reason === k ? "checked" : ""}><span>${l}</span></label>`).join("")}</div>
+      <label class="f"><span>${ap.reason === "other" ? "اكتب السبب" : "توضيح (اختياري)"}</span><textarea id="apNote" rows="2" maxlength="1000">${esc(ap.note || "")}</textarea></label>
+      <div class="ap-ph"><b>صورة المشروع (إلزامية)</b><span class="small muted">صوّر مشروعك بحيث يظهر فيه <b>اسمك</b> و<b>الدرجة المكتوبة عليه</b> بوضوح.</span>
+      ${HD.ready && ap.mode !== "link" ? `<label class="filepick"><input type="file" id="apFile" accept="image/*,application/pdf"><span class="fp-b">${ap.file ? `<b>${esc(ap.file.name)}</b><small>${HD.size(ap.file.size)} · اضغط لاختيار صورة أخرى</small>` : `<b>صوّر المشروع أو اختر صورة</b><small>تُرفع إلى Google Drive الخاص بك</small>`}</span></label>
+        <button type="button" class="linkish small" id="apLink">لا أستطيع الرفع؟ الصق رابط الصورة</button>`
+      : `<label class="f"><span>رابط صورة المشروع (Google Drive أو غيره، مفتوح لمن معه الرابط)</span><input type="url" id="apUrl" dir="ltr" placeholder="https://" value="${esc(ap.url || "")}"></label>${HD.ready ? `<button type="button" class="linkish small" id="apFileMode">ارفع صورة بدلًا من الرابط</button>` : ""}`}</div>
+      ${ap.err ? `<div class="msg bad">${esc(ap.err)}</div>` : ""}
+      <div class="row"><button class="btn primary" id="apGo">إرسال التظلم</button><button class="btn ghost" id="apX">إلغاء</button></div></div>`;
+  }
+  function wireAppeal(t) {
+    const o = $("#apOpen"); if (o) o.onclick = () => { ap = { tid: t.id, reason: (t.mine || {}).grade != null ? "wrong_grade" : "not_graded", note: "", file: null, mode: "file" }; renderTask(); const f = $("#apForm"); if (f) f.scrollIntoView({ block: "start", behavior: "smooth" }); };
+    const wd = $("#apWd"); if (wd) wd.onclick = async () => { if (!confirm("سحب التظلم؟")) return; try { const a = appeals.find(x => x.task_id === t.id && x.status === "pending"); await rpc("student_appeal_withdraw", { p_token: token, aid: a.id }); appeals = await rpc("student_appeals", { p_token: token }) || []; } catch (e) { tkMsg = { k: "bad", t: errText(e) }; } renderTask(); };
+    if (!$("#apForm")) return;
+    const keep = () => { const n = $("#apNote"); if (n) ap.note = n.value; const u = $("#apUrl"); if (u) ap.url = u.value.trim(); };
+    document.querySelectorAll('input[name="apR"]').forEach(r => r.onchange = () => { keep(); ap.reason = r.value; ap.err = ""; renderTask(); });
+    $("#apX").onclick = () => { ap = null; renderTask(); };
+    const lk = $("#apLink"); if (lk) lk.onclick = () => { keep(); ap.mode = "link"; renderTask(); };
+    const fm = $("#apFileMode"); if (fm) fm.onclick = () => { keep(); ap.mode = "file"; renderTask(); };
+    const fi = $("#apFile"); if (fi) fi.onchange = async () => { const f = fi.files[0]; if (!f) return; keep();
+      if (f.size > 50 * 1048576) { ap.err = "حجم الصورة كبير جدًّا (أكثر من 50 م.ب)."; return renderTask(); }
+      try { const buf = await f.arrayBuffer(); ap.file = new File([buf], f.name, { type: f.type || "image/jpeg" }); ap.err = ""; } catch (e) { ap.err = "تعذّرت قراءة الصورة من هاتفك. احفظها في الهاتف أولًا ثم اخترها."; }
+      renderTask(); };
+    $("#apGo").onclick = () => { keep(); sendAppeal(t); };
+  }
+  async function sendAppeal(t) {
+    if (up) return;
+    if (ap.reason === "other" && (ap.note || "").trim().length < 5) { ap.err = "اكتب سبب التظلم."; return renderTask(); }
+    const viaFile = HD.ready && ap.mode !== "link";
+    if (viaFile && !ap.file) { ap.err = "أرفق صورة المشروع يظهر فيها اسمك ودرجتك."; return renderTask(); }
+    if (!viaFile && !/^https:\/\//.test(ap.url || "")) { ap.err = "الصق رابط صورة المشروع (يبدأ بـ https://)."; return renderTask(); }
+    let fileId = null, meta = null;
+    const auth = viaFile ? HD.authorize() : null;
+    try {
+      if (viaFile) {
+        setUp("في انتظار موافقة Google…", null);
+        await auth;
+        setUp("جارٍ تجهيز المجلد على Drive…", null);
+        const folder = await HD.folders(t.course, t.title);
+        const ext = (ap.file.name.match(/\.[A-Za-z0-9]{1,8}$/) || [".jpg"])[0];
+        setUp("جارٍ رفع الصورة…", 0);
+        meta = await HD.upload(ap.file, folder, HD.fileName(home.code + " - " + (home.name || "") + " - تظلم - " + t.title) + ext, p => { if (up) { up.pct = p; const b = $("#upBar"); if (b) b.style.width = Math.round(p * 100) + "%"; } });
+        fileId = meta.id; setUp("جارٍ إتاحة الصورة للمحاضر…", 1);
+        await HD.shareAnyone(meta.id);
+      }
+      setUp("جارٍ إرسال التظلم…", 1);
+      await rpc("student_appeal", { p_token: token, tid: t.id, p_reason: ap.reason, p_note: ap.note || "", p_file_id: fileId, p_url: viaFile ? (meta.webViewLink || "https://drive.google.com/file/d/" + meta.id + "/view") : ap.url, p_name: viaFile ? meta.name : "", p_mime: viaFile ? (meta.mimeType || ap.file.type) : null, p_size: viaFile ? (Number(meta.size) || ap.file.size) : null });
+      ap = null; tkMsg = { k: "ok", t: "أُرسل تظلمك. سيصلك تنبيه حين يراجعه المحاضر أو المعيد." };
+      appeals = await rpc("student_appeals", { p_token: token }).catch(() => appeals) || appeals;
+    } catch (e) {
+      if (fileId) HD.trash(fileId);
+      if (ap) ap.err = errText(e) + (viaFile ? " ويمكنك بدلًا من ذلك لصق رابط الصورة." : "");
+      logErr("appeal", e, ap && ap.file);
+    }
+    up = null; renderTask();
   }
   const setUp = (phase, pct) => { up = { phase, pct }; renderTask(); };
   async function submitDrive(t, note) {
@@ -908,7 +995,7 @@
     busy = false; await loadHome(true);
   }
   let stStream = null, stTimer = null, stDet = null, stBusy = false;
-  const loadJsQR = () => window.jsQR ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
+  const loadJsQR = () => window.jsQR ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "vendor/jsQR.js"; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
   async function openStScan() {
     const ov = $("#stScan"), msg = $("#stMsg");
     ov.hidden = false; msg.textContent = "جارٍ فتح الكاميرا…";
