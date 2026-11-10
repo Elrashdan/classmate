@@ -5026,3 +5026,227 @@ end $$;
 revoke all on function public.faq_log_add(text, text, int, text, boolean), public.admin_faq_stats(int) from public;
 grant execute on function public.faq_log_add(text, text, int, text, boolean) to anon, authenticated;
 grant execute on function public.admin_faq_stats(int) to authenticated;
+-- update-48: الجدول الدراسي وتوزيع العمل (أيام × فترات، الفرق والشعب والمجموعات، فريق كل مجموعة، والمكان)
+create table if not exists public.timetables (
+  id uuid primary key default gen_random_uuid(),
+  academic_year text not null,
+  term int not null check (term between 1 and 3),
+  title text not null default 'جدول الدراسة وتوزيع العمل على أعضاء هيئة التدريس والأساتذة المنتدبين والمعيدين بالقسم',
+  periods jsonb not null default '[{"n":1,"from":"09:00","to":"10:30"},{"n":2,"from":"10:40","to":"12:10"},{"n":3,"from":"12:20","to":"13:50"},{"n":4,"from":"14:00","to":"15:30"},{"n":5,"from":"15:40","to":"17:10"},{"n":6,"from":"17:20","to":"18:50"}]'::jsonb,
+  days int[] not null default '{6,0,1,2,3,4}',          -- 6=السبت 0=الأحد ... 4=الخميس
+  rooms text[] not null default '{"أتيليه 1","أتيليه 2","أتيليه 3","قاعة المحاضرات","معمل الحاسب","خارجي"}',
+  signer text not null default 'رئيس مجلس القسم',
+  published boolean not null default false,
+  created_by text, created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+  unique (academic_year, term)
+);
+create table if not exists public.tt_cohorts (
+  id uuid primary key default gen_random_uuid(),
+  tt_id uuid not null references public.timetables(id) on delete cascade,
+  level int not null check (level between 1 and 6),
+  track text not null default '',
+  students int,
+  groups text[] not null default '{1,2,3,4}',
+  off_days int[] not null default '{}',
+  sort int not null default 0
+);
+create index if not exists tt_cohorts_tt on public.tt_cohorts(tt_id, sort);
+create table if not exists public.tt_slots (
+  id uuid primary key default gen_random_uuid(),
+  tt_id uuid not null references public.timetables(id) on delete cascade,
+  cohort_id uuid not null references public.tt_cohorts(id) on delete cascade,
+  day int not null check (day between 0 and 6),
+  p_from int not null check (p_from between 1 and 8),
+  p_to int not null check (p_to between 1 and 8),
+  course_id uuid references public.courses(id) on delete set null,
+  title text not null,
+  groups text[] not null default '{}',                   -- فارغ = كل مجموعات الفرقة
+  room text not null default '',
+  team jsonb not null default '[]'::jsonb,               -- [{g:"1", room:"", staff:[{n:"د.سليمان", e:"email|null", k:"lec|ta"}]}]
+  note text not null default '',
+  check (p_to >= p_from)
+);
+create index if not exists tt_slots_tt on public.tt_slots(tt_id, cohort_id, day, p_from);
+create index if not exists tt_slots_course on public.tt_slots(course_id);
+alter table public.timetables enable row level security;
+alter table public.tt_cohorts enable row level security;
+alter table public.tt_slots enable row level security;
+revoke all on public.timetables, public.tt_cohorts, public.tt_slots from anon, authenticated;
+
+-- توحيد اسم المجموعة: 1 = أ = الأولى = ١
+create or replace function public.tt_gkey(g text) returns text
+language plpgsql immutable set search_path = public as $$
+declare x text := trim(coalesce(g, '')); i int;
+  letters text[] := array['أ','ب','ج','د','ه','و','ز','ح','ط','ي','ك','ل'];
+  ords text[] := array['الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة','السابعة','الثامنة','التاسعة','العاشرة','الحادية عشرة','الثانية عشرة'];
+begin
+  x := translate(x, '٠١٢٣٤٥٦٧٨٩', '0123456789');
+  x := regexp_replace(x, '^(المجموعة|مجموعة|م)\s*', '');
+  x := replace(replace(replace(x, 'هـ', 'ه'), 'إ', 'ا'), 'آ', 'ا');
+  if x ~ '^[0-9]+$' then return (x::int)::text; end if;
+  for i in 1 .. array_length(letters, 1) loop
+    if x = letters[i] or (i = 1 and x = 'ا') then return i::text; end if;
+    if x = ords[i] or x = replace(ords[i], 'أ', 'ا') then return i::text; end if;
+  end loop;
+  return x;
+end $$;
+
+create or replace function public.tt_admin() returns void
+language plpgsql stable security definer set search_path = public as $$
+begin if staff_role() is distinct from 'admin' then raise exception 'not_allowed'; end if; end $$;
+
+create or replace function public.tt_list() returns json
+language sql stable security definer set search_path = public as $$
+  select case when staff_role() is null then '[]'::json else coalesce(json_agg(json_build_object('id', id, 'academic_year', academic_year, 'term', term, 'published', published, 'updated_at', updated_at,
+    'slots', (select count(*) from tt_slots s where s.tt_id = t.id)) order by academic_year desc, term desc), '[]'::json) end from timetables t;
+$$;
+
+create or replace function public.tt_get(tid uuid) returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if staff_role() is null then raise exception 'not_allowed'; end if;
+  return (select json_build_object('tt', to_json(t),
+    'cohorts', coalesce((select json_agg(to_json(c) order by c.sort, c.level, c.track) from tt_cohorts c where c.tt_id = t.id), '[]'::json),
+    'slots', coalesce((select json_agg(to_json(s) order by s.day, s.p_from) from tt_slots s where s.tt_id = t.id), '[]'::json))
+    from timetables t where t.id = tid);
+end $$;
+
+create or replace function public.default_periods() returns jsonb language sql immutable as $$
+  select '[{"n":1,"from":"09:00","to":"10:30"},{"n":2,"from":"10:40","to":"12:10"},{"n":3,"from":"12:20","to":"13:50"},{"n":4,"from":"14:00","to":"15:30"},{"n":5,"from":"15:40","to":"17:10"},{"n":6,"from":"17:20","to":"18:50"}]'::jsonb $$;
+
+-- إنشاء جدول لفصل دراسي، مع فرق تلقائية من مواد هذا الفصل (أو نسخ فرق جدول سابق)
+create or replace function public.tt_create(p_year text, p_term int, p_copy uuid) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare nid uuid; src timetables; r record; m jsonb := '{}'::jsonb; ncid uuid;
+begin
+  perform tt_admin();
+  if coalesce(p_year, '') !~ '^[0-9]{4}/[0-9]{4}$' or p_term not between 1 and 3 then raise exception 'bad_term'; end if;
+  if exists (select 1 from timetables where academic_year = p_year and term = p_term) then raise exception 'tt_exists'; end if;
+  if p_copy is not null then select * into src from timetables where id = p_copy; end if;
+  insert into timetables(academic_year, term, created_by, periods, days, rooms, title, signer)
+    values (p_year, p_term, my_email(), coalesce(src.periods, default_periods()), coalesce(src.days, '{6,0,1,2,3,4}'), coalesce(src.rooms, '{"أتيليه 1","أتيليه 2","أتيليه 3","قاعة المحاضرات","معمل الحاسب","خارجي"}'),
+      coalesce(src.title, 'جدول الدراسة وتوزيع العمل على أعضاء هيئة التدريس والأساتذة المنتدبين والمعيدين بالقسم'), coalesce(src.signer, 'رئيس مجلس القسم'))
+    returning id into nid;
+  if src.id is not null then
+    for r in select * from tt_cohorts where tt_id = src.id order by sort loop
+      insert into tt_cohorts(tt_id, level, track, students, groups, off_days, sort) values (nid, r.level, r.track, r.students, r.groups, r.off_days, r.sort) returning id into ncid;
+      m := m || jsonb_build_object(r.id::text, ncid);
+    end loop;
+    insert into tt_slots(tt_id, cohort_id, day, p_from, p_to, course_id, title, groups, room, team, note)
+      select nid, (m->>s.cohort_id::text)::uuid, s.day, s.p_from, s.p_to,
+        (select c2.id from courses c1 join courses c2 on c2.name = c1.name and c2.level is not distinct from c1.level and coalesce(c2.track, '') = coalesce(c1.track, '') and c2.academic_year = p_year and c2.term = p_term and not c2.archived where c1.id = s.course_id limit 1),
+        s.title, s.groups, s.room, s.team, s.note from tt_slots s where s.tt_id = src.id;
+  else
+    insert into tt_cohorts(tt_id, level, track, students, groups, sort)
+      select nid, x.level, x.track, x.n, case when x.g = '{}' then '{1,2,3,4}' else x.g end, row_number() over (order by x.level, x.track)
+      from (select c.level, coalesce(c.track, '') track, count(distinct e.student_code)::int n,
+              coalesce(array_agg(distinct tt_gkey(e.grp) order by tt_gkey(e.grp)) filter (where coalesce(e.grp, '') <> ''), '{}') g
+            from courses c left join enrollments e on e.course_id = c.id
+            where c.academic_year = p_year and c.term = p_term and not c.archived and c.level is not null group by c.level, coalesce(c.track, '')) x;
+  end if;
+  perform log_audit(null, 'أنشأ الجدول الدراسي ' || p_year || ' الفصل ' || p_term);
+  return nid;
+end $$;
+
+create or replace function public.tt_update(tid uuid, p jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  perform tt_admin();
+  update timetables set
+    title = coalesce(nullif(left(trim(p->>'title'), 300), ''), title),
+    signer = coalesce(left(trim(p->>'signer'), 120), signer),
+    periods = case when jsonb_typeof(p->'periods') = 'array' and jsonb_array_length(p->'periods') between 1 and 8 then p->'periods' else periods end,
+    days = case when jsonb_typeof(p->'days') = 'array' then array(select (jsonb_array_elements_text(p->'days'))::int) else days end,
+    rooms = case when jsonb_typeof(p->'rooms') = 'array' then array(select left(trim(x), 60) from jsonb_array_elements_text(p->'rooms') x where trim(x) <> '') else rooms end,
+    published = coalesce((p->>'published')::boolean, published),
+    updated_at = now()
+  where id = tid;
+  if p ? 'published' then perform log_audit(null, case when (p->>'published')::boolean then 'نشر الجدول الدراسي للطلبة' else 'أخفى الجدول الدراسي عن الطلبة' end); end if;
+end $$;
+
+create or replace function public.tt_delete(tid uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin perform tt_admin(); delete from timetables where id = tid; perform log_audit(null, 'حذف جدولًا دراسيًا'); end $$;
+
+create or replace function public.tt_cohort_save(tid uuid, p jsonb) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare cid uuid := nullif(p->>'id', '')::uuid; g text[];
+begin
+  perform tt_admin();
+  g := array(select left(trim(x), 20) from jsonb_array_elements_text(coalesce(p->'groups', '[]'::jsonb)) x where trim(x) <> '');
+  if coalesce(array_length(g, 1), 0) = 0 or array_length(g, 1) > 20 then raise exception 'bad_groups'; end if;
+  if cid is null then
+    insert into tt_cohorts(tt_id, level, track, students, groups, off_days, sort)
+      values (tid, (p->>'level')::int, left(trim(coalesce(p->>'track', '')), 60), nullif(p->>'students', '')::int, g,
+        array(select (jsonb_array_elements_text(coalesce(p->'off_days', '[]'::jsonb)))::int), coalesce((select max(sort) + 1 from tt_cohorts where tt_id = tid), 1))
+      returning id into cid;
+  else
+    update tt_cohorts set level = (p->>'level')::int, track = left(trim(coalesce(p->>'track', '')), 60), students = nullif(p->>'students', '')::int, groups = g,
+      off_days = array(select (jsonb_array_elements_text(coalesce(p->'off_days', '[]'::jsonb)))::int),
+      sort = coalesce((p->>'sort')::int, sort) where id = cid and tt_id = tid;
+  end if;
+  update timetables set updated_at = now() where id = tid;
+  return cid;
+end $$;
+
+create or replace function public.tt_cohort_delete(cid uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin perform tt_admin(); delete from tt_cohorts where id = cid; end $$;
+
+create or replace function public.tt_slot_save(tid uuid, p jsonb) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare sid uuid := nullif(p->>'id', '')::uuid; c tt_cohorts; t timetables; d int := (p->>'day')::int; a int := (p->>'p_from')::int; b int := (p->>'p_to')::int;
+  g text[] := array(select left(trim(x), 20) from jsonb_array_elements_text(coalesce(p->'groups', '[]'::jsonb)) x where trim(x) <> '');
+  ttl text := left(trim(coalesce(p->>'title', '')), 120); crs uuid := nullif(p->>'course_id', '')::uuid; clash text;
+begin
+  perform tt_admin();
+  select * into t from timetables where id = tid;
+  select * into c from tt_cohorts where id = (p->>'cohort_id')::uuid and tt_id = tid;
+  if t.id is null or c.id is null then raise exception 'not_found'; end if;
+  if not (d = any(t.days)) or a < 1 or b < a or b > jsonb_array_length(t.periods) then raise exception 'bad_slot'; end if;
+  if crs is not null and ttl = '' then ttl := (select name from courses where id = crs); end if;
+  if ttl = '' then raise exception 'slot_title'; end if;
+  -- نفس المجموعة لا تكون في مادتين في نفس الوقت
+  select s.title into clash from tt_slots s where s.cohort_id = c.id and s.day = d and s.p_from <= b and s.p_to >= a and s.id is distinct from sid
+    and (cardinality(s.groups) = 0 or cardinality(g) = 0 or s.groups && g) limit 1;
+  if clash is not null then raise exception 'slot_overlap:%', clash; end if;
+  if sid is null then
+    insert into tt_slots(tt_id, cohort_id, day, p_from, p_to, course_id, title, groups, room, team, note)
+      values (tid, c.id, d, a, b, crs, ttl, g, left(trim(coalesce(p->>'room', '')), 60), coalesce(p->'team', '[]'::jsonb), left(trim(coalesce(p->>'note', '')), 200)) returning id into sid;
+  else
+    update tt_slots set cohort_id = c.id, day = d, p_from = a, p_to = b, course_id = crs, title = ttl, groups = g, room = left(trim(coalesce(p->>'room', '')), 60),
+      team = coalesce(p->'team', '[]'::jsonb), note = left(trim(coalesce(p->>'note', '')), 200) where id = sid and tt_id = tid;
+  end if;
+  update timetables set updated_at = now() where id = tid;
+  return sid;
+end $$;
+
+create or replace function public.tt_slot_delete(sid uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin perform tt_admin(); delete from tt_slots where id = sid; end $$;
+
+-- جدول الطالب: مواد مسجّل فيها من الجدول المنشور، بفريق مجموعته ومكانها
+create or replace function public.student_timetable(p_token text) returns json
+language plpgsql stable security definer set search_path = public as $$
+declare code text := student_from_token(p_token);
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  return coalesce((select json_agg(json_build_object('tt', t.id, 'year', t.academic_year, 'term', t.term, 'periods', t.periods, 'days', t.days,
+      'slots', (select coalesce(json_agg(json_build_object('day', s.day, 'p_from', s.p_from, 'p_to', s.p_to, 'title', s.title, 'course_id', s.course_id, 'grp', e.grp,
+          'room', coalesce(nullif((select tm->>'room' from jsonb_array_elements(s.team) tm where tt_gkey(tm->>'g') = tt_gkey(e.grp) limit 1), ''), s.room),
+          'staff', coalesce((select tm->'staff' from jsonb_array_elements(s.team) tm where tt_gkey(tm->>'g') = tt_gkey(e.grp) limit 1),
+                            (select tm->'staff' from jsonb_array_elements(s.team) tm where coalesce(tm->>'g', '') = '' limit 1), '[]'::json::jsonb),
+          'note', s.note) order by s.day, s.p_from), '[]'::json)
+        from tt_slots s join enrollments e on e.course_id = s.course_id and e.student_code = code
+        where s.tt_id = t.id and (cardinality(s.groups) = 0 or coalesce(e.grp, '') = '' or tt_gkey(e.grp) = any (array(select tt_gkey(x) from unnest(s.groups) x))))
+    ) order by t.academic_year desc, t.term desc)
+    from timetables t where t.published and exists (select 1 from tt_slots s join enrollments e on e.course_id = s.course_id and e.student_code = code where s.tt_id = t.id)), '[]'::json);
+end $$;
+
+revoke all on function public.tt_gkey(text), public.default_periods() from public;
+grant execute on function public.tt_gkey(text), public.default_periods() to authenticated, anon;
+revoke all on function public.tt_admin(), public.tt_list(), public.tt_get(uuid), public.tt_create(text, int, uuid), public.tt_update(uuid, jsonb), public.tt_delete(uuid),
+  public.tt_cohort_save(uuid, jsonb), public.tt_cohort_delete(uuid), public.tt_slot_save(uuid, jsonb), public.tt_slot_delete(uuid), public.student_timetable(text) from public, anon;
+grant execute on function public.tt_list(), public.tt_get(uuid), public.tt_create(text, int, uuid), public.tt_update(uuid, jsonb), public.tt_delete(uuid),
+  public.tt_cohort_save(uuid, jsonb), public.tt_cohort_delete(uuid), public.tt_slot_save(uuid, jsonb), public.tt_slot_delete(uuid) to authenticated;
+grant execute on function public.student_timetable(text) to anon, authenticated;

@@ -445,6 +445,7 @@
       else if (home.now_ms) { q.off = Number(home.now_ms) - Date.now(); store.set("cm_qr", JSON.stringify(q)); }
       renderHome();
       loadTasks(!silent);
+      if (!myTT || !silent) rpc("student_timetable", { p_token: token }).then(r => { const t = (r || [])[0] || null; const ch = JSON.stringify(t) !== JSON.stringify(myTT); myTT = t; if (ch && !rf && !tkId) renderHome(); }).catch(() => {});
       if (sstore.get("cm_pending_qr")) takePendingQr();
       if (store.get("cm_gdrive")) takePendingDrive();
     } catch (e) {
@@ -643,6 +644,35 @@
     upd(); if (!pgTick) pgTick = setInterval(upd, 400);
     const later = $("#pgLater"); if (later) later.onclick = () => { pgateShown = true; try { sessionStorage.setItem("cm_pgate", "1"); } catch (e) {} const x = $("#pgate"); if (x) x.remove(); };
   }
+  // «جدولي»: محاضرات الطالب من الجدول الدراسي المنشور، بفريق مجموعته ومكانها
+  let myTT = null, ttDay = null, ttAll = false;
+  const TDAY = { 6: "السبت", 0: "الأحد", 1: "الإثنين", 2: "الثلاثاء", 3: "الأربعاء", 4: "الخميس", 5: "الجمعة" };
+  const t12 = hm => { if (!hm) return ""; let [h, m] = hm.split(":").map(Number); h = h % 12 || 12; return `${h}:${String(m).padStart(2, "0")}`; };
+  const toMin = hm => { const [h, m] = String(hm || "0:0").split(":").map(Number); return h * 60 + m; };
+  function ttHtml() {
+    const T = myTT; if (!T || !T.slots.length) return "";
+    const now = new Date(), today = now.getDay(), hm = now.getHours() * 60 + now.getMinutes();
+    const days = T.days.filter(d => T.slots.some(s => s.day === d));
+    const tm = s => [(T.periods[s.p_from - 1] || {}).from, (T.periods[s.p_to - 1] || {}).to];
+    const card = (s, d) => { const [a, b] = tm(s), live = d === today && hm >= toMin(a) && hm < toMin(b), done = d === today && hm >= toMin(b);
+      return `<div class="tw-s ${live ? "live" : ""} ${done ? "done" : ""}"><div class="tw-t"><b dir="ltr">${t12(a)}</b><small dir="ltr">${t12(b)}</small></div><div class="tw-b"><b>${esc(s.title)}</b>${live ? `<span class="chip ok">الآن</span>` : ""}
+        <div class="small">${s.room ? `📍 <b>${esc(s.room)}</b>` : ""}${s.room && s.staff.length ? " · " : ""}${s.staff.map(p => esc(p.n)).join("، ")}</div>${s.note ? `<div class="small muted">${esc(s.note)}</div>` : ""}</div></div>`; };
+    if (!ttAll) {
+      const todays = T.slots.filter(s => s.day === today), left = todays.filter(s => hm < toMin(tm(s)[1]));
+      let nd = null; if (!left.length) { for (let i = 1; i <= 7 && nd == null; i++) { const d = (today + i) % 7; if (days.includes(d)) nd = d; } }
+      const show = left.length ? left : T.slots.filter(s => s.day === nd);
+      return `<section class="panel tw-panel"><div class="panel-h"><div><div class="eyebrow">جدولي</div><h2>${left.length ? "محاضراتك النهارده" : nd != null ? "محاضراتك يوم " + TDAY[nd] : "جدولي"}</h2></div><button class="btn sm" id="ttAll">الأسبوع كله</button></div>
+        <div class="tw-list">${show.map(s => card(s, left.length ? today : nd)).join("")}</div></section>`;
+    }
+    const sel = ttDay != null && days.includes(ttDay) ? ttDay : days.includes(today) ? today : days[0];
+    return `<section class="panel tw-panel"><div class="panel-h"><div><div class="eyebrow">جدولي · ${esc(T.year)}</div><h2>جدول الأسبوع</h2></div><button class="btn sm ghost" id="ttAll">إغلاق</button></div>
+      <div class="tw"><div class="tw-days" role="tablist">${days.map(d => `<button role="tab" class="${d === sel ? "on" : ""}" aria-selected="${d === sel}" data-twd="${d}">${TDAY[d]}${d === today ? "<i>النهارده</i>" : ""}</button>`).join("")}</div>
+      <div class="tw-list">${T.slots.filter(s => s.day === sel).map(s => card(s, sel)).join("")}</div></div></section>`;
+  }
+  function wireTT() {
+    const a = $("#ttAll"); if (a) a.onclick = () => { ttAll = !ttAll; renderHome(); if (ttAll) { const p = document.querySelector(".tw-panel"); if (p) p.scrollIntoView({ block: "start", behavior: "smooth" }); } };
+    document.querySelectorAll("[data-twd]").forEach(b => b.onclick = () => { ttDay = +b.dataset.twd; renderHome(); });
+  }
   // مركز المساعدة للطالب
   let hcUnread = 0;
   function openHelp(tab) {
@@ -669,7 +699,7 @@
     const b = $("#ntBtn"); if (b) b.onclick = () => { nt.open = !nt.open; renderHome(); if (nt.open && nt.unread) rpc("student_notifications_read", { p_token: token }).then(() => { nt.unread = 0; const x = document.querySelector(".nt-badge"); if (x) x.remove(); }).catch(() => {}); };
     const c = $("#ntClose"); if (c) c.onclick = () => { nt.open = false; if (nt.items) nt.items.forEach(n => n.read_at = n.read_at || new Date().toISOString()); renderHome(); };
     const on = $("#pushOn"), on2 = $("#ntPush"); [on, on2].forEach(x => { if (x) x.onclick = enablePush; });
-    wireGate();
+    wireGate(); wireTT();
     const hb = $("#helpBtn"); if (hb) hb.onclick = () => openHelp(hcUnread ? "list" : "ask");
     if (!wireNotifs.hc) { wireNotifs.hc = true; rpc("student_ticket_unread", { p_token: token }).then(n => { hcUnread = n || 0; if (hcUnread) renderHome(); }).catch(() => {}); if (location.hash === "#help") setTimeout(() => openHelp("list"), 300); }
     if (!ntTimer) { ntTimer = setInterval(() => { if (document.visibilityState === "visible") loadNotifs(); }, 60000); loadNotifs(); checkSub(); }
@@ -686,6 +716,7 @@
         ${nowHtml()}
         ${CM.band({ icon: CM.ICONS.ug, eyebrow: `<span class="mono">${esc(home.code)}</span>`, title: "أهلًا " + esc((home.name || "").split(" ")[0]), sub: home.courses.length ? home.courses.length + (home.courses.length > 2 && home.courses.length < 11 ? " مواد" : " مادة") : "" })}
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
+        ${ttHtml()}
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
         ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : home.courses.length ? qrCta() : ""}
         ${pushCta()}
