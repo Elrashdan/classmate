@@ -1183,3 +1183,6 @@ body.hc-on{overflow:hidden}
 .faqst summary{cursor:pointer;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
 .faqst[open]{display:grid;gap:10px}
 .faqst h3{margin:6px 0 0;font-size:.95rem}
+/* سهم القوائم مرة واحدة دائمًا، حتى لو قاعدة أخرى كتبت background مختصرة */
+select{background-repeat:no-repeat!important;background-position:left 12px center!important;background-size:16px!important}
+.hc-new select,.dd-sel select{padding-inline-end:38px}

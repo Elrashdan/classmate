@@ -305,7 +305,7 @@
     }, { passive: true });
   })();
   // قائمة منسدلة بسيطة (details/summary): تجمع الأزرار الثانوية تحت زر واحد. تُغلق عند اختيار عنصر أو الضغط خارجها
-  /* ================= مركز المساعدة: مساعد بالأسئلة الشائعة + مراسلة الإدارة (b70) ================= */
+  /* ================= مركز المساعدة: مساعد بالأسئلة الشائعة + مراسلة الإدارة (b71) ================= */
   // كل عنصر: who (student/staff/all)، q سؤال، k كلمات بحث، a إجابة (HTML بسيط)
   CM.FAQ = [
     { who: "student", q: "إزاي أسجّل حضوري في المحاضرة؟", k: "حضور تسجيل سجل احضر المحاضره بدأت كود رمز qr باركود امسح", a: "أول ما المحاضرة تبدأ هتلاقي فوق خالص في صفحتك «محاضرة جارية الآن». اضغط عليها، وبعدين:<br>• لو المحاضرة في القاعة: اسمح للموقع يعرف مكانك، واكتب الرمز اللي على شاشة المحاضر أو اضغط «امسح رمز QR من الشاشة».<br>• لو أونلاين: اكتب الرمز اللي المحاضر بيقوله.<br>لو الرمز اتقفل أو ماعرفتش تسجّل، كلّم المعيد يسجّلك يدويًا." },
@@ -479,7 +479,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b70)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b71)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
