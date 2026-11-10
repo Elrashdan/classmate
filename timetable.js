@@ -339,6 +339,11 @@
             const rooms = [...new Set([s.room, ...s.team.map(t => t.room)].filter(Boolean))];
             const h = ws.getCell(hr, a); h.value = s.title + (rooms.length ? `  (${rooms.join(" / ")})` : ""); h.font = F(9, true); h.alignment = { horizontal: "center", vertical: "middle", wrapText: true }; h.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF4F8F6" } };
             const same = s.team.length <= 1 && (!s.team[0] || !s.team[0].g), sg = slotGroups(s, c);
+            if (same && sg.length === gs.length) { // فريق واحد لكل المجموعات: الأسماء مرة واحدة تحت بعض كما في الجدول الورقي
+              ws.mergeCells(hr + 1, a, hr + gs.length, b);
+              const x = ws.getCell(hr + 1, a); x.value = s.team[0] ? s.team[0].staff.map(p => p.n).join("\n") : ""; x.font = F(8); x.alignment = { horizontal: "center", vertical: "top", wrapText: true };
+              return;
+            }
             gs.forEach((g, gi) => {
               const rr = hr + 1 + gi; if (!sg.includes(g)) return;
               const t = same ? s.team[0] : s.team.find(x => x.g === g); if (a !== b) ws.mergeCells(rr, a, rr, b);
