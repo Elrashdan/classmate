@@ -1179,3 +1179,7 @@ body.hc-on{overflow:hidden}
 .tkseg{display:inline-flex;gap:4px;flex-wrap:wrap}
 .tkseg button{all:unset;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:.84rem;border:1px solid var(--line);background:var(--sunk)}
 .tkseg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.faqst{margin:4px 0 14px;padding:12px 14px;border-radius:14px;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+.faqst summary{cursor:pointer;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.faqst[open]{display:grid;gap:10px}
+.faqst h3{margin:6px 0 0;font-size:.95rem}

@@ -305,7 +305,7 @@
     }, { passive: true });
   })();
   // قائمة منسدلة بسيطة (details/summary): تجمع الأزرار الثانوية تحت زر واحد. تُغلق عند اختيار عنصر أو الضغط خارجها
-  /* ================= مركز المساعدة: مساعد بالأسئلة الشائعة + مراسلة الإدارة (b69) ================= */
+  /* ================= مركز المساعدة: مساعد بالأسئلة الشائعة + مراسلة الإدارة (b70) ================= */
   // كل عنصر: who (student/staff/all)، q سؤال، k كلمات بحث، a إجابة (HTML بسيط)
   CM.FAQ = [
     { who: "student", q: "إزاي أسجّل حضوري في المحاضرة؟", k: "حضور تسجيل سجل احضر المحاضره بدأت كود رمز qr باركود امسح", a: "أول ما المحاضرة تبدأ هتلاقي فوق خالص في صفحتك «محاضرة جارية الآن». اضغط عليها، وبعدين:<br>• لو المحاضرة في القاعة: اسمح للموقع يعرف مكانك، واكتب الرمز اللي على شاشة المحاضر أو اضغط «امسح رمز QR من الشاشة».<br>• لو أونلاين: اكتب الرمز اللي المحاضر بيقوله.<br>لو الرمز اتقفل أو ماعرفتش تسجّل، كلّم المعيد يسجّلك يدويًا." },
@@ -370,7 +370,7 @@
     let el = document.getElementById("hcBox"); if (el) el.remove();
     el = document.createElement("div"); el.id = "hcBox"; el.className = "hc"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", "المساعدة");
     document.body.appendChild(el); document.body.classList.add("hc-on");
-    const close = () => { el.remove(); document.body.classList.remove("hc-on"); if (o.onClose) o.onClose(); };
+    const close = () => { if (st.tab === "ask") { clearTimeout(st.lt); logQ(false); } el.remove(); document.body.classList.remove("hc-on"); if (o.onClose) o.onClose(); };
     const load = async () => { try { st.items = await o.api.list(); } catch (e) { st.items = st.items || []; st.msg = CM.errText(e); } draw(); if (o.onRead) o.onRead(); };
     const fmt = d => new Date(d).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
     function faqHtml() {
@@ -415,8 +415,8 @@
     function wire() {
       $$("#hcX").forEach(b => b.onclick = close);
       el.onclick = e => { if (e.target === el) close(); };
-      el.querySelectorAll("[data-hct]").forEach(b => b.onclick = () => { st.tab = b.dataset.hct; st.msg = ""; st.open = null; if (st.tab === "list" && !st.items) load(); draw(); if (st.tab === "new") { const s = document.getElementById("hcSubj"); if (s && st.q && !st.form.subject) { s.value = st.q; st.form.subject = st.q; } } });
-      const q = document.getElementById("hcQ"); if (q) { q.oninput = () => { st.q = q.value; const r = el.querySelector(".hc-res"); const tmp = document.createElement("div"); tmp.innerHTML = faqHtml(); r.replaceWith(tmp.querySelector(".hc-res")); }; if (st.tab === "ask" && matchMedia("(min-width:700px)").matches) q.focus(); }
+      el.querySelectorAll("[data-hct]").forEach(b => b.onclick = () => { if (b.dataset.hct === "new" && st.tab === "ask") { clearTimeout(st.lt); logQ(true); } st.tab = b.dataset.hct; st.msg = ""; st.open = null; if (st.tab === "list" && !st.items) load(); draw(); if (st.tab === "new") { const s = document.getElementById("hcSubj"); if (s && st.q && !st.form.subject) { s.value = st.q; st.form.subject = st.q; } } });
+      const q = document.getElementById("hcQ"); if (q) { q.oninput = () => { st.q = q.value; clearTimeout(st.lt); st.lt = setTimeout(() => logQ(false), 1800); const r = el.querySelector(".hc-res"); const tmp = document.createElement("div"); tmp.innerHTML = faqHtml(); r.replaceWith(tmp.querySelector(".hc-res")); }; if (st.tab === "ask" && matchMedia("(min-width:700px)").matches) q.focus(); }
       el.querySelectorAll("[data-hcc]").forEach(b => b.onclick = () => { st.form.cat = b.dataset.hcc; el.querySelectorAll("[data-hcc]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
       const sj = document.getElementById("hcSubj"); if (sj) sj.oninput = () => { st.form.subject = sj.value; };
       const bd = document.getElementById("hcBody"); if (bd) bd.oninput = () => { st.form.body = bd.value; };
@@ -436,6 +436,12 @@
       };
     }
     const $$ = s => el.querySelectorAll(s);
+    // نسجّل السؤال (بدون أي بيانات شخصية) لنعرف ما يجيب عنه المساعد وما ينقصه
+    function logQ(esc) {
+      const v = (st.q || "").trim(); if (v.length < 3) return;
+      const key = v + "|" + esc; if (st.logged === key) return; st.logged = key;
+      const r = CM.faqSearch(v, o.who); CM.rpc("faq_log_add", { p_who: o.who, p_q: v, p_hits: r.length, p_top: r[0] ? r[0].q : "", p_escalated: !!esc }).catch(() => {});
+    }
     document.addEventListener("keydown", function k(e) { if (e.key === "Escape" && document.getElementById("hcBox")) { close(); document.removeEventListener("keydown", k); } });
     if (!o.api) st.tab = "ask";
     draw(); if (!o.api) return { close }; if (st.tab === "list") load(); else o.api.list().then(r => { st.items = r; if (st.tab === "list") draw(); else { const t = el.querySelector('[data-hct="list"]'); const n = r.filter(x => x.unread).length; if (t && n) t.innerHTML = `رسائلي <i class="hc-dot">${n}</i>`; } }).catch(() => {});
@@ -473,7 +479,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b69)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b70)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

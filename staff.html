@@ -2619,6 +2619,7 @@
       <div class="panel-h"><div><div class="eyebrow">من الطلبة والمعيدين والمحاضرين</div><h2>الاستفسارات والشكاوى والمقترحات</h2></div>
         <div class="tkseg">${[["open", "بانتظار الرد"], ["answered", "تم الرد"], ["closed", "مغلقة"], ["all", "الكل"]].map(([k, l]) => `<button class="${inboxF === k ? "on" : ""}" data-tkf="${k}">${l}</button>`).join("")}</div></div>
       ${msgHtml("inbox")}
+      ${!t ? faqStatsHtml() : ""}
       ${t ? `<div class="tk-th">
           <button class="btn sm ghost" id="tkBack">→ كل الرسائل</button>
           <div class="tk-th-h"><b>${esc(t.subject)}</b><span class="chip ${TK_CAT[t.category][1]}">${TK_CAT[t.category][0]}</span><span class="chip ${TK_ST[t.status][1]}">${TK_ST[t.status][0]}</span></div>
@@ -2631,7 +2632,24 @@
       : `<div class="empty">مفيش رسائل هنا.</div>`}
     </section>`;
   }
+  function faqStatsHtml() {
+    const f = faqStats; if (!f) return "";
+    const pct = f.total ? Math.round(f.answered / f.total * 100) : 0;
+    return `<details class="faqst" ${f.total ? "" : ""}><summary><b>مساعد Hadro</b> <span class="small muted">${f.total ? `جاوب على <b>${pct}%</b> من ${f.total} سؤال في آخر ${faqDays} يوم` : "لسه محدش سأله"}</span></summary>
+      ${f.total ? `<div class="kpis">
+        <div class="kpi"><b>${f.total}</b><span>سؤال</span></div>
+        <div class="kpi"><b>${pct}%</b><span>لقى لها إجابة</span></div>
+        <div class="kpi"><b>${f.nohit}</b><span>مالقاش إجابة</span></div>
+        <div class="kpi"><b>${f.escalated}</b><span>راسلوا الإدارة بعدها</span></div></div>
+      <div class="tkseg">${[7, 30, 90].map(d => `<button class="${faqDays === d ? "on" : ""}" data-fqd="${d}">آخر ${d} يوم</button>`).join("")}</div>
+      ${f.missing.length ? `<h3>أسئلة محتاجة إجابة <span class="small muted">(ابعتهالي أضيفها للمساعد)</span></h3><div class="tbl-wrap"><table><thead><tr><th>السؤال كما كُتب</th><th>من</th><th class="c">مرات</th></tr></thead><tbody>${f.missing.map(m => `<tr><td>${esc(m.q)}</td><td class="small">${m.who === "student" ? "طالب" : "هيئة التدريس"}</td><td class="c">${m.n}</td></tr>`).join("")}</tbody></table></div>
+        <button class="btn sm ghost" id="fqCopy">نسخ القائمة</button>` : ""}
+      ${f.top.length ? `<h3>أكتر إجابات اتفتحت</h3><ol class="small">${f.top.map(x => `<li>${esc(x.q)} <span class="muted">(${x.n})</span></li>`).join("")}</ol>` : ""}` : `<p class="small muted">أول ما الطلبة والمعيدين يسألوا المساعد هتظهر هنا النسبة والأسئلة اللي مالقاش لها إجابة.</p>`}
+    </details>`;
+  }
   function wireAdminInbox(el) {
+    el.querySelectorAll("[data-fqd]").forEach(b => b.onclick = () => { faqDays = +b.dataset.fqd; renderAdmin().then(() => { const d = el.querySelector(".faqst"); if (d) d.open = true; }); });
+    const fc = $("#fqCopy"); if (fc) fc.onclick = async () => { const t = faqStats.missing.map(m => `- ${m.q} (${m.n})`).join("\n"); try { await navigator.clipboard.writeText(t); fc.textContent = "تم النسخ ✓"; } catch { prompt("انسخ:", t); } };
     el.querySelectorAll("[data-tkf]").forEach(b => b.onclick = () => { inboxF = b.dataset.tkf; inboxOpen = null; renderAdmin(); });
     el.querySelectorAll("[data-tko]").forEach(b => b.onclick = () => { inboxOpen = b.dataset.tko; const t = adminTks.find(x => x.id === inboxOpen); if (t && t.unread) { t.unread = false; rpc("admin_ticket_seen", { tid: t.id }).catch(() => {}); walerts = null; } renderAdmin(); });
     const bk = $("#tkBack"); if (bk) bk.onclick = () => { inboxOpen = null; renderAdmin(); };
@@ -3500,13 +3518,13 @@
 
   /* ======================= admin ======================= */
   let atab = ["requests", "inbox", "staff", "report", "log"].includes(store.get("cm_atab")) ? store.get("cm_atab") : "staff";
-  let adminReqs = [], adminTks = [], inboxF = "open", inboxOpen = null, rqRole = {};
+  let adminReqs = [], adminTks = [], inboxF = "open", inboxOpen = null, rqRole = {}, faqStats = null, faqDays = 30;
   let tmpPw = null;
   async function renderAdmin() {
     const el = $("#adminArea");
     const au = await sb.from("audit").select("*").order("at", { ascending: false }).limit(40);
-    const [rqR, tkR] = await Promise.all([rpc("admin_staff_requests").catch(() => []), rpc("admin_tickets", { p_status: inboxF }).catch(() => [])]);
-    adminReqs = rqR || []; adminTks = tkR || [];
+    const [rqR, tkR, fq] = await Promise.all([rpc("admin_staff_requests").catch(() => []), rpc("admin_tickets", { p_status: inboxF }).catch(() => []), atab === "inbox" ? rpc("admin_faq_stats", { p_days: faqDays }).catch(() => null) : null]);
+    adminReqs = rqR || []; adminTks = tkR || []; faqStats = fq;
     const nReq = adminReqs.filter(r => r.status === "pending").length, nTk = adminTks.filter(t => t.admin_unread || t.unread).length;
     const AT = [["requests", "طلبات التسجيل" + (nReq ? ` <b class="tb">${nReq}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M18 8v6M15 11h6"/></svg>`], ["inbox", "الرسائل" + (nTk ? ` <b class="tb">${nTk}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>`], ["staff", "الحسابات", CTABS[4][2]], ["report", "تقرير الإنذارات", CTABS[3][2]], ["log", "السجل", CTABS[5][2]]];
     el.innerHTML = `<nav class="ctabs admin" role="tablist" aria-label="لوحة المسؤول">${AT.map(([k, t, ic]) => `<button role="tab" data-at="${k}" aria-selected="${atab === k}">${ic}<span class="l">${t}</span></button>`).join("")}</nav>
@@ -3551,7 +3569,7 @@
     document.body.classList.add("has-ctabs");
     wireAdminReq(el); wireAdminInbox(el);
     el.querySelectorAll("[data-autoc]").forEach(b => b.onclick = () => { curId = b.dataset.autoc; store.set("cm_course", curId); fYear = "all"; fTerm = "all"; ctab = "team"; store.set("cm_tab", ctab); view = "course"; flash = {}; loadCourse().catch(showErr); });
-    el.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { atab = b.dataset.at; store.set("cm_atab", atab); el.querySelectorAll("[data-at]").forEach(x => x.setAttribute("aria-selected", x.dataset.at === atab)); el.querySelectorAll("[data-apane]").forEach(p => p.hidden = p.dataset.apane !== atab); });
+    el.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { atab = b.dataset.at; store.set("cm_atab", atab); el.querySelectorAll("[data-at]").forEach(x => x.setAttribute("aria-selected", x.dataset.at === atab)); el.querySelectorAll("[data-apane]").forEach(p => p.hidden = p.dataset.apane !== atab); if (atab === "inbox" && !faqStats) renderAdmin(); });
     el.querySelectorAll("[data-sus]").forEach(b => b.onclick = () => act(async () => { await rpc("admin_set_status", { p_email: b.dataset.sus, p_status: b.dataset.to }); say("admin", (b.dataset.to === "suspended" ? "أُوقف حساب " : "فُعِّل حساب ") + staffName(b.dataset.sus) + "."); }, async () => { await loadBase(); renderAdmin(); }));
     el.querySelectorAll("[data-tpw]").forEach(b => b.onclick = () => act(async () => {
       if (!confirm("إعطاء " + staffName(b.dataset.tpw) + " كلمة سر مؤقتة؟ ستتوقف كلمة سره الحالية إن كانت له واحدة.")) return;

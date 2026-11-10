@@ -4985,3 +4985,44 @@ revoke all on function public.student_ticket_create(text, text, text, text, uuid
 grant execute on function public.student_ticket_create(text, text, text, text, uuid), public.student_tickets(text), public.student_ticket_reply(text, uuid, text), public.student_ticket_unread(text) to anon, authenticated;
 grant execute on function public.staff_ticket_create(text, text, text, uuid), public.staff_tickets(), public.staff_ticket_reply(uuid, text),
   public.admin_tickets(text), public.admin_ticket_reply(uuid, text, boolean), public.admin_ticket_seen(uuid), public.admin_inbox_counts() to authenticated;
+-- update-47: تسجيل أسئلة «مساعد Hadro» لمعرفة نسبة ما يجيب عنه وما ينقصه
+create table if not exists public.faq_log (
+  id bigserial primary key,
+  who text not null check (who in ('student', 'staff')),
+  q text not null,
+  hits int not null default 0,
+  top text not null default '',
+  escalated boolean not null default false,
+  at timestamptz not null default now()
+);
+create index if not exists faq_log_at on public.faq_log(at desc);
+alter table public.faq_log enable row level security;
+revoke all on public.faq_log from anon, authenticated;
+revoke all on sequence public.faq_log_id_seq from anon, authenticated;
+
+create or replace function public.faq_log_add(p_who text, p_q text, p_hits int, p_top text, p_escalated boolean) returns void
+language plpgsql security definer set search_path = public as $$
+declare q text := left(regexp_replace(trim(coalesce(p_q, '')), '\s+', ' ', 'g'), 200);
+begin
+  if p_who not in ('student', 'staff') or length(q) < 3 then return; end if;
+  if (select count(*) from faq_log where at > now() - interval '1 minute') > 120 then return; end if;
+  insert into faq_log(who, q, hits, top, escalated) values (p_who, q, greatest(0, least(coalesce(p_hits, 0), 10)), left(coalesce(p_top, ''), 120), coalesce(p_escalated, false));
+end $$;
+
+create or replace function public.admin_faq_stats(p_days int) returns json
+language plpgsql stable security definer set search_path = public as $$
+declare since timestamptz := now() - make_interval(days => greatest(1, least(coalesce(p_days, 30), 365)));
+begin
+  if staff_role() is distinct from 'admin' then raise exception 'not_allowed'; end if;
+  return json_build_object(
+    'total', (select count(*) from faq_log where at > since),
+    'answered', (select count(*) from faq_log where at > since and hits > 0 and not escalated),
+    'nohit', (select count(*) from faq_log where at > since and hits = 0),
+    'escalated', (select count(*) from faq_log where at > since and escalated),
+    'top', coalesce((select json_agg(x) from (select top q, count(*) n from faq_log where at > since and hits > 0 and top <> '' group by top order by 2 desc limit 8) x), '[]'::json),
+    'missing', coalesce((select json_agg(x) from (select q, who, count(*) n, max(at) last from faq_log where at > since and (hits = 0 or escalated) group by q, who order by 3 desc, 4 desc limit 40) x), '[]'::json));
+end $$;
+
+revoke all on function public.faq_log_add(text, text, int, text, boolean), public.admin_faq_stats(int) from public;
+grant execute on function public.faq_log_add(text, text, int, text, boolean) to anon, authenticated;
+grant execute on function public.admin_faq_stats(int) to authenticated;
