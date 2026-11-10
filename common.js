@@ -114,7 +114,19 @@
     bonus_range: "البونص أكبر من الدرجة العظمى للتكليف أو أقل من صفر.",
     manual_task: "هذا رصد يدوي، لا يُسلَّم من التطبيق.",
     bad_mode: "اختر نوع التكليف.",
-    drive_http_: "تعذّر الاتصال بـ Google Drive. أعد المحاولة."
+    drive_http_: "تعذّر الاتصال بـ Google Drive. أعد المحاولة.",
+    already_staff: "هذا البريد له حساب بالفعل. ادخل به من «دخول»، ولو نسيت كلمة السر اختر «نسيت كلمة السر».",
+    name_3: "اكتب اسمك ثلاثيًا أو رباعيًا (3 كلمات على الأقل، بدون أرقام).",
+    too_many_requests: "أرسلت طلبات كثيرة. انتظر قليلًا ثم أعد المحاولة.",
+    request_decided: "تم البت في هذا الطلب بالفعل.",
+    reply_required: "اكتب سبب الرفض.",
+    bad_category: "اختر نوع الرسالة.",
+    ticket_subject: "اكتب عنوانًا من 3 حروف على الأقل.",
+    ticket_body: "اكتب التفاصيل.",
+    ticket_closed: "أُغلقت هذه المحادثة. ابعت رسالة جديدة.",
+    bad_subscription: "تعذّر تفعيل الإشعارات على هذا المتصفح.",
+    bad_role: "اختر الصفة.",
+    uni_email: "اكتب بريدك الجامعي (اللي آخره .edu.eg)."
   };
   CM.errText = e => {
     const m = (e && (e.message || e.error_description || e.msg)) || String(e || "");
@@ -293,6 +305,143 @@
     }, { passive: true });
   })();
   // قائمة منسدلة بسيطة (details/summary): تجمع الأزرار الثانوية تحت زر واحد. تُغلق عند اختيار عنصر أو الضغط خارجها
+  /* ================= مركز المساعدة: مساعد بالأسئلة الشائعة + مراسلة الإدارة (b69) ================= */
+  // كل عنصر: who (student/staff/all)، q سؤال، k كلمات بحث، a إجابة (HTML بسيط)
+  CM.FAQ = [
+    { who: "student", q: "إزاي أسجّل حضوري في المحاضرة؟", k: "حضور تسجيل سجل احضر المحاضره بدأت كود رمز qr باركود امسح", a: "أول ما المحاضرة تبدأ هتلاقي فوق خالص في صفحتك «محاضرة جارية الآن». اضغط عليها، وبعدين:<br>• لو المحاضرة في القاعة: اسمح للموقع يعرف مكانك، واكتب الرمز اللي على شاشة المحاضر أو اضغط «امسح رمز QR من الشاشة».<br>• لو أونلاين: اكتب الرمز اللي المحاضر بيقوله.<br>لو الرمز اتقفل أو ماعرفتش تسجّل، كلّم المعيد يسجّلك يدويًا." },
+    { who: "student", q: "بيقولي «الحساب مرتبط بهاتف آخر»", k: "مرتبط هاتف اخر تليفون جديد غيرت موبايل جهاز تاني متصفح اخر نقل الحساب", a: "حسابك مربوط بموبايل واحد عشان محدش يسجّل حضور مكانك.<br>• لو مفعّل الدخول بالبصمة: اضغط «الدخول ببصمة الوجه أو الإصبع» وهيتنقل على طول.<br>• لو غيّرت موبايلك: ادخل بكلمة السر من الموبايل الجديد واطلب نقل الحساب، أو اطلب من المعيد «فك ربط الهاتف».<br>• لو عايز تسلّم تكليف من الكمبيوتر بس: اختار «ادخل لتسليم التكليفات فقط»." },
+    { who: "student", q: "نسيت كلمة السر", k: "نسيت كلمه السر باسورد الباسورد مش فاكر استعادة تغيير", a: "في صفحة الدخول اضغط «نسيت كلمة السر؟» واختار طريقة من دول: نفس الموبايل المربوط، أو البصمة، أو حساب Google اللي سلّمت بيه قبل كده، أو موافقة المعيد (هيظهرلك رقم تحقق تقوله للمعيد)." },
+    { who: "student", q: "الموقع بيقول «لا يوجد اتصال» والنت شغال", k: "نت انترنت اتصال لا يوجد مش بيحمل بيحمل واقف ايفون سفاري خطأ مشكلة الموقع مش شغال", a: "• استنى ثواني، الموقع بيعيد المحاولة لوحده كل 5 ثواني.<br>• حدّث الصفحة.<br>• على الآيفون: افتح الموقع من أيقونته على الشاشة الرئيسية مش من Safari.<br>• جرّب تقفل الـ VPN أو أي برنامج حجب، أو جرّب Wi-Fi بدل الداتا (أو العكس).<br>• لو لسه، جرّب متصفح تاني (Chrome)." },
+    { who: "all", q: "إزاي أفعّل الإشعارات؟", k: "اشعارات اشعار تنبيهات نوتفكيشن تفعيل مش بيوصلني", a: "اضغط «تفعيل الإشعارات» واختار «سماح».<br>• على الآيفون: لازم الأول تضيف الموقع للشاشة الرئيسية (زر المشاركة ⬆︎ ← «إضافة إلى الشاشة الرئيسية»)، وتفتحه من الأيقونة، وبعدين تفعّل.<br>• لو رفضتها قبل كده: من إعدادات المتصفح ← إعدادات المواقع ← الإشعارات، اسمح لـ Hadro." },
+    { who: "all", q: "إزاي أضيف الموقع للشاشة الرئيسية؟", k: "شاشة رئيسية ايقونة تطبيق تنزيل تثبيت ابلكيشن home screen", a: "• آيفون (Safari): زر المشاركة ⬆︎ تحت ← «إضافة إلى الشاشة الرئيسية» ← «إضافة».<br>• أندرويد (Chrome): القائمة ⋮ ← «إضافة إلى الشاشة الرئيسية» أو «تثبيت التطبيق».<br>بعدها افتح Hadro دايمًا من الأيقونة: أسرع، ومابيخرجكش من حسابك، والإشعارات بتشتغل." },
+    { who: "student", q: "إزاي أسلّم تكليف؟", k: "تسليم سلم تكليف مشروع رفع ملف صوره درايف google drive", a: "افتح المادة ← التكليف ← اختار الملف. الملف بيترفع على Google Drive بتاعك ويتبعت للمعيد. لو نافذة Google قفلت أو ماكملتش، اضغط «جرّب طريقة أخرى» أو «سلّم رابطًا بدلًا من ذلك» وحط رابط الملف." },
+    { who: "student", q: "تسليمي مكتوب عليه «متأخر» أو «مرفوض»", k: "متاخر مرفوض غائب يوم الطرح عذر", a: "«متأخر» معناه إنك سلّمت بعد الموعد أو كنت غايب يوم طرح المشروع. «مرفوض» معناه إن التكليف مابيقبلش تسليم الغايب إلا بعذر. لو عندك عذر كلّم المعيد، يقدر يقبله أو يفتحلك تسليم استثنائي." },
+    { who: "student", q: "أعرف غيابي وإنذاراتي منين؟", k: "غياب انذار انذارات كام مرة غبت حرمان انسحاب", a: "افتح المادة من صفحتك هتلاقي عدد مرات غيابك ومستوى الإنذار. الإنذارات بالترتيب: أول، ثانٍ، ثالث ونهائي، وبعدها انسحاب إجباري من المادة. وبيوصلك إشعار أول ما توصل لإنذار جديد." },
+    { who: "student", q: "إزاي أتظلّم على درجة؟", k: "تظلم درجه غلط مرصوده مترصدتش اعتراض", a: "افتح التكليف بعد إعلان الدرجات ← «تظلم على الدرجة» ← اختار السبب ← ارفع صورة المشروع باين فيها اسمك ودرجتك ← «إرسال التظلم». هيوصلك إشعار بالقبول أو الرفض. التظلم متاح بس وباب التظلم مفتوح (المعيد بيحدد مهلته)." },
+    { who: "student", q: "درجتي مش ظاهرة", k: "درجه درجتي مش ظاهره الدرجات فين نتيجه", a: "الدرجات بتظهر بعد ما المعيد «يعلنها». لو اتعلنت ودرجتك مش موجودة رغم إنك سلّمت، قدّم تظلم واختار «سلّمت ولم تُرصد»." },
+    { who: "student", q: "ليه الموقع بيطلب مكاني (الموقع الجغرافي)؟", k: "موقع جغرافي لوكيشن gps مكاني القاعة بعيد", a: "في محاضرات القاعة الموقع بيتأكد إنك في الكلية فعلًا. اسمح بالموقع وشغّل GPS. لو قالك إنك بعيد وأنت في القاعة، استنى ثواني لحد ما الدقة تتحسن أو اطلع جنب الشباك، أو اطلب من المعيد يسجّلك." },
+    { who: "staff", q: "إزاي أبدأ محاضرة؟", k: "ابدا محاضره جديده بدء حضور قاعه اونلاين رمز", a: "افتح المادة ← «المحاضرة» ← اختار المجموعة ونوعها (قاعة أو أونلاين) ← «ابدأ المحاضرة». هيظهر رمز وQR تعرضهم على الشاشة. لما تخلّص اضغط «إغلاق التسجيل» وبعدين إنهاء المحاضرة (ده اللي بيبعت إشعارات الإنذار للطلبة)." },
+    { who: "staff", q: "طالب مش عارف يسجّل حضور", k: "طالب مش عارف يسجل يدوي حضرته تحضير غائب", a: "من «الكشف» دوس على خانة الطالب في المحاضرة وسجّله يدويًا، أو من شاشة المحاضرة الجارية. ولو موبايله مربوط غلط، من «الطلبة» اختار «فك ربط الهاتف»." },
+    { who: "staff", q: "إزاي أضيف طلبة أو أستورد كشف؟", k: "اضافه طلبه طالب كشف استيراد اكسل قائمه", a: "من «الطلبة» ← «إضافة طالب» لطالب واحد، أو استورد كشف إكسل فيه الكود والاسم والمجموعة." },
+    { who: "staff", q: "إزاي أعمل تكليف وأرصد الدرجات؟", k: "تكليف جديد رصد درجات مشروع تسليم اعلان", a: "«التكليفات» ← «تكليف أو رصد جديد». بعد التسليم افتح التكليف واكتب الدرجات (أو «رصد بالصوت» أو «رفع درجات» من إكسل)، واضغط «حفظ الدرجات»، وبعدين «إعلان» عشان الطلبة يشوفوها." },
+    { who: "staff", q: "إزاي أصدّر كشف الكنترول؟", k: "تصدير كشف الكنترول اكسل pdf طباعه درجات مجموعه", a: "«التكليفات» ← «تصدير واستيراد» ← اختار المجموعة ← إكسل أو PDF." },
+    { who: "staff", q: "إزاي أتحكم في مهلة التظلم؟", k: "مهله تظلم فتح قفل اغلاق تظلمات", a: "افتح التكليف، هتلاقي شريط «باب التظلم». تقدر تقفله، أو تفتحه لمدة (يوم/يومين/3 أيام/أسبوع)، أو «حدّد موعد الفتح والإغلاق». التظلمات بتظهر في نفس الصفحة بـ «قبول ورصد الدرجة» أو «رفض التظلم»." },
+    { who: "staff", q: "إزاي أقسّم الطلبة على مجموعات؟", k: "تقسيم مجموعات مجموعه جروب أ ب", a: "«الطلبة» ← «تقسيمهم تلقائيًا» (للطلبة اللي من غير مجموعة) أو «إعادة تقسيم المجموعات» (للكل). تختار العدد والتسمية والترتيب." },
+    { who: "staff", q: "الطلبة اللي عندهم إنذارات", k: "انذارات طلبه انذار تنبيه ابلاغ", a: "هتلاقي تنبيه في الرئيسية وفي «التقرير». تقدر «إرسال تنبيه للطلاب» (إشعار على موبايلاتهم)، أو تنزّل الكشف، أو تنسخ نص إعلان للجروب." },
+    { who: "staff", q: "إزاي أضيف معيد للمادة؟", k: "اضافه معيد فريق محاضر مشارك", a: "من «الفريق» في المادة اكتب بريده الجامعي. لازم يكون عنده حساب الأول؛ لو ماعندوش، يطلب حساب من صفحة الدخول («طلب حساب جديد») والمسؤول يوافق." },
+    { who: "staff", q: "نسيت كلمة السر (هيئة التدريس)", k: "نسيت كلمه السر باسورد معيد محاضر دخول", a: "في صفحة الدخول اختار «نسيت كلمة السر»، واكتب كلمة سر جديدة، وهيوصلك رمز على بريدك الجامعي تكتبه. لو الرمز ماوصلش، راجع البريد غير المرغوب أو اطلب من المسؤول «كلمة سر مؤقتة»." }
+  ];
+  CM.normAr = x => String(x || "").toLowerCase().replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/[ًٌٍَُِّْـ]/g, "").replace(/[؟?!.,،:«»"()]/g, " ").replace(/\s+/g, " ").trim();
+  CM.faqSearch = (q, who) => {
+    const words = CM.normAr(q).split(" ").filter(w => w.length > 1 && !["ازاي", "اعمل", "عايز", "ممكن", "انا", "في", "من", "علي", "على", "مش", "ليه", "هو", "دي", "ده"].includes(w));
+    const list = CM.FAQ.filter(f => f.who === "all" || f.who === who);
+    if (!words.length) return list.slice(0, 6);
+    return list.map(f => { const hay = CM.normAr(f.q + " " + f.k); let s = 0; words.forEach(w => { if (hay.includes(w)) s += 2; else if (w.length > 3 && hay.includes(w.slice(0, -1))) s += 1; else if (w.length > 4 && hay.includes(w.slice(1))) s += 1; }); return [s, f]; })
+      .filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).slice(0, 4).map(([, f]) => f);
+  };
+
+  // إشعارات الهاتف: حالة الدعم، والاشتراك
+  CM.pushState = () => {
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const sa = !!(navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches));
+    const vapid = (window.CLASSMATE || {}).VAPID_PUBLIC_KEY;
+    if (ios && !sa) return "ios-install";
+    if (!vapid || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return "none";
+    if (Notification.permission === "denied") return "denied";
+    return Notification.permission === "granted" ? "granted" : "ask";
+  };
+  CM.pushSubscribe = async () => {
+    const vapid = (window.CLASSMATE || {}).VAPID_PUBLIC_KEY;
+    const perm = await Notification.requestPermission();
+    if (perm !== "granted") throw { message: perm === "denied" ? "الإشعارات مرفوضة. اسمح بها من إعدادات المتصفح للموقع ثم أعد المحاولة." : "لم تُفعَّل الإشعارات. اضغط «سماح» عندما يسألك المتصفح." };
+    const reg = await navigator.serviceWorker.register("sw.js"); await navigator.serviceWorker.ready;
+    const key = Uint8Array.from(atob(vapid.replace(/-/g, "+").replace(/_/g, "/")), ch => ch.charCodeAt(0));
+    const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    return sub.toJSON();
+  };
+  CM.IOS_STEPS = `<ol class="pg-steps"><li>اضغط زر المشاركة <b>⬆︎</b> أسفل Safari.</li><li>اختر <b>«إضافة إلى الشاشة الرئيسية»</b> ثم «إضافة».</li><li>افتح <b>Hadro</b> من الأيقونة الجديدة وأكمل من هناك.</li></ol>`;
+
+  // نافذة المساعدة: who = student | staff ، api = { list(), create(cat, subject, body, course), reply(id, body) } ، courses = [{id, name}]
+  const HC_CATS = { question: "استفسار", problem: "مشكلة في الموقع", complaint: "شكوى", suggestion: "اقتراح" };
+  const HC_ST = { open: ["بانتظار الرد", "warn"], answered: ["تم الرد", "ok"], closed: ["مغلقة", "none"] };
+  CM.helpCenter = (o) => {
+    const esc = CM.esc;
+    const st = { tab: o.tab || "ask", q: "", items: null, open: null, busy: false, msg: "", form: { cat: "question", subject: "", body: "", course: "" } };
+    let el = document.getElementById("hcBox"); if (el) el.remove();
+    el = document.createElement("div"); el.id = "hcBox"; el.className = "hc"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", "المساعدة");
+    document.body.appendChild(el); document.body.classList.add("hc-on");
+    const close = () => { el.remove(); document.body.classList.remove("hc-on"); if (o.onClose) o.onClose(); };
+    const load = async () => { try { st.items = await o.api.list(); } catch (e) { st.items = st.items || []; st.msg = CM.errText(e); } draw(); if (o.onRead) o.onRead(); };
+    const fmt = d => new Date(d).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    function faqHtml() {
+      const res = CM.faqSearch(st.q, o.who);
+      return `<div class="hc-ask"><div class="hc-bot"><span class="hc-av">${CM.ICONS ? "" : ""}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="4"/><path d="M12 3v4M9 12h.01M15 12h.01M9.5 16h5"/></svg></span><p>أهلًا! أنا مساعد Hadro. اكتب سؤالك بكلامك، وهطلعلك الإجابة.</p></div>
+        <input type="search" id="hcQ" value="${esc(st.q)}" placeholder="مثلًا: نسيت كلمة السر، إزاي أسجل حضوري…" autocomplete="off" aria-label="سؤالك">
+        <div class="hc-res">${res.length ? res.map((f, i) => `<details class="hc-faq" ${st.q && i === 0 ? "open" : ""}><summary>${esc(f.q)}</summary><div>${f.a}</div></details>`).join("") : `<p class="small muted">مالقيتش إجابة جاهزة لسؤالك.</p>`}</div>
+        <div class="hc-more"><span class="small muted">مالقيتش اللي بتدور عليه؟</span>${o.api ? `<button class="btn sm primary" data-hct="new">راسل الإدارة</button>` : `<span class="small">${o.loginHint || "سجّل دخولك الأول عشان تقدر تراسل الإدارة."}</span>`}</div></div>`;
+    }
+    function newHtml() {
+      const f = st.form;
+      return `<div class="hc-new">
+        <div class="hc-cats" role="radiogroup" aria-label="نوع الرسالة">${Object.entries(HC_CATS).map(([k, l]) => `<button type="button" class="cchip" role="radio" aria-pressed="${f.cat === k}" data-hcc="${k}">${l}</button>`).join("")}</div>
+        ${(o.courses || []).length ? `<label class="f"><span>تخص مادة؟ (اختياري)</span><select id="hcCourse"><option value="">لا تخص مادة بعينها</option>${o.courses.map(c => `<option value="${c.id}" ${f.course === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>` : ""}
+        <label class="f"><span>العنوان</span><input id="hcSubj" maxlength="120" value="${esc(f.subject)}" placeholder="جملة قصيرة توضح الموضوع"></label>
+        <label class="f"><span>التفاصيل</span><textarea id="hcBody" rows="5" maxlength="3000" placeholder="اكتب المشكلة أو الاقتراح بالتفصيل: حصل إيه، وإمتى، وعلى أنهي جهاز…">${esc(f.body)}</textarea></label>
+        ${st.msg ? `<p class="small bad-t">${esc(st.msg)}</p>` : ""}
+        <div class="row"><button class="btn primary" id="hcSend" ${st.busy ? "disabled" : ""}>${st.busy ? "جارٍ الإرسال…" : "إرسال الرسالة"}</button></div>
+        <p class="small muted">هيوصلك إشعار لما المسؤول يرد، وتلاقي الرد في «رسائلي».</p></div>`;
+    }
+    function listHtml() {
+      if (!st.items) return `<p class="small muted">جارٍ التحميل…</p>`;
+      if (st.open) {
+        const t = st.items.find(x => x.id === st.open); if (!t) { st.open = null; return listHtml(); }
+        return `<div class="hc-th"><button class="btn sm ghost" data-hcback>→ كل رسائلي</button>
+          <div class="hc-th-h"><b>${esc(t.subject)}</b><span class="chip ${HC_ST[t.status][1]}">${HC_ST[t.status][0]}</span></div>
+          <p class="small muted">${HC_CATS[t.category]}${t.course ? " · " + esc(t.course) : ""}</p>
+          <div class="hc-msgs">${t.msgs.map(m => `<div class="hc-m ${m.admin ? "adm" : "me"}"><small>${m.admin ? esc(m.author || "المسؤول") : "أنت"} · ${fmt(m.at)}</small><p>${esc(m.body).replace(/\n/g, "<br>")}</p></div>`).join("")}</div>
+          ${t.status === "closed" ? `<p class="small muted">أُغلقت هذه المحادثة. لو عندك موضوع جديد ابعت رسالة جديدة.</p>` : `<label class="f"><span>ردّك</span><textarea id="hcRe" rows="3" maxlength="3000"></textarea></label>${st.msg ? `<p class="small bad-t">${esc(st.msg)}</p>` : ""}<div class="row"><button class="btn sm primary" id="hcReSend" ${st.busy ? "disabled" : ""}>إرسال</button></div>`}</div>`;
+      }
+      if (!st.items.length) return `<div class="empty small">لسه مابعتش رسائل. <button class="linkish" data-hct="new">ابعت أول رسالة</button></div>`;
+      return `<div class="hc-list">${st.items.map(t => `<button class="hc-it ${t.unread ? "unread" : ""}" data-hco="${t.id}"><span><b>${esc(t.subject)}</b><small>${HC_CATS[t.category]} · ${fmt(t.updated_at)}</small></span><span class="chip ${HC_ST[t.status][1]}">${HC_ST[t.status][0]}</span></button>`).join("")}</div>`;
+    }
+    function draw() {
+      const unread = (st.items || []).filter(t => t.unread).length;
+      el.innerHTML = `<div class="hc-c">
+        <div class="hc-h"><b>المساعدة والتواصل</b><button class="btn sm ghost icon" id="hcX" aria-label="إغلاق">✕</button></div>
+        ${o.api ? `<div class="hc-tabs" role="tablist">${[["ask", "اسأل المساعد"], ["new", "راسل الإدارة"], ["list", "رسائلي" + (unread ? ` <i class="hc-dot">${unread}</i>` : "")]].map(([k, l]) => `<button role="tab" aria-selected="${st.tab === k}" data-hct="${k}">${l}</button>`).join("")}</div>` : ""}
+        <div class="hc-b">${st.tab === "ask" ? faqHtml() : st.tab === "new" ? newHtml() : listHtml()}</div></div>`;
+      wire();
+    }
+    function wire() {
+      $$("#hcX").forEach(b => b.onclick = close);
+      el.onclick = e => { if (e.target === el) close(); };
+      el.querySelectorAll("[data-hct]").forEach(b => b.onclick = () => { st.tab = b.dataset.hct; st.msg = ""; st.open = null; if (st.tab === "list" && !st.items) load(); draw(); if (st.tab === "new") { const s = document.getElementById("hcSubj"); if (s && st.q && !st.form.subject) { s.value = st.q; st.form.subject = st.q; } } });
+      const q = document.getElementById("hcQ"); if (q) { q.oninput = () => { st.q = q.value; const r = el.querySelector(".hc-res"); const tmp = document.createElement("div"); tmp.innerHTML = faqHtml(); r.replaceWith(tmp.querySelector(".hc-res")); }; if (st.tab === "ask" && matchMedia("(min-width:700px)").matches) q.focus(); }
+      el.querySelectorAll("[data-hcc]").forEach(b => b.onclick = () => { st.form.cat = b.dataset.hcc; el.querySelectorAll("[data-hcc]").forEach(x => x.setAttribute("aria-pressed", x === b)); });
+      const sj = document.getElementById("hcSubj"); if (sj) sj.oninput = () => { st.form.subject = sj.value; };
+      const bd = document.getElementById("hcBody"); if (bd) bd.oninput = () => { st.form.body = bd.value; };
+      const cs = document.getElementById("hcCourse"); if (cs) cs.onchange = () => { st.form.course = cs.value; };
+      const sd = document.getElementById("hcSend"); if (sd) sd.onclick = async () => {
+        const f = st.form; if (f.subject.trim().length < 3) { st.msg = "اكتب عنوانًا من 3 حروف على الأقل."; return draw(); } if (f.body.trim().length < 10) { st.msg = "اكتب التفاصيل (10 حروف على الأقل)."; return draw(); }
+        st.busy = true; st.msg = ""; draw();
+        try { const id = await o.api.create(f.cat, f.subject.trim(), f.body.trim(), f.course || null); st.form = { cat: "question", subject: "", body: "", course: "" }; st.busy = false; st.tab = "list"; await load(); st.open = id; draw(); }
+        catch (e) { st.busy = false; st.msg = CM.errText(e); draw(); }
+      };
+      el.querySelectorAll("[data-hco]").forEach(b => b.onclick = () => { st.open = b.dataset.hco; st.msg = ""; draw(); const m = el.querySelector(".hc-msgs"); if (m) m.scrollTop = m.scrollHeight; });
+      el.querySelectorAll("[data-hcback]").forEach(b => b.onclick = () => { st.open = null; draw(); });
+      const rs = document.getElementById("hcReSend"); if (rs) rs.onclick = async () => {
+        const v = (document.getElementById("hcRe").value || "").trim(); if (v.length < 2) return;
+        st.busy = true; st.msg = ""; draw();
+        try { await o.api.reply(st.open, v); st.busy = false; await load(); } catch (e) { st.busy = false; st.msg = CM.errText(e); draw(); }
+      };
+    }
+    const $$ = s => el.querySelectorAll(s);
+    document.addEventListener("keydown", function k(e) { if (e.key === "Escape" && document.getElementById("hcBox")) { close(); document.removeEventListener("keydown", k); } });
+    if (!o.api) st.tab = "ask";
+    draw(); if (!o.api) return { close }; if (st.tab === "list") load(); else o.api.list().then(r => { st.items = r; if (st.tab === "list") draw(); else { const t = el.querySelector('[data-hct="list"]'); const n = r.filter(x => x.unread).length; if (t && n) t.innerHTML = `رسائلي <i class="hc-dot">${n}</i>`; } }).catch(() => {});
+    return { close };
+  };
+
   CM.dd = (label, items, o = {}) => items.filter(Boolean).length ? `<details class="dd${o.end ? " end" : ""}${o.cls ? " " + o.cls : ""}"><summary class="btn sm${o.primary ? " primary" : ""}${o.ghost ? " ghost" : ""}"${o.title ? ` title="${o.title}"` : ""}>${label}<svg class="dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><div class="dd-m" role="menu">${items.filter(Boolean).join("")}</div></details>` : "";
   document.addEventListener("click", e => {
     document.querySelectorAll("details.dd[open]").forEach(d => {
@@ -324,7 +473,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b68)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b69)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

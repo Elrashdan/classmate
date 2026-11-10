@@ -392,13 +392,15 @@
         ${iosTip()}
       </section>
       <p class="small" style="margin-top:14px;text-align:center"><button type="button" class="linkish" id="chBack">→ صفحة الدخول الرئيسية</button></p>
-      <p class="muted small" style="margin-top:6px;text-align:center">غيّرت هاتفك؟ ادخل بكودك وكلمة السر، وسيظهر لك زر لنقل الحساب. <button type="button" class="linkish" id="rsOpen">نسيت كلمة السر؟</button></p>`;
+      <p class="muted small" style="margin-top:6px;text-align:center">غيّرت هاتفك؟ ادخل بكودك وكلمة السر، وسيظهر لك زر لنقل الحساب. <button type="button" class="linkish" id="rsOpen">نسيت كلمة السر؟</button></p>
+      <p class="small" style="text-align:center;margin-top:10px"><button type="button" class="linkish" id="helpOut">عندك مشكلة؟ اسأل مساعد Hadro</button></p>`;
     $("#chBack").onclick = () => { chosen = false; authMsg = ""; renderChoose(); };
     $("#tLogin").onclick = () => { authTab = "login"; authMsg = ""; renderAuth(); };
     $("#tReg").onclick = () => { authTab = "reg"; authMsg = ""; renderAuth(); };
     $("#go").onclick = submitAuth;
     const ro = $("#rfOpen"); if (ro) ro.onclick = () => openForm("reg");
     const pi = $("#pkIn"); if (pi) pi.onclick = pkLoginUI;
+    const ho = $("#helpOut"); if (ho) ho.onclick = () => openHelp("ask");
     const ro2 = $("#rsOpen"); if (ro2) ro2.onclick = () => { if (HD.ready) HD.loadGis().catch(() => {}); authMsg = ""; rs = { stage: "form", msg: "", req: null }; renderReset(); };
     app.querySelectorAll("input").forEach(i => i.onkeydown = e => { if (e.key === "Enter") submitAuth(); });
   }
@@ -641,6 +643,15 @@
     upd(); if (!pgTick) pgTick = setInterval(upd, 400);
     const later = $("#pgLater"); if (later) later.onclick = () => { pgateShown = true; try { sessionStorage.setItem("cm_pgate", "1"); } catch (e) {} const x = $("#pgate"); if (x) x.remove(); };
   }
+  // مركز المساعدة للطالب
+  let hcUnread = 0;
+  function openHelp(tab) {
+    if (!token) return CM.helpCenter({ who: "student", api: null, loginHint: "ادخل بكودك الأول عشان تقدر تراسل الإدارة." });
+    CM.helpCenter({ who: "student", tab, courses: (home && home.courses || []).map(c => ({ id: c.id, name: c.name })),
+      api: { list: () => rpc("student_tickets", { p_token: token }), create: (cat, subj, body, course) => rpc("student_ticket_create", { p_token: token, p_cat: cat, p_subject: subj, p_body: body, p_course: course }), reply: (id, body) => rpc("student_ticket_reply", { p_token: token, tid: id, p_body: body }) },
+      onRead: () => { if (hcUnread) { hcUnread = 0; const d = document.querySelector("#helpBtn .hc-dot"); if (d) d.remove(); } },
+      onClose: () => { if (location.hash === "#help") history.replaceState(null, "", location.pathname + location.search); } });
+  }
   async function enablePush() {
     nt.busy = true; nt.msg = ""; renderHome();
     try {
@@ -659,6 +670,8 @@
     const c = $("#ntClose"); if (c) c.onclick = () => { nt.open = false; if (nt.items) nt.items.forEach(n => n.read_at = n.read_at || new Date().toISOString()); renderHome(); };
     const on = $("#pushOn"), on2 = $("#ntPush"); [on, on2].forEach(x => { if (x) x.onclick = enablePush; });
     wireGate();
+    const hb = $("#helpBtn"); if (hb) hb.onclick = () => openHelp(hcUnread ? "list" : "ask");
+    if (!wireNotifs.hc) { wireNotifs.hc = true; rpc("student_ticket_unread", { p_token: token }).then(n => { hcUnread = n || 0; if (hcUnread) renderHome(); }).catch(() => {}); if (location.hash === "#help") setTimeout(() => openHelp("list"), 300); }
     if (!ntTimer) { ntTimer = setInterval(() => { if (document.visibilityState === "visible") loadNotifs(); }, 60000); loadNotifs(); checkSub(); }
   }
 
@@ -667,7 +680,7 @@
   function renderHome() {
     if (rf) return renderForm();
     const active = document.activeElement && document.activeElement.id;
-    app.innerHTML = header(`<div class="row"><button class="btn sm ghost icon bell" id="ntBtn" aria-label="التنبيهات" title="التنبيهات">${BELL}${nt.unread ? `<span class="nt-badge">${nt.unread > 9 ? "9+" : nt.unread}</span>` : ""}</button><button class="btn sm ghost" id="pwBtn">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button></div>`) + `
+    app.innerHTML = header(`<div class="row"><button class="btn sm ghost icon bell" id="ntBtn" aria-label="التنبيهات" title="التنبيهات">${BELL}${nt.unread ? `<span class="nt-badge">${nt.unread > 9 ? "9+" : nt.unread}</span>` : ""}</button><button class="btn sm ghost icon help-btn" id="helpBtn" aria-label="المساعدة والتواصل" title="المساعدة والتواصل"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8M12 17.2h.01"/></svg>${hcUnread ? `<i class="hc-dot">${hcUnread}</i>` : ""}</button><button class="btn sm ghost" id="pwBtn">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button></div>`) + `
       <section class="col">
         ${nt.open ? ntPanel() : ""}
         ${nowHtml()}

@@ -1114,3 +1114,68 @@ header.top:has(details.dd[open]){z-index:90}
 .li>.btn,.li>.row{flex:none}
 .li>.btn{white-space:nowrap}
 @media (max-width:640px){ .li>.btn{white-space:nowrap;min-height:34px} }
+/* ===== مركز المساعدة (b69) ===== */
+body.hc-on{overflow:hidden}
+.hc{position:fixed;inset:0;z-index:210;display:grid;place-items:end center;background:rgba(8,16,13,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);padding:10px;animation:ddIn .18s ease-out}
+.hc-c{width:min(560px,100%);max-height:min(88vh,760px);display:grid;grid-template-rows:auto auto minmax(0,1fr);background:var(--surface);color:var(--ink);border-radius:22px;border:1px solid var(--line);box-shadow:0 -12px 50px -12px rgba(0,0,0,.5);overflow:hidden;padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (min-width:700px){.hc{place-items:center}}
+.hc-h{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 8px}
+.hc-h b{font-family:var(--f-display);font-size:1.08rem}
+.hc-tabs{display:flex;gap:4px;padding:0 12px 8px;border-bottom:1px solid var(--line)}
+.hc-tabs button{all:unset;cursor:pointer;flex:1;text-align:center;padding:9px 6px;border-radius:12px;font-size:.88rem;font-weight:600;color:var(--muted)}
+.hc-tabs button[aria-selected=true]{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--ink)}
+.hc-dot{font-style:normal;display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:9px;background:var(--bad);color:#fff;font-size:.7rem;padding:0 4px;margin-inline-start:4px}
+.hc-b{overflow:auto;padding:14px 16px 18px;overscroll-behavior:contain}
+.hc-ask,.hc-new,.hc-th{display:grid;gap:12px}
+.hc-bot{display:flex;gap:10px;align-items:flex-start}
+.hc-bot p{margin:0;padding:10px 12px;border-radius:14px 14px 14px 4px;background:var(--sunk);line-height:1.6;font-size:.92rem}
+.hc-av{flex:none;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.hc-av svg{width:22px;height:22px}
+.hc-ask input,.hc-new input,.hc-new textarea,.hc-new select,.hc-th textarea{width:100%;font:inherit;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--sunk);color:var(--ink)}
+.hc-res{display:grid;gap:8px}
+.hc-faq{border:1px solid var(--line);border-radius:12px;background:var(--sunk)}
+.hc-faq summary{cursor:pointer;padding:11px 12px;font-weight:600;font-size:.92rem;list-style:none}
+.hc-faq summary::-webkit-details-marker{display:none}
+.hc-faq summary::before{content:"؟";display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;margin-inline-end:8px;background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);font-size:.75rem}
+.hc-faq[open] summary{color:var(--accent)}
+.hc-faq>div{padding:0 14px 12px;line-height:1.75;font-size:.9rem}
+.hc-more{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding-top:4px;border-top:1px dashed var(--line)}
+.hc-cats{display:flex;flex-wrap:wrap;gap:6px}
+.hc-list{display:grid;gap:8px}
+.hc-it{all:unset;box-sizing:border-box;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--sunk)}
+.hc-it span:first-child{display:grid;gap:2px;min-width:0}
+.hc-it b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hc-it small{color:var(--muted)}
+.hc-it.unread{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.hc-th-h{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.hc-msgs{display:grid;gap:8px;max-height:44vh;overflow:auto;padding:2px}
+.hc-m{max-width:88%;padding:9px 12px;border-radius:14px;background:var(--sunk)}
+.hc-m small{color:var(--muted);font-size:.74rem}
+.hc-m p{margin:4px 0 0;line-height:1.65;font-size:.92rem;white-space:normal;overflow-wrap:anywhere}
+.hc-m.me{justify-self:start;border-end-start-radius:4px}
+.hc-m.adm{justify-self:end;background:color-mix(in srgb,var(--accent) 14%,var(--surface));border-end-end-radius:4px}
+.help-btn{position:relative}
+.help-btn .hc-dot{position:absolute;top:-4px;inset-inline-end:-4px;margin:0}
+/* طلبات التسجيل والرسائل */
+.lg-req{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:14px;padding:12px;border-radius:14px;border:1px dashed color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 6%,transparent);font-size:.9rem}
+.push-req{display:grid;gap:6px;padding:12px;border-radius:14px;border:1px solid color-mix(in srgb,var(--accent) 50%,var(--line));background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+.rq-list{display:grid;gap:10px}
+.rq{display:grid;gap:6px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--sunk)}
+.rq-h{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rq-h b{font-family:var(--f-display);font-size:1rem;margin-inline-end:4px}
+.rq p{margin:0}
+.rq select{width:auto;padding:5px 8px;font:inherit;font-size:.85rem;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.rq-rej{display:flex;gap:8px;flex-wrap:wrap}
+.rq-rej input{flex:1;min-width:180px;font:inherit;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.rq-done{margin-top:12px}
+.rq-done summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.9rem}
+.tk-th{display:grid;gap:10px}
+.tk-th-h{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tk-th-h b{font-family:var(--f-display);font-size:1.05rem;margin-inline-end:4px}
+.tk-th textarea{width:100%;font:inherit;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--sunk);color:var(--ink)}
+.walert-c.info{border-color:color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+.walert-c.info>svg{color:var(--accent)}
+.push-ask{cursor:default}
+.tkseg{display:inline-flex;gap:4px;flex-wrap:wrap}
+.tkseg button{all:unset;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:.84rem;border:1px solid var(--line);background:var(--sunk)}
+.tkseg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}

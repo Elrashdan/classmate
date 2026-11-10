@@ -82,9 +82,83 @@
   const PWK = "cm_pw_pending";
   const pwWanted = email => { try { const p = JSON.parse(store.get(PWK) || "null"); return p && p.email === email && Date.now() - p.at < 3600e3; } catch (e) { return false; } };
   const back = `<p class="small" style="margin:0"><a class="linkish" href="./">→ صفحة الدخول الرئيسية</a></p>`;
+  /* ---------- طلب حساب جديد (معيد أو محاضر) ---------- */
+  const SREQ = "cm_sreq";
+  const sreqGet = () => { try { return JSON.parse(store.get(SREQ) || "null"); } catch (e) { return null; } };
+  let req = { email: "", name: "", role: "ta", phone: "", note: "", sub: null, err: "", busy: false }, reqSt = null, reqTimer = null;
+  function renderRequest() {
+    const st = login.step, ps = CM.pushState();
+    if (reqTimer && st !== "reqst") { clearInterval(reqTimer); reqTimer = null; }
+    const pushBox = () => req.sub ? `<div class="msg ok small">✓ الإشعارات مفعّلة على هذا الجهاز. هيوصلك إشعار أول ما المسؤول يوافق.</div>`
+      : ps === "ios-install" ? `<div class="push-req"><b>خطوة مطلوبة: أضف Hadro للشاشة الرئيسية</b><span class="small">على الآيفون الإشعارات بتشتغل من أيقونة الموقع بس. بعد الإضافة افتح الأيقونة ← «عضو هيئة التدريس» ← «اطلب حسابًا».</span>${CM.IOS_STEPS}</div>`
+      : ps === "denied" ? `<div class="push-req"><b>الإشعارات مرفوضة على هذا المتصفح</b><span class="small">افتح إعدادات المتصفح ← إعدادات المواقع ← الإشعارات، واسمح لموقع Hadro، ثم أعد فتح الصفحة.</span></div>`
+      : ps === "none" ? `<div class="msg warn small">المتصفح ده مابيدعمش الإشعارات. تقدر تبعت الطلب، وتابع حالته من نفس الصفحة («متابعة طلبك»).</div>`
+      : `<div class="push-req"><b>فعّل الإشعارات (مطلوب)</b><span class="small">عشان يوصلك إشعار أول ما المسؤول يوافق على حسابك.</span><button class="btn primary" id="rqPush" ${req.busy ? "disabled" : ""}>تفعيل الإشعارات</button></div>`;
+    const canSend = req.sub || ps === "none";
+    let body;
+    if (st === "req") body = `
+        <h2>طلب حساب جديد</h2>
+        <p class="muted small">املأ بياناتك وابعت الطلب. المسؤول هيراجعه، وأول ما يوافق هيوصلك إشعار، وبعدها تدخل ببريدك وتختار كلمة السر.</p>
+        <label class="f"><span>البريد الجامعي</span><input type="email" id="rqEmail" dir="ltr" autocomplete="email" value="${esc(req.email)}" placeholder="name@university.edu.eg"></label>
+        <label class="f"><span>الاسم ثلاثي أو رباعي</span><input type="text" id="rqName" autocomplete="name" value="${esc(req.name)}" placeholder="مثال: أحمد محمد علي حسن"></label>
+        <div class="f"><span>الصفة</span><div class="cchips">${[["ta", "معيد"], ["lecturer", "محاضر / عضو هيئة تدريس"]].map(([k, l]) => `<button type="button" class="cchip" aria-pressed="${req.role === k}" data-rqr="${k}">${l}</button>`).join("")}</div></div>
+        <label class="f"><span>رقم الموبايل (اختياري)</span><input type="tel" id="rqPhone" dir="ltr" inputmode="tel" value="${esc(req.phone)}"></label>
+        <label class="f"><span>ملاحظة للمسؤول (اختياري)</span><input type="text" id="rqNote" maxlength="300" value="${esc(req.note)}" placeholder="مثلًا: الشعبة أو المواد اللي هتدرّسها"></label>
+        ${pushBox()}
+        ${req.err ? `<div class="msg bad">${esc(req.err)}</div>` : ""}
+        <button class="btn primary block" id="rqSend" ${req.busy || !canSend ? "disabled" : ""}>${req.busy ? `<span class="spinner"></span>` : "إرسال الطلب"}</button>
+        ${!canSend ? `<p class="small muted" style="text-align:center">فعّل الإشعارات الأول عشان تقدر تبعت الطلب.</p>` : ""}
+        <button class="linkish" id="lgBack">رجوع إلى الدخول</button>`;
+    else {
+      const r = reqSt, sq = sreqGet();
+      body = !sq ? `<p class="muted">لا يوجد طلب محفوظ على هذا الجهاز.</p><button class="linkish" id="lgBack">رجوع إلى الدخول</button>`
+        : !r ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>`
+        : `<div class="eyebrow mono" style="text-align:start">${esc(r.email)}</div>
+        <h2>${r.status === "pending" ? "طلبك قيد المراجعة" : r.status === "approved" ? "تمت الموافقة على حسابك 🎉" : r.status === "rejected" ? "لم تتم الموافقة على طلبك" : "أُلغي هذا الطلب"}</h2>
+        ${r.status === "pending" ? `<p class="muted small">قدّمت الطلب باسم <b>${esc(r.name)}</b> بصفة ${r.role === "ta" ? "معيد" : "محاضر"}. هيوصلك إشعار أول ما المسؤول يراجعه${r.push ? "" : "، أو ارجع للصفحة دي"}.</p>${r.push ? "" : pushBox()}`
+          : r.status === "approved" ? `<p class="small">ادخل الآن ببريدك الجامعي واختر كلمة السر، وهيوصلك رمز تأكيد على البريد مرة واحدة.</p><button class="btn primary block" id="rqGo">اختر كلمة السر وادخل</button>`
+          : r.status === "rejected" ? `${r.reply ? `<div class="msg warn">السبب: ${esc(r.reply)}</div>` : ""}<button class="btn block" id="rqNew">تقديم طلب جديد</button>` : `<button class="btn block" id="rqNew">تقديم طلب جديد</button>`}
+        <button class="linkish" id="lgBack">رجوع إلى الدخول</button>`;
+    }
+    app.innerHTML = `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">طلب حساب لأعضاء هيئة التدريس والمعيدين</p></div></div>${CM.themeBtn()}</header>
+      ${CM.hero({ small: true, eyebrow: "أعضاء هيئة التدريس والمعيدون", title: st === "req" ? "طلب حساب" : "حالة طلبك" })}
+      <section class="panel over" style="max-width:480px;margin-inline:auto">${body}</section>`;
+    const lb = $("#lgBack"); if (lb) lb.onclick = () => { login = { step: "pass", email: (reqSt && reqSt.email) || req.email || "", err: "", busy: false }; renderLogin(); };
+    const keep = () => { const g = id => { const x = $(id); return x ? x.value : ""; }; if ($("#rqEmail")) Object.assign(req, { email: g("#rqEmail").trim().toLowerCase(), name: g("#rqName"), phone: g("#rqPhone"), note: g("#rqNote") }); };
+    document.querySelectorAll("[data-rqr]").forEach(b => b.onclick = () => { keep(); req.role = b.dataset.rqr; renderRequest(); });
+    const pb = $("#rqPush"); if (pb) pb.onclick = async () => {
+      keep(); req.busy = true; req.err = ""; renderRequest();
+      try { req.sub = await CM.pushSubscribe(); const sq = sreqGet(); if (st === "reqst" && sq) { await rpc("staff_request_push", { p_id: sq.id, p_token: sq.token, p_sub: req.sub }); reqSt = null; } }
+      catch (e) { req.err = e.message && /[؀-ۿ]/.test(e.message) ? e.message : errText(e); }
+      req.busy = false; if (st === "reqst") loadReqSt(); else renderRequest();
+    };
+    const sd = $("#rqSend"); if (sd) sd.onclick = async () => {
+      keep(); req.err = "";
+      const nm = req.name.trim().replace(/\s+/g, " ");
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(req.email)) req.err = "اكتب بريدك الجامعي صحيحًا.";
+      else if (nm.split(" ").length < 3 || /[0-9@]/.test(nm)) req.err = "اكتب اسمك ثلاثيًا أو رباعيًا (3 كلمات على الأقل).";
+      if (req.err) return renderRequest();
+      req.busy = true; renderRequest();
+      try {
+        const r = await rpc("staff_request_create", { p_email: req.email, p_name: nm, p_role: req.role, p_phone: req.phone, p_note: req.note, p_sub: req.sub });
+        store.set(SREQ, JSON.stringify({ id: r.id, token: r.token, email: req.email })); req.busy = false; login.step = "reqst"; reqSt = null; return renderLogin();
+      } catch (e) { req.err = errText(e); }
+      req.busy = false; renderRequest();
+    };
+    const go = $("#rqGo"); if (go) go.onclick = () => { const em = reqSt.email; store.del(SREQ); reqSt = null; login = { step: "setpw", email: em, err: "", busy: false, first: true }; renderLogin(); };
+    const nw = $("#rqNew"); if (nw) nw.onclick = () => { const em = (reqSt && reqSt.email) || ""; store.del(SREQ); reqSt = null; req = { email: em, name: "", role: "ta", phone: "", note: "", sub: req.sub, err: "", busy: false }; login.step = "req"; renderLogin(); };
+    if (st === "reqst" && !reqSt && sreqGet()) loadReqSt();
+    if (st === "reqst" && !reqTimer) reqTimer = setInterval(() => { if (login.step === "reqst" && document.visibilityState === "visible") loadReqSt(); else if (login.step !== "reqst") { clearInterval(reqTimer); reqTimer = null; } }, 20000);
+  }
+  async function loadReqSt() {
+    const sq = sreqGet(); if (!sq) return renderRequest();
+    try { reqSt = await rpc("staff_request_status", { p_id: sq.id, p_token: sq.token }); if (!reqSt) { store.del(SREQ); } } catch (e) {}
+    if (login.step === "reqst") renderRequest();
+  }
   function renderLogin() {
     stopLoops();
     const st = login.step;
+    if (st === "req" || st === "reqst") return renderRequest();
     app.innerHTML = `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول أعضاء هيئة التدريس والمعيدين</p></div></div>${CM.themeBtn()}</header>
       ${CM.hero({ small: true, eyebrow: "أعضاء هيئة التدريس والمعيدون", title: st === "pass" ? "تسجيل الدخول" : st === "code" ? "تأكيد البريد" : "كلمة السر" })}
       <section class="panel over" style="max-width:480px;margin-inline:auto">
@@ -95,6 +169,8 @@
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
         <button class="btn primary block" id="lgPwGo" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button>
         <div class="row" style="gap:16px"><button class="linkish" id="lgFirst">أول مرة؟ اختر كلمة السر</button><button class="linkish" id="lgForgot">نسيت كلمة السر</button></div>
+        <div class="lg-req">${sreqGet() ? `<span>قدّمت طلب حساب من هذا الجهاز.</span><button class="btn sm primary" id="lgReqSt">متابعة طلبك</button>` : `<span>معيد أو محاضر جديد وليس لك حساب؟</span><button class="btn sm" id="lgReq">اطلب حسابًا</button>`}</div>
+        <p class="small" style="text-align:center;margin:6px 0 0"><button class="linkish" id="lgHelp">عندك مشكلة؟ اسأل مساعد Hadro</button></p>
         ${back}
       ` : st === "setpw" ? `
         <h2>${login.first ? "اختر كلمة السر لحسابك" : "كلمة سر جديدة"}</h2>
@@ -144,6 +220,9 @@
       $("#lgPwGo").onclick = go; $("#lgPass").onkeydown = e => { if (e.key === "Enter") go(); };
       const to = first => { login = { step: "setpw", email: $("#lgEmail").value.trim().toLowerCase(), err: "", busy: false, first }; renderLogin(); };
       $("#lgFirst").onclick = () => to(true); $("#lgForgot").onclick = () => to(false);
+      const rq = $("#lgReq"); if (rq) rq.onclick = () => { req = { email: $("#lgEmail").value.trim().toLowerCase(), name: "", role: "ta", phone: "", note: "", sub: null, err: "", busy: false }; login.step = "req"; renderLogin(); };
+      const rqs = $("#lgReqSt"); if (rqs) rqs.onclick = () => { login.step = "reqst"; renderLogin(); };
+      $("#lgHelp").onclick = () => CM.helpCenter({ who: "staff", api: null, loginHint: "ادخل بحسابك الأول عشان تقدر تراسل المسؤول." });
     } else if (st === "setpw") {
       const send = async () => {
         const email = $("#lgEmail").value.trim().toLowerCase(); login.email = email; login.err = "";
@@ -204,6 +283,8 @@
       if (!me) return signOut("هذا البريد غير مسجَّل لمحاضر، أو أن حسابه موقوف. تواصل مع مسؤول القسم.");
       if (me.must_change_pw) { const em = me.email; me = null; login = { step: "newpw", email: em, err: "", busy: false, temp: true }; return renderLogin(); }
       await loadBase();
+      try { store.del(SREQ); } catch (e) {}
+      staffPushSync();
       await loadCourse();
     } catch (e) { app.innerHTML = `<div class="msg bad">${esc(errText(e))}</div>`; }
   }
@@ -646,18 +727,28 @@
           <a class="tile" href="pg-admin.html">${ICO('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>')}<b>الدراسات العليا</b><small>مواد الترم والتسجيل</small></a>` : ""}
       </div></section>`;
   }
+  let inbox = {};
   function homeAlertsHtml() {
     if (!walerts || Date.now() - walertsAt > 120000) {
-      if (!homeAlertsHtml.busy) { homeAlertsHtml.busy = true; rpc("my_warning_alerts").then(r => { walerts = r || []; walertsAt = Date.now(); }, () => { walerts = walerts || []; walertsAt = Date.now(); })
+      if (!homeAlertsHtml.busy) { homeAlertsHtml.busy = true; Promise.all([rpc("my_warning_alerts"), me.role === "admin" ? rpc("admin_inbox_counts").catch(() => ({})) : {}]).then(([r, ib]) => { walerts = r || []; inbox = ib || {}; walertsAt = Date.now(); }, () => { walerts = walerts || []; walertsAt = Date.now(); })
         .finally(() => { homeAlertsHtml.busy = false; const h = $("#homeAlerts"); if (h && view === "home") { h.outerHTML = homeAlertsHtml(); wireHomeAlerts(); } }); }
-      return `<div id="homeAlerts">${walerts && walerts.length ? alertsBody() : ""}</div>`;
+      return `<div id="homeAlerts">${walerts && (walerts.length || adminCards()) ? alertsBody() : ""}</div>`;
     }
-    return `<div id="homeAlerts">${walerts.length ? alertsBody() : ""}</div>`;
+    return `<div id="homeAlerts">${walerts.length || adminCards() ? alertsBody() : ""}</div>`;
+    function adminCards() {
+      if (me.role !== "admin") return "";
+      const ps = CM.pushState();
+      return (inbox.requests ? `<button class="walert-c info" data-goat="requests">${ICO('<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M18 8v6M15 11h6"/>')}<span><b>طلبات تسجيل جديدة (${inbox.requests})</b><small>معيدون ومحاضرون بانتظار موافقتك</small></span><em>مراجعة ←</em></button>` : "")
+        + (inbox.tickets ? `<button class="walert-c info" data-goat="inbox">${ICO('<path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/>')}<span><b>رسائل بانتظار ردك (${inbox.tickets})</b><small>استفسارات وشكاوى ومقترحات${inbox.unread ? ` · ${inbox.unread} غير مقروءة` : ""}</small></span><em>فتح ←</em></button>` : "")
+        + (staffPush === false && ps === "ask" ? `<div class="walert-c info push-ask">${ICO('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>')}<span><b>فعّل إشعارات الهاتف</b><small>يوصلك إشعار بطلبات التسجيل والرسائل الجديدة أول بأول</small></span><button class="btn sm primary" id="stPushOn">تفعيل</button></div>` : "");
+    }
     function alertsBody() {
-      return `<h3 class="sec-t">تنبيهات</h3><div class="walerts">${walerts.map(a => `<button class="walert-c" data-wal="${a.course_id}">${ICO('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>')}<span><b>${esc(a.name)}</b><small>${a.n} طالب وصلوا إلى إنذار جديد ولم يُبلَّغوا · ${Object.entries(a.levels || {}).sort((x, y) => y[0] - x[0]).map(([l, k]) => CM.WARN[l].t + " " + k).join("، ")}</small></span><em>عرض وإبلاغ ←</em></button>`).join("")}</div>`;
+      return `<h3 class="sec-t">تنبيهات</h3><div class="walerts">${adminCards()}${walerts.map(a => `<button class="walert-c" data-wal="${a.course_id}">${ICO('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>')}<span><b>${esc(a.name)}</b><small>${a.n} طالب وصلوا إلى إنذار جديد ولم يُبلَّغوا · ${Object.entries(a.levels || {}).sort((x, y) => y[0] - x[0]).map(([l, k]) => CM.WARN[l].t + " " + k).join("، ")}</small></span><em>عرض وإبلاغ ←</em></button>`).join("")}</div>`;
     }
   }
   function wireHomeAlerts() {
+    document.querySelectorAll("[data-goat]").forEach(b => b.onclick = () => { atab = b.dataset.goat; store.set("cm_atab", atab); view = "admin"; stopLoops(); render(); });
+    const sp = $("#stPushOn"); if (sp) sp.onclick = async () => { sp.disabled = true; try { await rpc("staff_push_subscribe", { p_sub: await CM.pushSubscribe(), p_label: navigator.platform || "" }); staffPush = true; sp.closest(".push-ask").remove(); } catch (e) { sp.disabled = false; toast(errText(e)); } };
     document.querySelectorAll("[data-wal]").forEach(b => b.onclick = () => {
       curId = b.dataset.wal; store.set("cm_course", curId); ctab = "report"; store.set("cm_tab", ctab); view = "course";
       flash = {}; liveTab = "all"; regGroup = "all"; rpGroup = "all"; rpLevel = null; startState = null;
@@ -715,7 +806,7 @@
           ${view === "admin" ? `<button class="btn sm primary" id="admin">رجوع للمواد</button>` : ""}
           ${CM.dd("أدوات", [canCreate() && view === "course" ? `<button class="dd-i" id="newC">مادة جديدة</button>` : "", me.role === "admin" && view !== "admin" ? `<button class="dd-i" id="admin">لوحة المسؤول</button>` : "", me.role === "admin" ? `<a class="dd-i" href="pg-admin.html">الدراسات العليا</a>` : ""])}
           ${CM.themeBtn()}
-          ${CM.dd(`<span class="dd-ava">${esc(String(me.name || "؟").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().charAt(0))}</span><span class="dd-hide">حسابي</span>`, [`<button class="dd-i" id="goProf">ملفي الشخصي</button>`, `<button class="dd-i" id="pwSet">كلمة السر</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي" })}
+          ${CM.dd(`<span class="dd-ava">${esc(String(me.name || "؟").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().charAt(0))}</span><span class="dd-hide">حسابي</span>`, [`<button class="dd-i" id="goProf">ملفي الشخصي</button>`, `<button class="dd-i" id="pwSet">كلمة السر</button>`, `<button class="dd-i" id="goHelp">المساعدة والتواصل</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي" })}
         </div>
       </header>
       <div id="pwForm" class="panel" hidden style="margin-bottom:16px;max-width:520px">
@@ -756,6 +847,7 @@
     document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));
     tabBadges();
     $("#out").onclick = () => signOut();
+    const gh = $("#goHelp"); if (gh) gh.onclick = () => openStaffHelp();
     $("#pwSet").onclick = () => { const f = $("#pwForm"); f.hidden = !f.hidden; if (!f.hidden) $("#pwNew").focus(); };
     $("#pwCancel").onclick = () => { $("#pwForm").hidden = true; };
     $("#pwSave").onclick = async () => {
@@ -2481,6 +2573,85 @@
   /* ---------- تظلمات الطلبة على الدرجات ---------- */
   const AP_R = { not_graded: "سلّم ولم تُرصد درجته", wrong_grade: "الدرجة مرصودة خطأ", other: "سبب آخر" };
   let apShowOld = false;
+  /* ---------- لوحة المسؤول: طلبات التسجيل ---------- */
+  const fmtAgo = d => { const m = Math.round((Date.now() - new Date(d)) / 60000); return m < 1 ? "الآن" : m < 60 ? `منذ ${m} دقيقة` : m < 1440 ? `منذ ${Math.round(m / 60)} ساعة` : new Date(d).toLocaleDateString("ar-EG", { day: "numeric", month: "short" }); };
+  function adminReqHtml() {
+    const pend = adminReqs.filter(r => r.status === "pending"), done = adminReqs.filter(r => r.status !== "pending" && r.status !== "cancelled");
+    const RL = { ta: "معيد", lecturer: "محاضر" };
+    return `<section class="panel" data-apane="requests" ${atab === "requests" ? "" : "hidden"}>
+      <div class="panel-h"><div><div class="eyebrow">يقدّمها المعيدون والمحاضرون من صفحة الدخول</div><h2>طلبات التسجيل${pend.length ? ` (${pend.length})` : ""}</h2></div></div>
+      ${msgHtml("areq")}
+      ${pend.length ? `<div class="rq-list">${pend.map(r => `<div class="rq">
+        <div class="rq-h"><b>${esc(r.name)}</b><span class="chip">${RL[r.role]}</span>${r.push ? `<span class="chip ok" title="هيوصله إشعار بالقرار">🔔 الإشعارات مفعّلة</span>` : `<span class="chip none">بدون إشعارات</span>`}</div>
+        <div class="small mono" dir="ltr" style="text-align:end">${esc(r.email)}${r.phone ? " · " + esc(r.phone) : ""}</div>
+        ${r.note ? `<p class="small">«${esc(r.note)}»</p>` : ""}<p class="small muted">${fmtAgo(r.created_at)}</p>
+        <div class="row">
+          <select data-rqrole="${r.id}" aria-label="الصفة"><option value="ta" ${(rqRole[r.id] || r.role) === "ta" ? "selected" : ""}>معيد</option><option value="lecturer" ${(rqRole[r.id] || r.role) === "lecturer" ? "selected" : ""}>محاضر</option></select>
+          <button class="btn sm primary" data-rqok="${r.id}">موافقة</button>
+          <button class="btn sm ghost" data-rqno="${r.id}">رفض</button>
+        </div>
+        <div class="rq-rej" data-rqbox="${r.id}" hidden><input type="text" data-rqwhy="${r.id}" placeholder="سبب الرفض (يوصله في الإشعار)"><button class="btn sm" data-rqnogo="${r.id}">تأكيد الرفض</button></div>
+      </div>`).join("")}</div>` : `<div class="empty">مفيش طلبات جديدة. ابعت للمعيدين رابط صفحة الدخول: <span class="mono" dir="ltr">${esc(location.href.split("#")[0])}</span> ← «اطلب حسابًا».</div>`}
+      ${done.length ? `<details class="rq-done"><summary>طلبات تمت مراجعتها (${done.length})</summary><div class="tbl-wrap"><table><tbody>${done.map(r => `<tr><td>${esc(r.name)}<div class="mono small muted">${esc(r.email)}</div></td><td>${r.status === "approved" ? `<span class="chip ok">وافقت · ${RL[r.role]}</span>` : `<span class="chip bad">رُفض</span>${r.reply ? `<div class="small muted">${esc(r.reply)}</div>` : ""}`}</td><td class="small muted">${esc(r.decided_by || "")} · ${r.decided_at ? fmtAgo(r.decided_at) : ""}</td></tr>`).join("")}</tbody></table></div></details>` : ""}
+    </section>`;
+  }
+  function wireAdminReq(el) {
+    el.querySelectorAll("[data-rqrole]").forEach(x => x.onchange = () => { rqRole[x.dataset.rqrole] = x.value; });
+    el.querySelectorAll("[data-rqok]").forEach(b => b.onclick = () => act(async () => {
+      const r = adminReqs.find(x => x.id === b.dataset.rqok);
+      await rpc("admin_decide_request", { p_id: r.id, p_ok: true, p_role: rqRole[r.id] || r.role, p_reply: "" });
+      say("areq", `تمت الموافقة على ${r.name}${r.push ? "، ووصله إشعار إنه يقدر يدخل دلوقتي." : ". مفعّلش الإشعارات، فابعتله إنه يدخل من «متابعة طلبك» أو يختار كلمة السر."}`);
+    }, async () => { await loadBase(); walerts = null; renderAdmin(); }));
+    el.querySelectorAll("[data-rqno]").forEach(b => b.onclick = () => { const x = el.querySelector(`[data-rqbox="${b.dataset.rqno}"]`); x.hidden = !x.hidden; if (!x.hidden) x.querySelector("input").focus(); });
+    el.querySelectorAll("[data-rqnogo]").forEach(b => b.onclick = () => act(async () => {
+      const why = el.querySelector(`[data-rqwhy="${b.dataset.rqnogo}"]`).value.trim();
+      await rpc("admin_decide_request", { p_id: b.dataset.rqnogo, p_ok: false, p_role: "", p_reply: why });
+      say("areq", "رُفض الطلب ووصله السبب.");
+    }, async () => { renderAdmin(); }));
+  }
+  /* ---------- لوحة المسؤول: الاستفسارات والشكاوى والمقترحات ---------- */
+  const TK_CAT = { question: ["استفسار", ""], problem: ["مشكلة", "warn"], complaint: ["شكوى", "bad"], suggestion: ["اقتراح", "ok"] };
+  const TK_ST = { open: ["بانتظار ردك", "warn"], answered: ["تم الرد", "ok"], closed: ["مغلقة", "none"] };
+  function adminInboxHtml() {
+    const t = inboxOpen && adminTks.find(x => x.id === inboxOpen);
+    const fmt = d => new Date(d).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    return `<section class="panel" data-apane="inbox" ${atab === "inbox" ? "" : "hidden"}>
+      <div class="panel-h"><div><div class="eyebrow">من الطلبة والمعيدين والمحاضرين</div><h2>الاستفسارات والشكاوى والمقترحات</h2></div>
+        <div class="tkseg">${[["open", "بانتظار الرد"], ["answered", "تم الرد"], ["closed", "مغلقة"], ["all", "الكل"]].map(([k, l]) => `<button class="${inboxF === k ? "on" : ""}" data-tkf="${k}">${l}</button>`).join("")}</div></div>
+      ${msgHtml("inbox")}
+      ${t ? `<div class="tk-th">
+          <button class="btn sm ghost" id="tkBack">→ كل الرسائل</button>
+          <div class="tk-th-h"><b>${esc(t.subject)}</b><span class="chip ${TK_CAT[t.category][1]}">${TK_CAT[t.category][0]}</span><span class="chip ${TK_ST[t.status][1]}">${TK_ST[t.status][0]}</span></div>
+          <p class="small muted">${t.kind === "student" ? "طالب" : "هيئة التدريس"}: <b>${esc(t.name || t.sender)}</b>${t.kind === "staff" ? ` <span class="mono" dir="ltr">${esc(t.sender)}</span>` : ""}${t.course ? " · " + esc(t.course) : ""} · ${fmt(t.created_at)}</p>
+          <div class="hc-msgs tk-msgs">${t.msgs.map(m => `<div class="hc-m ${m.admin ? "adm" : "me"}"><small>${m.admin ? esc(m.author || "المسؤول") : esc(t.name || "المرسل")} · ${fmt(m.at)}</small><p>${esc(m.body).replace(/\n/g, "<br>")}</p></div>`).join("")}</div>
+          <label class="f"><span>ردّك (يوصله إشعار)</span><textarea id="tkRe" rows="3" maxlength="3000"></textarea></label>
+          <div class="row"><button class="btn sm primary" id="tkReGo">إرسال الرد</button><button class="btn sm" id="tkReClose">إرسال وإغلاق</button>${t.status !== "closed" ? `<button class="btn sm ghost" id="tkClose">إغلاق بدون رد</button>` : `<button class="btn sm ghost" id="tkReopen">إعادة فتح</button>`}</div>
+        </div>`
+      : adminTks.length ? `<div class="hc-list">${adminTks.map(x => `<button class="hc-it ${x.unread ? "unread" : ""}" data-tko="${x.id}"><span><b>${esc(x.subject)}</b><small>${TK_CAT[x.category][0]} · ${x.kind === "student" ? "طالب" : "هيئة التدريس"}: ${esc(x.name || "")}${x.course ? " · " + esc(x.course) : ""} · ${fmtAgo(x.updated_at)}</small></span><span class="chip ${TK_ST[x.status][1]}">${TK_ST[x.status][0]}</span></button>`).join("")}</div>`
+      : `<div class="empty">مفيش رسائل هنا.</div>`}
+    </section>`;
+  }
+  function wireAdminInbox(el) {
+    el.querySelectorAll("[data-tkf]").forEach(b => b.onclick = () => { inboxF = b.dataset.tkf; inboxOpen = null; renderAdmin(); });
+    el.querySelectorAll("[data-tko]").forEach(b => b.onclick = () => { inboxOpen = b.dataset.tko; const t = adminTks.find(x => x.id === inboxOpen); if (t && t.unread) { t.unread = false; rpc("admin_ticket_seen", { tid: t.id }).catch(() => {}); walerts = null; } renderAdmin(); });
+    const bk = $("#tkBack"); if (bk) bk.onclick = () => { inboxOpen = null; renderAdmin(); };
+    const send = close => act(async () => { const v = ($("#tkRe").value || "").trim(); if (!v && !close) return; await rpc("admin_ticket_reply", { tid: inboxOpen, p_body: v, p_close: close }); say("inbox", v ? "اتبعت الرد ووصل للمرسل إشعار." : "اتقفلت المحادثة."); if (close) inboxOpen = null; else if (inboxF === "open") inboxF = "all"; }, async () => { renderAdmin(); });
+    const g = $("#tkReGo"); if (g) g.onclick = () => send(false);
+    const gc = $("#tkReClose"); if (gc) gc.onclick = () => send(true);
+    const c = $("#tkClose"); if (c) c.onclick = () => send(true);
+    const ro = $("#tkReopen"); if (ro) ro.onclick = () => act(async () => { await rpc("admin_ticket_reply", { tid: inboxOpen, p_body: "", p_close: false }); }, async () => { renderAdmin(); });
+    const m = el.querySelector(".tk-msgs"); if (m) m.scrollTop = m.scrollHeight;
+  }
+  /* ---------- المساعدة والتواصل (لعضو هيئة التدريس) ---------- */
+  function openStaffHelp(tab) {
+    CM.helpCenter({ who: "staff", tab, courses: courses.filter(c => !c.archived && role(c) && role(c) !== "viewer").map(c => ({ id: c.id, name: c.name })),
+      api: { list: () => rpc("staff_tickets"), create: (cat, subj, body, course) => rpc("staff_ticket_create", { p_cat: cat, p_subject: subj, p_body: body, p_course: course }), reply: (id, body) => rpc("staff_ticket_reply", { tid: id, p_body: body }) } });
+  }
+  // تفعيل إشعارات الهاتف لعضو هيئة التدريس (بدون إزعاج: لو الإذن موجود بالفعل نربط الاشتراك بحسابه)
+  let staffPush = null;
+  async function staffPushSync() {
+    try { staffPush = await rpc("staff_push_status"); if (!staffPush && CM.pushState() === "granted") { await rpc("staff_push_subscribe", { p_sub: await CM.pushSubscribe(), p_label: navigator.platform || "" }); staffPush = true; } } catch (e) {}
+  }
   /* ---------- مهلة التظلم لكل تكليف ---------- */
   let apWin = null; // { tid, from, until } أثناء تحديد موعد
   const dtLocal = d => { const x = new Date(d), z = n => String(n).padStart(2, "0"); return `${x.getFullYear()}-${z(x.getMonth() + 1)}-${z(x.getDate())}T${z(x.getHours())}:${z(x.getMinutes())}`; };
@@ -3328,17 +3499,23 @@
   }
 
   /* ======================= admin ======================= */
-  let atab = ["staff", "report", "log"].includes(store.get("cm_atab")) ? store.get("cm_atab") : "staff";
+  let atab = ["requests", "inbox", "staff", "report", "log"].includes(store.get("cm_atab")) ? store.get("cm_atab") : "staff";
+  let adminReqs = [], adminTks = [], inboxF = "open", inboxOpen = null, rqRole = {};
   let tmpPw = null;
   async function renderAdmin() {
     const el = $("#adminArea");
     const au = await sb.from("audit").select("*").order("at", { ascending: false }).limit(40);
-    const AT = [["staff", "الحسابات", CTABS[4][2]], ["report", "تقرير الإنذارات", CTABS[3][2]], ["log", "السجل", CTABS[5][2]]];
+    const [rqR, tkR] = await Promise.all([rpc("admin_staff_requests").catch(() => []), rpc("admin_tickets", { p_status: inboxF }).catch(() => [])]);
+    adminReqs = rqR || []; adminTks = tkR || [];
+    const nReq = adminReqs.filter(r => r.status === "pending").length, nTk = adminTks.filter(t => t.admin_unread || t.unread).length;
+    const AT = [["requests", "طلبات التسجيل" + (nReq ? ` <b class="tb">${nReq}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M18 8v6M15 11h6"/></svg>`], ["inbox", "الرسائل" + (nTk ? ` <b class="tb">${nTk}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>`], ["staff", "الحسابات", CTABS[4][2]], ["report", "تقرير الإنذارات", CTABS[3][2]], ["log", "السجل", CTABS[5][2]]];
     el.innerHTML = `<nav class="ctabs admin" role="tablist" aria-label="لوحة المسؤول">${AT.map(([k, t, ic]) => `<button role="tab" data-at="${k}" aria-selected="${atab === k}">${ic}<span class="l">${t}</span></button>`).join("")}</nav>
       ${(() => { const need = courses.filter(c => c.auto_created && !c.archived && !tasAll.some(x => x.course_id === c.id)); return need.length ? `<section class="panel" data-apane="staff" ${atab === "staff" ? "" : "hidden"}>
         <div class="panel-h"><div><div class="eyebrow">أنشأها النظام من استمارات تسجيل الطلبة</div><h2>مواد تحتاج إلى فريق (${need.length})</h2></div></div>
         <p class="muted small">افتح المادة، ثم من تبويب «الفريق» أضف المحاضر (محاضر مشارك) أو المعيد المسؤول عنها، فيستطيع العمل عليها.</p>
         <div class="list">${need.map(c => `<div class="li"><div class="who"><b>${esc(c.name)}</b><small>${esc(clsLabel(c))}${c.bylaw_code ? " · " + esc(c.bylaw_code) : ""}</small></div><button class="btn sm" data-autoc="${c.id}">فتح وتعيين الفريق</button></div>`).join("")}</div></section>` : ""; })()}
+      ${adminReqHtml()}
+      ${adminInboxHtml()}
       <section class="panel" data-apane="staff" ${atab === "staff" ? "" : "hidden"}>
         <div class="panel-h"><div><div class="eyebrow">${staff.length} حساب</div><h2>المحاضرين والمعيدين</h2></div></div>
         ${msgHtml("admin")}
@@ -3372,6 +3549,7 @@
       </section>
       <section class="panel" data-apane="log" ${atab === "log" ? "" : "hidden"}><div class="panel-h"><div><div class="eyebrow">آخر التعديلات في كل المواد</div><h2>سجل التعديلات</h2></div></div>${auditList(au.data || [], true)}</section>`;
     document.body.classList.add("has-ctabs");
+    wireAdminReq(el); wireAdminInbox(el);
     el.querySelectorAll("[data-autoc]").forEach(b => b.onclick = () => { curId = b.dataset.autoc; store.set("cm_course", curId); fYear = "all"; fTerm = "all"; ctab = "team"; store.set("cm_tab", ctab); view = "course"; flash = {}; loadCourse().catch(showErr); });
     el.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { atab = b.dataset.at; store.set("cm_atab", atab); el.querySelectorAll("[data-at]").forEach(x => x.setAttribute("aria-selected", x.dataset.at === atab)); el.querySelectorAll("[data-apane]").forEach(p => p.hidden = p.dataset.apane !== atab); });
     el.querySelectorAll("[data-sus]").forEach(b => b.onclick = () => act(async () => { await rpc("admin_set_status", { p_email: b.dataset.sus, p_status: b.dataset.to }); say("admin", (b.dataset.to === "suspended" ? "أُوقف حساب " : "فُعِّل حساب ") + staffName(b.dataset.sus) + "."); }, async () => { await loadBase(); renderAdmin(); }));

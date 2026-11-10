@@ -4683,3 +4683,305 @@ begin
   update settings set ta_can_create = coalesce(p_on, false) where true;
   perform log_audit(null, case when p_on then 'سمح للمعيدين بإنشاء مواد' else 'منع المعيدين من إنشاء مواد' end);
 end $$;
+-- update-45: طلبات تسجيل المعيدين والمحاضرين + إشعارات الهاتف لأعضاء هيئة التدريس
+create table if not exists public.staff_requests (
+  id uuid primary key default gen_random_uuid(),
+  email text not null check (email = lower(email)),
+  name text not null,
+  role text not null default 'ta' check (role in ('ta', 'lecturer')),
+  phone text not null default '',
+  note text not null default '',
+  status text not null default 'pending' check (status in ('pending', 'approved', 'rejected', 'cancelled')),
+  token_hash text not null,
+  push boolean not null default false,
+  reply text not null default '',
+  decided_by text, decided_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists staff_requests_one_pending on public.staff_requests(email) where status = 'pending';
+create index if not exists staff_requests_status on public.staff_requests(status, created_at desc);
+alter table public.staff_requests enable row level security;
+revoke all on public.staff_requests from anon, authenticated;
+
+-- اشتراك إشعارات بمفتاح عام (staff:<email> أو req:<id>) — داخلي
+create or replace function public.push_save(p_key text, p_sub jsonb, p_label text) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare ep text := p_sub->>'endpoint';
+begin
+  if ep !~ '^https://' or length(ep) > 1000 or coalesce(p_sub->'keys'->>'p256dh', '') = '' or coalesce(p_sub->'keys'->>'auth', '') = '' then raise exception 'bad_subscription'; end if;
+  if (select count(*) from push_subs where student_code = p_key) >= 6 then
+    update push_subs set student_code = '~' where endpoint = (select endpoint from push_subs where student_code = p_key order by created_at limit 1);
+  end if;
+  insert into push_subs(endpoint, student_code, p256dh, auth, label) values (ep, p_key, p_sub->'keys'->>'p256dh', p_sub->'keys'->>'auth', clean_label(p_label))
+  on conflict (endpoint) do update set student_code = excluded.student_code, p256dh = excluded.p256dh, auth = excluded.auth, label = excluded.label;
+end $$;
+revoke all on function public.push_save(text, jsonb, text) from public, anon, authenticated;
+
+-- إشعار لكل المسؤولين
+create or replace function public.notify_admins(p_kind text, p_title text, p_body text) returns void
+language sql security definer set search_path = public as $$
+  insert into notifications(student_code, kind, title, body, url)
+  select 'staff:' || email, p_kind, p_title, p_body, 'https://elrashdan.github.io/classmate/staff.html' from staff where role = 'admin' and status <> 'suspended';
+$$;
+revoke all on function public.notify_admins(text, text, text) from public, anon, authenticated;
+
+create or replace function public.staff_request_create(p_email text, p_name text, p_role text, p_phone text, p_note text, p_sub jsonb) returns json
+language plpgsql security definer set search_path = public, extensions as $$
+declare e text := lower(trim(coalesce(p_email, ''))); nm text := regexp_replace(trim(coalesce(p_name, '')), '\s+', ' ', 'g');
+  d text; t text := encode(gen_random_bytes(24), 'hex'); r staff_requests;
+begin
+  if e !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(e) > 120 then raise exception 'bad_email'; end if;
+  select domain into d from settings limit 1;
+  if coalesce(d, '') <> '' and e not like '%@' || d then raise exception 'wrong_domain'; end if;
+  if coalesce(d, '') = '' and e !~ '\.edu\.eg$' then raise exception 'uni_email'; end if;
+  if array_length(regexp_split_to_array(nm, ' '), 1) < 3 or length(nm) > 80 or nm ~ '[0-9@<>]' then raise exception 'name_3'; end if;
+  if p_role not in ('ta', 'lecturer') then raise exception 'bad_role'; end if;
+  if exists (select 1 from staff where email = e and status <> 'suspended') then raise exception 'already_staff'; end if;
+  if (select count(*) from staff_requests where email = e and created_at > now() - interval '1 day') >= 3 then raise exception 'too_many_requests'; end if;
+  if (select count(*) from staff_requests where created_at > now() - interval '1 hour') >= 60 then raise exception 'too_many_requests'; end if;
+  update staff_requests set status = 'cancelled' where email = e and status = 'pending';
+  insert into staff_requests(email, name, role, phone, note, token_hash)
+    values (e, nm, p_role, left(regexp_replace(coalesce(p_phone, ''), '[^0-9+ ]', '', 'g'), 20), left(trim(coalesce(p_note, '')), 300), encode(digest(t, 'sha256'), 'hex'))
+    returning * into r;
+  if p_sub is not null and p_sub ? 'endpoint' then
+    perform push_save('req:' || r.id, p_sub, 'طلب تسجيل');
+    update staff_requests set push = true where id = r.id;
+  end if;
+  perform notify_admins('staff_request', 'طلب تسجيل جديد', nm || ' (' || case p_role when 'ta' then 'معيد' else 'محاضر' end || ') · ' || e);
+  return json_build_object('id', r.id, 'token', t);
+end $$;
+
+create or replace function public.staff_request_status(p_id uuid, p_token text) returns json
+language sql stable security definer set search_path = public, extensions as $$
+  select json_build_object('status', status, 'reply', reply, 'email', email, 'name', name, 'role', role, 'push', push, 'created_at', created_at, 'decided_at', decided_at)
+  from staff_requests where id = p_id and token_hash = encode(digest(coalesce(p_token, ''), 'sha256'), 'hex');
+$$;
+
+create or replace function public.staff_request_push(p_id uuid, p_token text, p_sub jsonb) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+begin
+  if not exists (select 1 from staff_requests where id = p_id and token_hash = encode(digest(coalesce(p_token, ''), 'sha256'), 'hex')) then raise exception 'not_found'; end if;
+  perform push_save('req:' || p_id, p_sub, 'طلب تسجيل');
+  update staff_requests set push = true where id = p_id;
+end $$;
+
+create or replace function public.admin_staff_requests() returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if staff_role() is distinct from 'admin' then raise exception 'not_allowed'; end if;
+  return coalesce((select json_agg(json_build_object('id', id, 'email', email, 'name', name, 'role', role, 'phone', phone, 'note', note, 'status', status,
+      'push', push, 'reply', reply, 'decided_by', staff_name(decided_by), 'decided_at', decided_at, 'created_at', created_at) order by (status = 'pending') desc, created_at desc)
+    from staff_requests where status = 'pending' or created_at > now() - interval '30 days'), '[]'::json);
+end $$;
+
+create or replace function public.admin_decide_request(p_id uuid, p_ok boolean, p_role text, p_reply text) returns void
+language plpgsql security definer set search_path = public as $$
+declare r staff_requests; rl text := coalesce(nullif(p_role, ''), 'ta');
+begin
+  if staff_role() is distinct from 'admin' then raise exception 'not_allowed'; end if;
+  select * into r from staff_requests where id = p_id for update;
+  if r.id is null then raise exception 'not_found'; end if;
+  if r.status <> 'pending' then raise exception 'request_decided'; end if;
+  if p_ok then
+    if rl not in ('ta', 'lecturer') then raise exception 'bad_role'; end if;
+    insert into staff(email, name, role, phone) values (r.email, r.name, rl, r.phone)
+      on conflict (email) do update set name = excluded.name, role = case when staff.role = 'admin' then 'admin' else excluded.role end, status = 'invited', phone = coalesce(nullif(excluded.phone, ''), staff.phone);
+    update staff_requests set status = 'approved', role = rl, reply = left(trim(coalesce(p_reply, '')), 300), decided_by = my_email(), decided_at = now() where id = p_id;
+    perform log_audit(null, 'وافق على طلب تسجيل ' || r.name || ' بصفة ' || case rl when 'ta' then 'معيد' else 'محاضر' end);
+    insert into notifications(student_code, kind, title, body, url)
+      values ('req:' || r.id, 'staff_request', 'تمت الموافقة على حسابك في Hadro', 'ادخل الآن ببريدك الجامعي واختر كلمة السر.', 'https://elrashdan.github.io/classmate/staff.html');
+  else
+    if length(trim(coalesce(p_reply, ''))) < 3 then raise exception 'reply_required'; end if;
+    update staff_requests set status = 'rejected', reply = left(trim(p_reply), 300), decided_by = my_email(), decided_at = now() where id = p_id;
+    perform log_audit(null, 'رفض طلب تسجيل ' || r.name);
+    insert into notifications(student_code, kind, title, body, url)
+      values ('req:' || r.id, 'staff_request', 'لم تتم الموافقة على طلب حسابك', 'السبب: ' || trim(p_reply), 'https://elrashdan.github.io/classmate/staff.html');
+  end if;
+end $$;
+
+-- إشعارات الهاتف لعضو هيئة التدريس المسجّل
+create or replace function public.staff_push_subscribe(p_sub jsonb, p_label text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if staff_role() is null then raise exception 'not_allowed'; end if;
+  perform push_save('staff:' || my_email(), p_sub, p_label);
+end $$;
+create or replace function public.staff_push_status() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from push_subs where student_code = 'staff:' || my_email());
+$$;
+
+revoke all on function public.staff_request_create(text, text, text, text, text, jsonb), public.staff_request_status(uuid, text), public.staff_request_push(uuid, text, jsonb),
+  public.admin_staff_requests(), public.admin_decide_request(uuid, boolean, text, text), public.staff_push_subscribe(jsonb, text), public.staff_push_status() from public;
+grant execute on function public.staff_request_create(text, text, text, text, text, jsonb), public.staff_request_status(uuid, text), public.staff_request_push(uuid, text, jsonb) to anon, authenticated;
+grant execute on function public.admin_staff_requests(), public.admin_decide_request(uuid, boolean, text, text), public.staff_push_subscribe(jsonb, text), public.staff_push_status() to authenticated;
+-- update-46: الاستفسارات والشكاوى والمقترحات (من الطالب أو عضو هيئة التدريس إلى المسؤول)
+create table if not exists public.tickets (
+  id uuid primary key default gen_random_uuid(),
+  sender_kind text not null check (sender_kind in ('student', 'staff')),
+  sender text not null,
+  sender_name text not null default '',
+  course_id uuid references public.courses(id) on delete set null,
+  category text not null check (category in ('question', 'problem', 'complaint', 'suggestion')),
+  subject text not null,
+  status text not null default 'open' check (status in ('open', 'answered', 'closed')),
+  admin_unread boolean not null default true,
+  user_unread boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create table if not exists public.ticket_msgs (
+  id bigserial primary key,
+  ticket_id uuid not null references public.tickets(id) on delete cascade,
+  from_admin boolean not null default false,
+  author text not null default '',
+  body text not null,
+  at timestamptz not null default now()
+);
+create index if not exists tickets_sender on public.tickets(sender_kind, sender, updated_at desc);
+create index if not exists tickets_status on public.tickets(status, updated_at desc);
+create index if not exists ticket_msgs_t on public.ticket_msgs(ticket_id, id);
+alter table public.tickets enable row level security;
+alter table public.ticket_msgs enable row level security;
+revoke all on public.tickets, public.ticket_msgs from anon, authenticated;
+revoke all on sequence public.ticket_msgs_id_seq from anon, authenticated;
+
+create or replace function public.ticket_json(t public.tickets, admin boolean) returns json
+language sql stable security definer set search_path = public as $$
+  select json_build_object('id', t.id, 'kind', t.sender_kind, 'sender', case when admin then t.sender end, 'name', case when admin then t.sender_name end,
+    'course', (select name from courses where id = t.course_id), 'course_id', t.course_id, 'category', t.category, 'subject', t.subject, 'status', t.status,
+    'unread', case when admin then t.admin_unread else t.user_unread end, 'created_at', t.created_at, 'updated_at', t.updated_at,
+    'msgs', coalesce((select json_agg(json_build_object('id', m.id, 'admin', m.from_admin, 'author', case when m.from_admin then coalesce(staff_name(m.author), 'المسؤول') else t.sender_name end, 'body', m.body, 'at', m.at) order by m.id) from ticket_msgs m where m.ticket_id = t.id), '[]'::json))
+$$;
+revoke all on function public.ticket_json(public.tickets, boolean) from public, anon, authenticated;
+
+create or replace function public.ticket_open(p_kind text, p_sender text, p_name text, p_cat text, p_subject text, p_body text, p_course uuid) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare t tickets; cat text := case p_cat when 'question' then 'استفسار' when 'problem' then 'مشكلة' when 'complaint' then 'شكوى' else 'اقتراح' end;
+begin
+  if p_cat not in ('question', 'problem', 'complaint', 'suggestion') then raise exception 'bad_category'; end if;
+  if length(trim(coalesce(p_subject, ''))) < 3 then raise exception 'ticket_subject'; end if;
+  if length(trim(coalesce(p_body, ''))) < 10 then raise exception 'ticket_body'; end if;
+  if (select count(*) from tickets where sender_kind = p_kind and sender = p_sender and created_at > now() - interval '1 day') >= 5 then raise exception 'too_many_requests'; end if;
+  insert into tickets(sender_kind, sender, sender_name, course_id, category, subject)
+    values (p_kind, p_sender, coalesce(p_name, ''), p_course, p_cat, left(trim(p_subject), 120)) returning * into t;
+  insert into ticket_msgs(ticket_id, from_admin, author, body) values (t.id, false, p_sender, left(trim(p_body), 3000));
+  perform notify_admins('ticket', cat || ' جديد: ' || t.subject, coalesce(nullif(p_name, ''), p_sender) || case when p_kind = 'student' then ' (طالب)' else ' (هيئة التدريس)' end);
+  return t.id;
+end $$;
+create or replace function public.ticket_add(t public.tickets, p_admin boolean, p_author text, p_body text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if length(trim(coalesce(p_body, ''))) < 2 then raise exception 'ticket_body'; end if;
+  if t.status = 'closed' and not p_admin then raise exception 'ticket_closed'; end if;
+  if (select count(*) from ticket_msgs where ticket_id = t.id) >= 60 then raise exception 'too_many_requests'; end if;
+  insert into ticket_msgs(ticket_id, from_admin, author, body) values (t.id, p_admin, p_author, left(trim(p_body), 3000));
+  if p_admin then
+    update tickets set status = case when status = 'closed' then 'closed' else 'answered' end, user_unread = true, updated_at = now() where id = t.id;
+    insert into notifications(student_code, kind, title, body, url)
+      values (case when t.sender_kind = 'student' then t.sender else 'staff:' || t.sender end, 'ticket', 'رد على رسالتك: ' || t.subject, left(trim(p_body), 140),
+        case when t.sender_kind = 'student' then 'https://elrashdan.github.io/classmate/#help' else 'https://elrashdan.github.io/classmate/staff.html' end);
+  else
+    update tickets set status = 'open', admin_unread = true, updated_at = now() where id = t.id;
+    perform notify_admins('ticket', 'رد جديد: ' || t.subject, t.sender_name);
+  end if;
+end $$;
+revoke all on function public.ticket_open(text, text, text, text, text, text, uuid), public.ticket_add(public.tickets, boolean, text, text) from public, anon, authenticated;
+
+-- الطالب
+create or replace function public.student_ticket_create(p_token text, p_cat text, p_subject text, p_body text, p_course uuid) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token); nm text;
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  if p_course is not null and not exists (select 1 from enrollments where course_id = p_course and student_code = code) then p_course := null; end if;
+  nm := coalesce((select name from enrollments where student_code = code order by (course_id = p_course) desc nulls last limit 1), code);
+  return ticket_open('student', code, nm || ' · ' || code, p_cat, p_subject, p_body, p_course);
+end $$;
+create or replace function public.student_tickets(p_token text) returns json
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token); res json;
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  select coalesce(json_agg(ticket_json(t, false) order by t.updated_at desc), '[]'::json) into res from tickets t where sender_kind = 'student' and sender = code;
+  update tickets set user_unread = false where sender_kind = 'student' and sender = code and user_unread;
+  return res;
+end $$;
+create or replace function public.student_ticket_reply(p_token text, tid uuid, p_body text) returns void
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token); t tickets;
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  select * into t from tickets where id = tid and sender_kind = 'student' and sender = code;
+  if t.id is null then raise exception 'not_found'; end if;
+  perform ticket_add(t, false, code, p_body);
+end $$;
+create or replace function public.student_ticket_unread(p_token text) returns int
+language sql stable security definer set search_path = public as $$
+  select count(*)::int from tickets where sender_kind = 'student' and sender = student_from_token(p_token) and user_unread;
+$$;
+
+-- عضو هيئة التدريس
+create or replace function public.staff_ticket_create(p_cat text, p_subject text, p_body text, p_course uuid) returns uuid
+language plpgsql security definer set search_path = public as $$
+begin
+  if staff_role() is null then raise exception 'not_allowed'; end if;
+  if p_course is not null and course_role(p_course) is null then p_course := null; end if;
+  return ticket_open('staff', my_email(), coalesce(staff_name(my_email()), my_email()), p_cat, p_subject, p_body, p_course);
+end $$;
+create or replace function public.staff_tickets() returns json
+language plpgsql security definer set search_path = public as $$
+declare res json;
+begin
+  if staff_role() is null then raise exception 'not_allowed'; end if;
+  select coalesce(json_agg(ticket_json(t, false) order by t.updated_at desc), '[]'::json) into res from tickets t where sender_kind = 'staff' and sender = my_email();
+  update tickets set user_unread = false where sender_kind = 'staff' and sender = my_email() and user_unread;
+  return res;
+end $$;
+create or replace function public.staff_ticket_reply(tid uuid, p_body text) returns void
+language plpgsql security definer set search_path = public as $$
+declare t tickets;
+begin
+  select * into t from tickets where id = tid and sender_kind = 'staff' and sender = my_email();
+  if t.id is null then raise exception 'not_found'; end if;
+  perform ticket_add(t, false, my_email(), p_body);
+end $$;
+
+-- المسؤول
+create or replace function public.admin_tickets(p_status text) returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if staff_role() is distinct from 'admin' then raise exception 'not_allowed'; end if;
+  return coalesce((select json_agg(ticket_json(t, true) order by t.admin_unread desc, t.updated_at desc)
+    from (select * from tickets where (coalesce(p_status, 'all') = 'all' or status = p_status) order by updated_at desc limit 300) t), '[]'::json);
+end $$;
+create or replace function public.admin_ticket_reply(tid uuid, p_body text, p_close boolean) returns void
+language plpgsql security definer set search_path = public as $$
+declare t tickets;
+begin
+  if staff_role() is distinct from 'admin' then raise exception 'not_allowed'; end if;
+  select * into t from tickets where id = tid;
+  if t.id is null then raise exception 'not_found'; end if;
+  if length(trim(coalesce(p_body, ''))) > 0 then perform ticket_add(t, true, my_email(), p_body); end if;
+  update tickets set admin_unread = false, status = case when p_close then 'closed' when status = 'closed' and not p_close then 'answered' else status end, updated_at = now() where id = tid;
+end $$;
+create or replace function public.admin_ticket_seen(tid uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if staff_role() is distinct from 'admin' then raise exception 'not_allowed'; end if;
+  update tickets set admin_unread = false where id = tid;
+end $$;
+create or replace function public.admin_inbox_counts() returns json
+language sql stable security definer set search_path = public as $$
+  select case when staff_role() = 'admin' then json_build_object(
+    'requests', (select count(*) from staff_requests where status = 'pending'),
+    'tickets', (select count(*) from tickets where status = 'open'),
+    'unread', (select count(*) from tickets where admin_unread)) else '{}'::json end;
+$$;
+
+revoke all on function public.student_ticket_create(text, text, text, text, uuid), public.student_tickets(text), public.student_ticket_reply(text, uuid, text), public.student_ticket_unread(text),
+  public.staff_ticket_create(text, text, text, uuid), public.staff_tickets(), public.staff_ticket_reply(uuid, text),
+  public.admin_tickets(text), public.admin_ticket_reply(uuid, text, boolean), public.admin_ticket_seen(uuid), public.admin_inbox_counts() from public;
+grant execute on function public.student_ticket_create(text, text, text, text, uuid), public.student_tickets(text), public.student_ticket_reply(text, uuid, text), public.student_ticket_unread(text) to anon, authenticated;
+grant execute on function public.staff_ticket_create(text, text, text, uuid), public.staff_tickets(), public.staff_ticket_reply(uuid, text),
+  public.admin_tickets(text), public.admin_ticket_reply(uuid, text, boolean), public.admin_ticket_seen(uuid), public.admin_inbox_counts() to authenticated;
