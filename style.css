@@ -229,7 +229,6 @@ tr.manrow td>div{position:sticky;right:0;max-width:min(620px,calc(100vw - 72px))
   .ctabs .tb,.ctabs .live-dot{position:absolute;top:2px;inset-inline-start:calc(50% + 6px)}
   .ctabs .tb{height:16px;line-height:16px;min-width:16px;font-size:10px;padding:0 4px}
 }
-@media (max-width:760px){.ctabs.admin{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .regt td.nm{min-width:150px}
 .regt th .fh{text-align:center;line-height:1.35}
 .regt th.c .fh{margin-inline:auto}
@@ -830,7 +829,7 @@ header.top{ border-radius: 22px; }
   .lg, header.top, .hx .cpk-cur, .sb-ic, .hx-eb, .hx-logo, .ctabs, .nt-panel.panel, .cpk-pop{ -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: var(--surface) !important; }
   .hx .cpk-cur, .sb-ic, .hx-eb, .hx-logo{ background: #12211d !important; }
 }
-@media (max-width: 760px){ .ctabs:not(.admin){ grid-template-columns: none !important; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); } .ctabs button{ font-size: .66rem !important; padding: 7px 1px !important; } }
+@media (max-width: 760px){ .ctabs{ grid-template-columns: none !important; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); } .ctabs button{ font-size: .66rem !important; padding: 7px 1px !important; } }
 /* زجاج أوضح: حافة لامعة متدرّجة، ولمعة أقوى، وانعكاس سفلي */
 :root{ --lg-edge: rgba(255,255,255,.95); --lg-shine: rgba(255,255,255,.85); }
 :root[data-theme="dark"], .hx, .sband{ --lg-edge: rgba(255,255,255,.5); --lg-shine: rgba(255,255,255,.4); --lg-tint: rgba(255,255,255,.13); --lg-tint2: rgba(255,255,255,.035); }
@@ -1274,3 +1273,4 @@ select{background-repeat:no-repeat!important;background-position:left 12px cente
 .tw-s.done{opacity:.55}
 .help-btn svg{width:19px;height:19px;display:block}
 #myTT{display:grid;gap:16px}
+.empty,.msg{overflow-wrap:anywhere}.empty .mono,.msg .mono{word-break:break-all}.empty .mono{display:block;margin:6px 0;font-size:.85em}
