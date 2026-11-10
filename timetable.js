@@ -50,7 +50,7 @@
     for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) {
       const a = S[i], b = S[j]; if (a.day !== b.day || a.p_from > b.p_to || b.p_from > a.p_to) continue;
       const ka = new Set(a.team.flatMap(t => t.staff.map(staffKey))), shared = b.team.flatMap(t => t.staff).filter(s => ka.has(staffKey(s)));
-      const rooms = r => new Set([r.room, ...r.team.map(t => t.room)].filter(x => x && !/خارج/.test(x)));
+      const rooms = r => new Set([r.room, ...r.team.map(t => t.room)].flatMap(x => String(x || "").split("/")).map(x => x.trim().replace(/^ا(تيلي)/, "أ$1").replace(/ة(\s|$)/g, "ه$1")).filter(x => x && !/خارج|برجولا|[اأ]ونلاين|online/i.test(x)));
       const ra = rooms(a), sharedR = [...rooms(b)].filter(x => ra.has(x));
       const msg = [...new Set(shared.map(s => s.n))].map(n => `${n} في «${a.title}» و«${b.title}»`).concat(sharedR.map(r => `${r} محجوز لـ«${a.title}» و«${b.title}»`));
       if (msg.length) { (out[a.id] = out[a.id] || []).push(...msg); (out[b.id] = out[b.id] || []).push(...msg); }
