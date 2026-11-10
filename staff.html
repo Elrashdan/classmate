@@ -378,6 +378,7 @@
     }
     if (tkSel && !tasks.some(t => t.id === tkSel)) tkSel = null;
     const resets = rsq || [], appeals = apq || [];
+    pushRecent(c.id);
     D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, announced, push: new Set(psq || []), tasks, subs, excuses, resets, exts, appeals };
     clearInterval(rsPollT); if (canRun(c)) rsPollT = setInterval(pollResets, 10000);
     if (scan && !sessions.some(x => x.id === scan.sid && !x.ended)) closeScanner();
@@ -601,16 +602,24 @@
         <span class="cpk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg></span>
         <span class="cpk-t"><small>${c ? "المادة المفتوحة" : "اختر المادة"}</small><b>${c ? esc(c.name) : courses.length ? "لم تُختر مادة" : "لا توجد مواد بعد"}</b>${c ? `<span>${esc(clsLabel(c))}</span>` : ""}</span>${CHEV}</button>
       ${pk.open ? `<div class="cpk-pop">
+        ${(() => { const rc = recentCourses().filter(x => !c || x.id !== c.id).slice(0, 4); return rc.length ? `<div class="cpk-rec"><b>فتحتها مؤخرًا</b><div class="cchips">${rc.map(x => `<button type="button" class="cchip" data-pkc="${x.id}">${esc(x.name)}</button>`).join("")}</div></div>` : ""; })()}
         ${step("العام الدراسي", `<div class="cchips">${chip("data-pky", "all", fYear, "كل الأعوام")}${yearList().map(v => chip("data-pky", v, fYear, v + (v === nowYear() ? " · الحالي" : ""))).join("")}</div>`)}
         ${step("الفصل الدراسي", `<div class="cchips">${chip("data-pkt", "all", fTerm, "كل الفصول")}${Object.entries(TERMS).map(([k, v]) => chip("data-pkt", k, fTerm, v.replace("الفصل الدراسي ", "").replace("الفصل ", ""))).join("")}</div>`)}
         ${lvls.length ? step("المستوى", `<div class="cchips">${chip("data-pkl", "all", pk.lvl, "كل المستويات")}${lvls.map(k => chip("data-pkl", k, pk.lvl, lvLabel(k))).join("")}</div>`) : ""}
         ${trs.length ? step("الشعبة", `<div class="cchips">${chip("data-pkr", "all", pk.tr, "كل الشعب")}${trs.map(t => chip("data-pkr", t, pk.tr, esc(t))).join("")}</div>`) : ""}
-        ${step("المادة", shown.length ? `<div class="cpk-list">${shown.map(x => `<button type="button" class="cpk-c ${c && x.id === c.id ? "on" : ""}" data-pkc="${x.id}"><b>${esc(x.name)}${x.archived ? ` <span class="chip none">أرشيف</span>` : ""}</b><span>${esc(clsLabel(x))}</span>${rl(x) ? `<em>${esc(rl(x))}</em>` : ""}</button>`).join("")}</div>` : `<p class="muted small">لا توجد مواد بهذه الاختيارات. غيّر العام أو الفصل${courses.length ? "" : "، أو أنشئ مادة جديدة"}.</p>`)}
+        ${step("المادة", shown.length ? `<div class="cpk-find"><input type="search" id="pkQ" placeholder="ابحث باسم المادة (${shown.length})" autocomplete="off" aria-label="ابحث عن مادة"></div>
+          <div class="cpk-list" id="pkList">${(pk.lvl === "all" && lvls.length > 1 ? lvls.map(k => [lvLabel(k), shown.filter(x => lvKey(x) === k)]) : [["", shown]]).filter(([, a]) => a.length).map(([h, a]) => `${h ? `<div class="cpk-gh">${esc(h)} <small>${a.length}</small></div>` : ""}${a.map(x => `<button type="button" class="cpk-c ${c && x.id === c.id ? "on" : ""}" data-pkc="${x.id}" data-nm="${esc(normAr(x.name))}"><b>${esc(x.name)}${x.archived ? ` <span class="chip none">أرشيف</span>` : ""}</b><span>${esc([x.track, rl(x)].filter(Boolean).join(" · "))}</span></button>`).join("")}`).join("")}<p class="small muted" id="pkNone" hidden>لا توجد مادة بهذا الاسم.</p></div>` : `<p class="small muted">لا توجد مواد بهذه الاختيارات.</p>`)}
       </div>` : ""}
     </div>`;
   }
+  const recentCourses = () => { let ids = []; try { ids = JSON.parse(store.get("cm_recent") || "[]"); } catch (e) {} return ids.map(id => courses.find(x => x.id === id)).filter(Boolean); };
+  function pushRecent(id) { let ids = []; try { ids = JSON.parse(store.get("cm_recent") || "[]"); } catch (e) {} ids = [id, ...ids.filter(x => x !== id)].slice(0, 6); store.set("cm_recent", JSON.stringify(ids)); }
   function pickerRedraw() { document.querySelectorAll(".cpk").forEach(el => { el.outerHTML = pickerHtml(el.dataset.where); }); wirePicker(); }
   function wirePicker() {
+    const q = $("#pkQ"); if (q) q.oninput = () => { const v = normAr(q.value.trim()); let any = false;
+      document.querySelectorAll("#pkList .cpk-c").forEach(b => { const h = !!v && !b.dataset.nm.includes(v); b.hidden = h; if (!h) any = true; });
+      document.querySelectorAll("#pkList .cpk-gh").forEach(g => { let n = g.nextElementSibling, vis = false; while (n && n.classList.contains("cpk-c")) { if (!n.hidden) vis = true; n = n.nextElementSibling; } g.hidden = !vis; });
+      const none = $("#pkNone"); if (none) none.hidden = any; };
     document.querySelectorAll(".cpk [data-pk=toggle]").forEach(b => b.onclick = () => { pk.open = !pk.open; pickerRedraw(); });
     document.querySelectorAll("[data-pky]").forEach(b => b.onclick = () => { fYear = b.dataset.pky; store.set("cm_year", fYear); pickerRedraw(); });
     document.querySelectorAll("[data-pkt]").forEach(b => b.onclick = () => { fTerm = b.dataset.pkt; store.set("cm_term", fTerm); pickerRedraw(); });
@@ -1410,13 +1419,15 @@
     const by = [4, 3, 2, 1].map(l => [l, p.filter(x => x.l === l)]).filter(([, a]) => a.length);
     return `<div class="walert no-print" id="wAlert" role="alert">
       <div class="walert-h">${ICO('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>')}<div><b>${p.length} طالب وصلوا إلى إنذار جديد ولم يُبلَّغوا بعد</b>
-        <p class="small">${by.map(([l, a]) => `${CM.WARN[l].t}: ${a.length}`).join(" · ")} — أعلِن لهم في المحاضرة أو جروب المادة، ثم اضغط «تم إبلاغهم» لتختفي هذه التنبيهات.</p></div></div>
+        <p class="small">${by.map(([l, a]) => `${CM.WARN[l].t}: ${a.length}`).join(" · ")} — أعلِن لهم في المحاضرة أو جروب المادة، أو أرسل لهم تنبيهًا من هنا.</p></div></div>
       <details class="walert-l"><summary>عرض الأسماء</summary><ul>${p.map(x => `<li><span class="chip ${CM.WARN[x.l].k}">${CM.WARN[x.l].t}</span> <span class="mono">${esc(x.e.student_code)}</span> ${esc(x.e.name)}${x.e.grp ? ` <span class="muted small">· مجموعة ${esc(x.e.grp)}</span>` : ""} <span class="muted small">· غياب ${x.ab}</span></li>`).join("")}</ul></details>
       <div class="row">
         ${CM.dd("تنزيل الكشف", [`<button class="dd-i" id="waXls">إكسل</button>`, `<button class="dd-i" id="waPdf">PDF للطباعة أو التعليق</button>`])}
+        ${canRun(c) ? `<button class="btn sm primary" id="waSend">إرسال تنبيه للطلاب</button>` : ""}
         <button class="btn sm" id="waCopy">نسخ نص إعلان للجروب</button>
-        ${canRun(c) ? `<button class="btn sm primary" id="waDone">تم إبلاغهم</button>` : ""}
+        ${canRun(c) ? `<button class="btn sm ghost" id="waDone">أبلغتهم بنفسي</button>` : ""}
       </div>
+      ${canRun(c) ? `<p class="small muted">«إرسال تنبيه للطلاب» يرسل لكل طالب إشعارًا على هاتفه (لمن فعّل الإشعارات) ويظهر له في صفحته، ثم تختفي هذه التنبيهات.</p>` : ""}
     </div>`;
   }
   function warnAnnounceText(c, p) {
@@ -1441,10 +1452,19 @@
     const x = $("#waXls"); if (x) x.onclick = () => warnSheet(c, p(), false).catch(showErr);
     const pf = $("#waPdf"); if (pf) pf.onclick = () => warnSheet(c, p(), true).catch(showErr);
     const cp = $("#waCopy"); if (cp) cp.onclick = async () => { const t = warnAnnounceText(c, p()); try { await navigator.clipboard.writeText(t); cp.textContent = "تم النسخ ✓"; } catch { prompt("انسخ النص:", t); } setTimeout(() => { cp.textContent = "نسخ نص إعلان للجروب"; }, 2500); };
+    const sn = $("#waSend"); if (sn) sn.onclick = async () => {
+      const list = p(); if (!list.length) return;
+      sn.disabled = true; sn.textContent = "جارٍ الإرسال…";
+      try {
+        const r = await rpc("warning_notify", { cid: c.id, p_codes: list.map(x => x.e.student_code), p_note: "" });
+        say("report", `أُرسل التنبيه إلى ${r.sent} طالب: ${r.phones} منهم يصلهم إشعار على الهاتف الآن، والباقون يرونه عند فتح الموقع.`);
+        walerts = null; await loadCourse();
+      } catch (e) { showErr(e); sn.disabled = false; sn.textContent = "إرسال تنبيه للطلاب"; }
+    };
     const d = $("#waDone"); if (d) d.onclick = async () => {
       d.disabled = true; d.textContent = "جارٍ الحفظ…";
       try { await rpc("warning_mark_announced", { cid: c.id, p_codes: p().map(x => x.e.student_code) }); walerts = null; await loadCourse(); }
-      catch (e) { showErr(e); d.disabled = false; d.textContent = "تم إبلاغهم"; }
+      catch (e) { showErr(e); d.disabled = false; d.textContent = "أبلغتهم بنفسي"; }
     };
   }
   // هل اطّلع الطالب على إشعار إنذاره الحالي؟
@@ -1498,6 +1518,7 @@
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${rows.length} طالب · ${st.length} محاضرة محتسبة</div><h2>تقرير الغياب والإنذارات</h2></div>
       <div class="row no-print">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rpg="${esc(k)}" aria-pressed="${rpGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}
         <button class="btn sm" id="rpXls" title="ملف فيه: الملخص، والإنذارات، والغائبون في كل محاضرة">تصدير التقرير إلى إكسل</button><button class="btn sm ghost" id="rpPrint">طباعة</button></div></div>
+      ${msgHtml("report")}
       ${warnAlertHtml(c, rows)}
       <div class="kpis">
         <div class="kpi"><b>${avg}%</b><span>متوسط الحضور</span></div>
@@ -1855,7 +1876,7 @@
     if (t) return renderTask(el, c, t);
     const totalMax = D.tasks.reduce((a, x) => a + Number(x.max_grade), 0);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
-      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${CM.dd(D.tasks.length ? "تصدير واستيراد" : "استيراد", [D.tasks.length ? `<div class="dd-h">كشف الكنترول${courseGroups().length > 1 ? ` لـ <select id="tkXg" class="sel-sm" data-keep aria-label="المجموعة التي يُصدَّر كشفها"><option value="all">كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select>` : ""}</div>` : "", D.tasks.length ? `<button class="dd-i" id="tkXls">تنزيل كشف الكنترول (إكسل)</button>` : "", D.tasks.length ? `<button class="dd-i" id="tkPdf">تنزيل كشف الكنترول (PDF)</button>` : "", canRun(c) ? `${D.tasks.length ? "<hr>" : ""}<button class="dd-i" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات ودرجاتها من إكسل</button>` : ""], { end: true })}</div></div>
+      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${CM.dd(D.tasks.length ? "تصدير واستيراد" : "استيراد", [D.tasks.length ? `<div class="dd-h">كشف الكنترول</div>${courseGroups().length > 1 ? `<label class="dd-sel" data-keep><span>المجموعة</span><select id="tkXg" aria-label="المجموعة التي يُصدَّر كشفها"><option value="all">كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}` : "", D.tasks.length ? `<button class="dd-i" id="tkXls">تنزيل كشف الكنترول (إكسل)</button>` : "", D.tasks.length ? `<button class="dd-i" id="tkPdf">تنزيل كشف الكنترول (PDF)</button>` : "", canRun(c) ? `${D.tasks.length ? "<hr>" : ""}<button class="dd-i" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات ودرجاتها من إكسل</button>` : ""], { end: true })}</div></div>
       ${msgHtml("tasks")}
       ${appealsHtml(c)}
       ${mimp ? mimpBox() : ""}

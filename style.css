@@ -994,7 +994,7 @@ details.dd[open]>summary{border-color:var(--accent);box-shadow:0 0 0 3px color-m
 details.dd.end .dd-m{inset-inline-start:auto;inset-inline-end:0}
 @keyframes ddIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 .dd-i{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:.9rem;line-height:1.35;color:var(--ink);white-space:normal}
-.dd-i:hover,.dd-i:focus-visible{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent-ink,var(--ink))}
+.dd-i:hover,.dd-i:focus-visible{background:color-mix(in srgb,var(--accent) 16%,var(--surface));color:var(--ink)}
 .dd-i.danger{color:var(--bad)}
 .dd-i[disabled]{opacity:.45;pointer-events:none}
 .dd-h{font-size:.74rem;color:var(--muted);font-weight:600;padding:6px 12px 2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -1022,7 +1022,9 @@ details.dd.end .dd-m{inset-inline-start:auto;inset-inline-end:0}
 header.top{position:relative;z-index:45}
 body:not(.has-ctabs) header.top{position:sticky;z-index:45}
 details.dd[open]{z-index:70}
-header.top:has(details.dd[open]),.panel:has(details.dd[open]),.card:has(details.dd[open]),section:has(details.dd[open]),article:has(details.dd[open]){position:relative;z-index:80}
+/* الرأس يبقى ثابتًا عند فتح قوائمه: نرفع ترتيبه فقط دون تغيير موضعه */
+header.top:has(details.dd[open]){z-index:90}
+.panel:has(details.dd[open]),.card:has(details.dd[open]),article:has(details.dd[open]),.walert:has(details.dd[open]),.apctl:has(details.dd[open]){position:relative;z-index:80}
 @media (max-width:640px){ td .btn,th .btn,.chip .btn{white-space:nowrap;min-height:0} }
 /* تقسيم تلقائي للمجموعات */
 .split-hint{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px dashed color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--accent) 6%,var(--surface));margin:8px 0}
@@ -1074,3 +1076,35 @@ header.top:has(details.dd[open]),.panel:has(details.dd[open]),.card:has(details.
 .push-sum{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .push-bar{width:120px;height:8px;border-radius:99px;background:var(--sunk);overflow:hidden;flex:none}
 .push-bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+/* b67: قوائم منسدلة أوضح */
+.dd-m{background:var(--surface)!important;color:var(--ink);isolation:isolate}
+.dd-i{color:var(--ink)!important;font-weight:500}
+.dd-i.danger{color:var(--bad)!important}
+.dd-i:hover::before,.dd-i:hover::after{display:none}
+.dd-sel{display:grid;gap:4px;padding:4px 12px 8px;font-size:.8rem;color:var(--muted)}
+.dd-sel select{width:100%;font:inherit;font-size:.9rem;color:var(--ink);background-color:var(--sunk);background-repeat:no-repeat;border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:38px}
+#homeAlerts .sec-t{margin:14px 0 10px}
+.walerts{gap:10px}
+/* قائمة المواد: بحث، ومجموعات حسب المستوى، وصفوف مختصرة، وارتفاع محدود */
+.cpk-rec{display:grid;gap:6px}
+.cpk-rec>b{font-family:var(--f-display);font-size:.85rem;color:var(--muted)}
+.cpk-find input{font:inherit;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:var(--sunk);color:var(--ink)}
+.cpk-list{max-height:min(52vh,460px);overflow:auto;overscroll-behavior:contain;padding:2px;align-content:start;grid-auto-rows:max-content}
+.cpk-find{display:flex;gap:8px;align-items:center}
+.cpk-find input{flex:1;min-width:0}
+.cpk-gh{grid-column:1/-1;position:sticky;top:0;z-index:1;font:600 .8rem var(--f-display);color:var(--accent);background:var(--surface);padding:6px 2px 4px;border-bottom:1px solid var(--line)}
+.cpk-gh small{color:var(--muted);font-weight:500}
+.cpk-c{padding:9px 12px}
+.cpk-c[hidden],.cpk-gh[hidden]{display:none}
+@media (max-width:760px){
+  .cpk-pop{padding:12px;gap:10px}
+  .cpk-step{grid-template-columns:22px minmax(0,1fr);gap:8px}
+  .cpk-n{width:22px;height:22px;font-size:.7rem}
+  .cpk-step:not(:last-child)::after{inset-inline-start:10.5px;top:24px}
+  .cpk-sb>b{font-size:.84rem;padding-top:1px}
+  .cchips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px;margin-inline-end:-12px;padding-inline-end:12px}
+  .cchips::-webkit-scrollbar{display:none}
+  .cchip{flex:none;padding:5px 12px;font-size:.82rem}
+  .cpk-list{grid-template-columns:1fr;max-height:46vh}
+  .cpk-c b{font-size:.9rem}
+}

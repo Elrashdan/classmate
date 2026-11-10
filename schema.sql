@@ -4635,3 +4635,34 @@ end $$;
 drop function if exists public.split_groups(uuid, text[], text);
 revoke all on function public.split_groups(uuid, text[], text, boolean) from public, anon;
 grant execute on function public.split_groups(uuid, text[], text, boolean) to authenticated;
+-- update-43: فريق المادة يرسل تنبيهًا مباشرًا (إشعار على الهاتف) للطلبة الذين وصلوا إلى إنذار، ويُسجَّلون «مُبلَّغين»
+create or replace function public.warning_notify(cid uuid, p_codes text[], p_note text default '') returns json
+language plpgsql security definer set search_path = public as $$
+declare code text; ab int; l int; n int := 0; ph int := 0; cn text; ttl text; who text;
+begin
+  if course_role(cid) is null or course_role(cid) not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  if coalesce(array_length(p_codes, 1), 0) > 2000 then raise exception 'too_many'; end if;
+  cn := (select name from courses where id = cid);
+  who := coalesce(staff_name(my_email()), 'فريق المادة');
+  foreach code in array coalesce(p_codes, '{}') loop
+    if not exists (select 1 from enrollments where course_id = cid and student_code = code) then continue; end if;
+    ab := course_absences(cid, code); l := warn_level(ab);
+    if l = 0 then continue; end if;
+    ttl := case l when 1 then 'إنذار أول' when 2 then 'إنذار ثانٍ' when 3 then 'إنذار ثالث ونهائي' else 'انسحاب إجباري' end;
+    insert into notifications(student_code, kind, title, body, url)
+      values (code, 'warning', 'تنبيه من ' || who || ': ' || ttl || ' في ' || cn,
+        'غبت ' || ab || case when ab between 3 and 10 then ' مرات' else ' مرة' end || '.' ||
+        coalesce(' ' || nullif(left(trim(coalesce(p_note, '')), 300), ''), case when l >= 3 then ' التزم بالحضور، فالغياب القادم له عواقب على المادة.' else ' التزم بالحضور.' end),
+        'https://elrashdan.github.io/classmate/');
+    insert into warning_announced(course_id, student_code, level, announced_by)
+      select cid, code, g, my_email() from generate_series(1, l) g on conflict do nothing;
+    insert into warning_pushed(course_id, student_code, level)
+      select cid, code, g from generate_series(1, l) g on conflict do nothing;
+    n := n + 1;
+    if exists (select 1 from push_subs where student_code = code) then ph := ph + 1; end if;
+  end loop;
+  if n > 0 then perform log_audit(cid, 'إرسال تنبيه غياب إلى ' || n || ' طالب'); end if;
+  return json_build_object('sent', n, 'phones', ph);
+end $$;
+revoke all on function public.warning_notify(uuid, text[], text) from public, anon;
+grant execute on function public.warning_notify(uuid, text[], text) to authenticated;
