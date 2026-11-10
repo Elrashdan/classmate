@@ -1108,3 +1108,9 @@ header.top:has(details.dd[open]){z-index:90}
   .cpk-list{grid-template-columns:1fr;max-height:46vh}
   .cpk-c b{font-size:.9rem}
 }
+/* صفوف القوائم: الزر لا يُضغط ولا يخرج نصه */
+.li{display:flex;align-items:center;gap:10px}
+.li>.who{flex:1;min-width:0}
+.li>.btn,.li>.row{flex:none}
+.li>.btn{white-space:nowrap}
+@media (max-width:640px){ .li>.btn{white-space:nowrap;min-height:34px} }
