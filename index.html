@@ -18,7 +18,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media=\'all\'">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -600,10 +600,46 @@
       ${nt.items && nt.items.length ? `<ul class="nt-list">${nt.items.map(n => `<li class="${n.read_at ? "" : "new"}"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${esc(ago(n.created_at))}</small></li>`).join("")}</ul>` : `<p class="muted small">لا توجد تنبيهات بعد. ستصلك هنا تنبيهات بدء المحاضرات والتكليفات الجديدة وإعلان الدرجات.</p>`}
       ${pushOk() && nt.sub !== "on" ? `<button class="btn sm" id="ntPush">فعّل الإشعارات على هذا الجهاز</button>` : nt.sub === "on" ? `<p class="small ok-t">الإشعارات مفعّلة على هذا الجهاز.</p>` : ""}</div>`;
   }
+  // حالة إشعارات هذا الجهاز: on / off (يمكن التفعيل) / denied / install (آيفون من Safari: لازم الشاشة الرئيسية) / none
+  function pushNeed() {
+    if (limited || inApp) return "none";
+    if (isIOS && !standalone) return "install";
+    if (!pushOk()) return "none";
+    return nt.sub === "off" || nt.sub === "denied" ? nt.sub : "none";
+  }
+  const PUSH_WHY = "إشعار لحظة بدء المحاضرة لتسجّل حضورك في وقته، وإنذارات الغياب، وإعلان الدرجات وقرار التظلم، حتى والموقع مغلق.";
+  const iosSteps = `<ol class="pg-steps"><li>اضغط زر المشاركة <b>⬆︎</b> أسفل Safari.</li><li>اختر <b>«إضافة إلى الشاشة الرئيسية»</b> ثم «إضافة».</li><li>افتح <b>Hadro</b> من الأيقونة الجديدة، ثم اضغط «تفعيل الإشعارات».</li></ol>`;
   function pushCta() {
-    if (!pushOk() || nt.sub !== "off" || store.get("cm_push_skip")) return "";
-    if (isIOS && !standalone) return `<div class="pk-cta"><div><b>تنبيهات على هاتفك</b><span class="small muted">لتصلك إشعارات بدء المحاضرات وإعلان الدرجات على الآيفون: اضغط زر المشاركة في Safari ثم «إضافة إلى الشاشة الرئيسية»، وافتح Hadro من الأيقونة، ثم فعّل الإشعارات.</span></div><div class="row"><button class="btn ghost sm" id="pushSkip">لاحقًا</button></div></div>`;
-    return `<div class="pk-cta"><div><b>فعّل التنبيهات</b><span class="small muted">يصلك إشعار على هاتفك عند بدء محاضرة لتسجّل حضورك، وعند إضافة تكليف أو إعلان درجاته، حتى والموقع مغلق.</span>${nt.msg ? `<span class="small bad-t">${esc(nt.msg)}</span>` : ""}</div><div class="row"><button class="btn primary" id="pushOn" ${nt.busy ? "disabled" : ""}>تفعيل</button><button class="btn ghost sm" id="pushSkip">لاحقًا</button></div></div>`;
+    const k = pushNeed(); if (k === "none") return "";
+    const body = k === "install" ? `<span class="small">على الآيفون تعمل الإشعارات من أيقونة الشاشة الرئيسية فقط:</span>${iosSteps}`
+      : k === "denied" ? `<span class="small">الإشعارات مرفوضة لهذا الموقع. افتح إعدادات المتصفح ← إعدادات المواقع ← الإشعارات، واسمح لموقع Hadro، ثم أعد فتح الصفحة.</span>`
+      : `<span class="small muted">${PUSH_WHY}</span>${nt.msg ? `<span class="small bad-t">${esc(nt.msg)}</span>` : ""}`;
+    return `<div class="pk-cta push-must"><div><b>${k === "install" ? "أضف Hadro إلى الشاشة الرئيسية لتصلك الإشعارات" : k === "denied" ? "الإشعارات متوقفة على هذا الهاتف" : "فعّل الإشعارات (مطلوب)"}</b>${body}</div>${k === "off" ? `<div class="row"><button class="btn primary" id="pushOn" ${nt.busy ? "disabled" : ""}>تفعيل الإشعارات</button></div>` : ""}</div>`;
+  }
+  // نافذة تظهر مرة في كل فتح للموقع حتى تُفعَّل الإشعارات (ولا تظهر أثناء محاضرة جارية حتى لا تؤخر تسجيل الحضور)
+  let pgateShown = false;
+  function pushGate() {
+    const k = pushNeed(); if (k === "none" || pgateShown || tkId) return "";
+    try { if (sessionStorage.getItem("cm_pgate")) return ""; } catch (e) {}
+    if (home && home.courses.some(c => c.session)) return "";
+    if (k === "off" && nt.sub === null) return "";
+    return `<div class="pgate" id="pgate" role="dialog" aria-modal="true" aria-labelledby="pgT"><div class="pgate-c">
+      <div class="pgate-ic">${BELL}</div>
+      <h2 id="pgT">${k === "install" ? "خطوة واحدة لتصلك الإشعارات" : k === "denied" ? "الإشعارات متوقفة" : "فعّل الإشعارات"}</h2>
+      <p>${PUSH_WHY}</p>
+      ${k === "install" ? iosSteps : k === "denied" ? `<p class="small">افتح إعدادات المتصفح ← إعدادات المواقع ← الإشعارات، واسمح لموقع Hadro، ثم أعد فتح الصفحة.</p>` : ""}
+      ${nt.msg ? `<p class="small bad-t">${esc(nt.msg)}</p>` : ""}
+      <div class="pgate-a">${k === "off" ? `<button class="btn primary block" id="pgOn" ${nt.busy ? "disabled" : ""}>تفعيل الإشعارات</button>` : ""}<button class="btn ghost block" id="pgLater" disabled>لاحقًا (<span id="pgN">5</span>)</button></div>
+    </div></div>`;
+  }
+  let pgStart = 0, pgTick = null;
+  function wireGate() {
+    const g = $("#pgate"); if (!g) return;
+    const on = $("#pgOn"); if (on) on.onclick = async () => { await enablePush(); };
+    if (!pgStart) pgStart = Date.now();
+    const upd = () => { const later = $("#pgLater"); if (!later) { clearInterval(pgTick); pgTick = null; return; } const n = 5 - Math.floor((Date.now() - pgStart) / 1000); if (n > 0) { const x = $("#pgN"); if (x) x.textContent = n; } else if (later.disabled) { later.disabled = false; later.textContent = "لاحقًا"; } };
+    upd(); if (!pgTick) pgTick = setInterval(upd, 400);
+    const later = $("#pgLater"); if (later) later.onclick = () => { pgateShown = true; try { sessionStorage.setItem("cm_pgate", "1"); } catch (e) {} const x = $("#pgate"); if (x) x.remove(); };
   }
   async function enablePush() {
     nt.busy = true; nt.msg = ""; renderHome();
@@ -614,7 +650,7 @@
       const key = Uint8Array.from(atob(VAPID.replace(/-/g, "+").replace(/_/g, "/")), ch => ch.charCodeAt(0));
       const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
       await rpc("student_push_subscribe", { p_token: token, p_sub: sub.toJSON(), p_label: devLabel });
-      nt.sub = "on"; nt.msg = "";
+      nt.sub = "on"; nt.msg = ""; pgateShown = true;
     } catch (e) { nt.msg = e && e.message && /[\u0600-\u06FF]/.test(e.message) ? e.message : "تعذّر تفعيل الإشعارات على هذا المتصفح."; }
     nt.busy = false; renderHome();
   }
@@ -622,7 +658,7 @@
     const b = $("#ntBtn"); if (b) b.onclick = () => { nt.open = !nt.open; renderHome(); if (nt.open && nt.unread) rpc("student_notifications_read", { p_token: token }).then(() => { nt.unread = 0; const x = document.querySelector(".nt-badge"); if (x) x.remove(); }).catch(() => {}); };
     const c = $("#ntClose"); if (c) c.onclick = () => { nt.open = false; if (nt.items) nt.items.forEach(n => n.read_at = n.read_at || new Date().toISOString()); renderHome(); };
     const on = $("#pushOn"), on2 = $("#ntPush"); [on, on2].forEach(x => { if (x) x.onclick = enablePush; });
-    const sk = $("#pushSkip"); if (sk) sk.onclick = () => { store.set("cm_push_skip", "1"); renderHome(); };
+    wireGate();
     if (!ntTimer) { ntTimer = setInterval(() => { if (document.visibilityState === "visible") loadNotifs(); }, 60000); loadNotifs(); checkSub(); }
   }
 
@@ -640,6 +676,7 @@
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
         ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : home.courses.length ? qrCta() : ""}
         ${pushCta()}
+        ${pushGate()}
         ${!limited && pk.ok && pk.count === 0 && !store.get("cm_pk_skip") ? `<div class="pk-cta"><div><b>فعّل الدخول ببصمة الوجه أو الإصبع</b><span class="small muted">إن مسح المتصفح بياناتك (يحدث كثيرًا في آيفون) أو غيّرت المتصفح، تعود إلى حسابك بلمسة دون كلمة السر ودون مراجعة المحاضر.</span>${pkMsg ? `<span class="small ${pkMsg.startsWith("!") ? "bad-t" : "ok-t"}">${esc(pkMsg.replace(/^!/, ""))}</span>` : ""}</div><div class="row"><button class="btn primary" id="pkOn">تفعيل</button><button class="btn ghost sm" id="pkSkip">لاحقًا</button></div></div>` : pkMsg && !pkMsg.startsWith("!") ? `<div class="msg ok small">${esc(pkMsg)}</div>` : ""}
         ${iosTip()}
         ${pwOpen ? `<div class="panel"><h3>تغيير كلمة السر</h3>
@@ -686,12 +723,13 @@
 
   /* ---------------- التكليفات والتسليم ---------------- */
   let tasks = null, tasksAt = 0, tkId = null, pickFile = null, linkMode = false, tkMsg = null, up = null, tkOff = 0;
-  let appeals = [], ap = null;   // ap: نموذج التظلم المفتوح { reason, note, file, mode, url, err }
+  let appeals = [], apWins = {}, ap = null;   // ap: نموذج التظلم المفتوح { reason, note, file, mode, url, err }
   const AP_R = { not_graded: "سلّمت المشروع ولم تُرصد درجتي", wrong_grade: "درجتي مرصودة خطأ", other: "سبب آخر" };
   async function loadTasks(force) {
     if (!token || (!force && Date.now() - tasksAt < 120000)) return;
     try {
       rpc("student_appeals", { p_token: token }).then(a => { appeals = a || []; if (tkId) renderTask(); }).catch(() => {});
+      rpc("student_appeal_windows", { p_token: token }).then(w => { apWins = w || {}; if (tkId) renderTask(); }).catch(() => {});
       const r = await rpc("student_tasks", { p_token: token });
       tasks = r.tasks || []; tasksAt = Date.now(); tkOff = Number(r.now_ms) - Date.now();
       if (home) renderHome();
@@ -803,8 +841,14 @@
       ${last.status === "accepted" ? `<span>الدرجة الجديدة: <b>${gNum(last.new_grade)}</b> من ${gNum(t.max)}${last.reply ? " · " + esc(last.reply) : ""}</span>` : ""}
       ${last.status === "rejected" ? `<span>سبب الرفض: ${esc(last.reply)}</span>` : ""}
       ${last.status === "pending" ? `<span class="small muted">سيراجعه المحاضر أو المعيد، ويصلك تنبيه بالقرار.</span><button class="btn sm ghost" id="apWd" style="justify-self:start">سحب التظلم</button>` : ""}</div>`;
+    const w = apWins[t.id], fmtW = d => new Date(d).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
     const canNew = (!last || last.status !== "pending") && mine.length < 3;
     if (!canNew) return out;
+    if (w && !w.open) {
+      const soon = w.mode === "window" && w.from && new Date(w.from) > new Date();
+      return out + `<div class="ap-win muted">${soon ? `باب التظلم على هذه الدرجة يُفتح ${esc(fmtW(w.from))} ويُغلق ${esc(fmtW(w.until))}.` : w.mode === "window" ? "انتهت مهلة التظلم على هذه الدرجة." : "باب التظلم على هذه الدرجة مغلق."}</div>`;
+    }
+    if (w && w.open && w.until) out += `<div class="ap-win">باب التظلم مفتوح حتى <b>${esc(fmtW(w.until))}</b>.</div>`;
     if (!ap || ap.tid !== t.id) return out + `<button class="btn block ap-open" id="apOpen">${last ? "تظلم مرة أخرى" : m.grade != null ? "تظلم على درجتي" : "سلّمت ولم تُرصد درجتي؟ قدّم تظلمًا"}</button>`;
     return out + `<div class="ap-form" id="apForm"><h3>تظلم على درجة «${esc(t.title)}»</h3>
       <div class="ap-rs" role="radiogroup">${Object.entries(AP_R).map(([k, l]) => `<label class="ap-r"><input type="radio" name="apR" value="${k}" ${ap.reason === k ? "checked" : ""}><span>${l}</span></label>`).join("")}</div>

@@ -4450,3 +4450,188 @@ create index if not exists courses_owner_email on public.courses(owner_email);
 create index if not exists student_tokens_code on public.student_tokens(student_code);
 create index if not exists pg_students_program on public.pg_students(program_id);
 create index if not exists pg_offerings_prog_code on public.pg_offerings(program_id, code);
+-- update-40: المحاضر يتحكم في مهلة التظلم لكل تكليف (مفتوح دائمًا بعد الإعلان / مغلق / من وقت إلى وقت)
+alter table public.tasks add column if not exists appeal_mode text not null default 'auto';
+alter table public.tasks add column if not exists appeal_from timestamptz;
+alter table public.tasks add column if not exists appeal_until timestamptz;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'tasks_appeal_mode_chk') then
+    alter table public.tasks add constraint tasks_appeal_mode_chk check (appeal_mode in ('auto', 'closed', 'window'));
+  end if;
+end $$;
+
+create or replace function public.appeal_is_open(t public.tasks) returns boolean
+language sql stable set search_path = public as $$
+  select coalesce(t.released, false) and case t.appeal_mode
+    when 'closed' then false
+    when 'window' then (t.appeal_from is null or now() >= t.appeal_from) and (t.appeal_until is null or now() < t.appeal_until)
+    else true end
+$$;
+
+create or replace function public.set_task_appeals(tid uuid, p_mode text, p_from timestamptz, p_until timestamptz) returns void
+language plpgsql security definer set search_path = public as $$
+declare t tasks; msg text; fmt text := 'YYYY/MM/DD HH24:MI';
+begin
+  select * into t from tasks where id = tid;
+  if t.id is null then raise exception 'not_found'; end if;
+  if coalesce(course_role(t.course_id), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  if p_mode not in ('auto', 'closed', 'window') then raise exception 'bad_mode'; end if;
+  if p_mode = 'window' then
+    p_from := coalesce(p_from, now());
+    if p_until is null or p_until <= p_from or p_until > p_from + interval '120 days' then raise exception 'bad_window'; end if;
+  else p_from := null; p_until := null; end if;
+  update tasks set appeal_mode = p_mode, appeal_from = p_from, appeal_until = p_until where id = tid;
+  msg := case p_mode when 'closed' then 'إغلاق باب التظلم' when 'auto' then 'فتح باب التظلم دون موعد إغلاق'
+    else 'فتح باب التظلم من ' || to_char(p_from at time zone 'Africa/Cairo', fmt) || ' حتى ' || to_char(p_until at time zone 'Africa/Cairo', fmt) end;
+  perform log_audit(t.course_id, msg || ' في «' || t.title || '»');
+  -- تنبيه الطلبة عند فتح باب التظلم لتكليف أُعلنت درجاته
+  if t.released and p_mode <> 'closed' then
+    perform notify_course(t.course_id, t.grp, 'appeal', 'باب التظلم مفتوح في «' || t.title || '»',
+      (select name from courses where id = t.course_id) || case when p_mode = 'window'
+        then case when p_from > now() + interval '5 minutes' then ' · يُفتح ' || to_char(p_from at time zone 'Africa/Cairo', fmt) else '' end
+             || ' · حتى ' || to_char(p_until at time zone 'Africa/Cairo', fmt) else '' end);
+  end if;
+end $$;
+revoke all on function public.set_task_appeals(uuid, text, timestamptz, timestamptz) from public, anon;
+grant execute on function public.set_task_appeals(uuid, text, timestamptz, timestamptz) to authenticated;
+
+-- حالة باب التظلم لكل تكليف أُعلنت درجاته في مواد الطالب
+create or replace function public.student_appeal_windows(p_token text) returns json
+language plpgsql stable security definer set search_path = public as $$
+declare code text := student_from_token(p_token);
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  return coalesce((select json_object_agg(t.id, json_build_object('open', appeal_is_open(t), 'mode', t.appeal_mode, 'from', t.appeal_from, 'until', t.appeal_until))
+    from tasks t join enrollments e on e.course_id = t.course_id and e.student_code = code
+    where t.released), '{}'::json);
+end $$;
+revoke all on function public.student_appeal_windows(text) from public;
+grant execute on function public.student_appeal_windows(text) to anon, authenticated;
+
+-- التظلم لا يُقبل إلا وباب التظلم مفتوح
+create or replace function public.student_appeal(p_token text, tid uuid, p_reason text, p_note text, p_file_id text, p_url text, p_name text, p_mime text, p_size bigint)
+returns json language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token); t tasks; s submissions; a grade_appeals; n int;
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  select * into t from tasks where id = tid;
+  if t.id is null or not exists (select 1 from enrollments where course_id = t.course_id and student_code = code) then raise exception 'not_found'; end if;
+  if not t.released then raise exception 'appeal_not_released'; end if;
+  if not appeal_is_open(t) then raise exception 'appeal_closed'; end if;
+  if p_reason not in ('not_graded', 'wrong_grade', 'other') then raise exception 'bad_reason'; end if;
+  if p_reason = 'other' and length(trim(coalesce(p_note, ''))) < 5 then raise exception 'appeal_note'; end if;
+  if coalesce(p_url, '') !~ '^https://' or length(p_url) > 600 then raise exception 'appeal_photo'; end if;
+  if exists (select 1 from grade_appeals where task_id = tid and student_code = code and status = 'pending') then raise exception 'appeal_open'; end if;
+  select count(*) into n from grade_appeals where task_id = tid and student_code = code;
+  if n >= 3 then raise exception 'appeal_limit'; end if;
+  select * into s from submissions where task_id = tid and student_code = code;
+  insert into grade_appeals(task_id, student_code, reason, note, file_id, file_url, file_name, mime, size, old_grade)
+    values (tid, code, p_reason, left(trim(coalesce(p_note, '')), 1000), nullif(p_file_id, ''), p_url, left(coalesce(p_name, ''), 200), left(coalesce(p_mime, ''), 100), p_size, s.grade + coalesce(s.bonus, 0))
+    returning * into a;
+  insert into audit(actor, course_id, action) values (coalesce((select name from enrollments where course_id = t.course_id and student_code = code), code), t.course_id, 'قدّم تظلمًا على درجة «' || t.title || '»');
+  return json_build_object('id', a.id);
+end $$;
+-- update-41: إشعار على هاتف الطالب لحظة وصوله إلى مستوى إنذار جديد + متابعة الفريق لمن فعّل الإشعارات
+create table if not exists public.warning_pushed (
+  course_id uuid not null references public.courses(id) on delete cascade,
+  student_code text not null,
+  level int not null check (level between 1 and 4),
+  at timestamptz not null default now(),
+  primary key (course_id, student_code, level)
+);
+alter table public.warning_pushed enable row level security;
+revoke all on public.warning_pushed from anon, authenticated;
+
+-- المستويات الحالية تُعتبر مُرسلة (حتى لا تصل إشعارات قديمة دفعة واحدة)، ويُرسل فقط ما يستجد
+insert into public.warning_pushed(course_id, student_code, level)
+select e.course_id, e.student_code, g from public.enrollments e
+  cross join lateral generate_series(1, public.warn_level(public.course_absences(e.course_id, e.student_code))) g
+on conflict do nothing;
+
+create or replace function public.warn_push(cid uuid, code text) returns void
+language plpgsql security definer set search_path = public as $$
+declare ab int; l int; prev int; cn text; ttl text;
+begin
+  ab := course_absences(cid, code); l := warn_level(ab);
+  if l = 0 then return; end if;
+  select coalesce(max(level), 0) into prev from warning_pushed where course_id = cid and student_code = code;
+  if l <= prev then return; end if;
+  insert into warning_pushed(course_id, student_code, level) select cid, code, g from generate_series(prev + 1, l) g on conflict do nothing;
+  cn := (select name from courses where id = cid);
+  ttl := case l when 1 then 'إنذار أول' when 2 then 'إنذار ثانٍ' when 3 then 'إنذار ثالث ونهائي' else 'انسحاب إجباري' end;
+  insert into notifications(student_code, kind, title, body, url)
+    values (code, 'warning', ttl || ' في ' || cn,
+      'غبت ' || ab || case when ab between 3 and 10 then ' مرات' else ' مرة' end || '. ' ||
+      case when l >= 4 then 'تجاوزت الحد المسموح به للغياب. راجع المحاضر.' when l = 3 then 'غياب آخر يعني الانسحاب الإجباري من المادة.' else 'افتح Hadro لتعرف تفاصيل غيابك.' end,
+      'https://elrashdan.github.io/classmate/');
+exception when others then null; -- لا يعطّل أبدًا العملية الأصلية
+end $$;
+revoke all on function public.warn_push(uuid, text) from public, anon, authenticated;
+
+-- عند انتهاء محاضرة أو إغلاق تسجيلها: افحص طلبة مجموعتها
+create or replace function public.trg_warn_session() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r record;
+begin
+  if (new.ended and not coalesce(old.ended, false)) or (new.closed_at is not null and old.closed_at is null) then
+    for r in select student_code from enrollments where course_id = new.course_id and (new.grp is null or grp = new.grp) loop
+      perform warn_push(new.course_id, r.student_code);
+    end loop;
+  end if;
+  return null;
+end $$;
+drop trigger if exists sessions_warn on public.sessions;
+create trigger sessions_warn after update on public.sessions for each row execute function public.trg_warn_session();
+
+-- عند تعديل الحضور (إلغاء أو رفض) في محاضرة منتهية: افحص الطالب نفسه
+create or replace function public.trg_warn_attendance() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare s sessions; code text := coalesce(new.student_code, old.student_code);
+begin
+  select * into s from sessions where id = coalesce(new.session_id, old.session_id);
+  if s.id is not null and (s.ended or s.closed_at is not null or now() >= s.ends_at) then perform warn_push(s.course_id, code); end if;
+  return null;
+end $$;
+drop trigger if exists attendance_warn on public.attendance;
+create trigger attendance_warn after update or delete on public.attendance for each row execute function public.trg_warn_attendance();
+revoke execute on function public.trg_warn_session(), public.trg_warn_attendance() from public, anon, authenticated;
+
+-- الفريق: من فعّل الإشعارات من طلبة المادة
+create or replace function public.course_push_status(cid uuid) returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if course_role(cid) is null then raise exception 'not_allowed'; end if;
+  return coalesce((select json_agg(distinct p.student_code) from push_subs p join enrollments e on e.course_id = cid and e.student_code = p.student_code), '[]'::json);
+end $$;
+revoke all on function public.course_push_status(uuid) from public, anon;
+grant execute on function public.course_push_status(uuid) to authenticated;
+-- update-42: إعادة تقسيم كل طلبة المادة من الأول (اختياري)، مع الإبقاء على التقسيم الجزئي
+create or replace function public.split_groups(cid uuid, p_names text[], p_order text default 'name', p_all boolean default false) returns json
+language plpgsql security definer set search_path = public as $$
+declare k int; n int; nm text; res json;
+begin
+  if course_role(cid) is null or course_role(cid) not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  k := coalesce(array_length(p_names, 1), 0);
+  if k < 2 or k > 12 then raise exception 'bad_groups'; end if;
+  foreach nm in array p_names loop
+    if nm is null or length(trim(nm)) = 0 or length(trim(nm)) > 30 then raise exception 'bad_groups'; end if;
+  end loop;
+  if (select count(distinct trim(x)) from unnest(p_names) x) <> k then raise exception 'bad_groups'; end if;
+  select count(*) into n from enrollments where course_id = cid and (p_all or coalesce(grp, '') = '');
+  if n = 0 then raise exception 'no_ungrouped'; end if;
+  if n < k then raise exception 'bad_groups'; end if;
+  with u as (
+    select student_code, ntile(k) over (order by case when p_order = 'code' then student_code else name end, student_code) b
+    from enrollments where course_id = cid and (p_all or coalesce(grp, '') = '')
+  )
+  update enrollments e set grp = trim(p_names[u.b]) from u
+   where e.course_id = cid and e.student_code = u.student_code;
+  select json_object_agg(g, c) into res from (
+    select grp g, count(*) c from enrollments where course_id = cid and grp = any (select trim(x) from unnest(p_names) x) group by grp) s;
+  perform log_audit(cid, case when p_all then 'إعادة تقسيم كل طلبة المادة (' || n || ') من الأول على ' else 'تقسيم ' || n || ' طالب دون مجموعة تلقائيًا على ' end
+    || k || ' مجموعات: ' || array_to_string(p_names, '، '));
+  return json_build_object('moved', n, 'groups', res);
+end $$;
+drop function if exists public.split_groups(uuid, text[], text);
+revoke all on function public.split_groups(uuid, text[], text, boolean) from public, anon;
+grant execute on function public.split_groups(uuid, text[], text, boolean) to authenticated;

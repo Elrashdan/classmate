@@ -1048,3 +1048,29 @@ header.top:has(details.dd[open]),.panel:has(details.dd[open]),.card:has(details.
 .walert-c small{color:var(--muted);line-height:1.45}
 .walert-c em{font-style:normal;font-size:.82rem;color:var(--accent);font-weight:600;white-space:nowrap}
 @media (max-width:640px){.walert-c em{display:none}}
+/* مهلة التظلم */
+.apctl{display:grid;gap:10px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:var(--sunk);margin:10px 0}
+.apctl-s{display:flex;gap:10px;align-items:flex-start}
+.apctl-s>div{display:grid;gap:2px}
+.apctl-dot{width:10px;height:10px;border-radius:50%;margin-top:7px;flex:none;background:var(--muted)}
+.apctl.on .apctl-dot{background:var(--ok,#1f8a5b);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok,#1f8a5b) 20%,transparent)}
+.apctl.soon .apctl-dot{background:var(--warn,#c98a12)}
+.apctl.off .apctl-dot{background:var(--bad)}
+.apctl-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;align-items:end}
+.ap-win{font-size:.88rem;padding:8px 12px;border-radius:10px;background:var(--sunk)}
+/* إلزام تفعيل الإشعارات */
+.push-must{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))!important;background:color-mix(in srgb,var(--accent) 8%,var(--surface))!important}
+.pg-steps{margin:6px 0 0;padding-inline-start:20px;display:grid;gap:4px;font-size:.9rem;line-height:1.5}
+.pgate{position:fixed;inset:0;z-index:200;display:grid;place-items:end center;background:rgba(10,20,16,.55);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);padding:12px;animation:ddIn .2s ease-out}
+.pgate-c{width:min(440px,100%);background:var(--surface);border-radius:22px;padding:22px 20px calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:10px;text-align:center;box-shadow:0 -10px 40px -10px rgba(0,0,0,.4)}
+.pgate-c h2{margin:0;font-size:1.25rem}
+.pgate-c p{margin:0;line-height:1.6}
+.pgate-c .pg-steps{text-align:start}
+.pgate-ic{justify-self:center;width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+.pgate-ic svg{width:32px;height:32px}
+.pgate-a{display:grid;gap:8px;margin-top:6px}
+@media (min-width:700px){.pgate{place-items:center}}
+.split-box.all{border-color:color-mix(in srgb,var(--warn,#c98a12) 50%,var(--line))}
+.push-sum{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.push-bar{width:120px;height:8px;border-radius:99px;background:var(--sunk);overflow:hidden;flex:none}
+.push-bar i{display:block;height:100%;background:var(--accent);border-radius:99px}

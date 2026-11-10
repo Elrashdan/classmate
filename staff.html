@@ -18,7 +18,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media=\'all\'">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -353,13 +353,14 @@
     if (focus) { const r = await sb.from("attempts").select("*").eq("session_id", focus.id).order("at", { ascending: false }).limit(300); if (r.error) throw r.error; attempts = r.data; }
     // الطلبات الثانوية تُرسل معًا بالتوازي (أسرع بكثير على شبكات الهاتف)
     const safe = p => p.then(r => r, () => null);
-    const [bnd, nr, tk, rsq, apq, anq] = await Promise.all([
+    const [bnd, nr, tk, rsq, apq, anq, psq] = await Promise.all([
       safe(rpc("course_bindings2", { cid: c.id }).catch(() => rpc("course_bindings", { cid: c.id }))),
       safe(sb.from("warning_notices").select("student_code,level,seen_at").eq("course_id", c.id)),
       sb.from("tasks").select("*").eq("course_id", c.id).order("due_at"),
       canRun(c) ? safe(rpc("course_reset_requests", { cid: c.id })) : null,
       safe(rpc("course_appeals", { cid: c.id })),
-      safe(sb.from("warning_announced").select("student_code,level,announced_at").eq("course_id", c.id))
+      safe(sb.from("warning_announced").select("student_code,level,announced_at").eq("course_id", c.id)),
+      safe(rpc("course_push_status", { cid: c.id }))
     ]);
     const announced = {}; if (anq && !anq.error) anq.data.forEach(n => { (announced[n.student_code] = announced[n.student_code] || {})[n.level] = n.announced_at; });
     const bindings = {}; (bnd || []).forEach(b => bindings[b.student_code] = b);
@@ -377,7 +378,7 @@
     }
     if (tkSel && !tasks.some(t => t.id === tkSel)) tkSel = null;
     const resets = rsq || [], appeals = apq || [];
-    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, announced, tasks, subs, excuses, resets, exts, appeals };
+    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, announced, push: new Set(psq || []), tasks, subs, excuses, resets, exts, appeals };
     clearInterval(rsPollT); if (canRun(c)) rsPollT = setInterval(pollResets, 10000);
     if (scan && !sessions.some(x => x.id === scan.sid && !x.ended)) closeScanner();
     render();
@@ -538,7 +539,8 @@
     const s = running(), pend = s ? Object.values(D.att[s.id] || {}).filter(r => r.status === "pending").length : 0;
     const put = (k, html) => { const el = document.querySelector(`[data-tbx="${k}"]`); if (el) el.outerHTML = `<i class="tbx" data-tbx="${k}">${html}</i>`; };
     put("live", s && !s.ended ? (pend ? `<b class="tb" title="${pend} طلب معلّق">${pend}</b>` : `<b class="live-dot" title="توجد محاضرة جارية"></b>`) : "");
-    put("students", "");
+    const ug = D.enroll.length > 1 && groupsOf().length ? D.enroll.filter(e => !e.grp).length : 0;
+    put("students", ug ? `<b class="tb" title="${ug} طالب دون مجموعة">${ug}</b>` : "");
     const wp = warnPending().length; put("report", wp ? `<b class="tb" title="${wp} طالب وصلوا إلى إنذار جديد ولم يُبلَّغوا">${wp}</b>` : "");
   }
   // المادة الجديدة: القائمة بحسب البرنامج والفصل الدراسي
@@ -1920,6 +1922,7 @@
         ${partsOf(t) ? `<p class="small" style="margin-top:6px">الدرجة مقسّمة على ${partsOf(t).length} مشاريع فرعية: ${partsOf(t).map(p => `<b>${esc(p.name)}</b> (${gN(p.max)})`).join(" + ")} = ${gN(t.max_grade)}</p>` : ""}
         ${hasDueDay(t) ? (nAbs ? `<div class="msg warn small" style="margin-top:8px"><b>${nAbs} ${nAbs === 1 ? "طالب كان غائبًا" : "طلبة كانوا غائبين"} في محاضرة ${DL(t)}</b> (${esc(dayStr(cmpDate(t)))})${t.absent_rule === "refuse" ? "، و<b>هذا التكليف لا يُقبل ممن غاب</b>: لا يستطيعون التسليم ولا تُرصد درجاتهم إلا إذا ضغطت «قبول بعذر» أمام الاسم (عذر مرضي أو غيره)." : "، فيُعدّ تسليمهم متأخرًا. تظهر أمام أسمائهم علامة «متأخر · غاب " + DL(t) + "»؛ راجِع العذر (مرضي أو غيره) ثم ارصد الدرجة، واكتب السبب في الملاحظة إن أردت."}</div>`
           : !dueSessions(t).length ? `<p class="small muted" style="margin-top:6px">لا توجد محاضرة مسجّلة في ${DL(t)} (${esc(dayStr(cmpDate(t)))})، لذا لا يمكن معرفة من سلّم متأخرًا من الحضور.</p>` : "") : ""}</div>
+      ${appealCtl(c, t)}
       ${msgHtml("tasks")}
       ${tkForm === t.id ? taskFormHtml(t) : ""}
       ${confirmKey === "deltask" ? `<div class="msg bad" style="display:grid;gap:8px"><b>حذف التكليف نهائي.</b>
@@ -1992,6 +1995,7 @@
     el.querySelectorAll("[data-f]").forEach(i => i.oninput = () => onIn(i, i.dataset.f, "feedback"));
     const sb2 = $("#tkSaveBtn"); if (sb2) sb2.onclick = () => saveGrades(t);
     const ub = $("#tkUndo"); if (ub) ub.onclick = () => { tkEdits = {}; renderTasks(); };
+    wireAppealCtl(c, t);
     const rl = $("#tkRel"); if (rl) rl.onclick = () => {
       if (!t.released && Object.keys(tkEdits).length) return toast("احفظ الدرجات أولًا، ثم أعلنها.");
       act(() => rpc("set_task_released", { tid: t.id, p_released: !t.released }), async () => { say("tasks", t.released ? "أُخفيت الدرجات عن الطلبة." : "أُعلنت الدرجات، ويراها كل طالب مع ملاحظتك في صفحته."); await loadCourse(); });
@@ -2456,6 +2460,47 @@
   /* ---------- تظلمات الطلبة على الدرجات ---------- */
   const AP_R = { not_graded: "سلّم ولم تُرصد درجته", wrong_grade: "الدرجة مرصودة خطأ", other: "سبب آخر" };
   let apShowOld = false;
+  /* ---------- مهلة التظلم لكل تكليف ---------- */
+  let apWin = null; // { tid, from, until } أثناء تحديد موعد
+  const dtLocal = d => { const x = new Date(d), z = n => String(n).padStart(2, "0"); return `${x.getFullYear()}-${z(x.getMonth() + 1)}-${z(x.getDate())}T${z(x.getHours())}:${z(x.getMinutes())}`; };
+  const fmtDT = d => new Date(d).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
+  function appealState(t) {
+    const m = t.appeal_mode || "auto", now = Date.now();
+    if (m === "closed") return { k: "off", t: "باب التظلم مغلق" };
+    if (m === "window") {
+      const f = t.appeal_from ? new Date(t.appeal_from).getTime() : 0, u = t.appeal_until ? new Date(t.appeal_until).getTime() : Infinity;
+      if (now < f) return { k: "soon", t: "باب التظلم يُفتح " + fmtDT(t.appeal_from) + " ويُغلق " + fmtDT(t.appeal_until) };
+      if (now >= u) return { k: "off", t: "انتهت مهلة التظلم (" + fmtDT(t.appeal_until) + ")" };
+      return { k: "on", t: "باب التظلم مفتوح حتى " + fmtDT(t.appeal_until) };
+    }
+    return { k: "on", t: "باب التظلم مفتوح دون موعد إغلاق" };
+  }
+  function appealCtl(c, t) {
+    if (!canRun(c)) return "";
+    const s = appealState(t), pend = (D.appeals || []).filter(a => a.task_id === t.id && a.status === "pending").length;
+    const quick = (d, l) => `<button class="dd-i" data-apq="${d}">${l}</button>`;
+    return `<div class="apctl no-print ${s.k}">
+      <div class="apctl-s"><i class="apctl-dot"></i><div><b>${esc(s.t)}</b><span class="small muted">${t.released ? (s.k === "on" ? "يستطيع الطالب التظلم على درجته الآن." : "لا يستطيع الطلبة تقديم تظلم جديد الآن.") : "يبدأ التظلم بعد إعلان الدرجات للطلبة."}${pend ? ` · <b>${pend}</b> تظلم بانتظار قرارك` : ""}</span></div></div>
+      <div class="row">
+        ${s.k === "on" ? `<button class="btn sm" id="apCloseNow">إغلاق باب التظلم الآن</button>` : `<button class="btn sm primary" id="apOpenNow">فتح باب التظلم</button>`}
+        ${CM.dd("مهلة محددة", [`<div class="dd-h">افتح الآن لمدة</div>`, quick(1, "يوم واحد"), quick(2, "يومين"), quick(3, "3 أيام"), quick(7, "أسبوع"), `<hr><button class="dd-i" id="apPick">حدّد موعد الفتح والإغلاق…</button>`], { end: true })}
+      </div>
+      ${apWin && apWin.tid === t.id ? `<div class="apctl-f">
+        <label class="f"><span>يُفتح</span><input type="datetime-local" id="apFrom" value="${esc(apWin.from)}"></label>
+        <label class="f"><span>يُغلق</span><input type="datetime-local" id="apUntil" value="${esc(apWin.until)}"></label>
+        <div class="row"><button class="btn sm primary" id="apWinGo">حفظ المهلة</button><button class="btn sm ghost" id="apWinX">إلغاء</button></div>
+      </div>` : ""}
+    </div>`;
+  }
+  function wireAppealCtl(c, t) {
+    const set = (mode, from, until, msg) => act(() => rpc("set_task_appeals", { tid: t.id, p_mode: mode, p_from: from, p_until: until }), async () => { apWin = null; say("tasks", msg); await loadCourse(); });
+    const on = $("#apOpenNow"); if (on) on.onclick = () => set("auto", null, null, t.released ? "فُتح باب التظلم، ووصل للطلبة تنبيه بذلك." : "سيُفتح باب التظلم عند إعلان الدرجات.");
+    const off = $("#apCloseNow"); if (off) off.onclick = () => set("closed", null, null, "أُغلق باب التظلم. التظلمات المقدَّمة قبل الإغلاق ما زالت بانتظار قرارك.");
+    document.querySelectorAll("[data-apq]").forEach(b => b.onclick = () => { const d = +b.dataset.apq, u = new Date(Date.now() + d * 86400e3); u.setHours(23, 59, 0, 0); set("window", new Date().toISOString(), u.toISOString(), "فُتح باب التظلم حتى " + fmtDT(u) + "."); });
+    const pk = $("#apPick"); if (pk) pk.onclick = () => { const f = new Date(), u = new Date(Date.now() + 3 * 86400e3); u.setHours(23, 59, 0, 0); apWin = { tid: t.id, from: dtLocal(t.appeal_from || f), until: dtLocal(t.appeal_until || u) }; renderTasks(); const i = $("#apFrom"); if (i) i.focus(); };
+    const x = $("#apWinX"); if (x) x.onclick = () => { apWin = null; renderTasks(); };
+    const g = $("#apWinGo"); if (g) g.onclick = () => { const f = $("#apFrom").value, u = $("#apUntil").value; if (!f || !u) return; set("window", new Date(f).toISOString(), new Date(u).toISOString(), "حُفظت مهلة التظلم: من " + fmtDT(f) + " حتى " + fmtDT(u) + "."); };
+  }
   function appealsHtml(c) {
     const all = (D.appeals || []), open = all.filter(a => a.status === "pending"), old = all.filter(a => a.status !== "pending");
     if (!all.length) return "";
@@ -2934,38 +2979,66 @@
   let split = null; // { k, style, order }
   const splitNames = sp => SPLIT_NAMES[sp.style].slice(0, sp.k);
   function splitHtml(c) {
-    if (!canRun(c)) return "";
+    if (!canRun(c) || D.enroll.length < 2) return "";
     const un = D.enroll.filter(e => !e.grp), ex = groupsOf();
-    if (!un.length || D.enroll.length < 2) return "";
-    if (!split) return `<div class="split-hint"><span>${ICO('<circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5M14 15c3 0 7 1 7 5"/>')} <b>${un.length}</b> طالب ${un.length === D.enroll.length ? "في المادة غير مقسَّمين على مجموعات" : "دون مجموعة"}</span><button class="btn sm primary" id="spOpen">تقسيمهم تلقائيًا</button></div>`;
-    const names = splitNames(split), base = Math.floor(un.length / split.k), extra = un.length % split.k;
-    const clash = names.filter(n => ex.includes(n));
-    return `<div class="split-box" role="group" aria-label="تقسيم تلقائي">
-      <div class="split-h"><b>تقسيم ${un.length} طالب على مجموعات</b><button class="btn sm ghost" id="spX" aria-label="إغلاق">إلغاء</button></div>
+    if (!split) {
+      if (!un.length) return "";
+      return `<div class="split-hint"><span>${ICO('<circle cx="9" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5M14 15c3 0 7 1 7 5"/>')} <b>${un.length}</b> طالب ${un.length === D.enroll.length ? "في المادة غير مقسَّمين على مجموعات" : "ليسوا في أي مجموعة"}${un.length < D.enroll.length ? `<button class="linkish small" id="spShow">عرضهم</button>` : ""}</span>
+        <span class="row"><button class="btn sm primary" id="spOpen">${un.length === D.enroll.length ? "تقسيمهم تلقائيًا" : "تقسيم من ليس لهم مجموعة"}</button>${un.length < D.enroll.length ? `<button class="btn sm" id="spAll2">إعادة تقسيم الكل من الأول</button>` : ""}</span></div>`;
+    }
+    const pool = split.all ? D.enroll : un;
+    const names = splitNames(split), base = Math.floor(pool.length / split.k), extra = pool.length % split.k;
+    const clash = split.all ? [] : names.filter(n => ex.includes(n));
+    const grpSess = D.sessions.filter(x => x.grp).length, grpTasks = D.tasks.filter(x => x.grp).length;
+    return `<div class="split-box ${split.all ? "all" : ""}" role="group" aria-label="تقسيم تلقائي">
+      <div class="split-h"><b>${split.all ? `إعادة تقسيم كل طلبة المادة (${pool.length}) من الأول` : `تقسيم ${pool.length} طالب ليس لهم مجموعة`}</b><button class="btn sm ghost" id="spX">إلغاء</button></div>
       <div class="split-f">
-        <label class="f"><span>عدد المجموعات</span><select id="spK">${[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter(k => k <= un.length).map(k => `<option value="${k}" ${split.k === k ? "selected" : ""}>${k}</option>`).join("")}</select></label>
+        <label class="f"><span>عدد المجموعات</span><select id="spK">${[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter(k => k <= pool.length).map(k => `<option value="${k}" ${split.k === k ? "selected" : ""}>${k}</option>`).join("")}</select></label>
         <label class="f"><span>التسمية</span><select id="spS"><option value="letters" ${split.style === "letters" ? "selected" : ""}>مجموعة أ، ب، ج…</option><option value="ordinal" ${split.style === "ordinal" ? "selected" : ""}>المجموعة الأولى، الثانية…</option></select></label>
         <label class="f"><span>الترتيب</span><select id="spO"><option value="name" ${split.order === "name" ? "selected" : ""}>أبجديًا بالاسم</option><option value="code" ${split.order === "code" ? "selected" : ""}>بالكود</option></select></label>
       </div>
       <div class="split-pv">${names.map((n, i) => `<span class="chip">${split.style === "ordinal" ? "المجموعة" : "مجموعة"} ${esc(n)} · ${base + (i < extra ? 1 : 0)} طالب</span>`).join("")}</div>
       ${clash.length ? `<p class="small muted">مجموعة ${clash.map(esc).join("، ")} موجودة بالفعل، وسيُضاف إليها الطلبة الجدد.</p>` : ""}
-      <p class="small muted">يُقسَّم الطلبة ${split.order === "code" ? "بترتيب الكود" : "بالترتيب الأبجدي"} إلى أجزاء متساوية تقريبًا، ولا يتغير الطلبة الموزَّعون بالفعل. يمكنك نقل أي طالب بعدها من عمود المجموعة.</p>
-      <div class="row"><button class="btn primary" id="spGo">تقسيم الآن</button></div>
+      ${split.all ? `<div class="msg warn small"><b>تنبيه:</b> سيتغير مجموعة كل الطلبة حسب الترتيب الجديد.${grpSess || grpTasks ? ` في المادة ${grpSess ? grpSess + " محاضرة" : ""}${grpSess && grpTasks ? " و" : ""}${grpTasks ? grpTasks + " تكليف" : ""} مرتبطة بمجموعة بعينها، والطالب الذي تتغير مجموعته يُحسب غيابه وتكليفاته على مجموعته الجديدة.` : ""} الأفضل أن تعيد التقسيم في بداية الترم.</div>
+        <label class="ap-r"><input type="checkbox" id="spSure" ${split.sure ? "checked" : ""}><span>فهمت، أعد تقسيم كل الطلبة</span></label>`
+        : `<p class="small muted">يُقسَّم الطلبة ${split.order === "code" ? "بترتيب الكود" : "بالترتيب الأبجدي"} إلى أجزاء متساوية تقريبًا، ولا يتغير الطلبة الموزَّعون بالفعل.</p>`}
+      <div class="row"><button class="btn primary" id="spGo" ${split.all && !split.sure ? "disabled" : ""}>${split.all ? "إعادة التقسيم الآن" : "تقسيم الآن"}</button></div>
     </div>`;
   }
   function wireSplit(c) {
-    const o = $("#spOpen"); if (o) o.onclick = () => { const n = D.enroll.filter(e => !e.grp).length; split = { k: n >= 40 ? 2 : 2, style: "letters", order: "name" }; renderRoster(); };
+    const start = all => { split = { k: 2, style: groupsOf().some(g => SPLIT_NAMES.ordinal.includes(g)) ? "ordinal" : "letters", order: "name", all, sure: false }; renderRoster(); const b = $(".split-box"); if (b) b.scrollIntoView({ block: "nearest" }); };
+    const o = $("#spOpen"); if (o) o.onclick = () => start(false);
+    ["#spAll", "#spAll2"].forEach(id => { const a = $(id); if (a) a.onclick = () => start(true); });
+    const sh = $("#spShow"); if (sh) sh.onclick = () => { rosterRows(); rv.f.grp = new Set([""]); renderRoster(); const t = document.querySelector("#rsTbl"); if (t) t.scrollIntoView({ block: "start" }); };
     const x = $("#spX"); if (x) x.onclick = () => { split = null; renderRoster(); };
     const k = $("#spK"); if (k) k.onchange = () => { split.k = +k.value; renderRoster(); };
     const st = $("#spS"); if (st) st.onchange = () => { split.style = st.value; renderRoster(); };
     const od = $("#spO"); if (od) od.onchange = () => { split.order = od.value; renderRoster(); };
+    const su = $("#spSure"); if (su) su.onchange = () => { split.sure = su.checked; const g = $("#spGo"); if (g) g.disabled = !su.checked; };
     const g = $("#spGo"); if (g) g.onclick = async () => {
       g.disabled = true; g.textContent = "جارٍ التقسيم…";
       try {
-        const r = await rpc("split_groups", { cid: c.id, p_names: splitNames(split), p_order: split.order });
-        flash.roster = `تم تقسيم ${r.moved} طالب على ${split.k} مجموعات.`; split = null;
+        const r = await rpc("split_groups", { cid: c.id, p_names: splitNames(split), p_order: split.order, p_all: !!split.all });
+        flash.roster = split.all ? `أُعيد تقسيم ${r.moved} طالب على ${split.k} مجموعات.` : `تم تقسيم ${r.moved} طالب على ${split.k} مجموعات.`; split = null;
         await loadCourse();
       } catch (e) { showErr(e); g.disabled = false; g.textContent = "تقسيم الآن"; }
+    };
+  }
+  // من فعّل الإشعارات من الطلبة
+  function pushSumHtml(c) {
+    if (!D.enroll.length) return "";
+    const on = D.enroll.filter(e => D.push.has(e.student_code)).length, off = D.enroll.length - on, pct = Math.round(on / D.enroll.length * 100);
+    return `<div class="push-sum"><div class="push-bar" role="img" aria-label="${pct}% فعّلوا الإشعارات"><i style="width:${pct}%"></i></div>
+      <span class="small"><b>${on}</b> من ${D.enroll.length} طالب فعّلوا الإشعارات على هواتفهم${off ? ` · <b>${off}</b> لم يفعّلوها بعد` : " ✓"}</span>
+      ${off ? `<button class="btn sm ghost" id="pushCopy">نسخ رسالة تذكير لهم</button>` : ""}</div>`;
+  }
+  function wirePushSum(c) {
+    const b = $("#pushCopy"); if (!b) return;
+    b.onclick = async () => {
+      const off = D.enroll.filter(e => !D.push.has(e.student_code)).sort(byGroupName);
+      const t = `تذكير لطلبة مادة «${c.name}»: فعّلوا الإشعارات على Hadro حتى يصلكم تنبيه بدء المحاضرة وإنذارات الغياب والدرجات.\nافتح الموقع واضغط «تفعيل الإشعارات». على الآيفون: من Safari اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية»، وافتح Hadro من الأيقونة ثم فعّلها.\n\nلم يفعّلها بعد (${off.length}):\n` + off.map(e => `- ${e.student_code} ${e.name}`).join("\n");
+      try { await navigator.clipboard.writeText(t); b.textContent = "تم النسخ ✓"; } catch { prompt("انسخ الرسالة:", t); }
+      setTimeout(() => { b.textContent = "نسخ رسالة تذكير لهم"; }, 2500);
     };
   }
 
@@ -2974,9 +3047,10 @@
     const c = course(), el = $("#rosterPanel"), mng = canManage(c), add = canRun(c);
     const gOpts = [...new Set(["أ", "ب", "ج", ...groupsOf()])].sort();
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.enroll.length} طالب</div><h2>طلبة المادة</h2></div>
-      <div class="row">${add ? `<button class="btn sm ${addOpen ? "primary" : ""}" id="stAddT">إضافة طالب</button>` : ""}${mng ? `<label class="btn sm" for="xls">رفع ملف إكسل</label><input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
+      <div class="row">${add ? `<button class="btn sm ${addOpen ? "primary" : ""}" id="stAddT">إضافة طالب</button>` : ""}${add && D.enroll.length > 1 && groupsOf().length && !split ? `<button class="btn sm" id="spAll">إعادة تقسيم المجموعات</button>` : ""}${mng ? `<label class="btn sm" for="xls">رفع ملف إكسل</label><input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
       ${msgHtml("roster")}
       ${splitHtml(c)}
+      ${pushSumHtml(c)}
       ${add && addOpen ? `<div class="manbox" style="background:var(--sunk);border-radius:8px;padding:12px">
         <div class="settings" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
           <label class="f"><span>كود الطالب</span><input type="text" id="stCode" class="mono" style="text-align:start" inputmode="numeric" value="${esc(addDraft.code)}"></label>
@@ -2995,7 +3069,7 @@
         <div class="tbl-wrap" id="rsWrap" style="max-height:480px;overflow:auto"><table id="rsTbl"></table></div>` : `<div class="empty">${mng ? "ارفع ملف إكسل يتضمن أكواد الطلبة وأسماءهم." : "لم يرفع المحاضر ملف الطلبة بعد."}</div>`}
       ${mng && D.enroll.length ? `<p class="muted small">«فك ربط الهاتف» إذا غيّر الطالب هاتفه، فيدخل من الهاتف الجديد بكلمة السر نفسها. «حذف الحساب» إذا نسي كلمة السر أو أنشأ شخص آخر حسابًا بكوده، فينشئ حسابًا جديدًا. «إزالة من المادة» تحذفه من الكشف، وإذا أعدته لاحقًا عاد حضوره السابق.</p>` : ""}`;
     const x = $("#xls"); if (x) x.onchange = ev => importFile(ev.target.files[0]);
-    wireSplit(c);
+    wireSplit(c); wirePushSum(c);
     const at = $("#stAddT"); if (at) at.onclick = () => { addOpen = !addOpen; renderRoster(); const i = $("#stCode"); if (i) i.focus(); };
     const keep = () => { addDraft = { code: $("#stCode").value, name: $("#stName").value, grp: $("#stGrp").value, pin: $("#stPin").value }; };
     ["#stCode", "#stName", "#stPin"].forEach(q => { const i = $(q); if (i) i.oninput = keep; });

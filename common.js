@@ -95,7 +95,7 @@
     due_required: "حدّد موعد التسليم.",
     bad_late: "اختر ما يحدث بعد موعد التسليم.",
     max_below_grades: "لا يمكن جعل الدرجة العظمى أقل من درجة رُصدت بالفعل لأحد الطلبة.",
-    appeal_not_released: "لا يمكن التظلم قبل إعلان الدرجات.", appeal_note: "اكتب سبب التظلم.", appeal_photo: "أرفق صورة المشروع.", appeal_open: "لديك تظلم قيد المراجعة في هذا التكليف.", appeal_limit: "وصلت إلى الحد الأقصى للتظلمات في هذا التكليف (3).", appeal_decided: "تم البت في هذا التظلم بالفعل.", appeal_reply: "اكتب سبب الرفض.", bad_reason: "اختر سبب التظلم.", bad_groups: "أسماء المجموعات غير صالحة (من ٢ إلى ١٢ اسمًا مختلفًا).", no_ungrouped: "كل الطلبة موزَّعون على مجموعات بالفعل.",
+    appeal_not_released: "لا يمكن التظلم قبل إعلان الدرجات.", appeal_note: "اكتب سبب التظلم.", appeal_photo: "أرفق صورة المشروع.", appeal_open: "لديك تظلم قيد المراجعة في هذا التكليف.", appeal_limit: "وصلت إلى الحد الأقصى للتظلمات في هذا التكليف (3).", appeal_decided: "تم البت في هذا التظلم بالفعل.", appeal_reply: "اكتب سبب الرفض.", bad_reason: "اختر سبب التظلم.", bad_groups: "أسماء المجموعات غير صالحة (من ٢ إلى ١٢ اسمًا مختلفًا).", no_ungrouped: "كل الطلبة موزَّعون على مجموعات بالفعل.", appeal_closed: "باب التظلم مغلق في هذا التكليف.", bad_window: "اختر موعد إغلاق بعد موعد الفتح (حتى 120 يومًا).", bad_mode: "اختيار غير صالح.",
     grade_range: "توجد درجة أكبر من الدرجة العظمى للتكليف أو أقل من صفر.",
     bad_grade: "الدرجة غير صحيحة.",
     task_closed: "انتهى موعد التسليم، وأُغلق التسليم في هذا التكليف.",
@@ -324,7 +324,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b65)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b66)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
