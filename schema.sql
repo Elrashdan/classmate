@@ -5250,3 +5250,102 @@ revoke all on function public.tt_admin(), public.tt_list(), public.tt_get(uuid),
 grant execute on function public.tt_list(), public.tt_get(uuid), public.tt_create(text, int, uuid), public.tt_update(uuid, jsonb), public.tt_delete(uuid),
   public.tt_cohort_save(uuid, jsonb), public.tt_cohort_delete(uuid), public.tt_slot_save(uuid, jsonb), public.tt_slot_delete(uuid) to authenticated;
 grant execute on function public.student_timetable(text) to anon, authenticated;
+
+-- تحديث 49: ربط أسماء الجدول الدراسي بحسابات أعضاء هيئة التدريس تلقائيًا
+--   لما عضو يتسجل (أو يتعدّل اسمه/لقبه) نلاقي اسمه المختصر في الجدول (مثل «م.خلود» أو «م.مريم الساعي»)،
+--   نربطه بإيميله، ونكتب اسمه كما في الحساب (أول اسمين) مع اللقب. الاسم الأصلي يتحفظ في المفتاح "o".
+--   لو الاسم المختصر ينطبق على أكتر من حساب، ما بنربطش (علشان ما نغلطش).
+
+create or replace function public.tt_norm(t text) returns text
+language sql immutable set search_path = public as $$
+  select regexp_replace(translate(coalesce(t, ''), 'أإآةىـ', 'اااهي'), '[\s\.\-]', '', 'g');
+$$;
+
+-- يشيل اللقب من أول الاسم: أ.م.د. / أ.د. / م.م. / م. / د. / أ.
+create or replace function public.tt_strip(n text) returns text
+language sql immutable set search_path = public as $$
+  select trim(regexp_replace(coalesce(n, ''), '^\s*(([أا]\s*\.\s*م\s*\.\s*د)|([أا]\s*\.\s*د)|(م\s*\.?\s*م)|م|د|[أا])\s*\.\s*', ''));
+$$;
+
+create or replace function public.tt_words(n text) returns text[]
+language sql immutable set search_path = public as $$
+  select array_remove(regexp_split_to_array(regexp_replace(translate(trim(coalesce(n, '')), 'أإآةىـ', 'اااهي'), 'عبد\s+', 'عبد', 'g'), '\s+'), '');
+$$;
+
+-- اسم الجدول (بعد شيل اللقب) ينطبق على اسم الحساب لو كلماته هي أول كلمات اسم الحساب بالترتيب
+create or replace function public.tt_name_match(tbl text, acct text) returns boolean
+language plpgsql immutable set search_path = public as $$
+declare tw text[] := tt_words(tt_strip(tbl)); aw text[] := tt_words(acct); i int;
+begin
+  if coalesce(array_length(tw, 1), 0) = 0 or coalesce(array_length(aw, 1), 0) < array_length(tw, 1) then return false; end if;
+  for i in 1 .. array_length(tw, 1) loop
+    if tt_norm(tw[i]) <> tt_norm(aw[i]) then return false; end if;
+  end loop;
+  return true;
+end $$;
+
+-- نوع العضو من لقبه في الحساب (معيد/مدرس مساعد = ta ، غير كده lec ، ولو مش معروف null)
+create or replace function public.tt_kind(title text) returns text
+language sql immutable set search_path = public as $$
+  select case when title ~ '(معيد|مدرس مساعد)' then 'ta' when title ~ '(أستاذ|استاذ|مدرس|دكتور)' then 'lec' else null end;
+$$;
+
+create or replace function public.tt_prefix(title text, old_n text) returns text
+language sql immutable set search_path = public as $$
+  select case
+    when title ~ 'مدرس مساعد' then 'م.م.'
+    when title ~ 'معيد' then 'م.'
+    when title ~ '(أستاذ|استاذ) مساعد' then 'أ.م.د.'
+    when title ~ '(أستاذ|استاذ)' then 'أ.د.'
+    when title ~ '(مدرس|دكتور)' then 'د.'
+    else coalesce(substring(coalesce(old_n, '') from '^\s*((?:[أا]\s*\.\s*م\s*\.\s*د|[أا]\s*\.\s*د|م\s*\.?\s*م|م|د|[أا])\s*\.)'), '') end;
+$$;
+
+-- الاسم المعروض: أول اسمين من اسم الحساب («عبد ...» تتحسب كلمة واحدة)
+create or replace function public.tt_short(acct text) returns text
+language sql immutable set search_path = public as $$
+  select array_to_string((array_remove(regexp_split_to_array(regexp_replace(trim(coalesce(acct, '')), 'عبد\s+', 'عبد', 'g'), '\s+'), ''))[1:2], ' ');
+$$;
+
+create or replace function public.tt_link_staff(p_email text) returns int
+language plpgsql security definer set search_path = public as $$
+declare st staff; s record; nt jsonb; k text; sh text; n int := 0;
+begin
+  select * into st from staff where email = p_email;
+  if st.email is null or coalesce(st.status, '') in ('disabled', 'removed', 'rejected') or length(trim(coalesce(st.name, ''))) < 2 then return 0; end if;
+  k := tt_kind(st.title); sh := tt_short(st.name);
+  for s in select id, team from tt_slots where jsonb_array_length(team) > 0 loop
+    select coalesce(jsonb_agg(
+             jsonb_set(t, '{staff}', coalesce((
+               select jsonb_agg(case
+                 when p->>'e' = p_email
+                   or ((p->>'e') is null and (k is null or p->>'k' = k) and tt_name_match(p->>'n', st.name)
+                       and not exists (select 1 from staff o where o.email <> p_email and coalesce(o.status, '') not in ('disabled', 'removed', 'rejected')
+                                        and (tt_kind(o.title) is null or p->>'k' = tt_kind(o.title)) and tt_name_match(p->>'n', o.name)))
+                 then p || jsonb_build_object('e', p_email, 'n', tt_prefix(st.title, coalesce(p->>'o', p->>'n')) || sh, 'o', coalesce(p->>'o', p->>'n'))
+                 else p end order by o2)
+               from jsonb_array_elements(t->'staff') with ordinality z(p, o2)), '[]'::jsonb))
+             order by o1), '[]'::jsonb)
+      into nt from jsonb_array_elements(s.team) with ordinality y(t, o1);
+    if nt is distinct from s.team then update tt_slots set team = nt where id = s.id; n := n + 1; end if;
+  end loop;
+  return n;
+end $$;
+
+create or replace function public.tt_staff_link_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  perform tt_link_staff(new.email);
+  return new;
+end $$;
+
+drop trigger if exists staff_tt_link on public.staff;
+create trigger staff_tt_link after insert or update of name, title, status on public.staff
+  for each row execute function public.tt_staff_link_trg();
+
+revoke execute on function public.tt_link_staff(text), public.tt_staff_link_trg() from public, anon, authenticated;
+
+-- ربط الحسابات الموجودة حاليًا
+do $$ declare r record; begin
+  for r in select email from staff loop perform public.tt_link_staff(r.email); end loop;
+end $$;

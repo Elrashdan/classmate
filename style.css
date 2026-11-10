@@ -1273,3 +1273,4 @@ select{background-repeat:no-repeat!important;background-position:left 12px cente
 .hc-h .btn.icon{width:36px;height:36px;min-height:36px;display:grid;place-items:center;padding:0;flex:none}
 .tw-s.done{opacity:.55}
 .help-btn svg{width:19px;height:19px;display:block}
+#myTT{display:grid;gap:16px}
