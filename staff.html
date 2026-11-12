@@ -3609,16 +3609,15 @@
   document.addEventListener("click", () => { if (fpopCol) closeFpop(); });
   document.addEventListener("keydown", ev => { if (ev.key === "Escape" && fpopCol) closeFpop(); });
   window.addEventListener("resize", () => { if (fpopCol) closeFpop(); });
-  // نموذج إكسل لملف الطلبة: نفس الأعمدة اللي «رفع ملف إكسل» بيقراها (الصف الأول عناوين)، ولو المادة فيها طلبة بيتملوا فيه علشان تعدّل وترفع تاني
+  // نموذج إكسل فاضي لملف الطلبة: نفس الأعمدة اللي «رفع ملف إكسل» بيقراها (الصف الأول عناوين)
   async function rosterTemplate() {
     await loadExcelJS();
-    const c = course(), wb = new ExcelJS.Workbook(), rows = D && D.cid === c.id ? D.enroll.slice().sort(byGroupName) : [];
+    const c = course(), wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet("الطلبة", { views: [{ rightToLeft: true, state: "frozen", ySplit: 1 }] });
     ws.columns = [{ header: "الكود", key: "code", width: 16 }, { header: "الاسم", key: "name", width: 38 }, { header: "المجموعة", key: "grp", width: 12 }, { header: "رمز التفعيل (اختياري)", key: "pin", width: 22 }];
     const hr = ws.getRow(1); hr.height = 24;
     hr.eachCell(cl => { cl.font = { name: "Arial", bold: true, size: 12, color: { argb: "FFFFFFFF" } }; cl.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D6B58" } }; cl.alignment = { horizontal: "center", vertical: "middle" }; });
-    rows.forEach(e => ws.addRow({ code: e.student_code, name: e.name, grp: e.grp || "", pin: "" }));
-    const N = Math.max(rows.length + 150, 300);
+    const N = 400;
     for (let r = 2; r <= N; r++) {
       ws.getCell(r, 1).numFmt = "@"; ws.getCell(r, 4).numFmt = "@";
       ws.getCell(r, 3).dataValidation = { type: "list", allowBlank: true, formulae: ['"أ,ب,ج,د,هـ,و"'], showErrorMessage: false };
