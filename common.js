@@ -227,15 +227,111 @@
     const mc = document.querySelector('meta[name="theme-color"]'); if (mc) mc.content = dark ? "#0e1513" : "#1d6b58";
     document.querySelectorAll("[data-theme-btn]").forEach(b => { b.innerHTML = ICONS[t]; b.title = "الثيم: " + THEMES[t] + " (اضغط للتغيير)"; b.setAttribute("aria-label", b.title); });
   };
-  CM.themeBtn = () => { const t = CM.theme(); return `<button class="btn sm ghost icon" data-theme-btn title="الثيم: ${THEMES[t]} (اضغط للتغيير)" aria-label="الثيم: ${THEMES[t]}">${ICONS[t]}</button>`; };
+  const LOOK_ICO = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.7-1.3-.7-2.1 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="10" cy="7" r="1.2" fill="currentColor"/><circle cx="14.5" cy="7" r="1.2" fill="currentColor"/></svg>';
+  CM.themeBtn = () => { const t = CM.theme(); return `<button class="btn sm ghost icon" data-theme-btn title="الثيم: ${THEMES[t]} (اضغط للتغيير)" aria-label="الثيم: ${THEMES[t]}">${ICONS[t]}</button><button class="btn sm ghost icon" data-look-btn title="المظهر: شكل الواجهة وألوانها" aria-label="المظهر: شكل الواجهة وألوانها">${LOOK_ICO}</button>`; };
   document.addEventListener("click", ev => {
     const b = ev.target.closest && ev.target.closest("[data-theme-btn]"); if (!b) return;
     const next = { auto: "light", light: "dark", dark: "auto" }[CM.theme()];
     if (next === "auto") CM.store.del("cm_theme"); else CM.store.set("cm_theme", next);
     applyTheme();
+
   });
   if (window.matchMedia) { try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme); } catch (e) {} }
   applyTheme();
+
+  /* ---------- المظهر: الواجهة الكلاسيكية أو الحديثة + مجموعة ألوان من 3 ألوان + الحركة مع التمرير ---------- */
+  CM.PALETTES = [
+    { id: "lime", n: "ليموني", c: ["#ececec", "#c6f432", "#0e0e0e"] },
+    { id: "hadro", n: "Hadro", c: ["#eef2f0", "#9fe3c8", "#122320"] },
+    { id: "sun", n: "برتقالي", c: ["#efebe6", "#ff8a3d", "#1b1712"] },
+    { id: "violet", n: "بنفسجي", c: ["#ecebf3", "#b9a6ff", "#17142a"] },
+    { id: "sky", n: "سماوي", c: ["#e8edf3", "#7cc8ff", "#0f1a2b"] },
+    { id: "rose", n: "وردي", c: ["#f3eaee", "#ff9ec4", "#1d1418"] },
+    { id: "sand", n: "رملي", c: ["#efe8dc", "#e9c46a", "#23201a"] },
+    { id: "mint", n: "نعناعي", c: ["#e9f0ec", "#5fe3a1", "#0b1d16"] }
+  ];
+  const lookGet = () => { let o = {}; try { o = JSON.parse(CM.store.get("cm_look") || "{}") || {}; } catch (e) {} return { skin: o.skin === "nx" ? "nx" : "classic", pal: o.pal || "lime", own: Array.isArray(o.own) && o.own.length === 3 ? o.own : null, motion: o.motion !== false }; };
+  const lookSet = o => { CM.store.set("cm_look", JSON.stringify(o)); applyLook(); };
+  CM.look = lookGet;
+  const palColors = L => L.pal === "own" && L.own ? L.own : (CM.PALETTES.find(p => p.id === L.pal) || CM.PALETTES[0]).c;
+  const lum = hex => { const h = String(hex).replace("#", ""); if (h.length < 6) return .5; const [r, g, b] = [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); return .2126 * r + .7152 * g + .0722 * b; };
+  function applyLook() {
+    const L = lookGet(), r = document.documentElement;
+    if (L.skin === "nx") {
+      const [b, h, d] = palColors(L); r.dataset.skin = "nx";
+      r.style.setProperty("--nx-base", b); r.style.setProperty("--nx-hi", h); r.style.setProperty("--nx-dark", d);
+      r.style.setProperty("--nx-on-hi", lum(h) > .35 ? d : b);
+    } else { delete r.dataset.skin; ["--nx-base", "--nx-hi", "--nx-dark", "--nx-on-hi"].forEach(k => r.style.removeProperty(k)); }
+    if (L.motion) delete r.dataset.motion; else r.dataset.motion = "off";
+    document.dispatchEvent(new Event("cm-look"));
+  }
+  CM.appearance = function () {
+    let L = lookGet();
+    const d = document.createElement("div"); d.className = "ap-dlg"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-label", "المظهر");
+    const prev = (c, nx) => `<span class="ap-prev" style="background:${nx ? c[0] : "#eef2f0"}">${nx ? `<i style="background:${c[2]}"></i><i style="background:${c[1]}"></i><i style="background:#fff"></i><i style="background:#fff"></i><i style="background:${c[2]}"></i>` : `<i style="background:#122320"></i><i style="background:#fff"></i><i style="background:#dcece6"></i><i style="background:#fff"></i><i style="background:#1d6b58"></i>`}</span>`;
+    const draw = () => {
+      const c = palColors(L), own = L.own || c;
+      d.innerHTML = `<div class="ap-box"><div class="ap-h"><b>المظهر</b><button class="btn sm ghost" data-apx aria-label="إغلاق">✕</button></div>
+        <div class="ap-sec"><span>شكل الواجهة</span><div class="ap-skins">
+          <button type="button" class="ap-skin" data-aps="classic" aria-pressed="${L.skin === "classic"}">${prev(null, false)}<b>Hadro الكلاسيكي</b><small>الشكل المعتاد بالأخضر والزجاج</small></button>
+          <button type="button" class="ap-skin" data-aps="nx" aria-pressed="${L.skin === "nx"}">${prev(c, true)}<b>الواجهة الحديثة</b><small>كروت كبيرة، شريط داكن، وحركة مع التمرير</small></button></div></div>
+        <div class="ap-sec${L.skin === "nx" ? "" : " ap-dis"}"><span>ألوان الواجهة الحديثة</span><div class="ap-pals">${CM.PALETTES.map(p => `<button type="button" class="ap-pal" data-app="${p.id}" aria-pressed="${L.pal === p.id}"><span class="ap-dots">${p.c.map(x => `<i style="background:${x}"></i>`).join("")}</span>${p.n}</button>`).join("")}
+          <button type="button" class="ap-pal" data-app="own" aria-pressed="${L.pal === "own"}"><span class="ap-dots">${own.map(x => `<i style="background:${x}"></i>`).join("")}</span>ألواني</button></div>
+          ${L.pal === "own" ? `<div class="ap-own">${[["الخلفية", 0], ["اللون المميز", 1], ["الداكن", 2]].map(([t, i]) => `<label>${t}<input type="color" data-apo="${i}" value="${own[i]}"></label>`).join("")}</div><small class="muted">اختار خلفية فاتحة ولون داكن غامق علشان الكلام يبان.</small>` : ""}</div>
+        <div class="ap-sec${L.skin === "nx" ? "" : " ap-dis"}"><label class="ap-row"><span>حركة مع التمرير (ظهور الكروت وتراكب الأقسام)</span><input type="checkbox" data-apm ${L.motion ? "checked" : ""}></label></div>
+        <small class="muted">الاختيار بيتحفظ على الجهاز ده بس، والوضع الفاتح/الداكن من زرار الثيم جنبه.</small></div>`;
+      d.querySelector("[data-apx]").onclick = close;
+      d.querySelectorAll("[data-aps]").forEach(b => b.onclick = () => { L.skin = b.dataset.aps; lookSet(L); draw(); });
+      d.querySelectorAll("[data-app]").forEach(b => b.onclick = () => { L.pal = b.dataset.app; if (L.pal === "own" && !L.own) L.own = palColors({ pal: "lime" }).slice(); lookSet(L); draw(); });
+      d.querySelectorAll("[data-apo]").forEach(i => i.oninput = () => { L.own[+i.dataset.apo] = i.value; lookSet(L); const dots = d.querySelector('[data-app="own"] .ap-dots'); if (dots) dots.children[+i.dataset.apo].style.background = i.value; });
+      const m = d.querySelector("[data-apm]"); if (m) m.onchange = () => { L.motion = m.checked; lookSet(L); };
+    };
+    const close = () => { d.remove(); document.removeEventListener("keydown", esc); };
+    const esc = e => { if (e.key === "Escape") close(); };
+    d.onclick = e => { if (e.target === d) close(); };
+    document.addEventListener("keydown", esc);
+    draw(); document.body.appendChild(d); const f = d.querySelector(".ap-skin[aria-pressed=true]"); if (f) f.focus();
+  };
+  document.addEventListener("click", ev => { const b = ev.target.closest && ev.target.closest("[data-look-btn]"); if (b) CM.appearance(); });
+  applyLook();
+
+  /* ---------- الحركة مع التمرير (الواجهة الحديثة بس) ---------- */
+  (function motion() {
+    const R = document.documentElement, SEL = ".panel, .tile, .walert-c, .sec-t, .now-c, .sband, .tw-panel, .gb-box, .bl-g, .ap-box, .msg.warn, .tiles.small > *";
+    const reduce = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const on = () => R.dataset.skin === "nx" && R.dataset.motion !== "off" && !reduce();
+    let io = null, ticking = false;
+    const mark = () => {
+      if (!on()) { document.querySelectorAll(".nx-r").forEach(e => e.classList.remove("nx-r", "nx-in")); return; }
+      if (!io && "IntersectionObserver" in window) io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("nx-in"); io.unobserve(e.target); } }), { threshold: .08, rootMargin: "0px 0px -6% 0px" });
+      const vh = innerHeight;
+      document.querySelectorAll(SEL).forEach(el => {
+        if (el.dataset.nxr || el.closest(".bell-pop, .ap-dlg, #overlay, .cpk-pop, .gb-box.full")) return; el.dataset.nxr = "1";
+        const r = el.getBoundingClientRect(); if (r.top < vh * .92 && r.bottom > 0) return;     // الظاهر أصلًا ما يتحركش
+        const sib = el.parentElement ? [...el.parentElement.children].indexOf(el) % 4 : 0; el.style.setProperty("--nxd", (sib * .07) + "s");
+        el.classList.add("nx-r"); if (io) io.observe(el); else el.classList.add("nx-in");
+      });
+      document.querySelectorAll(".home .tiles:not(.small)").forEach(t => [...t.children].forEach((c, i) => c.style.setProperty("--nxi", i)));
+      frame();
+    };
+    const frame = () => {
+      ticking = false; if (!on()) return;
+      const y = scrollY; R.classList.toggle("nx-sc", y > 24);
+      document.querySelectorAll(".hx, .sband").forEach(h => { const r = h.getBoundingClientRect(); const p = Math.max(0, Math.min(1, -r.top / Math.max(1, r.height))); h.style.setProperty("--nxp", p.toFixed(3)); });
+      if (innerWidth <= 760) document.querySelectorAll(".home .tiles:not(.small)").forEach(t => { const ks = [...t.children];
+        ks.forEach((k, i) => { const n = ks[i + 1]; if (!n) { k.style.setProperty("--nxc", 0); return; } const a = k.getBoundingClientRect(), b = n.getBoundingClientRect(); const ov = Math.max(0, Math.min(1, (a.bottom - b.top) / Math.max(1, a.height))); k.style.setProperty("--nxc", ov.toFixed(3)); }); });
+    };
+    addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }, { passive: true });
+    addEventListener("resize", () => requestAnimationFrame(frame));
+    let mt = null; const sched = () => { clearTimeout(mt); mt = setTimeout(mark, 60); };
+    const start = () => { new MutationObserver(sched).observe(document.body, { childList: true, subtree: true }); sched(); };
+    if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
+    document.addEventListener("cm-look", () => { document.querySelectorAll("[data-nxr]").forEach(e => delete e.dataset.nxr); sched(); });
+    // ميل خفيف للكروت مع حركة الماوس
+    document.addEventListener("pointermove", e => { if (!on() || e.pointerType !== "mouse") return; const t = e.target.closest && e.target.closest(".tile"); document.querySelectorAll(".tile[data-tilt]").forEach(x => { if (x !== t) { x.style.transform = ""; delete x.dataset.tilt; } });
+      if (!t || innerWidth <= 760) return; const r = t.getBoundingClientRect(), dx = (e.clientX - r.left) / r.width - .5, dy = (e.clientY - r.top) / r.height - .5;
+      t.dataset.tilt = "1"; t.style.transform = `perspective(700px) rotateX(${(-dy * 6).toFixed(2)}deg) rotateY(${(dx * 8).toFixed(2)}deg) translateY(-4px)`; }, { passive: true });
+  })();
 
 
   // ownership & copyright (shown on every page)
@@ -483,7 +579,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b77)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b78)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

@@ -1328,3 +1328,127 @@ html.bell-lock, html.bell-lock body{ overflow: hidden; }
 .bl-n span{ font-size: .8rem; }
 .bl-n small{ color: var(--muted); font-size: .72rem; }
 .bl-q{ display: grid; gap: 8px; margin-top: 10px; }
+
+/* ======================================================================
+   الواجهة الحديثة (اختيارية): html[data-skin="nx"]
+   3 ألوان من اختيار المستخدم: --nx-base (الخلفية) و --nx-hi (المميز) و --nx-dark (الداكن)
+   ====================================================================== */
+html[data-skin="nx"]{ --nx-base:#ececec; --nx-hi:#c6f432; --nx-dark:#0e0e0e; --nx-on-hi:var(--nx-dark);
+  --bg: color-mix(in srgb, var(--nx-base) 84%, var(--nx-dark) 16%);
+  --surface: color-mix(in srgb, var(--nx-base) 55%, #fff);
+  --sunk: color-mix(in srgb, var(--nx-base) 92%, var(--nx-dark) 8%);
+  --ink: var(--nx-dark); --muted: color-mix(in srgb, var(--nx-dark) 62%, var(--nx-base));
+  --line: color-mix(in srgb, var(--nx-dark) 11%, var(--nx-base));
+  --accent: var(--nx-dark); --accent-ink: var(--nx-base); --accent-soft: color-mix(in srgb, var(--nx-hi) 40%, var(--surface));
+  --board: var(--nx-dark); --board-ink: var(--nx-base); --board-hot: var(--nx-hi); --board-dim: color-mix(in srgb, var(--nx-base) 55%, var(--nx-dark));
+  --tint: color-mix(in srgb, var(--nx-hi) 34%, transparent); --tint-b: color-mix(in srgb, var(--nx-hi) 60%, var(--line));
+  --glow: color-mix(in srgb, var(--nx-hi) 70%, transparent); --r: 18px; --r-lg: 26px; color-scheme: light; }
+html[data-skin="nx"][data-theme="dark"]{ --bg: color-mix(in srgb, var(--nx-dark) 88%, #000); --surface: color-mix(in srgb, var(--nx-dark) 90%, var(--nx-base) 10%);
+  --sunk: color-mix(in srgb, var(--nx-dark) 94%, var(--nx-base) 6%); --ink: var(--nx-base); --muted: color-mix(in srgb, var(--nx-base) 62%, var(--nx-dark));
+  --line: color-mix(in srgb, var(--nx-base) 14%, var(--nx-dark)); --accent: var(--nx-hi); --accent-ink: var(--nx-dark); --accent-soft: color-mix(in srgb, var(--nx-hi) 18%, var(--surface)); color-scheme: dark; }
+@media (prefers-color-scheme: dark){ html[data-skin="nx"]:not([data-theme="light"]){ --bg: color-mix(in srgb, var(--nx-dark) 88%, #000); --surface: color-mix(in srgb, var(--nx-dark) 90%, var(--nx-base) 10%);
+  --sunk: color-mix(in srgb, var(--nx-dark) 94%, var(--nx-base) 6%); --ink: var(--nx-base); --muted: color-mix(in srgb, var(--nx-base) 62%, var(--nx-dark));
+  --line: color-mix(in srgb, var(--nx-base) 14%, var(--nx-dark)); --accent: var(--nx-hi); --accent-ink: var(--nx-dark); --accent-soft: color-mix(in srgb, var(--nx-hi) 18%, var(--surface)); color-scheme: dark; } }
+html[data-skin="nx"] body{ font-family: "Readex Pro", var(--f-body); }
+html[data-skin="nx"] body, html[data-skin="nx"] p, html[data-skin="nx"] td, html[data-skin="nx"] input, html[data-skin="nx"] select, html[data-skin="nx"] textarea{ font-family: var(--f-body); }
+/* الرأس: شريط أبيض عائم بزوايا كاملة */
+html[data-skin="nx"] header.top{ background: var(--surface) !important; border: 0 !important; border-radius: 999px !important; box-shadow: 0 10px 30px -18px rgba(0,0,0,.35) !important; padding: 8px 10px 8px 14px; transition: padding .25s, box-shadow .25s, transform .25s; }
+html[data-skin="nx"] header.top::after{ display: none !important; }
+html[data-skin="nx"].nx-sc header.top{ box-shadow: 0 16px 40px -18px rgba(0,0,0,.45) !important; }
+html[data-skin="nx"] header.top .mark{ background: var(--nx-dark) !important; color: var(--nx-hi) !important; --logo-dot: var(--nx-hi); box-shadow: none !important; }
+html[data-skin="nx"] .wm{ letter-spacing: -.02em; }
+/* الأزرار والكروت */
+html[data-skin="nx"] .btn{ border-radius: 999px; border-color: transparent; background: var(--sunk); font-weight: 600; min-height: 40px; }
+html[data-skin="nx"] .btn:hover{ background: color-mix(in srgb, var(--nx-hi) 45%, var(--sunk)); }
+html[data-skin="nx"] .btn.primary{ background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+html[data-skin="nx"] .btn.primary:hover{ background: var(--nx-hi); color: var(--nx-on-hi); }
+html[data-skin="nx"] .btn.ghost{ background: transparent; border-color: var(--line); }
+html[data-skin="nx"] .panel{ border: 0; border-radius: var(--r-lg); padding: 20px; box-shadow: none; }
+html[data-skin="nx"] .msg{ border-radius: 18px; }
+html[data-skin="nx"] input[type=text], html[data-skin="nx"] input[type=email], html[data-skin="nx"] input[type=password], html[data-skin="nx"] input[type=number], html[data-skin="nx"] input[type=tel], html[data-skin="nx"] input[type=search], html[data-skin="nx"] input[type=url], html[data-skin="nx"] select, html[data-skin="nx"] textarea{ border-radius: 14px; border-color: transparent; background: var(--sunk); }
+html[data-skin="nx"] input:focus, html[data-skin="nx"] select:focus, html[data-skin="nx"] textarea:focus{ border-color: var(--ink) !important; box-shadow: 0 0 0 3px var(--tint) !important; }
+html[data-skin="nx"] .cchip{ background: var(--surface); border-color: transparent; font-weight: 600; }
+html[data-skin="nx"] .cchip[aria-pressed=true]{ background: var(--accent); color: var(--accent-ink); box-shadow: none; }
+html[data-skin="nx"] table th{ background: var(--sunk); }
+html[data-skin="nx"] .tbl-wrap{ border-radius: 18px; }
+/* الخلفيات والشعارات نفسها، بألوان المجموعة */
+html[data-skin="nx"] .hx, html[data-skin="nx"] .sband{ border-color: color-mix(in srgb, var(--nx-hi) 18%, var(--nx-dark)); color: var(--nx-base);
+  background: radial-gradient(70% 90% at 50% -10%, color-mix(in srgb, var(--nx-hi) 30%, transparent), transparent 62%), radial-gradient(40% 60% at 100% 100%, color-mix(in srgb, var(--nx-hi) 12%, transparent), transparent 70%), linear-gradient(180deg, color-mix(in srgb, var(--nx-dark) 88%, var(--nx-hi)), var(--nx-dark) 75%); border-radius: 30px; }
+html[data-skin="nx"] .hx::before{ background-image: linear-gradient(color-mix(in srgb, var(--nx-hi) 10%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--nx-hi) 10%, transparent) 1px, transparent 1px); }
+html[data-skin="nx"] .hx::after{ background: linear-gradient(transparent, var(--nx-dark)); }
+html[data-skin="nx"] .hx-art{ fill: var(--nx-hi); }
+html[data-skin="nx"] .hx-art .lt{ fill: var(--nx-hi); filter: drop-shadow(0 0 3px var(--nx-hi)); }
+html[data-skin="nx"] .hx-logo{ background: var(--nx-dark); box-shadow: 0 0 0 1px color-mix(in srgb, var(--nx-hi) 30%, transparent), 0 0 0 8px color-mix(in srgb, var(--nx-hi) 8%, transparent), 0 14px 40px -6px color-mix(in srgb, var(--nx-hi) 40%, transparent) !important; }
+html[data-skin="nx"] .hx-logo .mark{ background: color-mix(in srgb, var(--nx-dark) 75%, var(--nx-hi)); --logo-dot: var(--nx-hi); }
+html[data-skin="nx"] .sband h2, html[data-skin="nx"] .hx h1, html[data-skin="nx"] .hx h2{ color: var(--nx-base); }
+html[data-skin="nx"] .sb-ic{ background: var(--nx-hi) !important; color: var(--nx-on-hi) !important; border: 0 !important; box-shadow: none !important; }
+html[data-skin="nx"] .sb-ic::after{ display: none !important; }
+/* أقسام المادة كتطبيقات مصغّرة */
+html[data-skin="nx"] .tile{ border: 0; border-radius: 28px; background: var(--surface); min-height: 160px; padding: 20px; transition: background-color .25s, color .25s, transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s; transform-style: preserve-3d; }
+html[data-skin="nx"] .tile svg{ background: var(--nx-dark); color: var(--nx-hi); border: 0; border-radius: 50%; padding: 10px; }
+html[data-skin="nx"] .tile b{ font-size: 1.18rem; letter-spacing: -.01em; }
+html[data-skin="nx"] .tile:hover, html[data-skin="nx"] .tile.hot{ background: var(--nx-hi); color: var(--nx-on-hi); box-shadow: 0 24px 50px -30px color-mix(in srgb, var(--nx-hi) 80%, #000); }
+html[data-skin="nx"] .tile:hover small, html[data-skin="nx"] .tile.hot small{ color: color-mix(in srgb, var(--nx-on-hi) 70%, transparent); }
+html[data-skin="nx"] .tile::before, html[data-skin="nx"] .tile::after{ opacity: 0 !important; }
+/* تبويبات المادة: شريط داكن عائم (عمودي على الكمبيوتر) */
+html[data-skin="nx"] .ctabs{ background: var(--nx-dark) !important; border: 0 !important; border-radius: 999px !important; padding: 6px !important; box-shadow: 0 18px 40px -18px rgba(0,0,0,.55) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html[data-skin="nx"] .ctabs button{ color: color-mix(in srgb, var(--nx-base) 70%, transparent); border-radius: 999px; border: 0; }
+html[data-skin="nx"] .ctabs button:hover{ color: var(--nx-base); background: color-mix(in srgb, var(--nx-base) 12%, transparent); }
+html[data-skin="nx"] .ctabs button[aria-selected=true]{ background: var(--nx-hi) !important; color: var(--nx-on-hi) !important; }
+@media (min-width: 1100px){
+  html[data-skin="nx"] body.has-ctabs .wrap{ padding-inline-start: 104px; max-width: 1300px; }
+  html[data-skin="nx"] .ctabs{ position: fixed !important; top: 50% !important; inset-inline-start: 22px; transform: translateY(-50%); flex-direction: column; gap: 6px; width: 64px; padding: 10px 8px !important; overflow: visible !important; margin: 0 !important; z-index: 45; }
+  html[data-skin="nx"] .ctabs button{ width: 48px; height: 48px; padding: 0; justify-content: center; }
+  html[data-skin="nx"] .ctabs button svg{ width: 21px; height: 21px; }
+  html[data-skin="nx"] .ctabs button .l{ position: absolute; inset-inline-start: calc(100% + 14px); top: 50%; transform: translate(6px, -50%); background: var(--nx-dark); color: var(--nx-base); padding: 6px 12px; border-radius: 10px; font-size: .82rem; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; }
+  html[data-skin="nx"][dir="rtl"] .ctabs button .l, html[dir="rtl"][data-skin="nx"] .ctabs button .l{ transform: translate(-6px, -50%); }
+  html[data-skin="nx"] .ctabs button:hover .l, html[data-skin="nx"] .ctabs button:focus-visible .l{ opacity: 1; transform: translate(0, -50%); }
+  html[data-skin="nx"] .ctabs .tbx{ position: absolute; top: -2px; inset-inline-end: -2px; }
+}
+@media (max-width: 760px){ html[data-skin="nx"] .ctabs button[aria-selected=true]{ border-radius: 18px; } }
+/* الجرس والقوائم */
+html[data-skin="nx"] .bell-pop{ border-radius: 0; background: var(--bg); }
+html[data-skin="nx"] .bl-g, html[data-skin="nx"] .bl-notes{ border: 0; background: var(--surface); border-radius: 22px; }
+html[data-skin="nx"] .bl-tabs button[aria-selected=true]{ background: var(--accent); color: var(--accent-ink); }
+html[data-skin="nx"] .walert-c{ border-radius: 22px; }
+html[data-skin="nx"] .now-c{ border: 0; border-radius: 28px; background: var(--nx-dark); color: var(--nx-base); }
+html[data-skin="nx"] .now-c .muted, html[data-skin="nx"] .now-c .small{ color: color-mix(in srgb, var(--nx-base) 70%, transparent); }
+html[data-skin="nx"] .now-h b{ color: var(--nx-hi); }
+html[data-skin="nx"] .now-c .btn.primary{ background: var(--nx-hi); color: var(--nx-on-hi); }
+html[data-skin="nx"] .pulse{ background: var(--nx-hi); }
+html[data-skin="nx"] .gb-wrap{ border: 0; border-radius: 22px; }
+/* ======= الحركة مع التمرير (الواجهة الحديثة) ======= */
+html[data-skin="nx"]:not([data-motion="off"]) .nx-r{ opacity: 0; transform: translateY(28px) scale(.975); transition: opacity .6s cubic-bezier(.2,.8,.2,1) var(--nxd, 0s), transform .7s cubic-bezier(.2,.8,.2,1) var(--nxd, 0s); }
+html[data-skin="nx"]:not([data-motion="off"]) .nx-r.nx-in{ opacity: 1; transform: none; }
+html[data-skin="nx"]:not([data-motion="off"]) .hx-in, html[data-skin="nx"]:not([data-motion="off"]) .sb-in{ transform: translateY(calc(var(--nxp, 0) * 40px)) scale(calc(1 - var(--nxp, 0) * .06)); opacity: calc(1 - var(--nxp, 0) * .9); will-change: transform, opacity; }
+html[data-skin="nx"]:not([data-motion="off"]) .hx-art{ transform: translateY(calc(var(--nxp, 0) * -30px)) scale(calc(1 + var(--nxp, 0) * .08)); }
+/* موبايل: كروت الأقسام تتراكب فوق بعض مع التمرير (تطبيق يظهر بدل التاني) */
+@media (max-width: 760px){
+  html[data-skin="nx"]:not([data-motion="off"]) .home .tiles:not(.small){ display: block; }
+  html[data-skin="nx"]:not([data-motion="off"]) .home .tiles:not(.small) .tile{ position: sticky; top: calc(96px + var(--nxi, 0) * 12px); width: 100%; min-height: 150px; margin-bottom: 14px; box-shadow: 0 -10px 30px -18px rgba(0,0,0,.35);
+    transform: scale(calc(1 - var(--nxc, 0) * .07)); filter: brightness(calc(1 - var(--nxc, 0) * .12)); transform-origin: 50% 0; transition: background-color .25s, color .25s; }
+  html[data-skin="nx"]:not([data-motion="off"]) .home .tiles:not(.small) .tile svg{ width: 44px; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce){ html[data-skin="nx"] .nx-r{ opacity: 1 !important; transform: none !important; } html[data-skin="nx"] .hx-in, html[data-skin="nx"] .sb-in, html[data-skin="nx"] .hx-art{ transform: none !important; opacity: 1 !important; } }
+/* نافذة «المظهر» */
+.ap-dlg{ position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(6,14,12,.45); backdrop-filter: blur(3px); }
+.ap-box{ width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow: auto; background: var(--surface); color: var(--ink); border-radius: 26px; padding: 20px; display: grid; gap: 16px; box-shadow: 0 30px 80px -30px rgba(0,0,0,.6); animation: apIn .22s cubic-bezier(.2,.8,.2,1); }
+@keyframes apIn{ from{ opacity: 0; transform: translateY(14px) scale(.98); } }
+.ap-h{ display: flex; align-items: center; gap: 8px; } .ap-h b{ font-family: var(--f-display); font-size: 1.25rem; margin-inline-end: auto; }
+.ap-sec{ display: grid; gap: 10px; } .ap-sec > span{ font-weight: 600; font-size: .92rem; }
+.ap-skins{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ap-skin{ all: unset; cursor: pointer; border: 2px solid var(--line); border-radius: 20px; padding: 10px; display: grid; gap: 8px; text-align: start; transition: border-color .2s, transform .15s; }
+.ap-skin:hover{ transform: translateY(-2px); } .ap-skin[aria-pressed=true]{ border-color: var(--ink); }
+.ap-skin b{ font-size: .95rem; } .ap-skin small{ color: var(--muted); font-size: .76rem; line-height: 1.4; }
+.ap-prev{ height: 74px; border-radius: 14px; display: grid; grid-template-columns: 18px 1fr 1fr; gap: 6px; padding: 8px; }
+.ap-prev i{ border-radius: 8px; display: block; } .ap-prev i:first-child{ grid-row: span 2; border-radius: 9px; }
+.ap-pals{ display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.ap-pal{ all: unset; cursor: pointer; border: 2px solid var(--line); border-radius: 16px; padding: 8px; display: grid; gap: 6px; justify-items: center; font-size: .76rem; font-weight: 600; transition: border-color .2s, transform .15s; }
+.ap-pal:hover{ transform: translateY(-2px); } .ap-pal[aria-pressed=true]{ border-color: var(--ink); }
+.ap-dots{ display: flex; } .ap-dots i{ width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--surface); margin-inline-start: -6px; box-shadow: 0 0 0 1px rgba(0,0,0,.08); } .ap-dots i:first-child{ margin: 0; }
+.ap-own{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ap-own label{ display: grid; gap: 4px; font-size: .78rem; color: var(--muted); }
+.ap-own input[type=color]{ width: 100%; height: 42px; border: 1px solid var(--line); border-radius: 12px; padding: 3px; background: var(--sunk); cursor: pointer; }
+.ap-dis{ opacity: .45; pointer-events: none; }
+.ap-row{ display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: .9rem; }
+.ap-row input[type=checkbox]{ width: 22px; height: 22px; accent-color: var(--accent); }
