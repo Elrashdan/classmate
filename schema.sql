@@ -5461,3 +5461,33 @@ create or replace trigger grade_appeals_notify after insert on public.grade_appe
 
 revoke all on function public.staff_feed(), public.staff_notes_read(), public.staff_remind(uuid, text, text), public.appeal_notify_team() from public, anon;
 grant execute on function public.staff_feed(), public.staff_notes_read(), public.staff_remind(uuid, text, text) to authenticated;
+-- تحديث 51: «تسليمات لم تُصحَّح» ما تحسبش تكليف التسليم اللي اتعمل لجمع الملفات بس:
+--   لو مفيش فيه ولا درجة، واترصدت الدرجات في تكليف تاني (يدوي) في نفس المادة ميعاده بعده أو في نفس اليوم.
+create or replace function public.feed_course_items(cid uuid) returns setof jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('kind', 'appeal', 'course_id', cid, 'ref', t.id::text, 'title', 'تظلمات بانتظار الرد · «' || t.title || '»', 'n', count(*), 'since', min(a.created_at))
+    from grade_appeals a join tasks t on t.id = a.task_id
+    where t.course_id = cid and a.status = 'pending' group by t.id, t.title
+  union all
+  select jsonb_build_object('kind', 'att', 'course_id', cid, 'ref', s.id::text, 'title', 'طلبات حضور معلّقة · المحاضرة ' || s.n || coalesce(' · مجموعة ' || nullif(s.grp, ''), ''), 'n', count(*), 'since', min(a.at), 'live', not s.ended)
+    from attendance a join sessions s on s.id = a.session_id
+    where s.course_id = cid and a.status = 'pending' group by s.id, s.n, s.grp, s.ended
+  union all
+  select jsonb_build_object('kind', 'warn', 'course_id', cid, 'ref', '', 'title', 'طلبة وصلوا إلى إنذار غياب جديد ولم يُبلَّغوا', 'n', count(*), 'since',
+           (select max(coalesce(s.closed_at, s.ends_at)) from sessions s where s.course_id = cid and s.ended))
+    from (select e.student_code, warn_level(course_absences(cid, e.student_code)) l from enrollments e where e.course_id = cid) x
+    where x.l > 0
+      and not exists (select 1 from warning_notices w where w.course_id = cid and w.student_code = x.student_code and w.level = x.l)
+      and not exists (select 1 from warning_announced a where a.course_id = cid and a.student_code = x.student_code and a.level = x.l)
+    having count(*) > 0
+  union all
+  select jsonb_build_object('kind', 'grade', 'course_id', cid, 'ref', t.id::text, 'title', 'تسليمات لم تُصحَّح · «' || t.title || '»', 'n', count(*), 'since', t.due_at)
+    from tasks t join submissions s on s.task_id = t.id
+    where t.course_id = cid and t.mode = 'submit' and t.due_at < now() - interval '1 day' and s.submitted_at is not null and s.grade is null
+      and not (
+        not exists (select 1 from submissions g where g.task_id = t.id and g.grade is not null)
+        and exists (select 1 from tasks m where m.course_id = cid and m.id <> t.id and m.mode <> 'submit' and m.due_at >= t.due_at
+                      and exists (select 1 from submissions g where g.task_id = m.id and g.grade is not null)))
+    group by t.id, t.title, t.due_at
+$$;
+revoke all on function public.feed_course_items(uuid) from public, anon, authenticated;

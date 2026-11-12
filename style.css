@@ -1705,3 +1705,17 @@ html[data-skin="nx"] .tile:hover > svg, html[data-skin="nx"] .me-card:hover .me-
 html[data-skin="nx"] .tile > svg, html[data-skin="nx"] .me-ava{ transition: transform .35s cubic-bezier(.34,1.56,.64,1); }
 html[data-skin="nx"] .tile:hover .mw-bars i.on, html[data-skin="nx"] .tile:hover .mw-cal-g i.td{ box-shadow: 0 0 0 3px color-mix(in srgb, var(--nx-hi) 35%, transparent); }
 @media (prefers-reduced-motion: reduce){ html[data-skin="nx"] .tile:hover > svg, html[data-skin="nx"] .me-card:hover .me-ava{ transform: none; } }
+/* ======= b84 ======= */
+/* كارت اختيار المادة (وشارة البطل) في الواجهة الحديثة: بألوان المجموعة بدل الزجاج الأخضر */
+html[data-skin="nx"] .hx .cpk-cur, html[data-skin="nx"] .hx-eb{ background: color-mix(in srgb, var(--nx-base) 9%, var(--nx-dark)) !important; border: 1px solid color-mix(in srgb, var(--nx-hi) 32%, transparent) !important;
+  box-shadow: 0 14px 34px -20px color-mix(in srgb, var(--nx-hi) 55%, transparent) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: var(--nx-base) !important; }
+html[data-skin="nx"] .hx .cpk-cur::before, html[data-skin="nx"] .hx .cpk-cur::after, html[data-skin="nx"] .hx-eb::before, html[data-skin="nx"] .hx-eb::after{ display: none !important; }
+html[data-skin="nx"] .hx .cpk-cur{ border-radius: 20px; transition: border-color .25s, box-shadow .25s; }
+html[data-skin="nx"] .hx .cpk-cur:hover{ border-color: var(--nx-hi) !important; }
+html[data-skin="nx"] .hx .cpk-cur .cpk-t b{ color: var(--nx-base); }
+html[data-skin="nx"] .hx .cpk-cur .cpk-t small, html[data-skin="nx"] .hx .cpk-cur .cpk-t span, html[data-skin="nx"] .hx .cpk-chev{ color: color-mix(in srgb, var(--nx-base) 70%, var(--nx-dark)) !important; }
+html[data-skin="nx"] .cpk-ic, html[data-skin="nx"] .hx .cpk-ic{ background: var(--nx-hi) !important; color: var(--nx-on-hi) !important; border: 0 !important; }
+html[data-skin="nx"] .hx-eb{ color: var(--nx-hi) !important; border-radius: 10px; }
+html[data-skin="nx"] .hx p{ color: color-mix(in srgb, var(--nx-base) 72%, var(--nx-dark)); }
+/* عدد التكليفات في نفس اليوم في التقويم */
+html[data-skin="nx"] .mw-cal-g sup{ font-size: .58rem; font-weight: 700; opacity: .85; }

@@ -664,6 +664,9 @@
     log: () => "كل ما حدث في المادة"
   };
   // تطبيقات مصغّرة: بيانات سريعة داخل كل كارت (تظهر في «الواجهة الحديثة» فقط)
+  // تكليف «تسليم» اتعمل لجمع الملفات بس: مفيش ولا درجة فيه، والدرجات اترصدت في تكليف تاني بعده في نفس المادة
+  const collectOnly = t => !Object.values(D.subs[t.id] || {}).some(x => x.grade != null)
+    && D.tasks.some(m => m.id !== t.id && m.mode !== "submit" && m.due_at && t.due_at && new Date(m.due_at) >= new Date(t.due_at) && Object.values(D.subs[m.id] || {}).some(x => x.grade != null));
   // تقويم 3 أسابيع (من السبت) بمواعيد التسليم
   const AR_D = ["ح", "ن", "ث", "ر", "خ", "ج", "س"];
   function calHtml(tasks) {
@@ -673,7 +676,7 @@
     const cells = []; for (let i = 0; i < 21; i++) { const d = new Date(start); d.setDate(start.getDate() + i); cells.push(d); }
     const mo = t0.toLocaleDateString("ar-EG", { month: "long" });
     return `<span class="mw-cal"><span class="mw-cal-h"><b>${mo}</b><small>مواعيد التسليم</small></span><span class="mw-cal-g">${[6, 0, 1, 2, 3, 4, 5].map(d => `<em>${AR_D[d]}</em>`).join("")}${cells.map(d => { const ts = due[key(d)] || [], td = +d === +t0;
-      return `<i class="${td ? "td" : ""} ${ts.length ? "due" : ""} ${d < t0 ? "past" : ""}" ${ts.length ? `title="${esc(ts.join("، "))}"` : ""}>${d.getDate()}${ts.length > 1 ? `<sup>${ts.length}</sup>` : ""}</i>`; }).join("")}</span></span>`;
+      return `<i class="${td ? "td" : ""} ${ts.length ? "due" : ""} ${d < t0 ? "past" : ""}" ${ts.length ? `title="${esc(ts.join("، "))}"` : ""}>${d.getDate()}${ts.length > 1 ? `<sup>×${ts.length}</sup>` : ""}</i>`; }).join("")}</span></span>`;
   }
   // المحاضرة الجاية للمادة من «جدولي»
   function nextLec(c) {
@@ -694,11 +697,11 @@
     const per = n => (myTT && myTT.tt && myTT.tt.periods[n - 1]) || {};
     const td = myTT && myTT.slots ? myTT.slots.filter(s => s.day === now.getDay()).sort((a, b) => a.p_from - b.p_from) : [];
     const nx = td.find(s => toM(per(s.p_to).to) > hm), live = nx && toM(per(nx.p_from).from) <= hm;
-    const items = feed ? feed.mine || [] : null, pend = items ? items.reduce((a, x) => a + (+x.n || 0), 0) : null, late = items ? items.filter(x => x.since && Date.now() - new Date(x.since) > 3 * 864e5).length : 0;
+    const items = feed ? feed.mine || [] : null, pend = items ? bellCount() : null, late = items ? items.filter(x => x.since && Date.now() - new Date(x.since) > 3 * 864e5).length : 0;
     const ico = d => ICO(d);
     return `<div class="me-card" id="meCard">
       <div class="me-top"><span class="me-ava">${esc(nm.charAt(0) || "؟")}</span><div class="me-who"><b>${esc(nm)}</b><small>${esc([p.title, ROLE[me.role]].filter(Boolean).join(" · "))}</small></div></div>
-      <div class="me-stats"><span><b>${mine}</b><small>مادة</small></span><span><b>${myTT ? td.length : "—"}</b><small>محاضرة النهارده</small></span><span class="${late ? "warn" : ""}"><b>${pend == null ? "—" : pend}</b><small>${late ? late + " متأخر" : "مستني ردك"}</small></span></div>
+      <div class="me-stats"><span><b>${mine}</b><small>مادة</small></span><span><b>${myTT ? td.length : "—"}</b><small>محاضرة النهارده</small></span><span class="${late ? "warn" : ""}"><b>${pend == null ? "—" : pend}</b><small>${late ? late + " متأخر" : "في التنبيهات"}</small></span></div>
       ${nx ? `<div class="me-next ${live ? "live" : ""}"><small>${live ? "دلوقتي" : "المحاضرة الجاية"} · <bdi dir="ltr">${TT.t12(per(nx.p_from).from)}–${TT.t12(per(nx.p_to).to)}</bdi></small><b>${esc(nx.title)}</b><span>${esc([nx.myRoom || nx.room, nx.myGroups && nx.myGroups.length ? "مجموعة " + nx.myGroups.join("، ") : ""].filter(Boolean).join(" · "))}</span></div>`
         : `<div class="me-next none"><small>النهارده</small><b>${!myTT ? "…" : td.length ? "خلّصت محاضرات النهارده" : "مفيش محاضرات النهارده"}</b></div>`}
       <div class="me-acts"><button type="button" data-me="prof" title="ملفي الشخصي" aria-label="ملفي الشخصي">${ico('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}</button><button type="button" data-me="tt" title="الجدول الدراسي" aria-label="الجدول الدراسي">${ico('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>')}</button><button type="button" data-me="bell" title="التنبيهات" aria-label="التنبيهات">${ico(BELL_ICO)}${pend ? `<i>${pend > 99 ? "99+" : pend}</i>` : ""}</button><button type="button" data-me="look" title="المظهر" aria-label="المظهر">${ico('<circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A5.6 5.6 0 0 0 22 10c0-4.4-4.5-8-10-8z"/>')}</button></div>
@@ -742,7 +745,7 @@
     if (k === "tasks") {
       if (!D.tasks.length) return "";
       const now = Date.now(), nx = D.tasks.filter(t => t.due_at && new Date(t.due_at) > now).sort((a, b) => new Date(a.due_at) - new Date(b.due_at))[0];
-      const ung = D.tasks.filter(t => t.mode === "submit").reduce((s, t) => s + Object.values(D.subs[t.id] || {}).filter(x => x.submitted_at && x.grade == null).length, 0);
+      const ung = D.tasks.filter(t => t.mode === "submit" && !collectOnly(t)).reduce((s, t) => s + Object.values(D.subs[t.id] || {}).filter(x => x.submitted_at && x.grade == null).length, 0);
       const ap = (D.appeals || []).filter(a => a.status === "pending").length;
       const days = nx ? Math.ceil((new Date(nx.due_at) - now) / 864e5) : 0;
       return w(`${calHtml(D.tasks)}<span class="mw-row">${nx ? `<span class="mw-next"><b>${days <= 0 ? "اليوم" : days === 1 ? "بكرة" : "بعد " + days + " يوم"}</b><span>${esc(nx.title)}</span></span>` : `<span class="mw-m">مفيش تكليف مفتوح دلوقتي</span>`}<span class="mw-row">${ung ? `<em class="mw-chip">${ung} بدون درجة</em>` : ""}${ap ? `<em class="mw-chip warn">${ap} تظلم</em>` : ""}</span></span>`);
