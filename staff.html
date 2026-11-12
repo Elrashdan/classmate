@@ -666,29 +666,29 @@
   // تطبيقات مصغّرة: بيانات سريعة داخل كل كارت (تظهر في «الواجهة الحديثة» فقط)
   function tileWidget(k, c) {
     if (!D || D.cid !== c.id) return "";
-    const w = h => h ? `<span class="tw tw-k-${k}" aria-hidden="true">${h}</span>` : "";
+    const w = h => h ? `<span class="mw mw-k-${k}" aria-hidden="true">${h}</span>` : "";
     const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
     if (k === "live") {
       const s = running();
       if (s) { const own = D.enroll.filter(e => isOwn(s, e)), rec = D.att[s.id] || {}, pr = own.filter(e => counted(rec[e.student_code])).length, pd = Object.values(rec).filter(r => r.status === "pending").length;
-        return w(`<span class="tw-row"><em class="tw-live"><i></i>جارية</em><span class="tw-n">${pr}<small>/${own.length}</small></span></span><span class="tw-bar"><i style="width:${pct(pr, own.length)}%"></i></span>${pd ? `<span class="tw-m">${pd} طلب ينتظر الموافقة</span>` : ""}`); }
+        return w(`<span class="mw-row"><em class="mw-live"><i></i>جارية</em><span class="mw-n">${pr}<small>/${own.length}</small></span></span><span class="mw-bar"><i style="width:${pct(pr, own.length)}%"></i></span>${pd ? `<span class="mw-m">${pd} طلب ينتظر الموافقة</span>` : ""}`); }
       const st = lectureStats(D.sessions, D.enroll).slice(-10); if (!st.length) return "";
       const last = st[st.length - 1];
-      return w(`<span class="tw-bars">${st.map((x, i) => `<i class="${i === st.length - 1 ? "on" : ""}" style="--h:${Math.max(6, x.pct)}%;--i:${i}"></i>`).join("")}</span><span class="tw-m">آخر محاضرة: <b>${last.pct}%</b> حضور</span>`);
+      return w(`<span class="mw-bars">${st.map((x, i) => `<i class="${i === st.length - 1 ? "on" : ""}" style="--h:${Math.max(6, x.pct)}%;--i:${i}"></i>`).join("")}</span><span class="mw-m">آخر محاضرة: <b>${last.pct}%</b> حضور</span>`);
     }
     if (k === "students") {
       const n = D.enroll.length; if (!n) return "";
       const gs = groupsOf(), parts = gs.map(g => [g, D.enroll.filter(e => e.grp === g).length]), none = D.enroll.filter(e => !e.grp).length;
-      return w(`<span class="tw-row"><span class="tw-n">${n}<small> طالب</small></span>${gs.length ? `<em class="tw-chip">${gs.length} مجموعة</em>` : ""}</span>${gs.length ? `<span class="tw-seg">${parts.map(([g, m], i) => `<i style="flex:${m};--o:${1 - (i % 4) * .2}" title="${esc(g)}"></i>`).join("")}${none ? `<i class="x" style="flex:${none}"></i>` : ""}</span>` : ""}`);
+      return w(`<span class="mw-row"><span class="mw-n">${n}<small> طالب</small></span>${gs.length ? `<em class="mw-chip">${gs.length} مجموعة</em>` : ""}</span>${gs.length ? `<span class="mw-seg">${parts.map(([g, m], i) => `<i style="flex:${m};--o:${1 - (i % 4) * .2}" title="${esc(g)}"></i>`).join("")}${none ? `<i class="x" style="flex:${none}"></i>` : ""}</span>` : ""}`);
     }
     if (k === "reg" || k === "report") {
       if (!D.enroll.length) return "";
       const lv = [0, 0, 0, 0, 0]; let sum = 0, nn = 0;
       D.enroll.forEach(e => { lv[CM.lvl(absences(e))]++; const a = attendance(e); if (a.own) { sum += a.pct; nn++; } });
       if (k === "reg") { const done = D.sessions.filter(regDone).length;
-        return w(`<span class="tw-row"><span class="tw-n">${done}<small> محاضرة</small></span><em class="tw-chip ${lv[3] + lv[4] ? "bad" : lv[1] + lv[2] ? "warn" : ""}">${lv[1] + lv[2] + lv[3] + lv[4]} إنذار</em></span><span class="tw-seg lv">${lv.map((m, i) => m ? `<i class="l${i}" style="flex:${m}"></i>` : "").join("")}</span><span class="tw-m">${lv[0]} منتظم${lv[4] ? " · " + lv[4] + " انسحاب" : ""}</span>`); }
+        return w(`<span class="mw-row"><span class="mw-n">${done}<small> محاضرة</small></span><em class="mw-chip ${lv[3] + lv[4] ? "bad" : lv[1] + lv[2] ? "warn" : ""}">${lv[1] + lv[2] + lv[3] + lv[4]} إنذار</em></span><span class="mw-seg lv">${lv.map((m, i) => m ? `<i class="l${i}" style="flex:${m}"></i>` : "").join("")}</span><span class="mw-m">${lv[0]} منتظم${lv[4] ? " · " + lv[4] + " انسحاب" : ""}</span>`); }
       const avg = nn ? Math.round(sum / nn) : 0, C = 2 * Math.PI * 22;
-      return w(`<span class="tw-ring"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22"/><circle class="v" cx="27" cy="27" r="22" stroke-dasharray="${(C * avg / 100).toFixed(1)} ${C.toFixed(1)}"/></svg><b>${avg}%</b></span><span class="tw-m">متوسط الحضور<br>${warnPending().length ? `<b>${warnPending().length}</b> لم يُبلَّغوا بإنذار` : "كل الإنذارات مُبلَّغة"}</span>`);
+      return w(`<span class="mw-ring"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22"/><circle class="v" cx="27" cy="27" r="22" stroke-dasharray="${(C * avg / 100).toFixed(1)} ${C.toFixed(1)}"/></svg><b>${avg}%</b></span><span class="mw-m">متوسط الحضور<br>${warnPending().length ? `<b>${warnPending().length}</b> لم يُبلَّغوا بإنذار` : "كل الإنذارات مُبلَّغة"}</span>`);
     }
     if (k === "tasks") {
       if (!D.tasks.length) return "";
@@ -696,16 +696,16 @@
       const ung = D.tasks.filter(t => t.mode === "submit").reduce((s, t) => s + Object.values(D.subs[t.id] || {}).filter(x => x.submitted_at && x.grade == null).length, 0);
       const ap = (D.appeals || []).filter(a => a.status === "pending").length;
       const days = nx ? Math.ceil((new Date(nx.due_at) - now) / 864e5) : 0;
-      return w(`${nx ? `<span class="tw-next"><b>${days <= 0 ? "اليوم" : days === 1 ? "بكرة" : "بعد " + days + " يوم"}</b><span>${esc(nx.title)}</span></span>` : `<span class="tw-m">مفيش تكليف مفتوح دلوقتي</span>`}<span class="tw-row">${ung ? `<em class="tw-chip">${ung} بدون درجة</em>` : ""}${ap ? `<em class="tw-chip warn">${ap} تظلم</em>` : ""}</span>`);
+      return w(`${nx ? `<span class="mw-next"><b>${days <= 0 ? "اليوم" : days === 1 ? "بكرة" : "بعد " + days + " يوم"}</b><span>${esc(nx.title)}</span></span>` : `<span class="mw-m">مفيش تكليف مفتوح دلوقتي</span>`}<span class="mw-row">${ung ? `<em class="mw-chip">${ung} بدون درجة</em>` : ""}${ap ? `<em class="mw-chip warn">${ap} تظلم</em>` : ""}</span>`);
     }
     if (k === "team") {
       const ppl = [c.owner_email, ...D.tas.map(t => t.email)].filter((x, i, a) => x && a.indexOf(x) === i);
       const ini = e => esc(String(staffName(e)).replace(/^(د|م|أ\.?د)\.\s*/, "").trim().charAt(0) || "؟");
-      return w(`<span class="tw-ava">${ppl.slice(0, 5).map(e => `<i title="${esc(staffName(e))}">${ini(e)}</i>`).join("")}${ppl.length > 5 ? `<i class="more">+${ppl.length - 5}</i>` : ""}</span><span class="tw-m">${ppl.length} في الفريق</span>`);
+      return w(`<span class="mw-ava">${ppl.slice(0, 5).map(e => `<i title="${esc(staffName(e))}">${ini(e)}</i>`).join("")}${ppl.length > 5 ? `<i class="more">+${ppl.length - 5}</i>` : ""}</span><span class="mw-m">${ppl.length} في الفريق</span>`);
     }
     if (k === "log") {
       const a = (D.audit || [])[0]; if (!a) return "";
-      return w(`<span class="tw-log"><i></i><span>${esc(String(a.action || a.what || a.text || "").slice(0, 70))}</span></span><span class="tw-m">${esc(ago(a.at))}</span>`);
+      return w(`<span class="mw-log"><i></i><span>${esc(String(a.action || a.what || a.text || "").slice(0, 70))}</span></span><span class="mw-m">${esc(ago(a.at))}</span>`);
     }
     return "";
   }
@@ -944,7 +944,7 @@
       <header class="top">
         <div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}${owned ? " · " + owned + " مادة" : ""}</p></div></div>
         <div class="row">
-          ${view !== "home" ? `<button class="btn sm" id="goHome">الرئيسية</button>` : ""}
+          ${view !== "home" ? `<button class="btn sm" id="goHome" aria-label="الرئيسية">${ICO(HOME_ICO)}<span class="gh-l">الرئيسية</span></button>` : ""}
           ${view === "admin" ? `<button class="btn sm primary" id="admin">رجوع للمواد</button>` : ""}
           ${CM.dd("أدوات", [canCreate() && view === "course" ? `<button class="dd-i" id="newC">مادة جديدة</button>` : "", view !== "timetable" ? `<button class="dd-i" id="goTT">الجدول الدراسي</button>` : "", me.role === "admin" && view !== "admin" ? `<button class="dd-i" id="admin">لوحة المسؤول</button>` : "", me.role === "admin" ? `<a class="dd-i" href="pg-admin.html">الدراسات العليا</a>` : ""])}
           <button class="btn sm ghost bell-btn" id="bellBtn" aria-label="التنبيهات" title="التنبيهات">${ICO(BELL_ICO)}<i class="bell-n" id="bellN" hidden></i></button>
@@ -1286,7 +1286,7 @@
         ${shown.map(it => { const code = it.e.student_code, can = editable && it.sel; return `<tr class="${lvSel.has(code) && can ? "sel" : ""}">
           <td class="cb">${can ? `<input type="checkbox" data-sel="${esc(code)}" ${lvSel.has(code) ? "checked" : ""} aria-label="تحديد">` : ""}</td>
           <td><span class="chip ${it.k}">${esc(it.chip)}</span></td>
-          <td>${esc(it.e.name)}</td>
+          <td class="nm">${esc(it.e.name)}</td>
           <td><div class="row" style="flex-wrap:nowrap">${!editable ? "" : it.sel === "pend" ? `<button class="btn sm" data-ap="${esc(code)}">موافقة</button><button class="btn sm danger" data-rj="${esc(code)}">رفض</button>` : it.sel === "abs" ? `<button class="btn sm" data-man="${esc(code)}">تحضير</button>` : it.log ? "" : `<button class="btn sm ghost" data-rm="${esc(code)}">${confirmKey === "rm:" + code ? "متأكد؟" : "إلغاء"}</button>`}</div></td>
           <td class="mono">${esc(code)}</td><td>${esc(it.e.grp || "—")}</td>
           <td class="mono small">${it.r ? CM.fmtT(it.r.at) : ""}</td>
@@ -1735,7 +1735,7 @@
     return `<div class="rp-sec" id="rpAbs"><div class="panel-h"><h3>الغائبون في المحاضرة</h3>
         <select id="rpLecSel" aria-label="اختر المحاضرة">${st.map(x => `<option value="${x.s.id}" ${x.s.id === rpLec ? "selected" : ""}>المحاضرة ${x.s.n}${x.s.grp ? " · مجموعة " + esc(x.s.grp) : ""} · ${CM.fmtD(x.s.started_at)} · ${x.own - x.pres} غائب</option>`).join("")}</select></div>
       ${ab.length ? `<p class="small muted">غاب ${ab.length} من ${r.own} طالب.</p><div class="tbl-wrap" style="max-height:360px;overflow:auto"><table><thead><tr><th class="c">#</th><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">مجموع غيابه</th><th>الحالة</th></tr></thead><tbody>
-        ${ab.map((e, i) => { const n = absences(e); return `<tr><td class="c mono muted">${i + 1}</td><td class="mono">${esc(e.student_code)}</td><td>${esc(e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}<td class="c mono">${n}</td><td>${CM.warnChip(n)}</td></tr>`; }).join("")}
+        ${ab.map((e, i) => { const n = absences(e); return `<tr><td class="c mono muted">${i + 1}</td><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}<td class="c mono">${n}</td><td>${CM.warnChip(n)}</td></tr>`; }).join("")}
       </tbody></table></div>` : `<div class="empty">لم يغب أحد في هذه المحاضرة.</div>`}</div>`;
   }
   function renderReport() {
@@ -1780,7 +1780,7 @@
       <div class="rp-sec"><div class="panel-h"><h3>الطلبة الذين لديهم غياب${rpLevel !== null ? " · " + CM.WARN[rpLevel].t : ""}</h3>${rpLevel !== null ? `<button class="btn sm ghost no-print" id="rpAll">عرض الكل</button>` : ""}</div>
         <div class="rs-bar no-print"><input type="search" id="rpQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rpQ)}" autocomplete="off"><span class="small muted">${list.length} طالب</span></div>
         ${list.length ? `<div class="tbl-wrap" id="rpWrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">الغياب</th><th class="c">الحضور</th><th>الحالة</th><th>الإشعار</th><th>غاب في</th><th>التالي</th></tr></thead><tbody>
-          ${list.map(x => `<tr class="${CM.lvl(x.ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(x.e.student_code)}</td><td>${esc(x.e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(x.e.grp || "—")}</td>` : ""}<td class="c mono"><b>${x.ab}</b></td><td class="c"><span class="chip ${x.a.pct >= 75 ? "ok" : x.a.pct >= 50 ? "warn" : "bad"}">${x.a.pct}%</span></td><td>${CM.warnChip(x.ab)}</td><td class="small">${(sn => sn ? `<span class="${sn.ok ? "seen-ok" : "seen-no"}">${sn.t}</span>` : "—")(seenOf(x.e, x.ab))}</td><td class="small muted">${x.miss.map(n => "م" + n).join("، ")}</td><td class="small">${next(x.ab)}</td></tr>`).join("")}
+          ${list.map(x => `<tr class="${CM.lvl(x.ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(x.e.student_code)}</td><td class="nm">${esc(x.e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(x.e.grp || "—")}</td>` : ""}<td class="c mono"><b>${x.ab}</b></td><td class="c"><span class="chip ${x.a.pct >= 75 ? "ok" : x.a.pct >= 50 ? "warn" : "bad"}">${x.a.pct}%</span></td><td>${CM.warnChip(x.ab)}</td><td class="small">${(sn => sn ? `<span class="${sn.ok ? "seen-ok" : "seen-no"}">${sn.t}</span>` : "—")(seenOf(x.e, x.ab))}</td><td class="small muted">${x.miss.map(n => "م" + n).join("، ")}</td><td class="small">${next(x.ab)}</td></tr>`).join("")}
         </tbody></table></div>` : `<div class="empty">${q ? "لا يوجد طالب بهذا الاسم أو الكود." : "لا يوجد طلبة لديهم غياب هنا."}</div>`}
       </div>`;
     const ae = document.activeElement;
@@ -2223,7 +2223,7 @@
       ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" style="max-width:320px"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select></div>` : ""; })() : ""}
       ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}${partsOf(t) ? partsOf(t).map((p, i) => `<th class="c pth" title="${esc(p.name)}">${esc(p.name)}<br><small>(من ${gN(p.max)})</small></th>`).join("") : `<th class="c">الدرجة من ${gN(t.max_grade)}</th>`}<th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
-          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td>${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
+          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td class="nm">${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
             ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}${extCell(t, e, s, run)}` : `<span class="muted">لم يسلّم</span>${extCell(t, e, s, run)}`}</td>
             <td class="small">${s && s.url ? `<button class="btn xs" data-view="${code}">عرض</button> <a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a">${esc(s.kind === "drive" ? (s.file_name || "الملف") : "رابط")}</a>${ck ? ` <span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted">«${esc(s.note)}»</div>` : ""}` : "—"}</td>`}
             ${partsOf(t) ? partsOf(t).map((p, i) => `<td class="c">${run ? `<input type="text" class="gin pin ${badVal(valOf(e.student_code, "p" + i, s), +p.max) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-p="${code}" data-pi="${i}" value="${esc(valOf(e.student_code, "p" + i, s))}" inputmode="decimal" autocomplete="off" title="${esc(p.name)} (من ${gN(p.max)})">` : gN(s && Array.isArray(s.parts) ? s.parts[i] : "")}</td>`).join("")
@@ -2744,7 +2744,7 @@
         </div>
         <div class="rq-rej" data-rqbox="${r.id}" hidden><input type="text" data-rqwhy="${r.id}" placeholder="سبب الرفض (يوصله في الإشعار)"><button class="btn sm" data-rqnogo="${r.id}">تأكيد الرفض</button></div>
       </div>`).join("")}</div>` : `<div class="empty">مفيش طلبات جديدة. ابعت للمعيدين رابط صفحة الدخول: <span class="mono" dir="ltr">${esc(location.href.split("#")[0])}</span> ← «اطلب حسابًا».</div>`}
-      ${done.length ? `<details class="rq-done"><summary>طلبات تمت مراجعتها (${done.length})</summary><div class="tbl-wrap"><table><tbody>${done.map(r => `<tr><td>${esc(r.name)}<div class="mono small muted">${esc(r.email)}</div></td><td>${r.status === "approved" ? `<span class="chip ok">وافقت · ${RL[r.role]}</span>` : `<span class="chip bad">رُفض</span>${r.reply ? `<div class="small muted">${esc(r.reply)}</div>` : ""}`}</td><td class="small muted">${esc(r.decided_by || "")} · ${r.decided_at ? fmtAgo(r.decided_at) : ""}</td></tr>`).join("")}</tbody></table></div></details>` : ""}
+      ${done.length ? `<details class="rq-done"><summary>طلبات تمت مراجعتها (${done.length})</summary><div class="tbl-wrap"><table><tbody>${done.map(r => `<tr><td class="nm">${esc(r.name)}<div class="mono small muted">${esc(r.email)}</div></td><td>${r.status === "approved" ? `<span class="chip ok">وافقت · ${RL[r.role]}</span>` : `<span class="chip bad">رُفض</span>${r.reply ? `<div class="small muted">${esc(r.reply)}</div>` : ""}`}</td><td class="small muted">${esc(r.decided_by || "")} · ${r.decided_at ? fmtAgo(r.decided_at) : ""}</td></tr>`).join("")}</tbody></table></div></details>` : ""}
     </section>`;
   }
   function wireAdminReq(el) {
@@ -3492,7 +3492,7 @@
       if (r) return `<span class="chip warn">معلّق</span> <button class="btn sm" data-rap="${code}">موافقة</button>`;
       return `<button class="btn sm primary" data-rman="${code}" ${rosterMan === e.student_code ? "aria-pressed=\"true\"" : ""}>تحضير${isOwn(ms, e) ? "" : " (تعويض)"}</button>`; };
     tb.innerHTML = `<thead><tr>${head("code")}${head("name")}${ms ? head("now") : ""}${head("grp")}${head("acc")}${mng ? "<th></th>" : ""}</tr></thead><tbody>
-      ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td>${esc(e.name)}${e.source === "form" ? ` <span class="chip warn small" title="أضاف نفسه من استمارة التسجيل الأكاديمي${e.added_at ? " يوم " + esc(CM.fmtD(e.added_at)) : ""}، ولم يرد في ملف الطلبة الذي رفعته. راجِعه، وأزِله إن لم يكن من طلبة المادة.">بالاستمارة</span>` : ""}</td>${ms ? `<td style="white-space:nowrap">${nowCell(e)}</td>` : ""}
+      ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}${e.source === "form" ? ` <span class="chip warn small" title="أضاف نفسه من استمارة التسجيل الأكاديمي${e.added_at ? " يوم " + esc(CM.fmtD(e.added_at)) : ""}، ولم يرد في ملف الطلبة الذي رفعته. راجِعه، وأزِله إن لم يكن من طلبة المادة.">بالاستمارة</span>` : ""}</td>${ms ? `<td style="white-space:nowrap">${nowCell(e)}</td>` : ""}
         <td>${mng ? `<select data-grp="${esc(e.student_code)}" style="width:auto;padding:3px 6px">${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${esc(g) || "—"}</option>`).join("")}</select>` : esc(e.grp || "—")}</td>
         <td>${b.device_bound ? `<span class="chip ok"${b.device_label ? ` title="${esc(b.device_label)}"` : ""}>مرتبط بهاتف</span>${b.moved_at && Date.now() - new Date(b.moved_at) < 30 * 864e5 ? `<div class="small muted">نقل حسابه بنفسه ${esc(CM.fmtD(b.moved_at))}</div>` : ""}` : b.registered ? `<span class="chip warn">بانتظار ربط هاتف</span>` : `<span class="chip none">لم ينشئ حسابًا</span>`}</td>
         ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الهاتف"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "حذف الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "إزالة من المادة"}</button></div></td>` : ""}</tr>
@@ -3714,7 +3714,7 @@
       <section class="panel" data-apane="report" ${atab === "report" ? "" : "hidden"}>
         <div class="panel-h"><div><div class="eyebrow">كل مواد القسم · ${fYear === "all" ? "كل الأعوام" : esc(fYear)} · ${fTerm === "all" ? "كل الفصول الدراسية" : TERMS[fTerm]}</div><h2>طلبة لديهم إنذار ثالث أو انسحاب</h2></div><button class="btn sm" id="repBtn">${report === "loading" ? `<span class="spinner"></span>` : report ? "تحديث" : "إعداد التقرير"}</button></div>
         ${Array.isArray(report) ? (report.length ? `<div class="tbl-wrap"><table><thead><tr><th>الطالب</th><th>المادة</th><th>المحاضر</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
-          ${report.map(x => `<tr><td>${esc(x.e.name)}<div class="mono muted small">${esc(x.e.student_code)}</div></td><td>${esc(x.c.name)}<div class="muted small">${esc(clsLabel(x.c))}</div></td><td>${esc(staffName(x.c.owner_email))}</td><td class="c mono">${x.ab}</td><td>${CM.warnChip(x.ab)}</td></tr>`).join("")}
+          ${report.map(x => `<tr><td class="nm">${esc(x.e.name)}<div class="mono muted small">${esc(x.e.student_code)}</div></td><td>${esc(x.c.name)}<div class="muted small">${esc(clsLabel(x.c))}</div></td><td>${esc(staffName(x.c.owner_email))}</td><td class="c mono">${x.ab}</td><td>${CM.warnChip(x.ab)}</td></tr>`).join("")}
           </tbody></table></div>` : `<div class="empty">لا يوجد طلبة لديهم إنذار ثالث أو انسحاب.</div>`) : `<p class="muted small">يشمل التقرير جميع المواد، لذا يُحسب عند الطلب.</p>`}
       </section>
       <section class="panel" data-apane="log" ${atab === "log" ? "" : "hidden"}><div class="panel-h"><div><div class="eyebrow">آخر التعديلات في كل المواد</div><h2>سجل التعديلات</h2></div></div>${auditList(au.data || [], true)}</section>`;
