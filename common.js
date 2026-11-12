@@ -335,7 +335,7 @@
       else if (hid && (acc < -18 || y < 60 || y > max - 24)) R.classList.remove("nx-dn");
     };
     const docks = () => document.querySelectorAll(".ctabs, .nx-dock");
-    const activeOf = n => n.querySelector('[aria-selected="true"], .on');
+    const activeOf = n => n.querySelector('[aria-selected="true"], [aria-pressed="true"], .on');
     const pillTo = (n, anim) => {
       let p = n.querySelector(":scope > .dk-pill"); const a = activeOf(n);
       if (!p) { p = document.createElement("i"); p.className = "dk-pill na"; n.prepend(p); anim = false; }
@@ -349,7 +349,7 @@
     // يتنده بعد أي تغيير في الصفحة: الشريط الجديد يتظبط فورًا، ولو القسم اتغيّر الخلفية تتزحلق
     CM.dockSync = () => {
       if (R.dataset.skin !== "nx" || innerWidth > 760) return;
-      docks().forEach(n => { const a = activeOf(n), k = a ? (a.dataset.ct || a.dataset.tile || "home") : "";
+      docks().forEach(n => { const a = activeOf(n), k = a ? (a.dataset.ct || a.dataset.tile || a.dataset.tab || a.dataset.at || a.textContent.trim() || "home") : "";
         if (!n.dataset.dk) { n.dataset.dk = k; pillTo(n, false); }
         else if (n.dataset.dk !== k) { n.dataset.dk = k; pillTo(n, true); } });
     };
@@ -614,7 +614,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b84)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b85)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
