@@ -943,8 +943,18 @@ table.gb thead .gb-nm{ z-index: 3; }
 .ok-t{ color: var(--ok); }
 @media (max-width: 620px){ table.gb .gb-nm{ min-width: 128px; max-width: 150px; } .gb-in{ width: 54px; } .gb-th{ min-width: 66px; } }
 .cchips.seg .cchip:not([aria-pressed=true]){ color: var(--ink); }
-table.gb{ min-width: 0; }
-.gb-wrap{ display: block; width: fit-content; max-width: 100%; }
+/* كشف الدرجات: حجم ثابت يملأ المساحة مهما كان عدد التكليفات */
+table.gb{ width: max-content; min-width: 100%; }
+.gb-wrap{ display: block; width: 100%; max-width: 100%; height: max(380px, calc(100vh - 230px)); height: max(380px, calc(100dvh - 230px)); max-height: none; overflow: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+table.gb tbody tr:hover td{ background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.gb-box{ min-width: 0; max-width: 100%; }
+.gb-fs{ margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; }
+.gb-fs svg{ width: 16px; height: 16px; }
+.gb-box.full{ position: fixed; inset: 0; z-index: 80; background: var(--bg); padding: 12px clamp(10px, 2vw, 24px); display: flex; flex-direction: column; gap: 6px; }
+.gb-box.full .gb-wrap{ flex: 1; height: auto; min-height: 0; }
+.gb-box.full .gb-note{ display: none; }
+html.gb-lock, html.gb-lock body{ overflow: hidden; }
+@media (max-width: 620px){ .gb-wrap{ height: max(360px, calc(100dvh - 190px)); } }
 .alt-sub{ margin-top: 12px; padding-top: 10px; border-top: 1px dashed color-mix(in srgb, currentColor 30%, transparent); display: grid; gap: 6px; color: var(--ink); }
 .alt-sub ol{ margin: 0; padding-inline-start: 18px; display: grid; gap: 2px; }
 /* الطالب: المحاضرة الجارية أعلى الصفحة */
@@ -1274,3 +1284,47 @@ select{background-repeat:no-repeat!important;background-position:left 12px cente
 .help-btn svg{width:19px;height:19px;display:block}
 #myTT{display:grid;gap:16px}
 .empty,.msg{overflow-wrap:anywhere}.empty .mono,.msg .mono{word-break:break-all}.empty .mono{display:block;margin:6px 0;font-size:.85em}
+/* جرس التنبيهات */
+.bell-btn{ position: relative; padding-inline: 10px; }
+.bell-btn svg{ width: 18px; height: 18px; }
+.bell-btn.on svg{ color: var(--accent); }
+.bell-n{ position: absolute; top: -5px; inset-inline-start: -5px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad); color: #fff; font-style: normal; font-size: .68rem; font-weight: 700; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--surface); }
+.bell-shade{ position: fixed; inset: 0; z-index: 57; background: rgba(8, 20, 16, .28); backdrop-filter: blur(2px); }
+.bell-pop{ position: fixed; z-index: 58; top: 0; bottom: 0; inset-inline-end: 0; width: min(460px, 100vw); background: var(--surface); border-inline-start: 1px solid var(--line); box-shadow: 0 0 40px -10px rgba(0,0,0,.35); display: flex; flex-direction: column; animation: blIn .18s ease-out; }
+@keyframes blIn{ from{ transform: translateX(-24px); opacity: 0; } }
+html.bell-lock, html.bell-lock body{ overflow: hidden; }
+.bl-h{ display: flex; align-items: center; gap: 6px; padding: 14px 16px 10px; padding-top: calc(14px + env(safe-area-inset-top, 0px)); border-bottom: 1px solid var(--line); }
+.bl-h b{ font-family: var(--f-display); font-size: 1.15rem; margin-inline-end: auto; }
+.bl-tabs{ display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 16px 0; }
+.bl-tabs button{ all: unset; cursor: pointer; text-align: center; padding: 9px 6px; border-radius: 12px; font-weight: 600; font-size: .92rem; color: var(--muted); border: 1px solid var(--line); }
+.bl-tabs button[aria-selected=true]{ background: var(--accent); border-color: var(--accent); color: #fff; }
+.bl-tabs i{ font-style: normal; font-size: .75rem; margin-inline-start: 4px; padding: 1px 7px; border-radius: 9px; background: color-mix(in srgb, currentColor 18%, transparent); }
+.bl-b{ flex: 1; overflow: auto; padding: 4px 16px calc(24px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; align-content: start; }
+.bl-sec{ margin: 12px 0 0; font-size: .95rem; display: flex; align-items: center; gap: 8px; }
+.bl-hint{ margin: 8px 0 0; }
+.bl-f{ flex-wrap: wrap; }
+.bl-g{ border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.bl-g > header{ padding: 9px 12px; background: var(--sunk); display: grid; gap: 2px; }
+.bl-g > header b{ font-size: .92rem; }
+.bl-g > header small{ color: var(--muted); font-size: .74rem; }
+.bl-it{ display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; padding: 10px 12px; border-top: 1px solid var(--line); align-items: start; }
+.bl-it.old{ background: color-mix(in srgb, var(--warn) 7%, var(--surface)); }
+.bl-it.late{ background: color-mix(in srgb, var(--bad) 8%, var(--surface)); }
+.bl-ic{ width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--tint); color: var(--accent); }
+.bl-ic svg{ width: 17px; height: 17px; }
+.bl-ic.k-warn, .bl-ic.k-appeal{ background: color-mix(in srgb, var(--warn) 18%, var(--surface)); color: var(--warn); }
+.bl-tx{ display: grid; gap: 2px; min-width: 0; }
+.bl-tx b{ font-size: .88rem; font-weight: 600; line-height: 1.4; }
+.bl-tx small{ color: var(--muted); font-size: .76rem; }
+.bl-tx em{ font-style: normal; font-weight: 700; }
+.bl-act{ grid-column: 2; display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.bl-empty{ padding: 14px; border: 1px dashed var(--line); border-radius: 14px; color: var(--muted); font-size: .86rem; text-align: center; }
+.bl-notes{ display: grid; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.bl-n{ display: grid; gap: 2px; padding: 9px 12px; border-top: 1px solid var(--line); position: relative; }
+.bl-n:first-child{ border-top: 0; }
+.bl-n.new{ background: var(--tint); }
+.bl-n.new::before{ content: ""; position: absolute; inset-inline-start: 5px; top: 15px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.bl-n b{ font-size: .86rem; }
+.bl-n span{ font-size: .8rem; }
+.bl-n small{ color: var(--muted); font-size: .72rem; }
+.bl-q{ display: grid; gap: 8px; margin-top: 10px; }

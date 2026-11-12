@@ -5349,3 +5349,115 @@ revoke execute on function public.tt_link_staff(text), public.tt_staff_link_trg(
 do $$ declare r record; begin
   for r in select email from staff loop perform public.tt_link_staff(r.email); end loop;
 end $$;
+
+-- تحديث 50: جرس التنبيهات لأعضاء هيئة التدريس + «متابعة القسم» للمسؤول
+--   تنبيهاتي: ما ينتظر ردّي في موادي (تظلمات، طلبات حضور معلّقة، إنذارات لم تُبلَّغ، تسليمات لم تُصحَّح) + سجل إشعاراتي.
+--   متابعة القسم (للمسؤول): نفس العناصر في مواد باقي الزملاء، بعمرها وفريقها، مع «تذكير الفريق».
+--   وتظلم جديد يرسل إشعارًا (وإشعار هاتف) لفريق المادة.
+
+create table if not exists public.staff_reminders (
+  id bigserial primary key,
+  course_id uuid not null references public.courses(id) on delete cascade,
+  item text not null,
+  by_email text not null,
+  at timestamptz not null default now()
+);
+create index if not exists staff_reminders_item on public.staff_reminders(course_id, item, at desc);
+alter table public.staff_reminders enable row level security;
+revoke all on public.staff_reminders from anon, authenticated;
+
+-- العناصر المعلّقة في مادة (داخلي)
+create or replace function public.feed_course_items(cid uuid) returns setof jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('kind', 'appeal', 'course_id', cid, 'ref', t.id::text, 'title', 'تظلمات بانتظار الرد · «' || t.title || '»', 'n', count(*), 'since', min(a.created_at))
+    from grade_appeals a join tasks t on t.id = a.task_id
+    where t.course_id = cid and a.status = 'pending' group by t.id, t.title
+  union all
+  select jsonb_build_object('kind', 'att', 'course_id', cid, 'ref', s.id::text, 'title', 'طلبات حضور معلّقة · المحاضرة ' || s.n || coalesce(' · مجموعة ' || nullif(s.grp, ''), ''), 'n', count(*), 'since', min(a.at), 'live', not s.ended)
+    from attendance a join sessions s on s.id = a.session_id
+    where s.course_id = cid and a.status = 'pending' group by s.id, s.n, s.grp, s.ended
+  union all
+  select jsonb_build_object('kind', 'warn', 'course_id', cid, 'ref', '', 'title', 'طلبة وصلوا إلى إنذار غياب جديد ولم يُبلَّغوا', 'n', count(*), 'since',
+           (select max(coalesce(s.closed_at, s.ends_at)) from sessions s where s.course_id = cid and s.ended))
+    from (select e.student_code, warn_level(course_absences(cid, e.student_code)) l from enrollments e where e.course_id = cid) x
+    where x.l > 0
+      and not exists (select 1 from warning_notices w where w.course_id = cid and w.student_code = x.student_code and w.level = x.l)
+      and not exists (select 1 from warning_announced a where a.course_id = cid and a.student_code = x.student_code and a.level = x.l)
+    having count(*) > 0
+  union all
+  select jsonb_build_object('kind', 'grade', 'course_id', cid, 'ref', t.id::text, 'title', 'تسليمات لم تُصحَّح · «' || t.title || '»', 'n', count(*), 'since', t.due_at)
+    from tasks t join submissions s on s.task_id = t.id
+    where t.course_id = cid and t.mode = 'submit' and t.due_at < now() - interval '1 day' and s.submitted_at is not null and s.grade is null
+    group by t.id, t.title, t.due_at
+$$;
+revoke all on function public.feed_course_items(uuid) from public, anon, authenticated;
+
+create or replace function public.staff_feed() returns json
+language plpgsql stable security definer set search_path = public as $$
+declare me text := my_email(); r text := staff_role(); mine json; dept json := '[]'; adm json := '{}'; notes json; unread int;
+begin
+  if r is null then raise exception 'not_allowed'; end if;
+  select coalesce(json_agg(i || jsonb_build_object('course', c.name) order by (i->>'since') nulls last), '[]') into mine
+    from courses c, lateral feed_course_items(c.id) i
+    where not c.archived and (c.owner_email = me or exists (select 1 from course_tas t where t.course_id = c.id and t.email = me));
+  if r = 'admin' then
+    select coalesce(json_agg(i || jsonb_build_object('course', c.name,
+             'team', (select json_agg(json_build_object('name', staff_name(x.email), 'k', x.k) order by x.o) from (
+                        select c.owner_email email, 'owner' k, 0 o union all select t.email, t.kind, 1 from course_tas t where t.course_id = c.id) x),
+             'reminded', (select max(m.at) from staff_reminders m where m.course_id = c.id and m.item = (i->>'kind') || ':' || (i->>'ref')))
+           order by (i->>'since') nulls last), '[]') into dept
+      from courses c, lateral feed_course_items(c.id) i
+      where not c.archived and not (c.owner_email = me or exists (select 1 from course_tas t where t.course_id = c.id and t.email = me));
+    adm := admin_inbox_counts();
+  end if;
+  select coalesce(json_agg(json_build_object('id', n.id, 'kind', n.kind, 'title', n.title, 'body', n.body, 'at', n.created_at, 'read', n.read_at is not null) order by n.id desc), '[]') into notes
+    from (select * from notifications where student_code = 'staff:' || me order by id desc limit 40) n;
+  select count(*) into unread from notifications where student_code = 'staff:' || me and read_at is null;
+  return json_build_object('mine', mine, 'dept', dept, 'admin', adm, 'notes', notes, 'unread', unread, 'at', now());
+end $$;
+
+create or replace function public.staff_notes_read() returns void
+language sql security definer set search_path = public as $$
+  update notifications set read_at = now() where student_code = 'staff:' || my_email() and read_at is null and staff_role() is not null;
+$$;
+
+-- المسؤول يذكّر فريق مادة بعنصر متأخر (مرة كل 6 ساعات لنفس العنصر)
+create or replace function public.staff_remind(cid uuid, p_kind text, p_ref text) returns int
+language plpgsql security definer set search_path = public as $$
+declare it jsonb; cname text; k text := p_kind || ':' || coalesce(p_ref, ''); n int;
+begin
+  if coalesce(staff_role(), '') <> 'admin' then raise exception 'not_allowed'; end if;
+  select name into cname from courses where id = cid;
+  if cname is null then raise exception 'not_found'; end if;
+  select x into it from feed_course_items(cid) x where x->>'kind' = p_kind and x->>'ref' = coalesce(p_ref, '') limit 1;
+  if it is null then raise exception 'remind_done'; end if;
+  if exists (select 1 from staff_reminders where course_id = cid and item = k and at > now() - interval '6 hours') then raise exception 'remind_wait'; end if;
+  insert into notifications(student_code, kind, title, body, url)
+    select 'staff:' || e, 'remind', 'تذكير من مسؤول القسم · ' || cname,
+           (it->>'title') || ' (' || (it->>'n') || ')' || coalesce(' · بانتظار الرد من ' || to_char(((it->>'since')::timestamptz) at time zone 'Africa/Cairo', 'DD/MM'), '') || '. برجاء المتابعة والرد.',
+           'https://elrashdan.github.io/classmate/staff.html'
+    from (select owner_email e from courses where id = cid union select email from course_tas where course_id = cid) t
+    where e <> my_email();
+  get diagnostics n = row_count;
+  insert into staff_reminders(course_id, item, by_email) values (cid, k, my_email());
+  perform log_audit(cid, 'ذكّر فريق المادة: ' || (it->>'title'));
+  return n;
+end $$;
+
+-- تظلم جديد ← إشعار لفريق المادة
+create or replace function public.appeal_notify_team() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare t tasks; cname text; nm text;
+begin
+  select * into t from tasks where id = new.task_id;
+  select name into cname from courses where id = t.course_id;
+  nm := coalesce((select name from enrollments where course_id = t.course_id and student_code = new.student_code), new.student_code);
+  insert into notifications(student_code, kind, title, body, url)
+    select 'staff:' || e, 'appeal', 'تظلم جديد · «' || t.title || '»', nm || ' · ' || cname, 'https://elrashdan.github.io/classmate/staff.html'
+    from (select owner_email e from courses where id = t.course_id union select email from course_tas where course_id = t.course_id) x;
+  return null;
+end $$;
+create or replace trigger grade_appeals_notify after insert on public.grade_appeals for each row execute function public.appeal_notify_team();
+
+revoke all on function public.staff_feed(), public.staff_notes_read(), public.staff_remind(uuid, text, text), public.appeal_notify_team() from public, anon;
+grant execute on function public.staff_feed(), public.staff_notes_read(), public.staff_remind(uuid, text, text) to authenticated;

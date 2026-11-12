@@ -730,6 +730,85 @@
       </div></section>`;
   }
   let inbox = {};
+
+  /* ======================= جرس التنبيهات ======================= */
+  // تنبيهاتي: ما ينتظر ردّي في موادي + سجل إشعاراتي. متابعة القسم (للمسؤول): ما ينتظر الرد في مواد الزملاء.
+  let feed = null, bellTab = "mine", bellF = "all", bellPoll = null;
+  const BELL_ICO = '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>';
+  const FK = {
+    appeal: { t: "تظلم", ic: '<path d="M12 3v18M5 7l7-4 7 4M3 13l2-6 2 6a2.8 2.8 0 0 1-4 0zM17 13l2-6 2 6a2.8 2.8 0 0 1-4 0z"/>', tab: "tasks", u: "طالب" },
+    att: { t: "حضور معلّق", ic: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', tab: "live", u: "طالب" },
+    warn: { t: "إنذار غياب", ic: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>', tab: "report", u: "طالب" },
+    grade: { t: "تصحيح", ic: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>', tab: "tasks", u: "تسليم" }
+  };
+  const ago = ts => { if (!ts) return ""; const m = Math.max(0, (Date.now() - new Date(ts).getTime()) / 6e4); if (m < 1) return "الآن"; if (m < 60) return "منذ " + Math.round(m) + " دقيقة";
+    const h = m / 60; if (h < 24) return "منذ " + (Math.round(h) === 1 ? "ساعة" : Math.round(h) === 2 ? "ساعتين" : Math.round(h) + " ساعات"); const d = Math.floor(h / 24); return "منذ " + (d === 1 ? "يوم" : d === 2 ? "يومين" : d <= 10 ? d + " أيام" : d + " يومًا"); };
+  const ageDays = ts => ts ? (Date.now() - new Date(ts).getTime()) / 864e5 : 0;
+  const lateCls = it => it.kind === "att" && it.live ? "" : ageDays(it.since) >= 3 ? " late" : ageDays(it.since) >= 1 ? " old" : "";
+  const bellCount = () => feed ? feed.mine.length + (feed.unread || 0) + (me.role === "admin" ? (+feed.admin.requests || 0) + (+feed.admin.tickets || 0) : 0) : 0;
+  async function loadFeed() { try { feed = await rpc("staff_feed"); } catch (e) { if (!feed) feed = null; } bellBadge(); const p = $("#bellPop"); if (p && !p.hidden) bellRender(); }
+  function bellBadge() { const n = bellCount(), b = $("#bellN"); if (b) { b.hidden = !n; b.textContent = n > 99 ? "99+" : n; } const bt = $("#bellBtn"); if (bt) bt.classList.toggle("on", !!n); }
+  function bellItem(it, dept) {
+    const k = FK[it.kind] || FK.appeal;
+    return `<article class="bl-it${lateCls(it)}"><span class="bl-ic k-${it.kind}">${ICO(k.ic)}</span><div class="bl-tx"><b>${esc(it.title)}</b>
+      <small>${it.n} ${k.u}${it.kind === "att" && it.live ? " · المحاضرة جارية الآن" : it.since ? " · " + ago(it.since) : ""}${lateCls(it) === " late" ? ` · <em class="bad-t">متأخر</em>` : ""}${dept && it.reminded ? ` · ذُكّر الفريق ${ago(it.reminded)}` : ""}</small></div>
+      <div class="bl-act">${dept ? `<button class="btn xs ghost" data-blrem="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}" title="إشعار لفريق المادة بأن هذا ينتظر الرد">تذكير الفريق</button>` : ""}<button class="btn xs" data-blgo="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}">فتح</button></div></article>`;
+  }
+  function bellGroups(list, dept) {
+    const by = {}; list.forEach(it => (by[it.course_id] = by[it.course_id] || { name: it.course, team: it.team, items: [] }).items.push(it));
+    return Object.values(by).sort((a, b) => b.items.length - a.items.length).map(g => `<section class="bl-g"><header><b>${esc(g.name)}</b>${dept && g.team ? `<small>${g.team.map(t => esc(t.name) + (t.k === "owner" ? "" : t.k === "co" ? " (مشارك)" : " (معيد)")).join("، ")}</small>` : ""}</header>${g.items.map(it => bellItem(it, dept)).join("")}</section>`).join("");
+  }
+  function bellRender() {
+    const p = $("#bellPop"); if (!p) return;
+    const adm = me.role === "admin";
+    if (!feed) { p.innerHTML = `<div class="bl-h"><b>التنبيهات</b><button class="btn xs ghost" id="bellX" aria-label="إغلاق">✕</button></div><p class="muted small" style="padding:16px"><span class="spinner"></span> جارٍ التحميل…</p>`; $("#bellX").onclick = bellClose; return; }
+    if (!adm) bellTab = "mine";
+    const kinds = ["all", ...Object.keys(FK)], filt = l => bellF === "all" ? l : bellF === "late" ? l.filter(it => lateCls(it) === " late") : l.filter(it => it.kind === bellF);
+    let body = "";
+    if (bellTab === "mine") {
+      body = `<h4 class="bl-sec">مطلوب منك <span class="chip ${feed.mine.length ? "warn" : "ok"}">${feed.mine.length}</span></h4>${feed.mine.length ? bellGroups(feed.mine, false) : `<div class="bl-empty">لا شيء ينتظر ردّك في موادك الآن.</div>`}
+        <h4 class="bl-sec">الإشعارات ${feed.unread ? `<span class="chip warn">${feed.unread} جديد</span>` : ""}</h4>
+        ${feed.notes.length ? `<div class="bl-notes">${feed.notes.map(n => `<div class="bl-n${n.read ? "" : " new"}"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${ago(n.at)}</small></div>`).join("")}</div>` : `<div class="bl-empty">لا توجد إشعارات بعد. يصلك هنا كل تظلم جديد وكل تذكير من مسؤول القسم وردود رسائلك.</div>`}`;
+    } else {
+      const d = feed.dept, a = feed.admin || {}, list = filt(d), late = d.filter(it => lateCls(it) === " late").length;
+      body = `${a.requests || a.tickets ? `<div class="bl-q">${a.requests ? `<button class="walert-c info" data-goat="requests"><span><b>طلبات تسجيل (${a.requests})</b><small>معيدون ومحاضرون بانتظار موافقتك</small></span><em>مراجعة ←</em></button>` : ""}${a.tickets ? `<button class="walert-c info" data-goat="inbox"><span><b>رسائل بانتظار ردك (${a.tickets})</b><small>استفسارات وشكاوى ومقترحات</small></span><em>فتح ←</em></button>` : ""}</div>` : ""}
+        <p class="small muted bl-hint">ما ينتظر الرد في مواد الزملاء، الأقدم أولًا. «تذكير الفريق» يرسل لهم إشعارًا على الهاتف، و«فتح» يدخلك المادة لتتصرف بنفسك.</p>
+        <div class="cchips bl-f">${kinds.map(k => `<button type="button" class="cchip" data-blf="${k}" aria-pressed="${bellF === k}">${k === "all" ? "الكل " + d.length : FK[k].t + " " + d.filter(it => it.kind === k).length}</button>`).join("")}<button type="button" class="cchip" data-blf="late" aria-pressed="${bellF === "late"}">متأخر ${late}</button></div>
+        ${list.length ? bellGroups(list, true) : `<div class="bl-empty">${d.length ? "لا شيء في هذا التصنيف." : "كل المواد مُتابَعة، لا شيء متأخر."}</div>`}`;
+    }
+    p.innerHTML = `<div class="bl-h"><b>التنبيهات</b><button class="btn xs ghost" id="bellRef" title="تحديث">↻</button><button class="btn xs ghost" id="bellX" aria-label="إغلاق">✕</button></div>
+      ${adm ? `<div class="bl-tabs" role="tablist"><button role="tab" data-blt="mine" aria-selected="${bellTab === "mine"}">تنبيهاتي <i>${feed.mine.length + (feed.unread || 0)}</i></button><button role="tab" data-blt="dept" aria-selected="${bellTab === "dept"}">متابعة القسم <i>${feed.dept.length + (+feed.admin.requests || 0) + (+feed.admin.tickets || 0)}</i></button></div>` : ""}
+      <div class="bl-b">${body}</div>`;
+    $("#bellX").onclick = bellClose;
+    $("#bellRef").onclick = () => { feed = null; bellRender(); loadFeed(); };
+    p.querySelectorAll("[data-blt]").forEach(b => b.onclick = () => { bellTab = b.dataset.blt; bellF = "all"; bellRender(); });
+    p.querySelectorAll("[data-blf]").forEach(b => b.onclick = () => { bellF = b.dataset.blf; bellRender(); });
+    p.querySelectorAll("[data-goat]").forEach(b => b.onclick = () => { bellClose(); atab = b.dataset.goat; store.set("cm_atab", atab); view = "admin"; stopLoops(); render(); });
+    p.querySelectorAll("[data-blgo]").forEach(b => b.onclick = () => { const [cid, kind, ref] = b.dataset.blgo.split("|"); bellGo(cid, kind, ref); });
+    p.querySelectorAll("[data-blrem]").forEach(b => b.onclick = async () => { const [cid, kind, ref] = b.dataset.blrem.split("|"); b.disabled = true;
+      try { const n = await rpc("staff_remind", { cid, p_kind: kind, p_ref: ref }); toast(n ? "وصل التذكير لفريق المادة (" + n + ")." : "لا يوجد في فريق المادة غيرك."); await loadFeed(); } catch (e) { b.disabled = false; toast(errText(e)); } });
+    if (bellTab === "mine" && feed.unread) rpc("staff_notes_read").then(() => { feed.unread = 0; bellBadge(); }).catch(() => {});
+  }
+  function bellGo(cid, kind, ref) {
+    bellClose();
+    if (!courses.some(c => c.id === cid)) { toast("هذه المادة غير متاحة في قائمتك."); return; }
+    curId = cid; store.set("cm_course", curId); ctab = (FK[kind] || FK.appeal).tab; store.set("cm_tab", ctab); view = "course";
+    flash = {}; liveTab = "all"; regGroup = "all"; rpGroup = "all"; rpLevel = null; startState = null; tkSel = kind === "grade" ? ref : null; tkForm = null;
+    fYear = "all"; fTerm = "all";
+    loadCourse().then(() => { const w = kind === "warn" ? $("#wAlert") : kind === "appeal" ? $("#apBox") : null; if (w) w.scrollIntoView({ block: "center" }); else window.scrollTo({ top: 0 }); }).catch(showErr);
+  }
+  function bellOpen() {
+    let p = $("#bellPop"); if (!p) { p = document.createElement("div"); p.id = "bellPop"; p.className = "bell-pop"; p.setAttribute("role", "dialog"); p.setAttribute("aria-label", "التنبيهات"); document.body.appendChild(p);
+      const sh = document.createElement("div"); sh.id = "bellShade"; sh.className = "bell-shade"; sh.onclick = bellClose; document.body.appendChild(sh); }
+    p.hidden = false; $("#bellShade").hidden = false; document.documentElement.classList.add("bell-lock"); bellRender(); loadFeed();
+  }
+  function bellClose() { const p = $("#bellPop"); if (p) p.hidden = true; const sh = $("#bellShade"); if (sh) sh.hidden = true; document.documentElement.classList.remove("bell-lock"); }
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { const p = $("#bellPop"); if (p && !p.hidden) bellClose(); } });
+  function wireBell() {
+    const b = $("#bellBtn"); if (b) b.onclick = () => { const p = $("#bellPop"); if (p && !p.hidden) bellClose(); else bellOpen(); };
+    bellBadge();
+    if (!bellPoll) { bellPoll = setInterval(() => { if (!document.hidden) loadFeed(); }, 120000); loadFeed(); document.addEventListener("visibilitychange", () => { if (!document.hidden) loadFeed(); }); }
+  }
   const TT_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 3v3M16 3v3M9 13h2M13 13h2M9 16.5h2M13 16.5h2"/></svg>`;
   // «جدولي»: محاضرات عضو هيئة التدريس من الجدول الدراسي
   let myTT = undefined, myTTDay = null;
@@ -820,6 +899,7 @@
           ${view !== "home" ? `<button class="btn sm" id="goHome">الرئيسية</button>` : ""}
           ${view === "admin" ? `<button class="btn sm primary" id="admin">رجوع للمواد</button>` : ""}
           ${CM.dd("أدوات", [canCreate() && view === "course" ? `<button class="dd-i" id="newC">مادة جديدة</button>` : "", view !== "timetable" ? `<button class="dd-i" id="goTT">الجدول الدراسي</button>` : "", me.role === "admin" && view !== "admin" ? `<button class="dd-i" id="admin">لوحة المسؤول</button>` : "", me.role === "admin" ? `<a class="dd-i" href="pg-admin.html">الدراسات العليا</a>` : ""])}
+          <button class="btn sm ghost bell-btn" id="bellBtn" aria-label="التنبيهات" title="التنبيهات">${ICO(BELL_ICO)}<i class="bell-n" id="bellN" hidden></i></button>
           ${CM.themeBtn()}
           ${CM.dd(`<span class="dd-ava">${esc(String(me.name || "؟").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().charAt(0))}</span><span class="dd-hide">حسابي</span>`, [`<button class="dd-i" id="goProf">ملفي الشخصي</button>`, `<button class="dd-i" id="pwSet">كلمة السر</button>`, `<button class="dd-i" id="goHelp">المساعدة والتواصل</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي" })}
         </div>
@@ -857,7 +937,7 @@
       <div class="tabpane" id="pane-log" role="tabpanel" ${ctab === "log" ? "" : "hidden"}><section class="panel" id="auditPanel"></section></div>`}
       </div>`;
     document.body.classList.toggle("has-ctabs", view === "course" && !!$(".ctabs"));
-    wireHome(c); wirePicker(); navMark();
+    wireHome(c); wirePicker(); navMark(); wireBell();
     if (lastRise !== view + (view === "course" ? "" : "")) { lastRise = view; CM.rise(app); }
     document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));
     tabBadges();
@@ -1901,7 +1981,7 @@
     };
   }
   /* ---------- ترتيب قائمة التكليفات وتقسيمها حسب المجموعة ---------- */
-  let tkLay = store.get("cm_tklay") || "cards", gbG = "all", gbQ = "", gbPend = {}, gbTimer = null;
+  let tkLay = store.get("cm_tklay") || "cards", gbG = "all", gbQ = "", gbPend = {}, gbTimer = null, gbFull = false;
   let tkSort = store.get("cm_tksort") || "az", tkSplit = store.get("cm_tksplit") !== "0", tkXg = store.get("cm_tkxg") || "all";
   const courseGroups = () => [...new Set(D.enroll.map(e => e.grp).filter(Boolean))].sort((a, b) => GORD(a) - GORD(b) || a.localeCompare(b, "ar"));
   // مفتاح الترتيب الأبجدي: الأرقام العربية والكلمات الترتيبية (الأول، الثاني…) تُقرأ أعدادًا، فيأتي «المشروع العاشر» بعد «التاسع»
@@ -1927,15 +2007,16 @@
     const q = normAr(gbQ), run = canRun(course());
     const rows = D.enroll.filter(e => (gbG === "all" || e.grp === gbG || ts.some(t => t.grp === gbG && hasWork(t, e.student_code))) && (!q || normAr(e.name).includes(q) || e.student_code.includes(q))).slice().sort(byGroupName);
     const showG = gs.length > 1 && gbG === "all";
-    return `<div class="gb-bar no-print">${gs.length > 1 ? `<div class="cchips">${["all", ...gs].map(g => `<button type="button" class="cchip" data-gbg="${esc(g)}" aria-pressed="${gbG === g}">${g === "all" ? "كل المجموعات" : "مجموعة " + esc(g)}</button>`).join("")}</div>` : ""}
+    return `<div class="gb-box${gbFull ? " full" : ""}" id="gbBox"><div class="gb-bar no-print">${gs.length > 1 ? `<div class="cchips">${["all", ...gs].map(g => `<button type="button" class="cchip" data-gbg="${esc(g)}" aria-pressed="${gbG === g}">${g === "all" ? "كل المجموعات" : "مجموعة " + esc(g)}</button>`).join("")}</div>` : ""}
       <input type="search" id="gbQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(gbQ)}" autocomplete="off">
-      <span class="small muted" id="gbSt">${run ? "اكتب الدرجة في خانتها؛ تُحفظ تلقائيًّا. Enter للطالب التالي." : "للعرض فقط."}</span></div>
+      <span class="small muted" id="gbSt">${run ? "اكتب الدرجة في خانتها؛ تُحفظ تلقائيًّا. Enter للطالب التالي." : "للعرض فقط."}</span>
+      <button type="button" class="btn sm ghost gb-fs" id="gbFull" title="${gbFull ? "رجوع للحجم العادي (Esc)" : "عرض الكشف على الشاشة كلها"}">${gbFull ? ICO('<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>') + "تصغير" : ICO('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>') + "ملء الشاشة"}</button></div>
       <div class="tbl-wrap gb-wrap"><table class="gb"><thead><tr><th class="c gb-n">م</th><th class="gb-nm">الطالب</th>${showG ? `<th class="c">مج</th>` : ""}${ts.map(t => `<th class="c gb-th"><button type="button" class="gb-tt" data-tk="${t.id}" title="فتح التكليف">${esc(t.title)}</button><small>من ${gN(t.max_grade)}${t.grp ? " · " + esc(t.grp) : ""}${t.released ? "" : " · غير معلنة"}</small></th>`).join("")}<th class="c gb-avg">المتوسط %</th></tr></thead>
       <tbody>${rows.map((e, i) => `<tr data-gbr="${esc(e.student_code)}"><td class="c mono muted">${i + 1}</td><td class="gb-nm"><b>${esc(e.name)}</b><small class="mono">${esc(e.student_code)}${!showG && gbG !== "all" && e.grp !== gbG ? " · استثناء من " + esc(e.grp || "") : ""}</small></td>${showG ? `<td class="c">${esc(e.grp || "")}</td>` : ""}
         ${ts.map(t => { const sb = subOf(t, e.student_code), na = !inTaskGrp(t, e) && !hasWork(t, e.student_code), P = partsOf(t), k = t.id + "|" + e.student_code, pend = gbPend[t.id] && k.split("|")[1] in gbPend[t.id];
           return `<td class="c gb-c${na ? " na" : ""}">${P ? `<span class="gb-ro" title="مقسّم إلى مشاريع فرعية؛ افتح التكليف لرصدها">${sb && sb.grade != null ? gN(totalOf(sb)) : "—"}</span>` : `<input class="gb-in${pend ? " pend" : ""}" data-gb="${k}" inputmode="decimal" autocomplete="off" value="${pend ? esc(String(gbPend[t.id][e.student_code] ?? "")) : sb && sb.grade != null ? esc(gN(sb.grade)) : ""}" placeholder="${na ? "·" : ""}" ${run ? "" : "readonly"} aria-label="${esc(e.name)} · ${esc(t.title)}">${sb && Number(sb.bonus) ? `<i class="gb-b">+${gN(sb.bonus)}</i>` : ""}`}</td>`; }).join("")}
         <td class="c mono gb-avg" data-gbavg="${esc(e.student_code)}">${gbAvg(e) ?? "—"}</td></tr>`).join("")}</tbody></table></div>
-      ${!rows.length ? `<div class="empty">لا يوجد طلبة بهذا البحث.</div>` : ""}<p class="small muted">الخانة الرمادية: الطالب ليس من مجموعة هذا التكليف؛ إن كتبت له درجة أُضيف إليه استثناءً. البونص يظهر صغيرًا بجوار الدرجة ويُعدَّل من داخل التكليف.</p>`;
+      ${!rows.length ? `<div class="empty">لا يوجد طلبة بهذا البحث.</div>` : ""}<p class="small muted gb-note">الخانة الرمادية: الطالب ليس من مجموعة هذا التكليف؛ إن كتبت له درجة أُضيف إليه استثناءً. البونص يظهر صغيرًا بجوار الدرجة ويُعدَّل من داخل التكليف.</p></div>`;
   }
   function gbStatus(t, cls) { const el = $("#gbSt"); if (el) { el.textContent = t; el.className = "small " + (cls || "muted"); } }
   async function gbFlush() {
@@ -1957,6 +2038,9 @@
   function wireGb(el) {
     if (tkLay !== "sheet") return;
     el.querySelectorAll("[data-gbg]").forEach(b => b.onclick = () => { gbFlush(); gbG = b.dataset.gbg; renderTasks(); });
+    const fb = $("#gbFull"); if (fb) fb.onclick = () => { gbFull = !gbFull; document.documentElement.classList.toggle("gb-lock", gbFull); renderTasks(); };
+    if (!wireGb.esc) { wireGb.esc = true; document.addEventListener("keydown", e => { if (e.key === "Escape" && gbFull) { gbFull = false; document.documentElement.classList.remove("gb-lock"); renderTasks(); } }); }
+    document.documentElement.classList.toggle("gb-lock", gbFull && !!$("#gbBox"));
     const q = $("#gbQ"); if (q) q.oninput = () => { gbQ = q.value; gbFlush(); renderTasks(); const r2 = $("#gbQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
     const ins = [...el.querySelectorAll(".gb-in")];
     const at = (inp, dr) => { const td = inp.closest("td"), tr = td.parentElement, ci = [...tr.children].indexOf(td); let r = tr; do { r = dr > 0 ? r.nextElementSibling : r.previousElementSibling; } while (r && !(r.children[ci] && r.children[ci].querySelector(".gb-in"))); return r && r.children[ci].querySelector(".gb-in"); };
