@@ -1387,8 +1387,8 @@ html[data-skin="nx"] .sb-ic::after{ display: none !important; }
 html[data-skin="nx"] .tile{ border: 0; border-radius: 28px; background: var(--surface); min-height: 160px; padding: 20px; transition: background-color .25s, color .25s, transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s; transform-style: preserve-3d; }
 html[data-skin="nx"] .tile > svg{ background: var(--nx-dark); color: var(--nx-hi); border: 0; border-radius: 15px; padding: 10px; }
 html[data-skin="nx"] .tile b{ font-size: 1.18rem; letter-spacing: -.01em; }
-html[data-skin="nx"] .tile:hover, html[data-skin="nx"] .tile.hot{ background: var(--nx-hi); color: var(--nx-on-hi); box-shadow: 0 24px 50px -30px color-mix(in srgb, var(--nx-hi) 80%, #000); }
-html[data-skin="nx"] .tile:hover small, html[data-skin="nx"] .tile.hot small{ color: color-mix(in srgb, var(--nx-on-hi) 70%, transparent); }
+html[data-skin="nx"] .tile.hot{ background: var(--nx-hi); color: var(--nx-on-hi); box-shadow: 0 24px 50px -30px color-mix(in srgb, var(--nx-hi) 80%, #000); }
+html[data-skin="nx"] .tile.hot small{ color: color-mix(in srgb, var(--nx-on-hi) 70%, transparent); }
 html[data-skin="nx"] .tile::before, html[data-skin="nx"] .tile::after{ opacity: 0 !important; }
 /* تبويبات المادة: شريط داكن عائم (عمودي على الكمبيوتر) */
 html[data-skin="nx"] .ctabs{ background: var(--nx-dark) !important; border: 0 !important; border-radius: 22px !important; padding: 6px !important; box-shadow: 0 18px 40px -18px rgba(0,0,0,.55) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
@@ -1472,7 +1472,7 @@ html[data-skin="nx"] .mw-chip{ font-style: normal; font-weight: 600; background:
 html[data-skin="nx"] .mw-chip.warn{ background: color-mix(in srgb, var(--warn) 22%, var(--surface)); }
 html[data-skin="nx"] .mw-chip.bad{ background: color-mix(in srgb, var(--bad) 22%, var(--surface)); }
 html[data-skin="nx"] .mw-m{ color: var(--muted); } html[data-skin="nx"] .mw-m b{ color: var(--ink); }
-html[data-skin="nx"] .tile:hover .mw-m, html[data-skin="nx"] .tile.hot .mw-m{ color: color-mix(in srgb, var(--nx-on-hi) 72%, transparent); }
+html[data-skin="nx"] .tile.hot .mw-m{ color: color-mix(in srgb, var(--nx-on-hi) 72%, transparent); }
 html[data-skin="nx"] .mw-live{ font-style: normal; display: inline-flex; align-items: center; gap: 6px; background: var(--nx-dark); color: var(--nx-hi); padding: 3px 10px; border-radius: 8px; font-weight: 700; }
 html[data-skin="nx"] .mw-live i{ width: 7px; height: 7px; border-radius: 2px; background: var(--nx-hi); animation: pulse 1.4s ease-in-out infinite; }
 html[data-skin="nx"] .mw-bar{ height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--ink) 12%, transparent); overflow: hidden; }
@@ -1498,7 +1498,7 @@ html[data-skin="nx"] .mw-next b{ color: var(--nx-hi); font-size: .78rem; } html[
 html[data-skin="nx"] .mw-ava{ display: flex; }
 html[data-skin="nx"] .mw-ava i{ width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--nx-dark); color: var(--nx-hi); font-style: normal; font-weight: 700; border: 2px solid var(--surface); margin-inline-start: -9px; }
 html[data-skin="nx"] .mw-ava i:first-child{ margin-inline-start: 0; } html[data-skin="nx"] .mw-ava i.more{ background: var(--sunk); color: var(--ink); font-size: .74rem; }
-html[data-skin="nx"] .tile:hover .mw-ava i, html[data-skin="nx"] .tile.hot .mw-ava i{ border-color: var(--nx-hi); }
+html[data-skin="nx"] .tile.hot .mw-ava i{ border-color: var(--nx-hi); }
 html[data-skin="nx"] .mw-log{ display: flex; gap: 8px; align-items: flex-start; }
 html[data-skin="nx"] .mw-log i{ width: 8px; height: 8px; border-radius: 2px; background: var(--ink); margin-top: 6px; flex: none; }
 html[data-skin="nx"] .mw-log span{ display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -1678,19 +1678,11 @@ html[data-skin="nx"][data-theme="dark"] .mw-cal-g i.due{ background: var(--nx-ba
 @media (min-width: 1000px){ html[data-skin="nx"] [data-tile="tasks"] .mw-cal-g{ gap: 7px; } html[data-skin="nx"] [data-tile="tasks"] .mw-cal-g i{ aspect-ratio: 1 / .75; font-size: .82rem; } }
 html[data-skin="nx"] [data-tile="tasks"] .mw{ grid-template-columns: 1fr; align-items: stretch; }
 html[data-skin="nx"] [data-tile="tasks"] .mw > .mw-row{ align-items: stretch; } html[data-skin="nx"] [data-tile="tasks"] .mw > .mw-row > .mw-next{ flex: 1 1 160px; }
-/* الكارت لما تقف عليه: كل اللي جواه يتلوّن صح (كان الكلام بيختفي) */
-html[data-skin="nx"] .home .tiles:not(.small) .tile:not([data-tile="live"]):hover, html[data-skin="nx"] .home .tiles:not(.small) .tile:not([data-tile="live"]).hot{
-  --ink: var(--nx-on-hi); --muted: color-mix(in srgb, var(--nx-on-hi) 72%, var(--nx-hi)); --sunk: color-mix(in srgb, var(--nx-on-hi) 12%, var(--nx-hi)); --surface: var(--nx-hi);
-  background: var(--nx-hi) !important; color: var(--nx-on-hi) !important; }
-html[data-skin="nx"] .home .tiles:not(.small) .tile:not([data-tile="live"]):hover .mw-cal-g i.due{ background: var(--nx-on-hi); color: var(--nx-hi); }
-html[data-skin="nx"] .home .tiles:not(.small) .tile:not([data-tile="live"]):hover .mw-cal-g i.td{ background: var(--nx-base); color: var(--nx-dark); }
-html[data-skin="nx"] .tiles.small .tile:hover{ --ink: var(--nx-on-hi); --muted: color-mix(in srgb, var(--nx-on-hi) 72%, var(--nx-hi)); }
 /* كارت المحاضرة الكبير: داكن ومحدد، وفي الوضع الداكن يبان عن الخلفية */
 html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"]{ --ink: var(--nx-base); --muted: color-mix(in srgb, var(--nx-base) 70%, var(--nx-dark)); --sunk: color-mix(in srgb, var(--nx-base) 10%, var(--nx-dark)); --surface: var(--nx-dark);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-base) 10%, transparent); }
 html[data-skin="nx"][data-theme="dark"] .home .tiles:not(.small) [data-tile="live"]{ background: radial-gradient(120% 80% at 0% 100%, color-mix(in srgb, var(--nx-hi) 16%, transparent), transparent 60%), color-mix(in srgb, var(--nx-base) 7%, var(--nx-dark)) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-hi) 28%, transparent); }
 @media (prefers-color-scheme: dark){ html[data-skin="nx"]:not([data-theme="light"]) .home .tiles:not(.small) [data-tile="live"]{ background: radial-gradient(120% 80% at 0% 100%, color-mix(in srgb, var(--nx-hi) 16%, transparent), transparent 60%), color-mix(in srgb, var(--nx-base) 7%, var(--nx-dark)) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-hi) 28%, transparent); } }
-html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"]:hover{ box-shadow: inset 0 0 0 2px var(--nx-hi), 0 24px 50px -30px color-mix(in srgb, var(--nx-hi) 80%, #000) !important; }
 html[data-skin="nx"] [data-tile="live"] .mw-chip{ background: color-mix(in srgb, var(--nx-base) 12%, transparent); color: var(--nx-base); }
 html[data-skin="nx"] [data-tile="live"] .mw-next{ background: color-mix(in srgb, var(--nx-base) 9%, transparent); border-inline-start: 3px solid var(--nx-hi); }
 html[data-skin="nx"] [data-tile="live"] .mw-bars{ height: 110px; }
@@ -1699,3 +1691,17 @@ html[data-skin="nx"][data-theme="dark"] .home .tiles:not(.small) .tile:not([data
 html[data-skin="nx"] .mw-m b{ font-size: inherit; letter-spacing: 0; }
 html[data-skin="nx"][data-theme="dark"] .me-card{ background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--nx-hi) 22%, transparent), transparent 60%), color-mix(in srgb, var(--nx-base) 7%, var(--nx-dark)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-hi) 22%, transparent); }
 @media (prefers-color-scheme: dark){ html[data-skin="nx"]:not([data-theme="light"]) .me-card{ background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--nx-hi) 22%, transparent), transparent 60%), color-mix(in srgb, var(--nx-base) 7%, var(--nx-dark)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-hi) 22%, transparent); } }
+
+/* ======= b83: نفس تفاعل كارت المحاضرة على كل الكروت ======= */
+/* بدل ما الكارت يتملي بلون، بيطلع له إطار بلون الثيم وتوهج، ونور خفيف بيمشي مع الماوس، ويميل معاه */
+html[data-skin="nx"] .tile, html[data-skin="nx"] .me-card{ transition: transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s; }
+html[data-skin="nx"] .tile:hover, html[data-skin="nx"] .tile:focus-visible, html[data-skin="nx"] .me-card:hover{ box-shadow: inset 0 0 0 2px var(--nx-hi), 0 0 0 1px color-mix(in srgb, var(--nx-dark) 10%, transparent), 0 24px 50px -28px color-mix(in srgb, var(--nx-hi) 85%, #000) !important; outline: none; }
+html[data-skin="nx"] .tiles .tile::before, html[data-skin="nx"] .me-card::before{ content: "" !important; position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit; display: block !important;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 30%), color-mix(in srgb, var(--nx-hi) 26%, transparent), transparent 70%) !important; opacity: 0 !important; transition: opacity .3s !important; }
+html[data-skin="nx"] .tiles .tile:hover::before, html[data-skin="nx"] .me-card:hover::before{ opacity: 1 !important; }
+html[data-skin="nx"] .tiles .tile > *, html[data-skin="nx"] .me-card > *{ position: relative; z-index: 1; }
+html[data-skin="nx"] .me-card{ position: relative; isolation: isolate; overflow: hidden; }
+html[data-skin="nx"] .tile:hover > svg, html[data-skin="nx"] .me-card:hover .me-ava{ transform: rotate(-6deg) scale(1.06); transition: transform .35s cubic-bezier(.34,1.56,.64,1); }
+html[data-skin="nx"] .tile > svg, html[data-skin="nx"] .me-ava{ transition: transform .35s cubic-bezier(.34,1.56,.64,1); }
+html[data-skin="nx"] .tile:hover .mw-bars i.on, html[data-skin="nx"] .tile:hover .mw-cal-g i.td{ box-shadow: 0 0 0 3px color-mix(in srgb, var(--nx-hi) 35%, transparent); }
+@media (prefers-reduced-motion: reduce){ html[data-skin="nx"] .tile:hover > svg, html[data-skin="nx"] .me-card:hover .me-ava{ transform: none; } }

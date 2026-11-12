@@ -363,7 +363,7 @@
     if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
     document.addEventListener("cm-look", () => { document.querySelectorAll("[data-nxr]").forEach(e => delete e.dataset.nxr); sched(); });
     // ميل خفيف للكروت مع حركة الماوس
-    document.addEventListener("pointermove", e => { if (!on() || e.pointerType !== "mouse") return; const t = e.target.closest && e.target.closest(".tile"); document.querySelectorAll(".tile[data-tilt]").forEach(x => { if (x !== t) { x.style.transform = ""; delete x.dataset.tilt; } });
+    document.addEventListener("pointermove", e => { if (!on() || e.pointerType !== "mouse") return; const t = e.target.closest && e.target.closest(".tile, .me-card"); if (t) { const r0 = t.getBoundingClientRect(); t.style.setProperty("--mx", (e.clientX - r0.left) + "px"); t.style.setProperty("--my", (e.clientY - r0.top) + "px"); } document.querySelectorAll(".tile[data-tilt], .me-card[data-tilt]").forEach(x => { if (x !== t) { x.style.transform = ""; delete x.dataset.tilt; } });
       if (!t || innerWidth <= 760) return; const r = t.getBoundingClientRect(), dx = (e.clientX - r.left) / r.width - .5, dy = (e.clientY - r.top) / r.height - .5;
       t.dataset.tilt = "1"; t.style.transform = `perspective(700px) rotateX(${(-dy * 6).toFixed(2)}deg) rotateY(${(dx * 8).toFixed(2)}deg) translateY(-4px)`; }, { passive: true });
   })();
@@ -614,7 +614,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b82)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b83)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
