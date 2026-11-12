@@ -3461,7 +3461,7 @@
     const c = course(), el = $("#rosterPanel"), mng = canManage(c), add = canRun(c);
     const gOpts = [...new Set(["أ", "ب", "ج", ...groupsOf()])].sort();
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.enroll.length} طالب</div><h2>طلبة المادة</h2></div>
-      <div class="row">${add ? `<button class="btn sm ${addOpen ? "primary" : ""}" id="stAddT">إضافة طالب</button>` : ""}${add && D.enroll.length > 1 && groupsOf().length && !split ? `<button class="btn sm" id="spAll">إعادة تقسيم المجموعات</button>` : ""}${mng ? `<label class="btn sm" for="xls">رفع ملف إكسل</label><input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
+      <div class="row">${add ? `<button class="btn sm ${addOpen ? "primary" : ""}" id="stAddT">إضافة طالب</button>` : ""}${add && D.enroll.length > 1 && groupsOf().length && !split ? `<button class="btn sm" id="spAll">إعادة تقسيم المجموعات</button>` : ""}${mng ? `<button class="btn sm ghost" id="rsTpl" title="ملف إكسل جاهز فيه أعمدة الكود والاسم والمجموعة، تملاه وترفعه">تنزيل نموذج إكسل</button><label class="btn sm" for="xls">رفع ملف إكسل</label><input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
       ${msgHtml("roster")}
       ${splitHtml(c)}
       ${pushSumHtml(c)}
@@ -3480,9 +3480,10 @@
           <span class="small muted" id="rsCount"></span>
           <button class="btn sm ghost" id="rsClear" hidden>إلغاء الترتيب والتصفية</button>
         </div>
-        <div class="tbl-wrap" id="rsWrap" style="max-height:480px;overflow:auto"><table id="rsTbl"></table></div>` : `<div class="empty">${mng ? "ارفع ملف إكسل يتضمن أكواد الطلبة وأسماءهم." : "لم يرفع المحاضر ملف الطلبة بعد."}</div>`}
+        <div class="tbl-wrap" id="rsWrap" style="max-height:480px;overflow:auto"><table id="rsTbl"></table></div>` : `<div class="empty">${mng ? "نزّل «نموذج إكسل»، واملاه بأكواد الطلبة وأسمائهم ومجموعاتهم، وبعدين ارفعه." : "لم يرفع المحاضر ملف الطلبة بعد."}</div>`}
       ${mng && D.enroll.length ? `<p class="muted small">«فك ربط الهاتف» إذا غيّر الطالب هاتفه، فيدخل من الهاتف الجديد بكلمة السر نفسها. «حذف الحساب» إذا نسي كلمة السر أو أنشأ شخص آخر حسابًا بكوده، فينشئ حسابًا جديدًا. «إزالة من المادة» تحذفه من الكشف، وإذا أعدته لاحقًا عاد حضوره السابق.</p>` : ""}`;
     const x = $("#xls"); if (x) x.onchange = ev => importFile(ev.target.files[0]);
+    const tp = $("#rsTpl"); if (tp) tp.onclick = () => rosterTemplate().catch(showErr);
     wireSplit(c); wirePushSum(c);
     const at = $("#stAddT"); if (at) at.onclick = () => { addOpen = !addOpen; renderRoster(); const i = $("#stCode"); if (i) i.focus(); };
     const keep = () => { addDraft = { code: $("#stCode").value, name: $("#stName").value, grp: $("#stGrp").value, pin: $("#stPin").value }; };
@@ -3608,6 +3609,31 @@
   document.addEventListener("click", () => { if (fpopCol) closeFpop(); });
   document.addEventListener("keydown", ev => { if (ev.key === "Escape" && fpopCol) closeFpop(); });
   window.addEventListener("resize", () => { if (fpopCol) closeFpop(); });
+  // نموذج إكسل لملف الطلبة: نفس الأعمدة اللي «رفع ملف إكسل» بيقراها (الصف الأول عناوين)، ولو المادة فيها طلبة بيتملوا فيه علشان تعدّل وترفع تاني
+  async function rosterTemplate() {
+    await loadExcelJS();
+    const c = course(), wb = new ExcelJS.Workbook(), rows = D && D.cid === c.id ? D.enroll.slice().sort(byGroupName) : [];
+    const ws = wb.addWorksheet("الطلبة", { views: [{ rightToLeft: true, state: "frozen", ySplit: 1 }] });
+    ws.columns = [{ header: "الكود", key: "code", width: 16 }, { header: "الاسم", key: "name", width: 38 }, { header: "المجموعة", key: "grp", width: 12 }, { header: "رمز التفعيل (اختياري)", key: "pin", width: 22 }];
+    const hr = ws.getRow(1); hr.height = 24;
+    hr.eachCell(cl => { cl.font = { name: "Arial", bold: true, size: 12, color: { argb: "FFFFFFFF" } }; cl.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D6B58" } }; cl.alignment = { horizontal: "center", vertical: "middle" }; });
+    rows.forEach(e => ws.addRow({ code: e.student_code, name: e.name, grp: e.grp || "", pin: "" }));
+    const N = Math.max(rows.length + 150, 300);
+    for (let r = 2; r <= N; r++) {
+      ws.getCell(r, 1).numFmt = "@"; ws.getCell(r, 4).numFmt = "@";
+      ws.getCell(r, 3).dataValidation = { type: "list", allowBlank: true, formulae: ['"أ,ب,ج,د,هـ,و"'], showErrorMessage: false };
+      [1, 2, 3, 4].forEach(k => { const cl = ws.getCell(r, k); cl.font = { name: "Arial", size: 11 }; cl.alignment = { horizontal: k === 2 ? "right" : "center", vertical: "middle" }; cl.border = { bottom: { style: "hair", color: { argb: "FFD5DDDA" } } }; });
+    }
+    const hs = wb.addWorksheet("طريقة الملء", { views: [{ rightToLeft: true }] });
+    hs.getColumn(1).width = 90;
+    ["طريقة ملء ملف الطلبة", "", "• اكتب كل طالب في صف في الورقة الأولى «الطلبة»، من غير ما تغيّر الصف الأول (العناوين).",
+     "• الكود: كود الطالب الجامعي كما هو.", "• الاسم: الاسم الرباعي أو الثلاثي.", "• المجموعة: أ أو ب أو ج… (اختار من القايمة)، أو سيبها فاضية لو المادة مفيهاش مجموعات.",
+     "• رمز التفعيل (اختياري): آخر 4 أرقام من الرقم القومي مثلًا، علشان الطالب يفعّل حسابه بيه.", "",
+     "بعد ما تخلّص احفظ الملف، وارفعه من تبويب «الطلبة» بزرار «رفع ملف إكسل».",
+     "تنبيه: رفع ملف جديد بيستبدل قائمة الطلبة كلها، والحضور القديم بيفضل محفوظ.", "", "المادة: " + c.name].forEach((t, i) => {
+      const cl = hs.getCell(i + 1, 1); cl.value = t; cl.alignment = { horizontal: "right", wrapText: true }; cl.font = { name: "Arial", size: i === 0 ? 15 : 12, bold: i === 0, color: { argb: i === 0 ? "FF1D6B58" : "FF15211E" } }; });
+    await saveWb(wb, "نموذج الطلبة - " + c.name.replace(/[\\/:*?"<>|]/g, " ") + ".xlsx");
+  }
   function importFile(file) {
     if (!file) return;
     const c = course(), fr = new FileReader();
