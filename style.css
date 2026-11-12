@@ -1352,13 +1352,13 @@ html[data-skin="nx"][data-theme="dark"]{ --bg: color-mix(in srgb, var(--nx-dark)
 html[data-skin="nx"] body{ font-family: "Readex Pro", var(--f-body); }
 html[data-skin="nx"] body, html[data-skin="nx"] p, html[data-skin="nx"] td, html[data-skin="nx"] input, html[data-skin="nx"] select, html[data-skin="nx"] textarea{ font-family: var(--f-body); }
 /* الرأس: شريط أبيض عائم بزوايا كاملة */
-html[data-skin="nx"] header.top{ background: var(--surface) !important; border: 0 !important; border-radius: 999px !important; box-shadow: 0 10px 30px -18px rgba(0,0,0,.35) !important; padding: 8px 10px 8px 14px; transition: padding .25s, box-shadow .25s, transform .25s; }
+html[data-skin="nx"] header.top{ background: var(--surface) !important; border: 0 !important; border-radius: 22px !important; box-shadow: 0 10px 30px -18px rgba(0,0,0,.35) !important; padding: 8px 10px 8px 14px; transition: padding .25s, box-shadow .25s, transform .25s; }
 html[data-skin="nx"] header.top::after{ display: none !important; }
 html[data-skin="nx"].nx-sc header.top{ box-shadow: 0 16px 40px -18px rgba(0,0,0,.45) !important; }
 html[data-skin="nx"] header.top .mark{ background: var(--nx-dark) !important; color: var(--nx-hi) !important; --logo-dot: var(--nx-hi); box-shadow: none !important; }
 html[data-skin="nx"] .wm{ letter-spacing: -.02em; }
 /* الأزرار والكروت */
-html[data-skin="nx"] .btn{ border-radius: 999px; border-color: transparent; background: var(--sunk); font-weight: 600; min-height: 40px; }
+html[data-skin="nx"] .btn{ border-radius: 12px; border-color: transparent; background: var(--sunk); font-weight: 600; min-height: 40px; }
 html[data-skin="nx"] .btn:hover{ background: color-mix(in srgb, var(--nx-hi) 45%, var(--sunk)); }
 html[data-skin="nx"] .btn.primary{ background: var(--accent); color: var(--accent-ink); box-shadow: none; }
 html[data-skin="nx"] .btn.primary:hover{ background: var(--nx-hi); color: var(--nx-on-hi); }
@@ -1385,14 +1385,14 @@ html[data-skin="nx"] .sb-ic{ background: var(--nx-hi) !important; color: var(--n
 html[data-skin="nx"] .sb-ic::after{ display: none !important; }
 /* أقسام المادة كتطبيقات مصغّرة */
 html[data-skin="nx"] .tile{ border: 0; border-radius: 28px; background: var(--surface); min-height: 160px; padding: 20px; transition: background-color .25s, color .25s, transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s; transform-style: preserve-3d; }
-html[data-skin="nx"] .tile svg{ background: var(--nx-dark); color: var(--nx-hi); border: 0; border-radius: 50%; padding: 10px; }
+html[data-skin="nx"] .tile > svg{ background: var(--nx-dark); color: var(--nx-hi); border: 0; border-radius: 15px; padding: 10px; }
 html[data-skin="nx"] .tile b{ font-size: 1.18rem; letter-spacing: -.01em; }
 html[data-skin="nx"] .tile:hover, html[data-skin="nx"] .tile.hot{ background: var(--nx-hi); color: var(--nx-on-hi); box-shadow: 0 24px 50px -30px color-mix(in srgb, var(--nx-hi) 80%, #000); }
 html[data-skin="nx"] .tile:hover small, html[data-skin="nx"] .tile.hot small{ color: color-mix(in srgb, var(--nx-on-hi) 70%, transparent); }
 html[data-skin="nx"] .tile::before, html[data-skin="nx"] .tile::after{ opacity: 0 !important; }
 /* تبويبات المادة: شريط داكن عائم (عمودي على الكمبيوتر) */
-html[data-skin="nx"] .ctabs{ background: var(--nx-dark) !important; border: 0 !important; border-radius: 999px !important; padding: 6px !important; box-shadow: 0 18px 40px -18px rgba(0,0,0,.55) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
-html[data-skin="nx"] .ctabs button{ color: color-mix(in srgb, var(--nx-base) 70%, transparent); border-radius: 999px; border: 0; }
+html[data-skin="nx"] .ctabs{ background: var(--nx-dark) !important; border: 0 !important; border-radius: 22px !important; padding: 6px !important; box-shadow: 0 18px 40px -18px rgba(0,0,0,.55) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html[data-skin="nx"] .ctabs button{ color: color-mix(in srgb, var(--nx-base) 70%, transparent); border-radius: 14px; border: 0; }
 html[data-skin="nx"] .ctabs button:hover{ color: var(--nx-base); background: color-mix(in srgb, var(--nx-base) 12%, transparent); }
 html[data-skin="nx"] .ctabs button[aria-selected=true]{ background: var(--nx-hi) !important; color: var(--nx-on-hi) !important; }
 @media (min-width: 1100px){
@@ -1405,7 +1405,7 @@ html[data-skin="nx"] .ctabs button[aria-selected=true]{ background: var(--nx-hi)
   html[data-skin="nx"] .ctabs button:hover .l, html[data-skin="nx"] .ctabs button:focus-visible .l{ opacity: 1; transform: translate(0, -50%); }
   html[data-skin="nx"] .ctabs .tbx{ position: absolute; top: -2px; inset-inline-end: -2px; }
 }
-@media (max-width: 760px){ html[data-skin="nx"] .ctabs button[aria-selected=true]{ border-radius: 18px; } }
+
 /* الجرس والقوائم */
 html[data-skin="nx"] .bell-pop{ border-radius: 0; background: var(--bg); }
 html[data-skin="nx"] .bl-g, html[data-skin="nx"] .bl-notes{ border: 0; background: var(--surface); border-radius: 22px; }
@@ -1427,7 +1427,7 @@ html[data-skin="nx"]:not([data-motion="off"]) .hx-art{ transform: translateY(cal
   html[data-skin="nx"]:not([data-motion="off"]) .home .tiles:not(.small){ display: block; }
   html[data-skin="nx"]:not([data-motion="off"]) .home .tiles:not(.small) .tile{ position: sticky; top: calc(96px + var(--nxi, 0) * 12px); width: 100%; min-height: 150px; margin-bottom: 14px; box-shadow: 0 -10px 30px -18px rgba(0,0,0,.35);
     transform: scale(calc(1 - var(--nxc, 0) * .07)); filter: brightness(calc(1 - var(--nxc, 0) * .12)); transform-origin: 50% 0; transition: background-color .25s, color .25s; }
-  html[data-skin="nx"]:not([data-motion="off"]) .home .tiles:not(.small) .tile svg{ width: 44px; height: 44px; }
+  html[data-skin="nx"]:not([data-motion="off"]) .home .tiles:not(.small) .tile > svg{ width: 44px; height: 44px; }
 }
 @media (prefers-reduced-motion: reduce){ html[data-skin="nx"] .nx-r{ opacity: 1 !important; transform: none !important; } html[data-skin="nx"] .hx-in, html[data-skin="nx"] .sb-in, html[data-skin="nx"] .hx-art{ transform: none !important; opacity: 1 !important; } }
 /* نافذة «المظهر» */
@@ -1452,3 +1452,81 @@ html[data-skin="nx"]:not([data-motion="off"]) .hx-art{ transform: translateY(cal
 .ap-dis{ opacity: .45; pointer-events: none; }
 .ap-row{ display: flex; align-items: center; gap: 10px; justify-content: space-between; font-size: .9rem; }
 .ap-row input[type=checkbox]{ width: 22px; height: 22px; accent-color: var(--accent); }
+
+/* ======= b79: أشكال مربعة زي اللوجو + تطبيقات مصغّرة + شريط أقسام ذكي للموبايل ======= */
+.nx-only, .nx-dock, .tw{ display: none; }
+html[data-skin="nx"] .nx-only{ display: inline-flex; }
+html[data-skin="nx"] .hx-logo{ border-radius: 24px; }
+html[data-skin="nx"] .cchip{ border-radius: 12px; }
+html[data-skin="nx"] .dd-ava{ border-radius: 7px; background: var(--nx-dark); color: var(--nx-hi); }
+html[data-skin="nx"] .sb-ic{ border-radius: 16px !important; }
+html[data-skin="nx"] .now-c, html[data-skin="nx"] .tile{ border-radius: 24px; }
+/* كروت الأقسام: تطبيق مصغّر فيه بيانات سريعة */
+html[data-skin="nx"] .home .tiles:not(.small) .tile{ display: flex; flex-direction: column; align-items: stretch; min-height: 210px; }
+html[data-skin="nx"] .home .tiles:not(.small) .tile > svg, html[data-skin="nx"] .home .tiles:not(.small) .tile > b, html[data-skin="nx"] .home .tiles:not(.small) .tile > small{ align-self: flex-start; }
+html[data-skin="nx"] .tw{ display: grid; gap: 8px; margin-top: auto; padding-top: 12px; font-size: .8rem; line-height: 1.45; text-align: start; }
+html[data-skin="nx"] .tw-row{ display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+html[data-skin="nx"] .tw-n{ font-family: "Readex Pro", var(--f-display); font-size: 1.75rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+html[data-skin="nx"] .tw-n small{ font-size: .78rem; font-weight: 500; color: inherit; opacity: .6; }
+html[data-skin="nx"] .tw-chip{ font-style: normal; font-weight: 600; background: var(--sunk); padding: 3px 9px; border-radius: 8px; white-space: nowrap; }
+html[data-skin="nx"] .tw-chip.warn{ background: color-mix(in srgb, var(--warn) 22%, var(--surface)); }
+html[data-skin="nx"] .tw-chip.bad{ background: color-mix(in srgb, var(--bad) 22%, var(--surface)); }
+html[data-skin="nx"] .tw-m{ color: var(--muted); } html[data-skin="nx"] .tw-m b{ color: var(--ink); }
+html[data-skin="nx"] .tile:hover .tw-m, html[data-skin="nx"] .tile.hot .tw-m{ color: color-mix(in srgb, var(--nx-on-hi) 72%, transparent); }
+html[data-skin="nx"] .tw-live{ font-style: normal; display: inline-flex; align-items: center; gap: 6px; background: var(--nx-dark); color: var(--nx-hi); padding: 3px 10px; border-radius: 8px; font-weight: 700; }
+html[data-skin="nx"] .tw-live i{ width: 7px; height: 7px; border-radius: 2px; background: var(--nx-hi); animation: pulse 1.4s ease-in-out infinite; }
+html[data-skin="nx"] .tw-bar{ height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--ink) 12%, transparent); overflow: hidden; }
+html[data-skin="nx"] .tw-bar i{ display: block; height: 100%; border-radius: 4px; background: var(--ink); }
+html[data-skin="nx"] .tw-bars{ display: flex; align-items: flex-end; gap: 4px; height: 46px; }
+html[data-skin="nx"] .tw-bars i{ flex: 1; height: var(--h); border-radius: 4px 4px 2px 2px; background: color-mix(in srgb, var(--ink) 22%, transparent); transform-origin: 50% 100%; animation: twGrow .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+html[data-skin="nx"] .tw-bars i.on{ background: var(--ink); }
+@keyframes twGrow{ from{ transform: scaleY(.05); } }
+html[data-skin="nx"] .tw-seg{ display: flex; gap: 3px; height: 10px; }
+html[data-skin="nx"] .tw-seg i{ border-radius: 3px; background: var(--ink); opacity: var(--o, 1); min-width: 4px; }
+html[data-skin="nx"] .tw-seg i.x{ opacity: .15; }
+html[data-skin="nx"] .tw-seg.lv i{ opacity: 1; } html[data-skin="nx"] .tw-seg .l0{ background: color-mix(in srgb, var(--ink) 25%, transparent); }
+html[data-skin="nx"] .tw-seg .l1, html[data-skin="nx"] .tw-seg .l2{ background: var(--warn); } html[data-skin="nx"] .tw-seg .l3{ background: var(--bad); } html[data-skin="nx"] .tw-seg .l4{ background: var(--ink); }
+html[data-skin="nx"] .tw-k-report{ grid-template-columns: auto 1fr; align-items: center; column-gap: 12px; }
+html[data-skin="nx"] .tw-ring{ position: relative; width: 64px; height: 64px; }
+html[data-skin="nx"] .tw-ring svg{ width: 100%; height: 100%; transform: rotate(-90deg); background: none; padding: 0; }
+html[data-skin="nx"] .tw-ring circle{ fill: none; stroke: color-mix(in srgb, var(--ink) 12%, transparent); stroke-width: 7; }
+html[data-skin="nx"] .tw-ring circle.v{ stroke: var(--ink); stroke-linecap: round; animation: twRing 1s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes twRing{ from{ stroke-dasharray: 0 200; } }
+html[data-skin="nx"] .tw-ring b{ position: absolute; inset: 0; display: grid; place-items: center; font-family: "Readex Pro", var(--f-display); font-size: .95rem; }
+html[data-skin="nx"] .tw-next{ display: grid; gap: 1px; background: var(--nx-dark); color: var(--nx-base); border-radius: 14px; padding: 8px 12px; min-width: 0; }
+html[data-skin="nx"] .tw-next b{ color: var(--nx-hi); font-size: .78rem; } html[data-skin="nx"] .tw-next span{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+html[data-skin="nx"] .tw-ava{ display: flex; }
+html[data-skin="nx"] .tw-ava i{ width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--nx-dark); color: var(--nx-hi); font-style: normal; font-weight: 700; border: 2px solid var(--surface); margin-inline-start: -9px; }
+html[data-skin="nx"] .tw-ava i:first-child{ margin-inline-start: 0; } html[data-skin="nx"] .tw-ava i.more{ background: var(--sunk); color: var(--ink); font-size: .74rem; }
+html[data-skin="nx"] .tile:hover .tw-ava i, html[data-skin="nx"] .tile.hot .tw-ava i{ border-color: var(--nx-hi); }
+html[data-skin="nx"] .tw-log{ display: flex; gap: 8px; align-items: flex-start; }
+html[data-skin="nx"] .tw-log i{ width: 8px; height: 8px; border-radius: 2px; background: var(--ink); margin-top: 6px; flex: none; }
+html[data-skin="nx"] .tw-log span{ display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (prefers-reduced-motion: reduce){ html[data-skin="nx"] .tw-bars i, html[data-skin="nx"] .tw-ring circle.v{ animation: none; } }
+/* الموبايل: شريط أقسام داكن عائم، أفقي وبيتمرر، القسم المفتوح بس اللي اسمه ظاهر */
+@media (max-width: 760px){
+  html[data-skin="nx"] body.has-ctabs, html[data-skin="nx"] body.has-dock{ padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+  html[data-skin="nx"] .ctabs, html[data-skin="nx"] .nx-dock{ position: fixed !important; inset: auto 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px !important; z-index: 50; display: flex !important; grid-template-columns: none !important; grid-auto-flow: unset !important;
+    gap: 4px !important; padding: 6px !important; margin: 0 !important; border: 0 !important; border-radius: 22px !important; background: var(--nx-dark) !important; box-shadow: 0 18px 44px -14px rgba(0,0,0,.6) !important;
+    overflow-x: auto !important; overflow-y: hidden !important; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain; transform: none;
+    transition: transform .4s cubic-bezier(.2,.8,.2,1), opacity .3s; }
+  html[data-skin="nx"] .ctabs::-webkit-scrollbar, html[data-skin="nx"] .nx-dock::-webkit-scrollbar{ display: none; }
+  html[data-skin="nx"] .ctabs::before{ display: none !important; }
+  html[data-skin="nx"].nx-dn .ctabs, html[data-skin="nx"].nx-dn .nx-dock, html[data-skin="nx"].nx-dn body::after{ transform: translateY(calc(100% + 40px)); opacity: 0; }
+  html[data-skin="nx"] .ctabs button, html[data-skin="nx"] .nx-dock button{ all: unset; box-sizing: border-box; position: relative; flex: none; display: inline-flex !important; flex-direction: row !important; align-items: center; justify-content: center;
+    height: 48px; min-width: 48px; padding: 0 13px !important; border-radius: 15px !important; color: color-mix(in srgb, var(--nx-base) 66%, transparent) !important; background: transparent !important; font-size: .86rem !important; font-weight: 600; cursor: pointer; scroll-snap-align: center;
+    transition: background-color .25s, color .25s, padding .3s; -webkit-tap-highlight-color: transparent; }
+  html[data-skin="nx"] .ctabs button svg, html[data-skin="nx"] .nx-dock button svg{ width: 21px !important; height: 21px !important; flex: none; }
+  html[data-skin="nx"] .ctabs button .l, html[data-skin="nx"] .nx-dock button .l{ max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap; margin: 0; transition: max-width .35s cubic-bezier(.2,.8,.2,1), opacity .25s, margin .35s; }
+  html[data-skin="nx"] .ctabs button[aria-selected=true], html[data-skin="nx"] .nx-dock button.on{ background: var(--nx-hi) !important; color: var(--nx-on-hi) !important; padding: 0 16px !important; }
+  html[data-skin="nx"] .ctabs button[aria-selected=true] .l, html[data-skin="nx"] .nx-dock button.on .l{ max-width: 120px; opacity: 1; margin-inline-start: 8px; }
+  html[data-skin="nx"] .ctabs .tb, html[data-skin="nx"] .ctabs .live-dot, html[data-skin="nx"] .nx-dock .tb, html[data-skin="nx"] .nx-dock .live-dot{ position: absolute; top: 4px; inset-inline-end: 4px; inset-inline-start: auto; }
+  html[data-skin="nx"] .nx-dock .tb, html[data-skin="nx"] .ctabs .tb{ height: 16px; min-width: 16px; line-height: 16px; font-size: 10px; padding: 0 4px; border-radius: 6px; }
+  /* خط صغير فوق الشريط بيبيّن قد إيه نزلت في الصفحة */
+  html[data-skin="nx"] body.has-ctabs::after, html[data-skin="nx"] body.has-dock::after{ content: ""; position: fixed; z-index: 51; inset-inline: 34px; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); height: 3px; border-radius: 3px; pointer-events: none;
+    background: linear-gradient(var(--nx-hi), var(--nx-hi)) right / calc(var(--nxsp, 0) * 100%) 100% no-repeat, color-mix(in srgb, var(--nx-hi) 22%, transparent); transition: transform .4s cubic-bezier(.2,.8,.2,1), opacity .3s; }
+}
+html[data-skin="nx"] .tw svg{ background: none !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; box-sizing: border-box; width: 100% !important; height: 100% !important; }
+html[data-skin="nx"] .nx-dock .tb{ background: var(--warn); color: #fff; font-weight: 700; text-align: center; }
+html[data-skin="nx"] .nx-dock .live-dot{ width: 8px; height: 8px; border-radius: 2px; background: var(--nx-hi); animation: pulse 1.6s ease-in-out infinite; }
+@media (max-width: 760px){ html[data-skin="nx"] body.has-ctabs #goHome{ display: none; } }

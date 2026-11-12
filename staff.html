@@ -585,6 +585,7 @@
     ["team", "الفريق", ICO('<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/><path d="M19 3.5v3M20.5 5h-3"/>')],
     ["log", "السجل", ICO('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>')]
   ];
+  const HOME_ICO = '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>';
   let ctab = ["live", "students", "reg", "report", "tasks", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live";
   // زر «رجوع» في الهاتف: يتنقّل بين أقسام البرنامج بدل أن يخرج منه
   // شريط المادة: خلفيته مستمدة من أيقونة القسم المفتوح، ويتغيّر مع التبويب
@@ -618,7 +619,7 @@
     const nav = $(".ctabs"); if (nav && nav.getBoundingClientRect().top < 0 && getComputedStyle(nav).position === "sticky") window.scrollTo({ top: window.scrollY + nav.getBoundingClientRect().top - 2 });
   }
   function tabBadges() {
-    if (!D || !$(".ctabs")) return;
+    if (!D || !$(".ctabs, .nx-dock")) return;
     const s = running(), pend = s ? Object.values(D.att[s.id] || {}).filter(r => r.status === "pending").length : 0;
     const put = (k, html) => { const el = document.querySelector(`[data-tbx="${k}"]`); if (el) el.outerHTML = `<i class="tbx" data-tbx="${k}">${html}</i>`; };
     put("live", s && !s.ended ? (pend ? `<b class="tb" title="${pend} طلب معلّق">${pend}</b>` : `<b class="live-dot" title="توجد محاضرة جارية"></b>`) : "");
@@ -662,6 +663,52 @@
     team: () => "المحاضرون والمعيدون",
     log: () => "كل ما حدث في المادة"
   };
+  // تطبيقات مصغّرة: بيانات سريعة داخل كل كارت (تظهر في «الواجهة الحديثة» فقط)
+  function tileWidget(k, c) {
+    if (!D || D.cid !== c.id) return "";
+    const w = h => h ? `<span class="tw tw-k-${k}" aria-hidden="true">${h}</span>` : "";
+    const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+    if (k === "live") {
+      const s = running();
+      if (s) { const own = D.enroll.filter(e => isOwn(s, e)), rec = D.att[s.id] || {}, pr = own.filter(e => counted(rec[e.student_code])).length, pd = Object.values(rec).filter(r => r.status === "pending").length;
+        return w(`<span class="tw-row"><em class="tw-live"><i></i>جارية</em><span class="tw-n">${pr}<small>/${own.length}</small></span></span><span class="tw-bar"><i style="width:${pct(pr, own.length)}%"></i></span>${pd ? `<span class="tw-m">${pd} طلب ينتظر الموافقة</span>` : ""}`); }
+      const st = lectureStats(D.sessions, D.enroll).slice(-10); if (!st.length) return "";
+      const last = st[st.length - 1];
+      return w(`<span class="tw-bars">${st.map((x, i) => `<i class="${i === st.length - 1 ? "on" : ""}" style="--h:${Math.max(6, x.pct)}%;--i:${i}"></i>`).join("")}</span><span class="tw-m">آخر محاضرة: <b>${last.pct}%</b> حضور</span>`);
+    }
+    if (k === "students") {
+      const n = D.enroll.length; if (!n) return "";
+      const gs = groupsOf(), parts = gs.map(g => [g, D.enroll.filter(e => e.grp === g).length]), none = D.enroll.filter(e => !e.grp).length;
+      return w(`<span class="tw-row"><span class="tw-n">${n}<small> طالب</small></span>${gs.length ? `<em class="tw-chip">${gs.length} مجموعة</em>` : ""}</span>${gs.length ? `<span class="tw-seg">${parts.map(([g, m], i) => `<i style="flex:${m};--o:${1 - (i % 4) * .2}" title="${esc(g)}"></i>`).join("")}${none ? `<i class="x" style="flex:${none}"></i>` : ""}</span>` : ""}`);
+    }
+    if (k === "reg" || k === "report") {
+      if (!D.enroll.length) return "";
+      const lv = [0, 0, 0, 0, 0]; let sum = 0, nn = 0;
+      D.enroll.forEach(e => { lv[CM.lvl(absences(e))]++; const a = attendance(e); if (a.own) { sum += a.pct; nn++; } });
+      if (k === "reg") { const done = D.sessions.filter(regDone).length;
+        return w(`<span class="tw-row"><span class="tw-n">${done}<small> محاضرة</small></span><em class="tw-chip ${lv[3] + lv[4] ? "bad" : lv[1] + lv[2] ? "warn" : ""}">${lv[1] + lv[2] + lv[3] + lv[4]} إنذار</em></span><span class="tw-seg lv">${lv.map((m, i) => m ? `<i class="l${i}" style="flex:${m}"></i>` : "").join("")}</span><span class="tw-m">${lv[0]} منتظم${lv[4] ? " · " + lv[4] + " انسحاب" : ""}</span>`); }
+      const avg = nn ? Math.round(sum / nn) : 0, C = 2 * Math.PI * 22;
+      return w(`<span class="tw-ring"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="22"/><circle class="v" cx="27" cy="27" r="22" stroke-dasharray="${(C * avg / 100).toFixed(1)} ${C.toFixed(1)}"/></svg><b>${avg}%</b></span><span class="tw-m">متوسط الحضور<br>${warnPending().length ? `<b>${warnPending().length}</b> لم يُبلَّغوا بإنذار` : "كل الإنذارات مُبلَّغة"}</span>`);
+    }
+    if (k === "tasks") {
+      if (!D.tasks.length) return "";
+      const now = Date.now(), nx = D.tasks.filter(t => t.due_at && new Date(t.due_at) > now).sort((a, b) => new Date(a.due_at) - new Date(b.due_at))[0];
+      const ung = D.tasks.filter(t => t.mode === "submit").reduce((s, t) => s + Object.values(D.subs[t.id] || {}).filter(x => x.submitted_at && x.grade == null).length, 0);
+      const ap = (D.appeals || []).filter(a => a.status === "pending").length;
+      const days = nx ? Math.ceil((new Date(nx.due_at) - now) / 864e5) : 0;
+      return w(`${nx ? `<span class="tw-next"><b>${days <= 0 ? "اليوم" : days === 1 ? "بكرة" : "بعد " + days + " يوم"}</b><span>${esc(nx.title)}</span></span>` : `<span class="tw-m">مفيش تكليف مفتوح دلوقتي</span>`}<span class="tw-row">${ung ? `<em class="tw-chip">${ung} بدون درجة</em>` : ""}${ap ? `<em class="tw-chip warn">${ap} تظلم</em>` : ""}</span>`);
+    }
+    if (k === "team") {
+      const ppl = [c.owner_email, ...D.tas.map(t => t.email)].filter((x, i, a) => x && a.indexOf(x) === i);
+      const ini = e => esc(String(staffName(e)).replace(/^(د|م|أ\.?د)\.\s*/, "").trim().charAt(0) || "؟");
+      return w(`<span class="tw-ava">${ppl.slice(0, 5).map(e => `<i title="${esc(staffName(e))}">${ini(e)}</i>`).join("")}${ppl.length > 5 ? `<i class="more">+${ppl.length - 5}</i>` : ""}</span><span class="tw-m">${ppl.length} في الفريق</span>`);
+    }
+    if (k === "log") {
+      const a = (D.audit || [])[0]; if (!a) return "";
+      return w(`<span class="tw-log"><i></i><span>${esc(String(a.action || a.what || a.text || "").slice(0, 70))}</span></span><span class="tw-m">${esc(ago(a.at))}</span>`);
+    }
+    return "";
+  }
   /* ---------- اختيار المادة على مراحل: العام ← الفصل ← المستوى ← الشعبة ← المادة ---------- */
   let pk = { open: false, lvl: "all", tr: "all" };
   const lvKey = x => progOf(x) + "|" + (x.level || 0);
@@ -718,7 +765,8 @@
     const p = myStaff(), list = filtered();
     return `<section class="home">
       ${CM.hero({ eyebrow: esc(ROLE[me.role]) + (p.title ? " · " + esc(p.title) : ""), title: "أهلًا " + esc(String(me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").split(" ")[0]), sub: c ? "المادة المفتوحة: " + esc(c.name) : "", extra: pickerHtml("home") })}
-      ${c ? `<h3 class="sec-t">أقسام المادة</h3><div class="tiles">${CTABS.map(([k, t, ic]) => `<button class="tile ${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? "hot" : ""}" data-tile="${k}">${ic}<b>${t}</b><small>${esc(TILE_SUB[k](c))}</small></button>`).join("")}</div>` : `<div class="empty">${me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "لا توجد مواد بعد. أنشئ مادة جديدة."}</div>`}
+      ${c ? `<h3 class="sec-t">أقسام المادة</h3><div class="tiles">${CTABS.map(([k, t, ic]) => `<button class="tile ${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? "hot" : ""}" data-tile="${k}">${ic}<b>${t}</b><small>${esc(TILE_SUB[k](c))}</small>${tileWidget(k, c)}</button>`).join("")}</div>
+      <nav class="nx-dock" aria-label="أقسام المادة"><button type="button" class="dk-home on" aria-current="page">${ICO(HOME_ICO)}<span class="l">الرئيسية</span></button>${CTABS.map(([k, t, ic]) => `<button type="button" data-tile="${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>` : `<div class="empty">${me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "لا توجد مواد بعد. أنشئ مادة جديدة."}</div>`}
       ${homeAlertsHtml()}
       ${myTTHtml()}
       <h3 class="sec-t">اختصارات</h3>
@@ -927,7 +975,7 @@
       ${c.auto_created && !tasAll.some(x => x.course_id === c.id) && isOwner(c) ? `<div class="msg warn" style="margin-bottom:16px"><b>أنشأ النظام هذه المادة تلقائيًّا</b> لأن طلبة سجّلوها في استمارات التسجيل، ولا يوجد لها فريق بعد. أضف المحاضر أو المعيد المسؤول عنها من تبويب «الفريق» (محاضر مشارك أو معيد).</div>` : ""}
       ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `أنت محاضر مشارك في هذه المادة مع ${esc(staffName(c.owner_email))}. يمكنك القيام بكل ما يتعلق بالمحاضرات والطلبة والكشف، أما حذف المادة وتعديل بياناتها وإدارة الفريق فهي لصاحب المادة.` : role(c) === "ta" ? `أنت معيد في هذه المادة. يمكنك بدء المحاضرات والموافقة على الطلبات والتسجيل اليدوي وإضافة طالب، أما رفع ملف الطلبة وإدارة الفريق فهما للمحاضر ${esc(staffName(c.owner_email))}.` : role(c) === "admin" ? `هذه مادة ${esc(staffName(c.owner_email))}. لك فيها صلاحيات صاحب المادة كاملة بصفتك مسؤولًا، وكل ما تفعله يُكتب في سجل المادة باسمك.` : `هذه مادة ${esc(staffName(c.owner_email))}. تطّلع عليها بصفتك مسؤولًا، للقراءة والتصدير فقط.`}</div>` : ""}
       <div id="rsReqs" hidden></div>
-      <nav class="ctabs" role="tablist" aria-label="أقسام المادة">${CTABS.map(([k, t, ic]) => `<button role="tab" data-ct="${k}" aria-selected="${ctab === k}" aria-controls="pane-${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
+      <nav class="ctabs" role="tablist" aria-label="أقسام المادة"><button type="button" class="dk-home nx-only" data-dock-home aria-label="الرئيسية">${ICO(HOME_ICO)}<span class="l">الرئيسية</span></button>${CTABS.map(([k, t, ic]) => `<button role="tab" data-ct="${k}" aria-selected="${ctab === k}" aria-controls="pane-${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
       <div class="tabpane" id="pane-live" role="tabpanel" ${ctab === "live" ? "" : "hidden"}><div id="sessionArea"></div><section class="panel" id="livePanel"></section></div>
       <div class="tabpane" id="pane-students" role="tabpanel" ${ctab === "students" ? "" : "hidden"}><section class="panel" id="rosterPanel"></section></div>
       <div class="tabpane" id="pane-reg" role="tabpanel" ${ctab === "reg" ? "" : "hidden"}><section class="panel" id="regPanel"></section></div>
@@ -937,6 +985,8 @@
       <div class="tabpane" id="pane-log" role="tabpanel" ${ctab === "log" ? "" : "hidden"}><section class="panel" id="auditPanel"></section></div>`}
       </div>`;
     document.body.classList.toggle("has-ctabs", view === "course" && !!$(".ctabs"));
+    document.body.classList.toggle("has-dock", view === "home" && !!$(".nx-dock"));
+    document.querySelectorAll("[data-dock-home]").forEach(b => b.onclick = () => { view = "home"; render(); window.scrollTo({ top: 0 }); });
     wireHome(c); wirePicker(); navMark(); wireBell();
     if (lastRise !== view + (view === "course" ? "" : "")) { lastRise = view; CM.rise(app); }
     document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));

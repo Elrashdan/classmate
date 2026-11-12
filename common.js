@@ -321,9 +321,22 @@
       if (innerWidth <= 760) document.querySelectorAll(".home .tiles:not(.small)").forEach(t => { const ks = [...t.children];
         ks.forEach((k, i) => { const n = ks[i + 1]; if (!n) { k.style.setProperty("--nxc", 0); return; } const a = k.getBoundingClientRect(), b = n.getBoundingClientRect(); const ov = Math.max(0, Math.min(1, (a.bottom - b.top) / Math.max(1, a.height))); k.style.setProperty("--nxc", ov.toFixed(3)); }); });
     };
-    addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }, { passive: true });
+    // شريط الأقسام في الموبايل: بيختفي وإنت نازل ويرجع وإنت طالع، وبيبيّن قد إيه نزلت في الصفحة، والقسم المفتوح دايمًا في النص
+    let lastY = scrollY, dockT = 0;
+    const dock = () => {
+      if (R.dataset.skin !== "nx") return;
+      const y = scrollY, max = Math.max(1, document.documentElement.scrollHeight - innerHeight);
+      R.style.setProperty("--nxsp", Math.min(1, y / max).toFixed(3));
+      if (Math.abs(y - lastY) > 6) { R.classList.toggle("nx-dn", y > lastY && y > 140 && y < max - 40); lastY = y; }
+      clearTimeout(dockT); dockT = setTimeout(() => R.classList.remove("nx-dn"), 1400);
+    };
+    CM.dockCenter = () => { if (R.dataset.skin !== "nx" || innerWidth > 760) return;
+      document.querySelectorAll(".ctabs, .nx-dock").forEach(n => { const a = n.querySelector('[aria-selected="true"], .on'); if (!a || n.scrollWidth <= n.clientWidth) return;
+        const nr = n.getBoundingClientRect(), ar = a.getBoundingClientRect(); n.scrollBy({ left: (ar.left + ar.width / 2) - (nr.left + nr.width / 2), behavior: "smooth" }); }); };
+    document.addEventListener("click", e => { if (e.target.closest && e.target.closest(".ctabs button, .nx-dock button")) setTimeout(CM.dockCenter, 30); });
+    addEventListener("scroll", () => { dock(); if (!ticking) { ticking = true; requestAnimationFrame(frame); } }, { passive: true });
     addEventListener("resize", () => requestAnimationFrame(frame));
-    let mt = null; const sched = () => { clearTimeout(mt); mt = setTimeout(mark, 60); };
+    let mt = null; const sched = () => { clearTimeout(mt); mt = setTimeout(() => { mark(); CM.dockCenter(); }, 60); };
     const start = () => { new MutationObserver(sched).observe(document.body, { childList: true, subtree: true }); sched(); };
     if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
     document.addEventListener("cm-look", () => { document.querySelectorAll("[data-nxr]").forEach(e => delete e.dataset.nxr); sched(); });
@@ -579,7 +592,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b78)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b79)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
