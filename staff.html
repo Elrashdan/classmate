@@ -991,6 +991,7 @@
     if (lastRise !== view + (view === "course" ? "" : "")) { lastRise = view; CM.rise(app); }
     document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));
     tabBadges();
+    if (CM.dockSync) CM.dockSync();
     $("#out").onclick = () => signOut();
     const gh = $("#goHelp"); if (gh) gh.onclick = () => openStaffHelp();
     $("#pwSet").onclick = () => { const f = $("#pwForm"); f.hidden = !f.hidden; if (!f.hidden) $("#pwNew").focus(); };

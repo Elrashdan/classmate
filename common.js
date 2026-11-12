@@ -321,22 +321,43 @@
       if (innerWidth <= 760) document.querySelectorAll(".home .tiles:not(.small)").forEach(t => { const ks = [...t.children];
         ks.forEach((k, i) => { const n = ks[i + 1]; if (!n) { k.style.setProperty("--nxc", 0); return; } const a = k.getBoundingClientRect(), b = n.getBoundingClientRect(); const ov = Math.max(0, Math.min(1, (a.bottom - b.top) / Math.max(1, a.height))); k.style.setProperty("--nxc", ov.toFixed(3)); }); });
     };
-    // شريط الأقسام في الموبايل: بيختفي وإنت نازل ويرجع وإنت طالع، وبيبيّن قد إيه نزلت في الصفحة، والقسم المفتوح دايمًا في النص
-    let lastY = scrollY, dockT = 0;
+    // شريط الأقسام في الموبايل: بيختفي وإنت نازل ويرجع وإنت طالع، وخلفية ملوّنة بتتزحلق للقسم المفتوح
+    let lastY = scrollY, acc = 0, dkRaf = 0;
     const dock = () => {
       if (R.dataset.skin !== "nx") return;
-      const y = scrollY, max = Math.max(1, document.documentElement.scrollHeight - innerHeight);
+      const y = Math.max(0, scrollY), max = Math.max(1, document.documentElement.scrollHeight - innerHeight), d = y - lastY; lastY = y;
       R.style.setProperty("--nxsp", Math.min(1, y / max).toFixed(3));
-      if (Math.abs(y - lastY) > 6) { R.classList.toggle("nx-dn", y > lastY && y > 140 && y < max - 40); lastY = y; }
-      clearTimeout(dockT); dockT = setTimeout(() => R.classList.remove("nx-dn"), 1400);
+      if ((d > 0) !== (acc > 0)) acc = 0;   // اتجاه جديد: نبدأ العدّ من الأول
+      acc += d;
+      const hid = R.classList.contains("nx-dn");
+      if (!hid && acc > 36 && y > 120) R.classList.add("nx-dn");
+      else if (hid && (acc < -18 || y < 60 || y > max - 24)) R.classList.remove("nx-dn");
     };
-    CM.dockCenter = () => { if (R.dataset.skin !== "nx" || innerWidth > 760) return;
-      document.querySelectorAll(".ctabs, .nx-dock").forEach(n => { const a = n.querySelector('[aria-selected="true"], .on'); if (!a || n.scrollWidth <= n.clientWidth) return;
-        const nr = n.getBoundingClientRect(), ar = a.getBoundingClientRect(); n.scrollBy({ left: (ar.left + ar.width / 2) - (nr.left + nr.width / 2), behavior: "smooth" }); }); };
-    document.addEventListener("click", e => { if (e.target.closest && e.target.closest(".ctabs button, .nx-dock button")) setTimeout(CM.dockCenter, 30); });
-    addEventListener("scroll", () => { dock(); if (!ticking) { ticking = true; requestAnimationFrame(frame); } }, { passive: true });
+    const docks = () => document.querySelectorAll(".ctabs, .nx-dock");
+    const activeOf = n => n.querySelector('[aria-selected="true"], .on');
+    const pillTo = (n, anim) => {
+      let p = n.querySelector(":scope > .dk-pill"); const a = activeOf(n);
+      if (!p) { p = document.createElement("i"); p.className = "dk-pill na"; n.prepend(p); anim = false; }
+      if (!a || innerWidth > 760) return;
+      if (!anim) p.classList.add("na");
+      p.style.width = a.offsetWidth + "px"; p.style.transform = `translate3d(${a.offsetLeft}px, 0, 0)`;
+      if (!anim) { p.offsetWidth; requestAnimationFrame(() => p.classList.remove("na")); }
+      const want = a.offsetLeft + a.offsetWidth / 2 - n.clientWidth / 2;
+      if (n.scrollWidth > n.clientWidth && Math.abs(n.scrollLeft - want) > 2) { if (anim) n.scrollTo({ left: want, behavior: "smooth" }); else n.scrollLeft = want; }
+    };
+    // يتنده بعد أي تغيير في الصفحة: الشريط الجديد يتظبط فورًا، ولو القسم اتغيّر الخلفية تتزحلق
+    CM.dockSync = () => {
+      if (R.dataset.skin !== "nx" || innerWidth > 760) return;
+      docks().forEach(n => { const a = activeOf(n), k = a ? (a.dataset.ct || a.dataset.tile || "home") : "";
+        if (!n.dataset.dk) { n.dataset.dk = k; pillTo(n, false); }
+        else if (n.dataset.dk !== k) { n.dataset.dk = k; pillTo(n, true); } });
+    };
+    document.addEventListener("click", e => { if (e.target.closest && e.target.closest(".ctabs button, .nx-dock button")) requestAnimationFrame(() => CM.dockSync()); });
+    addEventListener("resize", () => docks().forEach(n => pillTo(n, false)));
+    document.addEventListener("cm-look", () => docks().forEach(n => { delete n.dataset.dk; }));
+    addEventListener("scroll", () => { if (!dkRaf) dkRaf = requestAnimationFrame(() => { dkRaf = 0; dock(); }); if (!ticking) { ticking = true; requestAnimationFrame(frame); } }, { passive: true });
     addEventListener("resize", () => requestAnimationFrame(frame));
-    let mt = null; const sched = () => { clearTimeout(mt); mt = setTimeout(() => { mark(); CM.dockCenter(); }, 60); };
+    let mt = null; const sched = () => { clearTimeout(mt); mt = setTimeout(() => { mark(); CM.dockSync(); }, 40); };
     const start = () => { new MutationObserver(sched).observe(document.body, { childList: true, subtree: true }); sched(); };
     if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
     document.addEventListener("cm-look", () => { document.querySelectorAll("[data-nxr]").forEach(e => delete e.dataset.nxr); sched(); });
@@ -592,7 +613,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b79)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b80)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

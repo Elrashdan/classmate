@@ -1503,30 +1503,90 @@ html[data-skin="nx"] .tw-log{ display: flex; gap: 8px; align-items: flex-start; 
 html[data-skin="nx"] .tw-log i{ width: 8px; height: 8px; border-radius: 2px; background: var(--ink); margin-top: 6px; flex: none; }
 html[data-skin="nx"] .tw-log span{ display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 @media (prefers-reduced-motion: reduce){ html[data-skin="nx"] .tw-bars i, html[data-skin="nx"] .tw-ring circle.v{ animation: none; } }
-/* الموبايل: شريط أقسام داكن عائم، أفقي وبيتمرر، القسم المفتوح بس اللي اسمه ظاهر */
-@media (max-width: 760px){
-  html[data-skin="nx"] body.has-ctabs, html[data-skin="nx"] body.has-dock{ padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
-  html[data-skin="nx"] .ctabs, html[data-skin="nx"] .nx-dock{ position: fixed !important; inset: auto 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px !important; z-index: 50; display: flex !important; grid-template-columns: none !important; grid-auto-flow: unset !important;
-    gap: 4px !important; padding: 6px !important; margin: 0 !important; border: 0 !important; border-radius: 22px !important; background: var(--nx-dark) !important; box-shadow: 0 18px 44px -14px rgba(0,0,0,.6) !important;
-    overflow-x: auto !important; overflow-y: hidden !important; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain; transform: none;
-    transition: transform .4s cubic-bezier(.2,.8,.2,1), opacity .3s; }
-  html[data-skin="nx"] .ctabs::-webkit-scrollbar, html[data-skin="nx"] .nx-dock::-webkit-scrollbar{ display: none; }
-  html[data-skin="nx"] .ctabs::before{ display: none !important; }
-  html[data-skin="nx"].nx-dn .ctabs, html[data-skin="nx"].nx-dn .nx-dock, html[data-skin="nx"].nx-dn body::after{ transform: translateY(calc(100% + 40px)); opacity: 0; }
-  html[data-skin="nx"] .ctabs button, html[data-skin="nx"] .nx-dock button{ all: unset; box-sizing: border-box; position: relative; flex: none; display: inline-flex !important; flex-direction: row !important; align-items: center; justify-content: center;
-    height: 48px; min-width: 48px; padding: 0 13px !important; border-radius: 15px !important; color: color-mix(in srgb, var(--nx-base) 66%, transparent) !important; background: transparent !important; font-size: .86rem !important; font-weight: 600; cursor: pointer; scroll-snap-align: center;
-    transition: background-color .25s, color .25s, padding .3s; -webkit-tap-highlight-color: transparent; }
-  html[data-skin="nx"] .ctabs button svg, html[data-skin="nx"] .nx-dock button svg{ width: 21px !important; height: 21px !important; flex: none; }
-  html[data-skin="nx"] .ctabs button .l, html[data-skin="nx"] .nx-dock button .l{ max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap; margin: 0; transition: max-width .35s cubic-bezier(.2,.8,.2,1), opacity .25s, margin .35s; }
-  html[data-skin="nx"] .ctabs button[aria-selected=true], html[data-skin="nx"] .nx-dock button.on{ background: var(--nx-hi) !important; color: var(--nx-on-hi) !important; padding: 0 16px !important; }
-  html[data-skin="nx"] .ctabs button[aria-selected=true] .l, html[data-skin="nx"] .nx-dock button.on .l{ max-width: 120px; opacity: 1; margin-inline-start: 8px; }
-  html[data-skin="nx"] .ctabs .tb, html[data-skin="nx"] .ctabs .live-dot, html[data-skin="nx"] .nx-dock .tb, html[data-skin="nx"] .nx-dock .live-dot{ position: absolute; top: 4px; inset-inline-end: 4px; inset-inline-start: auto; }
-  html[data-skin="nx"] .nx-dock .tb, html[data-skin="nx"] .ctabs .tb{ height: 16px; min-width: 16px; line-height: 16px; font-size: 10px; padding: 0 4px; border-radius: 6px; }
-  /* خط صغير فوق الشريط بيبيّن قد إيه نزلت في الصفحة */
-  html[data-skin="nx"] body.has-ctabs::after, html[data-skin="nx"] body.has-dock::after{ content: ""; position: fixed; z-index: 51; inset-inline: 34px; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); height: 3px; border-radius: 3px; pointer-events: none;
-    background: linear-gradient(var(--nx-hi), var(--nx-hi)) right / calc(var(--nxsp, 0) * 100%) 100% no-repeat, color-mix(in srgb, var(--nx-hi) 22%, transparent); transition: transform .4s cubic-bezier(.2,.8,.2,1), opacity .3s; }
-}
 html[data-skin="nx"] .tw svg{ background: none !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important; box-sizing: border-box; width: 100% !important; height: 100% !important; }
 html[data-skin="nx"] .nx-dock .tb{ background: var(--warn); color: #fff; font-weight: 700; text-align: center; }
 html[data-skin="nx"] .nx-dock .live-dot{ width: 8px; height: 8px; border-radius: 2px; background: var(--nx-hi); animation: pulse 1.6s ease-in-out infinite; }
 @media (max-width: 760px){ html[data-skin="nx"] body.has-ctabs #goHome{ display: none; } }
+
+/* ======= b80: شريط الأقسام في الموبايل (حركة ناعمة) ======= */
+@media (max-width: 760px){
+  html[data-skin="nx"] body.has-ctabs, html[data-skin="nx"] body.has-dock{ padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
+  html[data-skin="nx"] .ctabs, html[data-skin="nx"] .nx-dock{ position: fixed !important; inset: auto 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px !important; z-index: 50; display: flex !important; grid-template-columns: none !important; grid-auto-flow: unset !important;
+    gap: 2px !important; padding: 6px !important; margin: 0 !important; border: 0 !important; border-radius: 22px !important; background: var(--nx-dark) !important; box-shadow: 0 18px 44px -14px rgba(0,0,0,.6) !important;
+    overflow-x: auto !important; overflow-y: hidden !important; scrollbar-width: none; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+    transform: translate3d(0, 0, 0); will-change: transform; transition: transform .5s cubic-bezier(.22,1,.36,1) !important; }
+  html[data-skin="nx"] .ctabs::-webkit-scrollbar, html[data-skin="nx"] .nx-dock::-webkit-scrollbar{ display: none; }
+  html[data-skin="nx"] .ctabs::before{ display: none !important; }
+  html[data-skin="nx"].nx-dn .ctabs, html[data-skin="nx"].nx-dn .nx-dock{ transform: translate3d(0, calc(100% + 32px), 0); }
+  /* كل الأزرار بنفس العرض: أيقونة واسم صغير، ومفيش حاجة بتغيّر مقاسها */
+  html[data-skin="nx"] .ctabs button, html[data-skin="nx"] .nx-dock button{ all: unset; box-sizing: border-box; position: relative; z-index: 1; flex: 1 0 58px; display: flex !important; flex-direction: column !important; align-items: center; justify-content: center; gap: 3px;
+    height: 54px; min-width: 58px; padding: 0 4px !important; border-radius: 16px !important; background: transparent !important; color: color-mix(in srgb, var(--nx-base) 62%, transparent) !important;
+    font-size: .64rem !important; font-weight: 600; line-height: 1; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color .3s ease; }
+  html[data-skin="nx"] .ctabs button svg, html[data-skin="nx"] .nx-dock button svg{ width: 20px !important; height: 20px !important; flex: none; transition: transform .45s cubic-bezier(.34,1.56,.64,1); }
+  html[data-skin="nx"] .ctabs button .l, html[data-skin="nx"] .nx-dock button .l{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  html[data-skin="nx"] .ctabs button[aria-selected=true], html[data-skin="nx"] .nx-dock button.on{ color: var(--nx-on-hi) !important; background: transparent !important; }
+  html[data-skin="nx"] .ctabs button[aria-selected=true] svg, html[data-skin="nx"] .nx-dock button.on svg{ transform: translateY(-1px) scale(1.08); }
+  html[data-skin="nx"] .ctabs button:active svg, html[data-skin="nx"] .nx-dock button:active svg{ transform: scale(.88); transition-duration: .12s; }
+  /* الخلفية الملوّنة بتتزحلق من قسم لقسم */
+  html[data-skin="nx"] .dk-pill{ position: absolute; z-index: 0; top: 6px; left: 0; height: 54px; width: 58px; border-radius: 16px; background: var(--nx-hi); pointer-events: none; will-change: transform, width;
+    transition: transform .5s cubic-bezier(.34,1.3,.64,1), width .5s cubic-bezier(.34,1.3,.64,1); box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--nx-hi) 70%, transparent); }
+  html[data-skin="nx"] .dk-pill.na{ transition: none; }
+  html[data-skin="nx"] .ctabs .tb, html[data-skin="nx"] .ctabs .live-dot, html[data-skin="nx"] .nx-dock .tb, html[data-skin="nx"] .nx-dock .live-dot{ position: absolute; top: 4px; inset-inline-start: calc(50% + 5px); inset-inline-end: auto; }
+  html[data-skin="nx"] .nx-dock .tb, html[data-skin="nx"] .ctabs .tb{ height: 15px; min-width: 15px; line-height: 15px; font-size: 9.5px; padding: 0 4px; border-radius: 5px; }
+  /* خط رفيع جوه الشريط بيبيّن قد إيه نزلت في الصفحة */
+  html[data-skin="nx"] body.has-ctabs::after, html[data-skin="nx"] body.has-dock::after{ content: ""; position: fixed; z-index: 51; inset-inline: 36px; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); height: 3px; border-radius: 3px; pointer-events: none;
+    background: linear-gradient(var(--nx-hi), var(--nx-hi)) right / calc(var(--nxsp, 0) * 100%) 100% no-repeat, color-mix(in srgb, var(--nx-dark) 20%, transparent);
+    transform: translate3d(0, 0, 0); transition: transform .5s cubic-bezier(.22,1,.36,1); }
+  html[data-skin="nx"].nx-dn body.has-ctabs::after, html[data-skin="nx"].nx-dn body.has-dock::after{ transform: translate3d(0, 110px, 0); }
+}
+@media (max-width: 760px) and (prefers-reduced-motion: reduce){ html[data-skin="nx"] .dk-pill, html[data-skin="nx"] .ctabs, html[data-skin="nx"] .nx-dock{ transition: none !important; } }
+@media (max-width: 760px){ html[data-skin="nx"] .dk-pill{ display: block; } }
+/* شعار التحميل بألوان المجموعة */
+html[data-skin="nx"] .hd-lmark{ background: var(--nx-dark); color: var(--nx-base); box-shadow: 0 18px 40px -16px color-mix(in srgb, var(--nx-hi) 55%, transparent), 0 0 0 6px color-mix(in srgb, var(--nx-hi) 14%, transparent); }
+html[data-skin="nx"] .hd-lmark .ld{ fill: var(--nx-hi); }
+html[data-skin="nx"] .hd-ltext{ color: var(--muted); }
+/* كروت الأقسام بأحجام مختلفة (بنتو) */
+@media (min-width: 761px){
+  html[data-skin="nx"] .home .tiles:not(.small){ grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: minmax(180px, auto);
+    grid-template-areas: "live live" "report students" "report reg" "tasks tasks" "team log"; }
+}
+@media (min-width: 1000px){
+  html[data-skin="nx"] .home .tiles:not(.small){ grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(190px, auto);
+    grid-template-areas: "live live report students" "live live report reg" "tasks tasks team log"; }
+}
+@media (max-width: 760px){
+  html[data-skin="nx"][data-motion="off"] .home .tiles:not(.small){ grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "live live" "report students" "report reg" "tasks tasks" "team log"; }
+}
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"]{ grid-area: live; }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="students"]{ grid-area: students; }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="reg"]{ grid-area: reg; }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="report"]{ grid-area: report; }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="tasks"]{ grid-area: tasks; }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="team"]{ grid-area: team; }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="log"]{ grid-area: log; }
+/* الكارت الكبير: المحاضرة */
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"]{ background: var(--nx-dark); color: var(--nx-base); }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"] > svg{ background: var(--nx-hi); color: var(--nx-on-hi); }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"] > small, html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"] .tw-m{ color: color-mix(in srgb, var(--nx-base) 68%, transparent); }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"] .tw-m b{ color: var(--nx-hi); }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"] > b{ font-size: 1.6rem; }
+html[data-skin="nx"] [data-tile="live"] .tw-bars{ height: 120px; gap: 8px; }
+html[data-skin="nx"] [data-tile="live"] .tw-bars i{ background: color-mix(in srgb, var(--nx-base) 18%, transparent); border-radius: 8px 8px 3px 3px; }
+html[data-skin="nx"] [data-tile="live"] .tw-bars i.on{ background: var(--nx-hi); }
+html[data-skin="nx"] [data-tile="live"] .tw-bar{ height: 12px; background: color-mix(in srgb, var(--nx-base) 15%, transparent); } html[data-skin="nx"] [data-tile="live"] .tw-bar i{ background: var(--nx-hi); }
+html[data-skin="nx"] [data-tile="live"] .tw-live{ background: var(--nx-hi); color: var(--nx-on-hi); } html[data-skin="nx"] [data-tile="live"] .tw-live i{ background: var(--nx-on-hi); }
+html[data-skin="nx"] [data-tile="live"] .tw-n{ font-size: 3rem; }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"]:hover, html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"].hot{ background: var(--nx-dark); color: var(--nx-base); box-shadow: 0 0 0 2px var(--nx-hi), 0 24px 50px -30px color-mix(in srgb, var(--nx-hi) 80%, #000); }
+/* الكارت الطويل: التقرير — دايرة أكبر */
+@media (min-width: 761px){
+  html[data-skin="nx"] [data-tile="report"] .tw-k-report{ grid-template-columns: 1fr; justify-items: start; row-gap: 10px; }
+  html[data-skin="nx"] [data-tile="report"] .tw-ring{ width: 128px; height: 128px; }
+  html[data-skin="nx"] [data-tile="report"] .tw-ring circle{ stroke-width: 6; }
+  html[data-skin="nx"] [data-tile="report"] .tw-ring b{ font-size: 1.6rem; }
+}
+html[data-skin="nx"] [data-tile="report"]{ background: color-mix(in srgb, var(--nx-hi) 30%, var(--surface)); }
+/* الكارت العريض: التكليفات — التالي جنب الأرقام */
+html[data-skin="nx"] [data-tile="tasks"] .tw{ grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+html[data-skin="nx"] [data-tile="tasks"] .tw-next{ padding: 12px 16px; } html[data-skin="nx"] [data-tile="tasks"] .tw-next span{ font-size: 1rem; }
+.dk-pill{ display: none; }
+html[data-skin="nx"] .tbx, html[data-skin="nx"] .tbx b{ font-style: normal; }
