@@ -1627,3 +1627,75 @@ html[data-skin="nx"] .now-c .btn:not(.primary){ color: var(--nx-base); backgroun
 html[data-skin="nx"] .now-c input{ color: var(--nx-base); }
 html[data-skin="nx"][data-theme="dark"]{ --muted: color-mix(in srgb, var(--nx-base) 78%, var(--nx-dark)); --bad: #ff8f86; }
 @media (prefers-color-scheme: dark){ html[data-skin="nx"]:not([data-theme="light"]){ --muted: color-mix(in srgb, var(--nx-base) 78%, var(--nx-dark)); --bad: #ff8f86; } }
+
+/* ======= b82: تطبيقات مصغّرة أذكى ======= */
+.me-card{ display: none; }
+@media (min-width: 761px){
+  html[data-skin="nx"] .home .tiles:not(.small){ grid-template-areas: "me me" "live live" "report students" "report reg" "tasks tasks" "team log"; }
+}
+@media (min-width: 1000px){
+  html[data-skin="nx"] .home .tiles:not(.small){ grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-areas: "me live live report" "me live live report" "tasks tasks students reg" "tasks tasks team log"; }
+}
+@media (max-width: 760px){
+  html[data-skin="nx"][data-motion="off"] .home .tiles:not(.small){ grid-template-areas: "me me" "live live" "report students" "report reg" "tasks tasks" "team log"; }
+  html[data-skin="nx"]:not([data-motion="off"]) .home .tiles:not(.small) .me-card{ margin-bottom: 14px; }
+}
+/* كارت «أنا» */
+html[data-skin="nx"] .me-card{ grid-area: me; display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 24px; color: var(--nx-base); min-width: 0;
+  background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--nx-hi) 28%, transparent), transparent 60%), var(--nx-dark); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-base) 10%, transparent); }
+html[data-skin="nx"] .me-top{ display: flex; align-items: center; gap: 12px; min-width: 0; }
+html[data-skin="nx"] .me-ava{ width: 54px; height: 54px; flex: none; border-radius: 16px; display: grid; place-items: center; background: var(--nx-hi); color: var(--nx-on-hi); font-family: "Readex Pro", var(--f-display); font-weight: 700; font-size: 1.5rem; }
+html[data-skin="nx"] .me-who{ min-width: 0; display: grid; } html[data-skin="nx"] .me-who b{ font-family: "Readex Pro", var(--f-display); font-size: 1.2rem; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-skin="nx"] .me-who small{ color: color-mix(in srgb, var(--nx-base) 72%, transparent); font-size: .82rem; }
+html[data-skin="nx"] .me-stats{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+html[data-skin="nx"] .me-stats span{ display: grid; gap: 2px; padding: 10px 8px; border-radius: 14px; background: color-mix(in srgb, var(--nx-base) 8%, transparent); text-align: center; }
+html[data-skin="nx"] .me-stats b{ font-family: "Readex Pro", var(--f-display); font-size: 1.45rem; line-height: 1; }
+html[data-skin="nx"] .me-stats small{ font-size: .7rem; color: color-mix(in srgb, var(--nx-base) 72%, transparent); line-height: 1.3; }
+html[data-skin="nx"] .me-stats .warn b{ color: var(--nx-hi); }
+html[data-skin="nx"] .me-next{ display: grid; gap: 2px; padding: 12px 14px; border-radius: 16px; background: color-mix(in srgb, var(--nx-base) 8%, transparent); border-inline-start: 3px solid var(--nx-hi); }
+html[data-skin="nx"] .me-next.live{ background: var(--nx-hi); color: var(--nx-on-hi); border-color: var(--nx-on-hi); }
+html[data-skin="nx"] .me-next small{ font-size: .74rem; opacity: .75; } html[data-skin="nx"] .me-next b{ font-size: 1rem; } html[data-skin="nx"] .me-next span{ font-size: .8rem; opacity: .8; }
+html[data-skin="nx"] .me-acts{ display: flex; gap: 8px; margin-top: auto; }
+html[data-skin="nx"] .me-acts button{ all: unset; box-sizing: border-box; position: relative; flex: 1; height: 44px; border-radius: 13px; display: grid; place-items: center; cursor: pointer; background: color-mix(in srgb, var(--nx-base) 10%, transparent); color: var(--nx-base); transition: background-color .2s, color .2s, transform .15s; }
+html[data-skin="nx"] .me-acts button:hover, html[data-skin="nx"] .me-acts button:focus-visible{ background: var(--nx-hi); color: var(--nx-on-hi); }
+html[data-skin="nx"] .me-acts button:active{ transform: scale(.94); }
+html[data-skin="nx"] .me-acts svg{ width: 20px; height: 20px; }
+html[data-skin="nx"] .me-acts i{ position: absolute; top: 4px; inset-inline-end: 6px; font-style: normal; font-size: .62rem; font-weight: 700; min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px; border-radius: 5px; background: var(--nx-hi); color: var(--nx-on-hi); text-align: center; }
+/* تقويم التسليمات */
+html[data-skin="nx"] .mw-cal{ display: grid; gap: 8px; }
+html[data-skin="nx"] .mw-cal-h{ display: flex; align-items: baseline; justify-content: space-between; } html[data-skin="nx"] .mw-cal-h b{ font-family: "Readex Pro", var(--f-display); font-size: 1rem; } html[data-skin="nx"] .mw-cal-h small{ color: var(--muted); }
+html[data-skin="nx"] .mw-cal-g{ display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+html[data-skin="nx"] .mw-cal-g em{ font-style: normal; text-align: center; font-size: .7rem; color: var(--muted); font-weight: 600; }
+html[data-skin="nx"] .mw-cal-g i{ position: relative; font-style: normal; aspect-ratio: 1 / .9; border-radius: 10px; display: grid; align-items: end; justify-items: start; padding: 4px 6px; font-size: .74rem; font-weight: 600; background: color-mix(in srgb, var(--ink) 7%, transparent); color: var(--ink); }
+html[data-skin="nx"] .mw-cal-g i.past{ opacity: .45; }
+html[data-skin="nx"] .mw-cal-g i.due{ background: var(--nx-dark); color: var(--nx-base); opacity: 1; }
+html[data-skin="nx"] .mw-cal-g i.due::before{ content: ""; position: absolute; top: 5px; inset-inline-end: 6px; width: 6px; height: 6px; border-radius: 2px; background: var(--nx-hi); }
+html[data-skin="nx"] .mw-cal-g i.td{ background: var(--nx-hi); color: var(--nx-on-hi); opacity: 1; }
+html[data-skin="nx"] .mw-cal-g i.td.due::before{ background: var(--nx-on-hi); }
+html[data-skin="nx"] .mw-cal-g sup{ position: absolute; top: 3px; inset-inline-start: 5px; font-size: .6rem; }
+html[data-skin="nx"][data-theme="dark"] .mw-cal-g i.due{ background: var(--nx-base); color: var(--nx-dark); }
+@media (prefers-color-scheme: dark){ html[data-skin="nx"]:not([data-theme="light"]) .mw-cal-g i.due{ background: var(--nx-base); color: var(--nx-dark); } }
+@media (min-width: 1000px){ html[data-skin="nx"] [data-tile="tasks"] .mw-cal-g{ gap: 7px; } html[data-skin="nx"] [data-tile="tasks"] .mw-cal-g i{ aspect-ratio: 1 / .75; font-size: .82rem; } }
+html[data-skin="nx"] [data-tile="tasks"] .mw{ grid-template-columns: 1fr; align-items: stretch; }
+html[data-skin="nx"] [data-tile="tasks"] .mw > .mw-row{ align-items: stretch; } html[data-skin="nx"] [data-tile="tasks"] .mw > .mw-row > .mw-next{ flex: 1 1 160px; }
+/* الكارت لما تقف عليه: كل اللي جواه يتلوّن صح (كان الكلام بيختفي) */
+html[data-skin="nx"] .home .tiles:not(.small) .tile:not([data-tile="live"]):hover, html[data-skin="nx"] .home .tiles:not(.small) .tile:not([data-tile="live"]).hot{
+  --ink: var(--nx-on-hi); --muted: color-mix(in srgb, var(--nx-on-hi) 72%, var(--nx-hi)); --sunk: color-mix(in srgb, var(--nx-on-hi) 12%, var(--nx-hi)); --surface: var(--nx-hi);
+  background: var(--nx-hi) !important; color: var(--nx-on-hi) !important; }
+html[data-skin="nx"] .home .tiles:not(.small) .tile:not([data-tile="live"]):hover .mw-cal-g i.due{ background: var(--nx-on-hi); color: var(--nx-hi); }
+html[data-skin="nx"] .home .tiles:not(.small) .tile:not([data-tile="live"]):hover .mw-cal-g i.td{ background: var(--nx-base); color: var(--nx-dark); }
+html[data-skin="nx"] .tiles.small .tile:hover{ --ink: var(--nx-on-hi); --muted: color-mix(in srgb, var(--nx-on-hi) 72%, var(--nx-hi)); }
+/* كارت المحاضرة الكبير: داكن ومحدد، وفي الوضع الداكن يبان عن الخلفية */
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"]{ --ink: var(--nx-base); --muted: color-mix(in srgb, var(--nx-base) 70%, var(--nx-dark)); --sunk: color-mix(in srgb, var(--nx-base) 10%, var(--nx-dark)); --surface: var(--nx-dark);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-base) 10%, transparent); }
+html[data-skin="nx"][data-theme="dark"] .home .tiles:not(.small) [data-tile="live"]{ background: radial-gradient(120% 80% at 0% 100%, color-mix(in srgb, var(--nx-hi) 16%, transparent), transparent 60%), color-mix(in srgb, var(--nx-base) 7%, var(--nx-dark)) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-hi) 28%, transparent); }
+@media (prefers-color-scheme: dark){ html[data-skin="nx"]:not([data-theme="light"]) .home .tiles:not(.small) [data-tile="live"]{ background: radial-gradient(120% 80% at 0% 100%, color-mix(in srgb, var(--nx-hi) 16%, transparent), transparent 60%), color-mix(in srgb, var(--nx-base) 7%, var(--nx-dark)) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-hi) 28%, transparent); } }
+html[data-skin="nx"] .home .tiles:not(.small) [data-tile="live"]:hover{ box-shadow: inset 0 0 0 2px var(--nx-hi), 0 24px 50px -30px color-mix(in srgb, var(--nx-hi) 80%, #000) !important; }
+html[data-skin="nx"] [data-tile="live"] .mw-chip{ background: color-mix(in srgb, var(--nx-base) 12%, transparent); color: var(--nx-base); }
+html[data-skin="nx"] [data-tile="live"] .mw-next{ background: color-mix(in srgb, var(--nx-base) 9%, transparent); border-inline-start: 3px solid var(--nx-hi); }
+html[data-skin="nx"] [data-tile="live"] .mw-bars{ height: 110px; }
+/* الوضع الداكن: كروت الأقسام نفسها أفتح سنة من الخلفية */
+html[data-skin="nx"][data-theme="dark"] .home .tiles:not(.small) .tile:not([data-tile="live"]){ box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-base) 8%, transparent); }
+html[data-skin="nx"] .mw-m b{ font-size: inherit; letter-spacing: 0; }
+html[data-skin="nx"][data-theme="dark"] .me-card{ background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--nx-hi) 22%, transparent), transparent 60%), color-mix(in srgb, var(--nx-base) 7%, var(--nx-dark)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-hi) 22%, transparent); }
+@media (prefers-color-scheme: dark){ html[data-skin="nx"]:not([data-theme="light"]) .me-card{ background: radial-gradient(120% 70% at 100% 0%, color-mix(in srgb, var(--nx-hi) 22%, transparent), transparent 60%), color-mix(in srgb, var(--nx-base) 7%, var(--nx-dark)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--nx-hi) 22%, transparent); } }

@@ -664,6 +664,53 @@
     log: () => "كل ما حدث في المادة"
   };
   // تطبيقات مصغّرة: بيانات سريعة داخل كل كارت (تظهر في «الواجهة الحديثة» فقط)
+  // تقويم 3 أسابيع (من السبت) بمواعيد التسليم
+  const AR_D = ["ح", "ن", "ث", "ر", "خ", "ج", "س"];
+  function calHtml(tasks) {
+    const t0 = new Date(); t0.setHours(0, 0, 0, 0); const start = new Date(t0); start.setDate(t0.getDate() - (t0.getDay() + 1) % 7);
+    const key = d => d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate(), due = {};
+    tasks.forEach(t => { if (t.due_at) { const d = new Date(t.due_at); (due[key(d)] = due[key(d)] || []).push(t.title); } });
+    const cells = []; for (let i = 0; i < 21; i++) { const d = new Date(start); d.setDate(start.getDate() + i); cells.push(d); }
+    const mo = t0.toLocaleDateString("ar-EG", { month: "long" });
+    return `<span class="mw-cal"><span class="mw-cal-h"><b>${mo}</b><small>مواعيد التسليم</small></span><span class="mw-cal-g">${[6, 0, 1, 2, 3, 4, 5].map(d => `<em>${AR_D[d]}</em>`).join("")}${cells.map(d => { const ts = due[key(d)] || [], td = +d === +t0;
+      return `<i class="${td ? "td" : ""} ${ts.length ? "due" : ""} ${d < t0 ? "past" : ""}" ${ts.length ? `title="${esc(ts.join("، "))}"` : ""}>${d.getDate()}${ts.length > 1 ? `<sup>${ts.length}</sup>` : ""}</i>`; }).join("")}</span></span>`;
+  }
+  // المحاضرة الجاية للمادة من «جدولي»
+  function nextLec(c) {
+    if (!myTT || !myTT.slots || !myTT.tt) return null;
+    const ss = myTT.slots.filter(s => s.course_id === c.id || s.title === c.name); if (!ss.length) return null;
+    const now = new Date(), hm = now.getHours() * 60 + now.getMinutes(), toM = x => { const [h, m] = String(x || "0:0").split(":").map(Number); return h * 60 + m; };
+    const per = n => myTT.tt.periods[n - 1] || {}, order = d => (d - now.getDay() + 7) % 7;
+    const cand = ss.map(s => { const st = toM(per(s.p_from).from), en = toM(per(s.p_to).to), d = order(s.day); let o = d * 1440 + st - hm;
+      if (d === 0 && st <= hm && en > hm) o = 0; else if (o < 0) o += 7 * 1440; return { s, o, now: d === 0 && st <= hm && en > hm }; }).sort((a, b) => a.o - b.o)[0];
+    if (!cand) return null; const s = cand.s, d = Math.floor((cand.o + hm) / 1440) % 7;
+    return { when: (cand.now ? "دلوقتي" : d === 0 ? "النهارده" : d === 1 ? "بكرة" : TT.DAY[s.day]) + " " + TT.t12(per(s.p_from).from), what: [s.myRoom || s.room, s.myGroups && s.myGroups.length ? "مجموعة " + s.myGroups.join("، ") : ""].filter(Boolean).join(" · ") || "المحاضرة الجاية" };
+  }
+  // كارت «أنا»: ملخص سريع لصاحب الحساب
+  function meCardHtml() {
+    const p = myStaff(), nm = String(p.name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim();
+    const mine = courses.filter(x => role(x) !== "admin" && !x.archived).length;
+    const now = new Date(), hm = now.getHours() * 60 + now.getMinutes(), toM = x => { const [h, m] = String(x || "0:0").split(":").map(Number); return h * 60 + m; };
+    const per = n => (myTT && myTT.tt && myTT.tt.periods[n - 1]) || {};
+    const td = myTT && myTT.slots ? myTT.slots.filter(s => s.day === now.getDay()).sort((a, b) => a.p_from - b.p_from) : [];
+    const nx = td.find(s => toM(per(s.p_to).to) > hm), live = nx && toM(per(nx.p_from).from) <= hm;
+    const items = feed ? feed.mine || [] : null, pend = items ? items.reduce((a, x) => a + (+x.n || 0), 0) : null, late = items ? items.filter(x => x.since && Date.now() - new Date(x.since) > 3 * 864e5).length : 0;
+    const ico = d => ICO(d);
+    return `<div class="me-card" id="meCard">
+      <div class="me-top"><span class="me-ava">${esc(nm.charAt(0) || "؟")}</span><div class="me-who"><b>${esc(nm)}</b><small>${esc([p.title, ROLE[me.role]].filter(Boolean).join(" · "))}</small></div></div>
+      <div class="me-stats"><span><b>${mine}</b><small>مادة</small></span><span><b>${myTT ? td.length : "—"}</b><small>محاضرة النهارده</small></span><span class="${late ? "warn" : ""}"><b>${pend == null ? "—" : pend}</b><small>${late ? late + " متأخر" : "مستني ردك"}</small></span></div>
+      ${nx ? `<div class="me-next ${live ? "live" : ""}"><small>${live ? "دلوقتي" : "المحاضرة الجاية"} · <bdi dir="ltr">${TT.t12(per(nx.p_from).from)}–${TT.t12(per(nx.p_to).to)}</bdi></small><b>${esc(nx.title)}</b><span>${esc([nx.myRoom || nx.room, nx.myGroups && nx.myGroups.length ? "مجموعة " + nx.myGroups.join("، ") : ""].filter(Boolean).join(" · "))}</span></div>`
+        : `<div class="me-next none"><small>النهارده</small><b>${!myTT ? "…" : td.length ? "خلّصت محاضرات النهارده" : "مفيش محاضرات النهارده"}</b></div>`}
+      <div class="me-acts"><button type="button" data-me="prof" title="ملفي الشخصي" aria-label="ملفي الشخصي">${ico('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}</button><button type="button" data-me="tt" title="الجدول الدراسي" aria-label="الجدول الدراسي">${ico('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>')}</button><button type="button" data-me="bell" title="التنبيهات" aria-label="التنبيهات">${ico(BELL_ICO)}${pend ? `<i>${pend > 99 ? "99+" : pend}</i>` : ""}</button><button type="button" data-me="look" title="المظهر" aria-label="المظهر">${ico('<circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4A5.6 5.6 0 0 0 22 10c0-4.4-4.5-8-10-8z"/>')}</button></div>
+    </div>`;
+  }
+  function wireMe() {
+    document.querySelectorAll("[data-me]").forEach(b => b.onclick = () => { const k = b.dataset.me;
+      if (k === "prof") { view = "profile"; render(); window.scrollTo({ top: 0 }); }
+      else if (k === "tt") { view = "timetable"; stopLoops(); render(); window.scrollTo({ top: 0 }); }
+      else if (k === "bell") bellOpen(); else if (k === "look") CM.appearance(); });
+  }
+  const meRefresh = () => { const m = $("#meCard"); if (m && view === "home") { m.outerHTML = meCardHtml(); wireMe(); } };
   function tileWidget(k, c) {
     if (!D || D.cid !== c.id) return "";
     const w = h => h ? `<span class="mw mw-k-${k}" aria-hidden="true">${h}</span>` : "";
@@ -672,14 +719,16 @@
       const s = running();
       if (s) { const own = D.enroll.filter(e => isOwn(s, e)), rec = D.att[s.id] || {}, pr = own.filter(e => counted(rec[e.student_code])).length, pd = Object.values(rec).filter(r => r.status === "pending").length;
         return w(`<span class="mw-row"><em class="mw-live"><i></i>جارية</em><span class="mw-n">${pr}<small>/${own.length}</small></span></span><span class="mw-bar"><i style="width:${pct(pr, own.length)}%"></i></span>${pd ? `<span class="mw-m">${pd} طلب ينتظر الموافقة</span>` : ""}`); }
-      const st = lectureStats(D.sessions, D.enroll).slice(-10); if (!st.length) return "";
-      const last = st[st.length - 1];
-      return w(`<span class="mw-bars">${st.map((x, i) => `<i class="${i === st.length - 1 ? "on" : ""}" style="--h:${Math.max(6, x.pct)}%;--i:${i}"></i>`).join("")}</span><span class="mw-m">آخر محاضرة: <b>${last.pct}%</b> حضور</span>`);
+      const all = lectureStats(D.sessions, D.enroll), st = all.slice(-10), nx = nextLec(c);
+      if (!st.length && !nx) return "";
+      const avg = all.length ? Math.round(all.reduce((x, y) => x + y.pct, 0) / all.length) : 0, last = st[st.length - 1];
+      return w(`${st.length ? `<span class="mw-row"><em class="mw-chip">${all.length} محاضرة</em><em class="mw-chip">متوسط ${avg}%</em></span><span class="mw-bars">${st.map((x, i) => `<i class="${i === st.length - 1 ? "on" : ""}" style="--h:${Math.max(6, x.pct)}%;--i:${i}" title="م${x.s.n}: ${x.pct}%"></i>`).join("")}</span><span class="mw-m">آخر محاضرة: <b>${last.pct}%</b> حضور</span>` : ""}${nx ? `<span class="mw-next"><b>${esc(nx.when)}</b><span>${esc(nx.what)}</span></span>` : ""}`);
     }
     if (k === "students") {
       const n = D.enroll.length; if (!n) return "";
       const gs = groupsOf(), parts = gs.map(g => [g, D.enroll.filter(e => e.grp === g).length]), none = D.enroll.filter(e => !e.grp).length;
-      return w(`<span class="mw-row"><span class="mw-n">${n}<small> طالب</small></span>${gs.length ? `<em class="mw-chip">${gs.length} مجموعة</em>` : ""}</span>${gs.length ? `<span class="mw-seg">${parts.map(([g, m], i) => `<i style="flex:${m};--o:${1 - (i % 4) * .2}" title="${esc(g)}"></i>`).join("")}${none ? `<i class="x" style="flex:${none}"></i>` : ""}</span>` : ""}`);
+      const top = D.enroll.map(e => [e, absences(e)]).filter(x => x[1] > 0).sort((x, y) => y[1] - x[1])[0];
+      return w(`<span class="mw-row"><span class="mw-n">${n}<small> طالب</small></span>${gs.length ? `<em class="mw-chip">${gs.length} مجموعة</em>` : ""}</span>${gs.length ? `<span class="mw-seg">${parts.map(([g, m], i) => `<i style="flex:${m};--o:${1 - (i % 4) * .2}" title="${esc(g)}"></i>`).join("")}${none ? `<i class="x" style="flex:${none}"></i>` : ""}</span>` : ""}${top ? `<span class="mw-m">الأكتر غياب: <b>${esc(String(top[0].name).split(" ").slice(0, 2).join(" "))}</b> (${top[1]})</span>` : ""}`);
     }
     if (k === "reg" || k === "report") {
       if (!D.enroll.length) return "";
@@ -696,7 +745,7 @@
       const ung = D.tasks.filter(t => t.mode === "submit").reduce((s, t) => s + Object.values(D.subs[t.id] || {}).filter(x => x.submitted_at && x.grade == null).length, 0);
       const ap = (D.appeals || []).filter(a => a.status === "pending").length;
       const days = nx ? Math.ceil((new Date(nx.due_at) - now) / 864e5) : 0;
-      return w(`${nx ? `<span class="mw-next"><b>${days <= 0 ? "اليوم" : days === 1 ? "بكرة" : "بعد " + days + " يوم"}</b><span>${esc(nx.title)}</span></span>` : `<span class="mw-m">مفيش تكليف مفتوح دلوقتي</span>`}<span class="mw-row">${ung ? `<em class="mw-chip">${ung} بدون درجة</em>` : ""}${ap ? `<em class="mw-chip warn">${ap} تظلم</em>` : ""}</span>`);
+      return w(`${calHtml(D.tasks)}<span class="mw-row">${nx ? `<span class="mw-next"><b>${days <= 0 ? "اليوم" : days === 1 ? "بكرة" : "بعد " + days + " يوم"}</b><span>${esc(nx.title)}</span></span>` : `<span class="mw-m">مفيش تكليف مفتوح دلوقتي</span>`}<span class="mw-row">${ung ? `<em class="mw-chip">${ung} بدون درجة</em>` : ""}${ap ? `<em class="mw-chip warn">${ap} تظلم</em>` : ""}</span></span>`);
     }
     if (k === "team") {
       const ppl = [c.owner_email, ...D.tas.map(t => t.email)].filter((x, i, a) => x && a.indexOf(x) === i);
@@ -765,7 +814,7 @@
     const p = myStaff(), list = filtered();
     return `<section class="home">
       ${CM.hero({ eyebrow: esc(ROLE[me.role]) + (p.title ? " · " + esc(p.title) : ""), title: "أهلًا " + esc(String(me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").split(" ")[0]), sub: c ? "المادة المفتوحة: " + esc(c.name) : "", extra: pickerHtml("home") })}
-      ${c ? `<h3 class="sec-t">أقسام المادة</h3><div class="tiles">${CTABS.map(([k, t, ic]) => `<button class="tile ${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? "hot" : ""}" data-tile="${k}">${ic}<b>${t}</b><small>${esc(TILE_SUB[k](c))}</small>${tileWidget(k, c)}</button>`).join("")}</div>
+      ${c ? `<h3 class="sec-t">أقسام المادة</h3><div class="tiles">${meCardHtml()}${CTABS.map(([k, t, ic]) => `<button class="tile ${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? "hot" : ""}" data-tile="${k}">${ic}<b>${t}</b><small>${esc(TILE_SUB[k](c))}</small>${tileWidget(k, c)}</button>`).join("")}</div>
       <nav class="nx-dock" aria-label="أقسام المادة"><button type="button" class="dk-home on" aria-current="page">${ICO(HOME_ICO)}<span class="l">الرئيسية</span></button>${CTABS.map(([k, t, ic]) => `<button type="button" data-tile="${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>` : `<div class="empty">${me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "لا توجد مواد بعد. أنشئ مادة جديدة."}</div>`}
       ${homeAlertsHtml()}
       ${myTTHtml()}
@@ -795,7 +844,7 @@
   const lateCls = it => it.kind === "att" && it.live ? "" : ageDays(it.since) >= 3 ? " late" : ageDays(it.since) >= 1 ? " old" : "";
   const bellCount = () => feed ? feed.mine.length + (feed.unread || 0) + (me.role === "admin" ? (+feed.admin.requests || 0) + (+feed.admin.tickets || 0) : 0) : 0;
   async function loadFeed() { try { feed = await rpc("staff_feed"); } catch (e) { if (!feed) feed = null; } bellBadge(); const p = $("#bellPop"); if (p && !p.hidden) bellRender(); }
-  function bellBadge() { const n = bellCount(), b = $("#bellN"); if (b) { b.hidden = !n; b.textContent = n > 99 ? "99+" : n; } const bt = $("#bellBtn"); if (bt) bt.classList.toggle("on", !!n); }
+  function bellBadge() { meRefresh(); const n = bellCount(), b = $("#bellN"); if (b) { b.hidden = !n; b.textContent = n > 99 ? "99+" : n; } const bt = $("#bellBtn"); if (bt) bt.classList.toggle("on", !!n); }
   function bellItem(it, dept) {
     const k = FK[it.kind] || FK.appeal;
     return `<article class="bl-it${lateCls(it)}"><span class="bl-ic k-${it.kind}">${ICO(k.ic)}</span><div class="bl-tx"><b>${esc(it.title)}</b>
@@ -861,7 +910,7 @@
   // «جدولي»: محاضرات عضو هيئة التدريس من الجدول الدراسي
   let myTT = undefined, myTTDay = null;
   function myTTHtml() {
-    if (myTT === undefined) { myTT = null; TT.mine({ rpc: (f, a) => rpc(f, a), me, staff }).then(r => { myTT = r || false; const h = $("#myTT"); if (h && view === "home") { h.outerHTML = myTTHtml(); wireMyTT(); } }).catch(() => { myTT = false; }); }
+    if (myTT === undefined) { myTT = null; TT.mine({ rpc: (f, a) => rpc(f, a), me, staff }).then(r => { myTT = r || false; const h = $("#myTT"); if (h && view === "home") { h.outerHTML = myTTHtml(); wireMyTT(); meRefresh(); const lt = document.querySelector('[data-tile="live"]'), c0 = course(); if (lt && c0) { const ow = lt.querySelector(".mw"), nw = tileWidget("live", c0); if (ow) ow.outerHTML = nw; else lt.insertAdjacentHTML("beforeend", nw); } } }).catch(() => { myTT = false; }); }
     if (!myTT || !myTT.slots.length) return `<div id="myTT"></div>`;
     return `<div id="myTT"><h3 class="sec-t">جدولي</h3><div class="panel tw-panel">${TT.weekHtml(myTT, { staff: true, day: myTTDay })}<div class="row" style="margin-top:8px"><button class="btn sm ghost" id="myTTAll">الجدول الدراسي كامل ←</button></div></div></div>`;
   }
@@ -916,7 +965,7 @@
     </section>`;
   }
   function wireHome(c) {
-    wireHomeAlerts();
+    wireHomeAlerts(); wireMe();
     const gh = $("#goHome"); if (gh) gh.onclick = () => { view = "home"; render(); window.scrollTo({ top: 0 }); };
     const gp = $("#goProf"); if (gp) gp.onclick = () => { view = view === "profile" ? "home" : "profile"; render(); window.scrollTo({ top: 0 }); };
     const hp = $("#homePick"); if (hp) hp.onchange = () => { curId = hp.value; store.set("cm_course", curId); flash = {}; liveTab = "all"; regGroup = "all"; startState = null; fYear = "all"; fTerm = "all"; loadCourse().catch(showErr); };
