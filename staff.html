@@ -1485,7 +1485,7 @@
       const sid = delSess; confirmKey = null; delSess = null;
       act(() => rpc("delete_session", { sid }), loadCourse);
     };
-    $("#exp").onclick = () => exportXlsx(false); $("#expPdf").onclick = () => exportXlsx(true);
+    const ex1 = $("#exp"); if (ex1) ex1.onclick = () => exportXlsx(false); const ex2 = $("#expPdf"); if (ex2) ex2.onclick = () => exportXlsx(true);
     const tb = $("#tplBtn"); if (tb) tb.onclick = exportTemplate;
     const px = $("#pastX"); if (px) px.onchange = ev => { importPast(ev.target.files[0]); ev.target.value = ""; };
     wireImp(el);
