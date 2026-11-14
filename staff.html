@@ -1771,6 +1771,51 @@
       ${canRun(c) ? `<p class="small muted">«إرسال تنبيه للطلاب» يرسل لكل طالب إشعارًا على هاتفه (لمن فعّل الإشعارات) ويظهر له في صفحته، ثم تختفي هذه التنبيهات.</p>` : ""}
     </div>`;
   }
+  /* ---------- قائمة طلبة حالة معيّنة (منتظم / إنذار…) + رسالة واتساب جاهزة ---------- */
+  const WA_ICO = '<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 1c-1-.4-2-1.4-2.5-2.5l1-1-1-2z"/>';
+  const lvlRows = l => D.enroll.filter(e => (rpGroup === "all" || e.grp === rpGroup) && CM.lvl(absences(e)) === l).map(e => ({ e, ab: absences(e), ms: missedSess(e).map(x => x.n) })).sort((a, b) => b.ab - a.ab || String(a.e.name).localeCompare(String(b.e.name), "ar"));
+  function lvlMsg(c, x, l) {
+    const nm = String(x.e.name || "").split(/\s+/).slice(0, 2).join(" ");
+    if (l === 0) return `أهلًا ${nm}،\nحضورك في مادة «${c.name}» منتظم${x.ab ? " (غياب " + x.ab + ")" : ""}. استمر على كده.`;
+    const nxt = l === 4 ? "ده معناه انسحاب إجباري من المادة. برجاء التوجه لأستاذ المادة في أقرب وقت."
+      : l === 3 ? "ده إنذار ثالث ونهائي، وأي غياب تاني معناه انسحاب إجباري من المادة."
+      : `الغياب الجاي هيوصّلك لـ«${CM.WARN[l + 1].t}».`;
+    return `أهلًا ${nm}،\nبخصوص مادة «${c.name}»: غيابك وصل ${CM.times(x.ab)}${x.ms.length ? " (المحاضرات: " + x.ms.join("، ") + ")" : ""}، وحالتك دلوقتي «${CM.WARN[l].t}».\n${nxt}\nتقدر تراجع غيابك من صفحتك على Hadro:\n${location.href.replace(/staff\.html.*$/, "")}`;
+  }
+  const lvlGroupMsg = (c, l, rows) => `${l === 0 ? "الطلبة المنتظمون" : "تنبيه بخصوص الغياب"} في مادة «${c.name}»\n${CM.WARN[l].t} (${rows.length}):\n` + rows.map(x => `- ${x.e.student_code} ${x.e.name}${x.e.grp ? " (مجموعة " + x.e.grp + ")" : ""}${x.ab ? " — غياب " + x.ab : ""}`).join("\n") + (l ? "\n\nيرجى الالتزام بالحضور. يمكن لكل طالب مراجعة غيابه من صفحته على Hadro." : "");
+  const waGo = t => { window.open("https://wa.me/?text=" + encodeURIComponent(t), "_blank", "noopener"); };
+  let lvlQ = "";
+  function lvlOpen(l) {
+    const c = course(); if (!c || !D) return;
+    let p = $("#lvlPop"); if (!p) { p = document.createElement("div"); p.id = "lvlPop"; p.className = "bell-pop lvl-pop"; p.setAttribute("role", "dialog"); document.body.appendChild(p);
+      const sh = document.createElement("div"); sh.id = "lvlShade"; sh.className = "bell-shade"; sh.onclick = lvlClose; document.body.appendChild(sh); }
+    lvlQ = ""; p.hidden = false; $("#lvlShade").hidden = false; document.documentElement.classList.add("bell-lock"); lvlDraw(l);
+  }
+  function lvlClose() { const p = $("#lvlPop"); if (p) p.hidden = true; const sh = $("#lvlShade"); if (sh) sh.hidden = true; if (!$("#bellPop") || $("#bellPop").hidden) document.documentElement.classList.remove("bell-lock"); }
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { const p = $("#lvlPop"); if (p && !p.hidden) lvlClose(); } });
+  function lvlDraw(l) {
+    const p = $("#lvlPop"), c = course(), KS = ["k-ok", "k-w1", "k-w2", "k-w3", "k-w4"], all = lvlRows(l), q = normAr(lvlQ.trim());
+    const rows = q ? all.filter(x => normAr(x.e.name).includes(q) || x.e.student_code.includes(q)) : all;
+    p.setAttribute("aria-label", CM.WARN[l].t);
+    p.innerHTML = `<div class="bl-h"><b><i class="sw ${KS[l]}"></i> ${CM.WARN[l].t} <span class="chip">${all.length}</span></b><button class="btn xs ghost" id="lvlX" aria-label="إغلاق">✕</button></div>
+      <div class="lvl-tabs">${[0, 1, 2, 3, 4].map(i => `<button type="button" class="cchip" data-lvlt="${i}" aria-pressed="${i === l}">${CM.WARN[i].t} ${lvlRows(i).length}</button>`).join("")}</div>
+      <div class="bl-b">
+        <p class="small muted" style="margin:8px 0 0">${esc(c.name)}${rpGroup !== "all" ? " · مجموعة " + esc(rpGroup) : ""}</p>
+        ${all.length ? `<div class="lvl-acts"><button class="btn sm primary" id="lvlWaAll">${ICO(WA_ICO)} رسالة للجروب بالأسماء</button><button class="btn sm" id="lvlCpAll">نسخ القائمة</button></div>
+        ${all.length > 8 ? `<input type="search" id="lvlQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(lvlQ)}" autocomplete="off">` : ""}
+        <div class="lvl-list">${rows.map((x, i) => `<article class="lvl-it"><div class="lvl-tx"><b>${esc(x.e.name)}</b><small><span class="mono">${esc(x.e.student_code)}</span>${x.e.grp ? " · مجموعة " + esc(x.e.grp) : ""} · ${x.ab ? "غياب " + x.ab + (x.ms.length ? " (م " + x.ms.join("، ") + ")" : "") : "بدون غياب"}</small></div>
+          <div class="lvl-bt"><button class="btn xs primary" data-lvlwa="${i}" title="يفتح واتساب والرسالة مكتوبة، وإنت تختار الطالب">${ICO(WA_ICO)} واتساب</button><button class="btn xs ghost" data-lvlcp="${i}">نسخ</button></div></article>`).join("") || `<div class="bl-empty">لا يوجد طالب بهذا الاسم.</div>`}</div>
+        <p class="small muted bl-hint">«واتساب» بيفتح التطبيق والرسالة مكتوبة باسم الطالب وغيابه، وإنت تختار هتبعتها لمين. أرقام الطلبة مش متسجلة على Hadro.</p>` : `<div class="bl-empty">لا يوجد طلبة في هذه الحالة.</div>`}
+      </div>`;
+    $("#lvlX").onclick = lvlClose;
+    p.querySelectorAll("[data-lvlt]").forEach(b => b.onclick = () => { lvlQ = ""; lvlDraw(+b.dataset.lvlt); });
+    const cp = async (t, b) => { try { await navigator.clipboard.writeText(t); const o = b.textContent; b.textContent = "تم النسخ ✓"; setTimeout(() => { if (b.isConnected) b.textContent = o; }, 1800); } catch (e) { prompt("انسخ النص:", t); } };
+    p.querySelectorAll("[data-lvlwa]").forEach(b => b.onclick = () => waGo(lvlMsg(c, rows[+b.dataset.lvlwa], l)));
+    p.querySelectorAll("[data-lvlcp]").forEach(b => b.onclick = () => cp(lvlMsg(c, rows[+b.dataset.lvlcp], l), b));
+    const wa = $("#lvlWaAll"); if (wa) wa.onclick = () => waGo(lvlGroupMsg(c, l, all));
+    const ca = $("#lvlCpAll"); if (ca) ca.onclick = () => cp(lvlGroupMsg(c, l, all), ca);
+    const qi = $("#lvlQ"); if (qi) qi.oninput = () => { lvlQ = qi.value; const pos = qi.selectionStart; lvlDraw(l); const n = $("#lvlQ"); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} } };
+  }
   function warnAnnounceText(c, p) {
     const by = [4, 3, 2, 1].map(l => [l, p.filter(x => x.l === l)]).filter(([, a]) => a.length);
     return `تنبيه بخصوص الغياب في مادة «${c.name}»\n` + by.map(([l, a]) => `\n${CM.WARN[l].t}:\n` + a.map(x => `- ${x.e.student_code} ${x.e.name}${x.e.grp ? " (مجموعة " + x.e.grp + ")" : ""} — غياب ${x.ab}`).join("\n")).join("\n")
@@ -1887,7 +1932,7 @@
     const ae = document.activeElement;
     wireWarnAlert(c, rows);
     el.querySelectorAll("[data-rpg]").forEach(b => b.onclick = () => { rpGroup = b.dataset.rpg; renderReport(); });
-    el.querySelectorAll("[data-lvl]").forEach(b => b.onclick = () => { const v = +b.dataset.lvl; rpLevel = rpLevel === v || v === 0 ? null : v; renderReport(); });
+    el.querySelectorAll("[data-lvl]").forEach(b => b.onclick = () => { const v = +b.dataset.lvl; rpLevel = v === 0 ? null : v; renderReport(); lvlOpen(v); });
     const ra = $("#rpAll"); if (ra) ra.onclick = () => { rpLevel = null; renderReport(); };
     const rq = $("#rpQ"); if (rq) rq.oninput = () => { rpQ = rq.value; renderReport(); const r2 = $("#rpQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
     $("#rpPrint").onclick = () => window.print();
