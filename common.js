@@ -68,7 +68,7 @@
     weak_password: "يجب ألا تقل كلمة السر عن 6 أحرف.",
     bad_pin: "رمز التفعيل غير صحيح.",
     not_registered: "لا يوجد حساب بهذا الكود. أنشئ حسابًا من «إنشاء حساب».",
-    bad_password: "كلمة السر غير صحيحة.",
+    bad_password: "كلمة السر غير صحيحة. لو متأكد منها، جرّب «نسيت كلمة السر؟» تحت.",
     limited_session: "هذا الدخول لتسليم التكليفات فقط. افعل ذلك من هاتفك المرتبط بالحساب.",
     device_mismatch: "هذا الحساب مرتبط بهاتف أو متصفح آخر. ادخل بكودك وكلمة السر لترى أين، ولتنقله إلى هنا إن أردت.",
     absent_on_due: "لا يُقبل تسليمك لأنك غبت في محاضرة يوم طرح المشروع (أو يوم التسليم). إن كان لك عذر فراجِع المحاضر ليقبله.",
@@ -252,6 +252,8 @@
   ];
   const lookGet = () => { let o = {}; try { o = JSON.parse(CM.store.get("cm_look") || "{}") || {}; } catch (e) {} return { skin: o.skin === "nx" ? "nx" : "classic", pal: o.pal || "lime", own: Array.isArray(o.own) && o.own.length === 3 ? o.own : null, motion: o.motion !== false }; };
   const lookSet = o => { CM.store.set("cm_look", JSON.stringify(o)); applyLook(); };
+  // أرقام عربي/فارسي → إنجليزي، وشيل علامات الاتجاه المخفية اللي بيحطها كيبورد الموبايل
+  CM.normDigits = v => String(v == null ? "" : v).replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "").replace(/[\u0660-\u0669]/g, d => d.charCodeAt(0) - 1632).replace(/[\u06F0-\u06F9]/g, d => d.charCodeAt(0) - 1776).trim();
   CM.setLook = o => lookSet(Object.assign({ skin: "classic", pal: "lime", motion: true }, o));
   CM.look = lookGet;
   const palColors = L => L.pal === "own" && L.own ? L.own : (CM.PALETTES.find(p => p.id === L.pal) || CM.PALETTES[0]).c;
@@ -614,7 +616,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b88)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b89)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

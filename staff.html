@@ -3652,7 +3652,7 @@
         if (ci >= 0 && ni >= 0) start = 1;
         else { ci = 0; ni = 1; if (!/\d/.test(String(rows[0][0])) && /\d/.test(String(rows[0][1]))) { ci = 1; ni = 0; } if (!/\d/.test(String(rows[0][ci]))) start = 1; }
         const normG = v => { v = String(v ?? "").trim(); const m = { a: "أ", b: "ب", c: "ج", "1": "أ", "2": "ب", "3": "ج", "ا": "أ" }; return m[v.toLowerCase()] || v.slice(0, 10); };
-        const list = rows.slice(start).map(r => ({ code: String(r[ci]).trim(), name: String(r[ni]).trim(), grp: gi >= 0 ? normG(r[gi]) : "", pin: pi >= 0 ? String(r[pi]).trim().slice(-4) : "" })).filter(r => r.code && r.name);
+        const list = rows.slice(start).map(r => ({ code: CM.normDigits(r[ci]), name: String(r[ni]).trim(), grp: gi >= 0 ? normG(r[gi]) : "", pin: pi >= 0 ? CM.normDigits(r[pi]).slice(-4) : "" })).filter(r => r.code && r.name);
         if (!list.length) throw { message: "empty_roster" };
         const n = await rpc("replace_roster", { cid: c.id, rows: list, p_file: file.name });
         const gs = [...new Set(list.map(x => x.grp).filter(Boolean))].sort();

@@ -5491,3 +5491,29 @@ language sql stable security definer set search_path = public as $$
     group by t.id, t.title, t.due_at
 $$;
 revoke all on function public.feed_course_items(uuid) from public, anon, authenticated;
+-- تحديث 52: كلمة سر الطالب بتتقبل لو اتكتبت بأرقام عربي (١٢٣) أو إنجليزي (123) أو فارسي (۱۲۳)،
+--   أو فيها مسافة في الأول/الآخر، أو علامات اتجاه مخفية بيحطها كيبورد الموبايل. (كتير من الطلبة بيسجّلوا
+--   بكيبورد عربي ويدخلوا بكيبورد إنجليزي أو العكس، فكانت كلمة السر بتطلع «غلط» وهما فاكرينها صح.)
+create or replace function public.pw_variants(p text) returns text[]
+language sql immutable as $$
+  with c as (select coalesce(p, '') raw, regexp_replace(coalesce(p, ''), '[​-‏‪-‮⁦-⁩﻿ ]', '', 'g') cl),
+       d as (select raw, cl, btrim(cl) tr from c)
+  select array(select distinct v from d, unnest(array[raw, cl, tr,
+      translate(tr, '٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹', '01234567890123456789'),
+      translate(tr, '0123456789۰۱۲۳۴۵۶۷۸۹', '٠١٢٣٤٥٦٧٨٩٠١٢٣٤٥٦٧٨٩'),
+      translate(tr, '0123456789٠١٢٣٤٥٦٧٨٩', '۰۱۲۳۴۵۶۷۸۹۰۱۲۳۴۵۶۷۸۹')]) v where v <> '' or raw = '')
+$$;
+create or replace function public.pw_ok(p text, h text) returns boolean
+language sql stable security definer set search_path = public, extensions as $$
+  select h is not null and exists (select 1 from unnest(pw_variants(p)) v where crypt(v, h) = h)
+$$;
+revoke all on function public.pw_ok(text, text) from public, anon, authenticated;
+do $$ declare f record; d text; begin
+  for f in select p.oid from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public' and p.proname in ('student_login', 'student_login_web', 'student_move_device', 'student_change_password') loop
+    d := pg_get_functiondef(f.oid);
+    d := replace(d, 'crypt(coalesce(p_password, ''''), st.pass_hash) <> st.pass_hash', 'not pw_ok(p_password, st.pass_hash)');
+    d := replace(d, 'crypt(coalesce(p_old, ''''), st.pass_hash) <> st.pass_hash', 'not pw_ok(p_old, st.pass_hash)');
+    execute d;
+  end loop;
+end $$;

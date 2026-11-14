@@ -78,7 +78,7 @@
     if (!r.ok || j.error) throw { message: j.error || "passkey_failed" };
     return j;
   }
-  const pkErr = e => e && (e.name === "NotAllowedError" || e.name === "AbortError") ? "لم يكتمل الدخول بالبصمة: أُلغيت العملية، أو لم تفعّل البصمة لحسابك من قبل (فعّلها من صفحتك بعد الدخول بكلمة السر)." : e && e.name === "InvalidStateError" ? "البصمة مفعّلة لهذا الحساب على هذا الهاتف من قبل." : errText(e);
+  const pkErr = e => e && (e.name === "NotAllowedError" || e.name === "AbortError") ? "لم يكتمل الدخول بالبصمة. غالبًا لم تفعّل البصمة لحسابك على هذا الهاتف من قبل (رسالة «No passkey found» معناها كده)، أو ألغيت العملية. ادخل بكودك وكلمة السر، وبعد الدخول تقدر تفعّل البصمة من صفحتك." : e && e.name === "InvalidStateError" ? "البصمة مفعّلة لهذا الحساب على هذا الهاتف من قبل." : errText(e);
   async function pkRegister() {
     const ch = await rpc("passkey_begin", { p_token: token });
     const cred = await navigator.credentials.create({ publicKey: {
@@ -101,7 +101,7 @@
     try { await pkLogin(); busy = false; move = null; await loadHome(); }
     catch (e) { busy = false; authMsg = pkErr(e); move ? renderMove() : renderAuth(); }
   }
-  const pkBtn = id => pk.ok ? `<button class="btn block pk-btn" id="${id}" ${busy ? "disabled" : ""}><span aria-hidden="true">◉</span> الدخول ببصمة الوجه أو الإصبع</button>` : "";
+  const pkBtn = id => pk.ok ? `<button class="btn block pk-btn" id="${id}" ${busy ? "disabled" : ""}><span aria-hidden="true">◉</span> الدخول ببصمة الوجه أو الإصبع</button><p class="muted small" style="margin:6px 0 0;text-align:center">للي فعّل البصمة من صفحته على الهاتف ده قبل كده بس. أول مرة؟ ادخل بالكود وكلمة السر.</p>` : "";
 
   let token = store.get("cm_token");
   let pkMsg = "";
@@ -179,7 +179,7 @@
   }
   async function submitForm() {
     if (busy) return;
-    const code = $("#rfCode").value.replace(/\D/g, ""), name = $("#rfName").value.trim(), level = +$("#rfLevel").value;
+    const code = CM.normDigits($("#rfCode").value).replace(/\D/g, ""), name = $("#rfName").value.trim(), level = +$("#rfLevel").value;
     Object.assign(rf.data, { code, name, level });
     const items = rf.items.filter(x => x.on).map(x => ({ code: x.code, prefix: x.prefix, name: x.name, bid: x.bid }));
     rf.msg = "";
@@ -187,7 +187,7 @@
     if (name.length < 3) { rf.msg = "اكتب اسمك كما في الاستمارة."; return renderForm(); }
     let pass = "", pin = "";
     if (rf.mode === "reg") {
-      pass = $("#rfPass").value; pin = $("#rfPin").value.trim();
+      pass = $("#rfPass").value; pin = CM.normDigits($("#rfPin").value);
       if (pass.length < 6) { rf.msg = "يجب ألا تقل كلمة السر عن 6 أحرف."; return renderForm(); }
       if (pass !== $("#rfPass2").value) { rf.msg = "كلمتا السر غير متطابقتين."; return renderForm(); }
       if (!device) { rf.msg = "هذا المتصفح لا يحفظ البيانات. افتح الموقع في متصفح عادي."; return renderForm(); }
@@ -253,7 +253,7 @@
   let rsTimer = null;
   const rsCheck = id => String(id || "").replace(/-/g, "").slice(0, 4).toUpperCase();
   function rsVals() {
-    const code = ($("#rsCode") || {}).value, p1 = ($("#rsPass") || {}).value || "", p2 = ($("#rsPass2") || {}).value || "";
+    const code = CM.normDigits(($("#rsCode") || {}).value), p1 = ($("#rsPass") || {}).value || "", p2 = ($("#rsPass2") || {}).value || "";
     if (!code || !code.trim()) throw "اكتب كود الطالب.";
     if (p1.length < 6) throw "يجب ألا تقل كلمة السر الجديدة عن 6 أحرف.";
     if (p1 !== p2) throw "كلمتا السر غير متطابقتين.";
@@ -298,7 +298,7 @@
       await pkLogin(); const r = await rpc("student_set_password", { p_token: token, p_device: device, p_new: v.pass }); await rsDone(r); });
     const bg = $("#rsG"); if (bg) bg.onclick = () => { const auth = HD.authorize(); run(async v => {
       const at = await auth; const r = await pkCall({ action: "google_reset", access_token: at, code: v.code, password: v.pass, device, label: devLabel }); await rsDone(r); }); };
-    const bq = $("#rsReq"); if (bq) bq.onclick = () => { const code = (($("#rsCode") || {}).value || "").trim(); if (!code) { rs.msg = "اكتب كود الطالب."; return renderReset(); }
+    const bq = $("#rsReq"); if (bq) bq.onclick = () => { const code = CM.normDigits(($("#rsCode") || {}).value); if (!code) { rs.msg = "اكتب كود الطالب."; return renderReset(); }
       busy = true; renderReset();
       rpc("student_reset_request", { p_code: code, p_device: device || "", p_label: devLabel }).then(r => { busy = false; rs = { stage: "wait", msg: "", req: { id: r.id, secret: r.secret, code, name: r.name } }; store.set("cm_reset", JSON.stringify(rs.req)); renderReset(); rsPoll(); })
         .catch(e => { busy = false; rs.msg = errText(e); renderReset(); }); };
@@ -408,7 +408,7 @@
   async function submitAuth() {
     if (busy) return;
     // read every field before re-rendering (re-render clears the inputs)
-    const code = $("#code").value.trim(), pass = $("#pass").value, pass2 = $("#pass2") ? $("#pass2").value : "", pin = $("#pin") ? $("#pin").value.trim() : "";
+    const code = CM.normDigits($("#code").value), pass = $("#pass").value, pass2 = $("#pass2") ? $("#pass2").value : "", pin = $("#pin") ? CM.normDigits($("#pin").value) : "";
     authMsg = "";
     if (!code || !pass) { authMsg = "اكتب كود الطالب وكلمة السر."; return renderAuth(); }
     if (authTab === "reg") {
