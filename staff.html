@@ -3173,18 +3173,30 @@
     const el = $("#vcPerm"); if (!el || !voice) return;
     try { if (!micPerm && navigator.permissions && navigator.permissions.query) { micPerm = await navigator.permissions.query({ name: "microphone" }); micPerm.onchange = () => vcPerm(); } } catch (e) { micPerm = null; }
     if (ask) {
+      el.innerHTML = `<span class="small muted"><span class="spinner"></span> بيطلب الإذن من المتصفح… لو ظهرت لك رسالة اختار «سماح».</span>`;
+      el.dataset.err = "";
       try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw { name: "NotSupported" };
+        if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw { name: "NotSupported" };
         const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach(t => t.stop());
         el.dataset.ok = "1"; toast("اتفتح إذن الميكروفون. اضغط «ابدأ الإملاء».");
-      } catch (e) { el.dataset.ok = ""; el.dataset.err = e && e.name || "x"; }
+      } catch (e) { el.dataset.ok = ""; el.dataset.err = (e && e.name) || "x"; }
     }
-    const state = micPerm ? micPerm.state : el.dataset.ok ? "granted" : el.dataset.err === "NotAllowedError" ? "denied" : "prompt";
-    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
-    const how = ios ? "من «الإعدادات» ← Safari ← الميكروفون ← «سماح»، أو اضغط «aA» جنب العنوان ← «إعدادات الموقع» ← الميكروفون ← «سماح»." : "اضغط على القفل (أو ⓘ) جنب عنوان الموقع فوق ← «الأذونات» أو «إعدادات الموقع» ← الميكروفون ← «سماح»، وبعدين حدّث الصفحة.";
-    el.innerHTML = state === "granted" ? `<span class="chip ok">الميكروفون مسموح</span>`
-      : state === "denied" ? `<div class="msg warn small"><b>المتصفح مانع الميكروفون للموقع ده.</b> ${how}<div style="margin-top:6px"><button class="btn sm" id="vcAsk">جرّب تاني</button></div></div>`
-      : `<button class="btn sm" id="vcAsk">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} السماح باستخدام الميكروفون</button>${el.dataset.err && el.dataset.err !== "NotAllowedError" ? `<span class="small muted"> مفيش ميكروفون شغال على الجهاز ده، أو المتصفح مش بيدعمه.</span>` : ""}`;
+    const err = el.dataset.err || "", st0 = micPerm ? micPerm.state : "";
+    const state = el.dataset.ok || st0 === "granted" ? "granted" : st0 === "denied" ? "denied" : err === "NotAllowedError" || err === "SecurityError" ? "blocked" : "prompt";
+    const UA = navigator.userAgent, ios = /iPhone|iPad|iPod/.test(UA), android = /Android/.test(UA);
+    const inApp = /FBAN|FBAV|Instagram|Line\/|WhatsApp|Telegram|; wv\)/.test(UA);
+    const site = ios ? "اضغط «aA» جنب عنوان الموقع ← «إعدادات الموقع» ← الميكروفون ← «سماح»." : "اضغط على القفل (أو ⓘ) جنب عنوان الموقع فوق ← «الأذونات» أو «إعدادات الموقع» ← الميكروفون ← «سماح»، وبعدين حدّث الصفحة.";
+    const app = ios ? "ولو لسه: «الإعدادات» في الآيفون ← Safari ← الميكروفون ← «سماح»." : android ? "ولو لسه: «الإعدادات» في الموبايل ← التطبيقات ← Chrome ← الأذونات ← الميكروفون ← «السماح أثناء استخدام التطبيق»." : "ولو لسه: اتأكد إن الميكروفون مش مقفول من إعدادات الجهاز (الخصوصية ← الميكروفون).";
+    const box = (title, body) => `<div class="msg warn small"><b>${title}</b> ${body}<div style="margin-top:6px"><button class="btn sm" id="vcAsk">جرّب تاني</button></div></div>`;
+    el.innerHTML = inApp && state !== "granted" ? box("انت فاتح الموقع من جوه تطبيق (واتساب أو فيسبوك…).", "افتحه من Chrome أو Safari نفسه علشان الميكروفون يشتغل: النقط التلاتة ← «فتح في المتصفح».")
+      : state === "granted" ? `<span class="chip ok">الميكروفون مسموح</span>`
+      : state === "denied" ? box("المتصفح مانع الميكروفون للموقع ده.", site + " " + app)
+      : state === "blocked" ? box("المتصفح رفض من غير ما يسألك.", "غالبًا الميكروفون مقفول للمتصفح نفسه، أو الإذن اتقفل بعد ما اترفض كذا مرة. " + site + " " + app)
+      : err === "NotSupported" ? box("المتصفح ده مش بيدعم الميكروفون.", "افتح البرنامج من Google Chrome (أندرويد أو كمبيوتر) أو Safari (آيفون).")
+      : err === "NotFoundError" || err === "OverconstrainedError" ? box("مفيش ميكروفون شغال على الجهاز ده.", "وصّل ميكروفون أو سماعة بمايك، أو جرّب من الموبايل.")
+      : err === "NotReadableError" || err === "AbortError" ? box("الميكروفون مشغول.", "اقفل أي تطبيق تاني بيستخدمه (مكالمة، تسجيل صوت، اجتماع أونلاين) وجرّب تاني.")
+      : err ? box("ما قدرناش نفتح الميكروفون (" + esc(err) + ").", site + " " + app)
+      : `<button class="btn sm" id="vcAsk">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} السماح باستخدام الميكروفون</button>`;
     const b = $("#vcAsk"); if (b) b.onclick = () => vcPerm(true);
   }
   function drawVoiceList() {
