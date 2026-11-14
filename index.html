@@ -601,8 +601,8 @@
   function ntPanel() {
     const TR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
     const has = nt.items && nt.items.length;
-    return `<div class="panel nt-panel"><div class="row between"><h3>التنبيهات</h3><div class="row" style="gap:6px">${has ? `<button class="btn xs ghost danger" id="ntDelAll">حذف الكل</button>` : ""}<button class="btn xs ghost" id="ntClose">إغلاق</button></div></div>
-      ${has ? `<ul class="nt-list">${nt.items.map(n => `<li class="${n.read_at ? "" : "new"}" data-sw="${n.id}"><div class="nt-tx"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${esc(ago(n.created_at))}</small></div><button class="btn xs ghost nt-del" data-ntdel="${n.id}" title="حذف" aria-label="حذف">${TR}</button></li>`).join("")}</ul>
+    return `<div class="panel nt-panel"><div class="row between"><h3>التنبيهات</h3><div class="row" style="gap:6px">${nt.unread ? `<button class="btn xs primary" id="ntReadAll">قراءة الكل</button>` : ""}${has ? `<button class="btn xs ghost danger" id="ntDelAll">حذف الكل</button>` : ""}<button class="btn xs ghost" id="ntClose">إغلاق</button></div></div>
+      ${has ? `<ul class="nt-list">${nt.items.map(n => `<li class="${n.read_at ? "" : "new"}" data-sw="${n.id}" data-ntgo="${n.id}" role="button" tabindex="0"><div class="nt-tx"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${n.read_at ? "مقروء · " : `<em class="bl-new">جديد</em> · `}${esc(ago(n.created_at))}</small></div><button class="btn xs ghost nt-del" data-ntdel="${n.id}" title="حذف" aria-label="حذف">${TR}</button></li>`).join("")}</ul>
         <p class="small muted" style="margin:0">اسحب أي تنبيه يمين أو شمال، أو اضغط سلة المهملات، عشان تحذفه.</p>` : `<p class="muted small">لا توجد تنبيهات. ستصلك هنا تنبيهات بدء المحاضرات والتكليفات الجديدة وإعلان الدرجات.</p>`}
       ${pushOk() && nt.sub !== "on" ? `<button class="btn sm" id="ntPush">فعّل الإشعارات على هذا الجهاز</button>` : nt.sub === "on" ? `<p class="small ok-t">الإشعارات مفعّلة على هذا الجهاز.</p>` : ""}</div>`;
   }
@@ -698,13 +698,28 @@
     } catch (e) { nt.msg = e && e.message && /[\u0600-\u06FF]/.test(e.message) ? e.message : "تعذّر تفعيل الإشعارات على هذا المتصفح."; }
     nt.busy = false; renderHome();
   }
+  // الضغط على التنبيه: يتعلّم مقروء ويفتح مكانه
+  async function ntOpen(id) {
+    const n = (nt.items || []).find(x => x.id === id); if (!n) return;
+    if (!n.read_at) { n.read_at = new Date().toISOString(); nt.unread = Math.max(0, nt.unread - 1); rpc("student_notifications_mark", { p_token: token, p_ids: [id] }).catch(() => {}); }
+    const tt = (String(n.title).match(/«(.+?)»/) || String(n.body || "").match(/«(.+?)»/) || [])[1];
+    if (n.kind === "ticket") { nt.open = false; renderHome(); openHelp("list"); return; }
+    if (tt && ["task", "grades", "appeal", "reject", "extension"].includes(n.kind)) {
+      await loadTasks(true); const t = (tasks || []).find(x => x.title === tt);
+      if (t) { nt.open = false; renderHome(); openTask(t.id); return; }
+    }
+    if (n.kind === "session") { nt.open = false; renderHome(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+    renderHome();
+  }
   function wireNotifs() {
-    const b = $("#ntBtn"); if (b) b.onclick = () => { nt.open = !nt.open; renderHome(); if (nt.open && nt.unread) rpc("student_notifications_read", { p_token: token }).then(() => { nt.unread = 0; const x = document.querySelector(".nt-badge"); if (x) x.remove(); }).catch(() => {}); };
+    const b = $("#ntBtn"); if (b) b.onclick = () => { nt.open = !nt.open; renderHome(); };
     const ntDel = id => { id = +id; nt.items = (nt.items || []).filter(n => n.id !== id); renderHome(); rpc("student_notifications_hide", { p_token: token, p_ids: [id] }).catch(() => {}); };
     const ntL = document.querySelector(".nt-list"); if (ntL) { CM.swipeDel(ntL, k => ntDel(k)); ntL.querySelectorAll("[data-ntdel]").forEach(b => b.onclick = () => { const li = b.closest("li"); li.style.transition = "transform .18s, opacity .18s"; li.style.transform = "translateX(-110%)"; li.style.opacity = "0"; setTimeout(() => ntDel(b.dataset.ntdel), 170); }); }
     const nda = $("#ntDelAll"); if (nda) nda.onclick = () => { if (nda.dataset.c !== "1") { nda.dataset.c = "1"; nda.textContent = "متأكد؟ اضغط تاني"; setTimeout(() => { if (nda.isConnected) { nda.dataset.c = ""; nda.textContent = "حذف الكل"; } }, 3000); return; }
       nt.items = []; nt.unread = 0; renderHome(); rpc("student_notifications_hide", { p_token: token, p_ids: null }).catch(() => {}); };
-    const c = $("#ntClose"); if (c) c.onclick = () => { nt.open = false; if (nt.items) nt.items.forEach(n => n.read_at = n.read_at || new Date().toISOString()); renderHome(); };
+    const c = $("#ntClose"); if (c) c.onclick = () => { nt.open = false; renderHome(); };
+    const ra = $("#ntReadAll"); if (ra) ra.onclick = () => { (nt.items || []).forEach(n => n.read_at = n.read_at || new Date().toISOString()); nt.unread = 0; renderHome(); rpc("student_notifications_read", { p_token: token }).catch(() => {}); };
+    if (ntL) ntL.querySelectorAll("[data-ntgo]").forEach(li => { const go = () => ntOpen(+li.dataset.ntgo); li.addEventListener("click", e => { if (e.target.closest("button")) return; go(); }); li.addEventListener("keydown", e => { if (e.key === "Enter") go(); }); });
     const on = $("#pushOn"), on2 = $("#ntPush"); [on, on2].forEach(x => { if (x) x.onclick = enablePush; });
     wireGate(); wireTT();
     const hb = $("#helpBtn"); if (hb) hb.onclick = () => openHelp(hcUnread ? "list" : "ask");

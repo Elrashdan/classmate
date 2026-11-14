@@ -864,7 +864,8 @@
   function bellBadge() { meRefresh(); const n = bellCount(), b = $("#bellN"); if (b) { b.hidden = !n; b.textContent = n > 99 ? "99+" : n; } const bt = $("#bellBtn"); if (bt) bt.classList.toggle("on", !!n); }
   function bellItem(it, dept) {
     const k = FK[it.kind] || FK.appeal;
-    return `<article class="bl-it${lateCls(it)}" data-sw="it:${esc(bKey(it))}:${it.n}"><span class="bl-ic k-${it.kind}">${ICO(k.ic)}</span><div class="bl-tx"><b>${esc(it.title)}</b>
+    const ak = bjGet("cm_bell_ack");
+    return `<article class="bl-it${lateCls(it)}${ak[bKey(it)] >= it.n ? " seen" : " new"}" data-sw="it:${esc(bKey(it))}:${it.n}"><span class="bl-ic k-${it.kind}">${ICO(k.ic)}</span><div class="bl-tx"><b>${esc(it.title)}</b>
       <small>${it.n} ${k.u}${it.kind === "att" && it.live ? " · المحاضرة جارية الآن" : it.since ? " · " + ago(it.since) : ""}${lateCls(it) === " late" ? ` · <em class="bad-t">متأخر</em>` : ""}${dept && it.reminded ? ` · ذُكّر الفريق ${ago(it.reminded)}` : ""}</small></div>
       <div class="bl-act">${dept ? `<button class="btn xs ghost" data-blrem="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}" title="إشعار لفريق المادة بأن هذا ينتظر الرد">تذكير الفريق</button>` : ""}<button class="btn xs" data-blgo="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}">فتح</button><button class="btn xs ghost bl-del" data-bldel="it:${esc(bKey(it))}:${it.n}" title="إخفاء" aria-label="إخفاء">${ICO(TRASH)}</button></div></article>`;
   }
@@ -883,7 +884,7 @@
       const vm = bVis(feed.mine), hid = feed.mine.length - vm.length;
       body = `<h4 class="bl-sec">مطلوب منك <span class="chip ${vm.length ? "warn" : "ok"}">${vm.length}</span>${hid ? `<button class="btn xs ghost bl-sa" id="blUnhide">إظهار المخفي (${hid})</button>` : ""}</h4>${vm.length ? bellGroups(vm, false) : `<div class="bl-empty">${hid ? "خفيت كل اللي مطلوب منك. هيرجع يظهر لو جه جديد." : "لا شيء ينتظر ردّك في موادك الآن."}</div>`}
         <h4 class="bl-sec">الإشعارات ${feed.unread ? `<span class="chip warn">${feed.unread} جديد</span>` : ""}${feed.notes.length ? `<button class="btn xs ghost danger bl-sa" id="blDelAll">حذف الكل</button>` : ""}</h4>
-        ${feed.notes.length ? `<div class="bl-notes">${feed.notes.map(n => `<div class="bl-n${n.read ? "" : " new"}" data-sw="n:${n.id}"><div class="bl-ntx"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${ago(n.at)}</small></div><button class="btn xs ghost bl-del" data-bldel="n:${n.id}" title="حذف" aria-label="حذف">${ICO(TRASH)}</button></div>`).join("")}</div>` : `<div class="bl-empty">لا توجد إشعارات. يصلك هنا كل تظلم جديد وكل تذكير من مسؤول القسم وردود رسائلك.</div>`}
+        ${feed.notes.length ? `<div class="bl-notes">${feed.notes.map(n => `<div class="bl-n${n.read ? "" : " new"}${n.go ? " go" : ""}" data-sw="n:${n.id}" data-bln="${n.id}" role="button" tabindex="0"><div class="bl-ntx"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${n.read ? "مقروء · " : `<em class="bl-new">جديد</em> · `}${ago(n.at)}${n.go ? " · اضغط للفتح" : ""}</small></div><button class="btn xs ghost bl-del" data-bldel="n:${n.id}" title="حذف" aria-label="حذف">${ICO(TRASH)}</button></div>`).join("")}</div>` : `<div class="bl-empty">لا توجد إشعارات. يصلك هنا كل تظلم جديد وكل تذكير من مسؤول القسم وردود رسائلك.</div>`}
         ${feed.notes.length || vm.length ? `<p class="small muted bl-hint">اسحب أي إشعار يمين أو شمال، أو اضغط سلة المهملات، عشان تحذفه.</p>` : ""}`;
     } else {
       const d = bVis(feed.dept), a = feed.admin || {}, list = filt(d), late = d.filter(it => lateCls(it) === " late").length;
@@ -904,6 +905,7 @@
       bellBadge(); bellRender(); };
     p.querySelectorAll("[data-bldel]").forEach(b => b.onclick = () => { const el = b.closest("[data-sw]"); if (el) { el.style.transition = "transform .18s, opacity .18s"; el.style.transform = "translateX(-110%)"; el.style.opacity = "0"; } setTimeout(() => del(b.dataset.bldel, el), 170); });
     swipeDel(p, del);
+    p.querySelectorAll("[data-bln]").forEach(el => { const go = () => noteOpen(+el.dataset.bln); el.addEventListener("click", e => { if (e.target.closest("button")) return; go(); }); el.addEventListener("keydown", e => { if (e.key === "Enter") go(); }); });
     const da = $("#blDelAll"); if (da) da.onclick = () => { if (da.dataset.c !== "1") { da.dataset.c = "1"; da.textContent = "متأكد؟ اضغط تاني"; setTimeout(() => { if (da.isConnected) { da.dataset.c = ""; da.textContent = "حذف الكل"; } }, 3000); return; }
       feed.notes = []; feed.unread = 0; bellBadge(); bellRender(); rpc("staff_notes_hide", { p_ids: null }).then(() => toast("اتحذفت كل الإشعارات.")).catch(e => { toast(errText(e)); loadFeed(); }); };
     const uh = $("#blUnhide"); if (uh) uh.onclick = () => { store.del("cm_bell_hide"); bellBadge(); bellRender(); };
@@ -913,7 +915,16 @@
     p.querySelectorAll("[data-blgo]").forEach(b => b.onclick = () => { const [cid, kind, ref] = b.dataset.blgo.split("|"); bellGo(cid, kind, ref); });
     p.querySelectorAll("[data-blrem]").forEach(b => b.onclick = async () => { const [cid, kind, ref] = b.dataset.blrem.split("|"); b.disabled = true;
       try { const n = await rpc("staff_remind", { cid, p_kind: kind, p_ref: ref }); toast(n ? "وصل التذكير لفريق المادة (" + n + ")." : "لا يوجد في فريق المادة غيرك."); await loadFeed(); } catch (e) { b.disabled = false; toast(errText(e)); } });
-    if (bellTab === "mine" && feed.unread) rpc("staff_notes_read").then(() => { feed.unread = 0; bellBadge(); }).catch(() => {});
+  }
+  function noteOpen(id) {
+    const n = feed && feed.notes.find(x => x.id === id); if (!n) return;
+    if (!n.read) { n.read = true; feed.unread = Math.max(0, (feed.unread || 0) - 1); rpc("staff_notes_mark", { p_ids: [id] }).catch(() => {}); bellBadge(); }
+    const g = n.go;
+    if (!g) { bellRender(); return; }
+    if (g.go === "course") return bellGo(g.cid, g.k, g.ref || "");
+    if (g.go === "admin") { bellClose(); atab = g.tab; store.set("cm_atab", atab); if (g.tab === "inbox" && g.ref) { inboxF = "all"; inboxOpen = g.ref; } view = "admin"; stopLoops(); render(); window.scrollTo({ top: 0 }); return; }
+    if (g.go === "help") { bellClose(); openStaffHelp("list"); return; }
+    bellRender();
   }
   function bellGo(cid, kind, ref) {
     bellClose();

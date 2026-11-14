@@ -5664,3 +5664,68 @@ end $$;
 revoke all on function public.staff_notes_hide(bigint[]), public.student_notifications_hide(text, bigint[]) from public, anon;
 grant execute on function public.staff_notes_hide(bigint[]) to authenticated;
 grant execute on function public.student_notifications_hide(text, bigint[]) to anon, authenticated;
+-- ===================== update-56: الإشعار بيوديك لمكانه + بيختفي لوحده لما يتنفّذ + مقروء/مش مقروء بالضغط =====================
+-- بيستنتج مكان الإشعار وحالته من الجداول (من غير ما نغيّر طريقة إنشائه)، فبيشتغل كمان على الإشعارات القديمة.
+create or replace function public.staff_note_meta(n public.notifications) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare a record; it jsonb; cid uuid; subj text; me text := my_email();
+begin
+  if n.kind = 'appeal' then
+    select ga.status, tk.id tid, tk.course_id cid into a from grade_appeals ga join tasks tk on tk.id = ga.task_id
+     where tk.title = substring(n.title from '«(.*)»') and ga.created_at between n.created_at - interval '2 minutes' and n.created_at + interval '2 minutes'
+     order by abs(extract(epoch from ga.created_at - n.created_at)) limit 1;
+    if not found then return null; end if;
+    return jsonb_build_object('go', 'course', 'cid', a.cid, 'k', 'appeal', 'ref', a.tid, 'done', a.status <> 'pending');
+  elsif n.kind = 'staff_request' then
+    select r.status into a from staff_requests r where r.created_at between n.created_at - interval '2 minutes' and n.created_at + interval '2 minutes'
+     order by abs(extract(epoch from r.created_at - n.created_at)) limit 1;
+    return jsonb_build_object('go', 'admin', 'tab', 'requests', 'done', found and a.status <> 'pending');
+  elsif n.kind = 'ticket' then
+    subj := substring(n.title from ': (.*)$');
+    if n.title like 'رد على رسالتك:%' then
+      return jsonb_build_object('go', 'help', 'done', false);
+    end if;
+    select t.id, t.status into a from tickets t where t.subject = subj order by abs(extract(epoch from t.updated_at - n.created_at)) limit 1;
+    if not found then return jsonb_build_object('go', 'admin', 'tab', 'inbox', 'done', false); end if;
+    return jsonb_build_object('go', 'admin', 'tab', 'inbox', 'ref', a.id, 'done', a.status <> 'open');
+  elsif n.kind = 'remind' then
+    select c.id into cid from courses c where c.name = substring(n.title from ' · (.*)$')
+      and (c.owner_email = me or exists (select 1 from course_tas x where x.course_id = c.id and x.email = me)) limit 1;
+    if cid is null then return null; end if;
+    select x into it from feed_course_items(cid) x where n.body like (x->>'title') || ' (%' limit 1;
+    if it is null then return jsonb_build_object('go', 'course', 'cid', cid, 'k', 'appeal', 'ref', '', 'done', true); end if;
+    return jsonb_build_object('go', 'course', 'cid', cid, 'k', it->>'kind', 'ref', it->>'ref', 'done', false);
+  end if;
+  return null;
+end $$;
+revoke all on function public.staff_note_meta(public.notifications) from public, anon, authenticated;
+
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.staff_feed()'::regprocedure) into f; o := f;
+  f := replace(f, $a$select coalesce(json_agg(json_build_object('id', n.id, 'kind', n.kind, 'title', n.title, 'body', n.body, 'at', n.created_at, 'read', n.read_at is not null) order by n.id desc), '[]') into notes
+    from (select * from notifications where student_code = 'staff:' || me and hidden_at is null order by id desc limit 40) n;
+  select count(*) into unread from notifications where student_code = 'staff:' || me and read_at is null;$a$,
+  $b$select coalesce(json_agg(json_build_object('id', n.id, 'kind', n.kind, 'title', n.title, 'body', n.body, 'at', n.created_at, 'read', n.read_at is not null, 'go', n.m) order by n.id desc), '[]'),
+         count(*) filter (where n.read_at is null) into notes, unread
+    from (select x.*, staff_note_meta(x) m from (select * from notifications where student_code = 'staff:' || me and hidden_at is null order by id desc limit 60) x) n
+    where not coalesce((n.m->>'done')::boolean, false);$b$);
+  if f = o then raise exception 'staff_feed notes pattern not found'; end if;
+  execute f;
+end $do$;
+
+create or replace function public.staff_notes_mark(p_ids bigint[]) returns void
+language sql security definer set search_path = public as $$
+  update notifications set read_at = now() where student_code = 'staff:' || my_email() and read_at is null and id = any(p_ids) and staff_role() is not null;
+$$;
+create or replace function public.student_notifications_mark(p_token text, p_ids bigint[]) returns void
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token);
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  update notifications set read_at = now() where student_code = code and read_at is null and id = any(p_ids);
+end $$;
+revoke all on function public.staff_notes_mark(bigint[]), public.student_notifications_mark(text, bigint[]) from public, anon;
+grant execute on function public.staff_notes_mark(bigint[]) to authenticated;
+grant execute on function public.student_notifications_mark(text, bigint[]) to anon, authenticated;

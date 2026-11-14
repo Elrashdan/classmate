@@ -339,7 +339,7 @@
       if (innerWidth <= 760) document.querySelectorAll(".home .tiles:not(.small)").forEach(t => { const ks = [...t.children];
         ks.forEach((k, i) => { const n = ks[i + 1]; if (!n) { k.style.setProperty("--nxc", 0); return; } const a = k.getBoundingClientRect(), b = n.getBoundingClientRect(); const ov = Math.max(0, Math.min(1, (a.bottom - b.top) / Math.max(1, a.height))); k.style.setProperty("--nxc", ov.toFixed(3)); }); });
     };
-    // شريط الأقسام في الموبايل: بيختفي وإنت نازل ويرجع وإنت طالع، وخلفية ملوّنة بتتزحلق للقسم المفتوح
+    // شريط الأقسام في الموبايل: ثابت دايمًا، وخلفية ملوّنة بتتزحلق للقسم المفتوح
     let lastY = scrollY, acc = 0, dkRaf = 0;
     const dock = () => {
       if (R.dataset.skin !== "nx") return;
@@ -347,9 +347,7 @@
       R.style.setProperty("--nxsp", Math.min(1, y / max).toFixed(3));
       if ((d > 0) !== (acc > 0)) acc = 0;   // اتجاه جديد: نبدأ العدّ من الأول
       acc += d;
-      const hid = R.classList.contains("nx-dn");
-      if (!hid && acc > 36 && y > 120) R.classList.add("nx-dn");
-      else if (hid && (acc < -18 || y < 60 || y > max - 24)) R.classList.remove("nx-dn");
+      R.classList.remove("nx-dn");   // b98: الشريط ثابت دايمًا ومبيختفيش مع السكرول
     };
     const docks = () => document.querySelectorAll(".ctabs, .nx-dock");
     const activeOf = n => n.querySelector('[aria-selected="true"], [aria-pressed="true"], .on');
@@ -631,7 +629,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b97)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b98)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

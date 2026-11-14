@@ -1778,3 +1778,19 @@ html,body{overflow-x:clip}
 .nt-tx{display:grid;gap:2px;min-width:0}
 .nt-del{padding-inline:7px;color:var(--muted)}.nt-del svg{width:16px;height:16px}
 .nt-list{overscroll-behavior:contain}
+/* b98: الفرق بين المقروء والجديد + الإشعار بيفتح مكانه */
+.bl-n{transition:background .2s}
+.bl-n.go,.nt-list li[data-ntgo]{cursor:pointer}
+.bl-n.new{background:color-mix(in srgb,var(--accent) 13%,var(--surface));border-inline-start:3px solid var(--accent)}
+.bl-n.new b{font-weight:700}
+.bl-n:not(.new){background:transparent}
+.bl-n:not(.new) b{font-weight:500;color:var(--muted)}
+.bl-n:not(.new) span{color:var(--muted);opacity:.85}
+.bl-n.go:hover{background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+.bl-n.new::before{display:none}
+.bl-new{font-style:normal;font-weight:700;color:var(--accent)}
+.bl-it.new .bl-tx b::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-inline-start:6px;vertical-align:middle}
+.nt-list li:not(.new){border-color:var(--line);background:transparent}
+.nt-list li:not(.new) b{font-weight:500;color:var(--muted)}
+.nt-list li.new b{font-weight:700}
+html[data-skin="nx"].nx-dn .ctabs,html[data-skin="nx"].nx-dn .nx-dock{transform:none!important;opacity:1!important}
