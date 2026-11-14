@@ -5573,3 +5573,56 @@ begin
 end $$;
 revoke all on function public.dept_overview() from public, anon;
 grant execute on function public.dept_overview() to authenticated;
+-- تحديث 54: «مرفوض» في رصد الدرجات (بالإملاء الصوتي أو من الكشف)
+--   المحاضر يقول «اسم الطالب … مرفوض»، فيظهر للطالب فورًا (حتى قبل إعلان الدرجات): «مشروعك مرفوض. توجّه لأستاذ المادة»،
+--   ويوصله إشعار. رصد درجة له بعد كده بيلغي الرفض تلقائيًا.
+alter table public.submissions add column if not exists rejected_at timestamptz;
+alter table public.submissions add column if not exists rejected_by text;
+
+create or replace function public.task_reject(tid uuid, codes text[], p_on boolean, p_source text) returns int
+language plpgsql security definer set search_path = public as $$
+declare t tasks; cname text; code text; n int := 0;
+begin
+  select * into t from tasks where id = tid;
+  if t.id is null or coalesce(course_role(t.course_id), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  if coalesce(array_length(codes, 1), 0) > 2000 then raise exception 'bad_rows'; end if;
+  select name into cname from courses where id = t.course_id;
+  foreach code in array coalesce(codes, '{}') loop
+    code := trim(code);
+    if not exists (select 1 from enrollments where course_id = t.course_id and student_code = code) then raise exception 'not_found'; end if;
+    if coalesce(p_on, true) then
+      if exists (select 1 from submissions where task_id = tid and student_code = code and rejected_at is not null and grade is null) then continue; end if;
+      insert into submissions(task_id, student_code, rejected_at, rejected_by, grade, parts, bonus, graded_by, graded_at)
+        values (tid, code, now(), my_email(), null, null, 0, my_email(), now())
+      on conflict (task_id, student_code) do update set rejected_at = now(), rejected_by = my_email(), grade = null, parts = null, bonus = 0, graded_by = my_email(), graded_at = now();
+      insert into notifications(student_code, kind, title, body, url)
+        values (code, 'reject', 'مشروعك مرفوض · «' || t.title || '»', 'توجّه لأستاذ المادة (' || cname || ').', 'https://elrashdan.github.io/classmate/');
+    else
+      update submissions set rejected_at = null, rejected_by = null where task_id = tid and student_code = code and rejected_at is not null;
+      if not found then continue; end if;
+    end if;
+    n := n + 1;
+  end loop;
+  if n > 0 then perform log_audit(t.course_id, case when coalesce(p_on, true) then 'رفض مشروع ' else 'ألغى رفض مشروع ' end || n || ' طالب في التكليف «' || t.title || '»' || coalesce(' · ' || nullif(trim(p_source), ''), '')); end if;
+  return n;
+end $$;
+revoke all on function public.task_reject(uuid, text[], boolean, text) from public, anon;
+grant execute on function public.task_reject(uuid, text[], boolean, text) to authenticated;
+
+-- درجة جديدة للطالب = إلغاء الرفض
+create or replace function public.submissions_unreject() returns trigger
+language plpgsql as $$
+begin
+  if new.rejected_at is not null and new.grade is not null and new.grade is distinct from old.grade then new.rejected_at := null; new.rejected_by := null; end if;
+  return new;
+end $$;
+create or replace trigger submissions_unreject before update on public.submissions for each row execute function public.submissions_unreject();
+
+-- الطالب يشوف الرفض فورًا، والتكليف اليدوي بيظهر له لو اترفض حتى لو الدرجات لسه ما اتعلنتش
+do $$ declare d text; o text; begin
+  d := pg_get_functiondef('public.student_tasks(text)'::regprocedure); o := d;
+  d := replace(d, '''graded'', s.grade is not null,', '''graded'', s.grade is not null, ''rejected'', s.rejected_at is not null,');
+  d := replace(d, 'and (t.mode = ''submit'' or t.released)', 'and (t.mode = ''submit'' or t.released or exists (select 1 from submissions r where r.task_id = t.id and r.student_code = code and r.rejected_at is not null))');
+  if d = o or position('rejected_at is not null))' in d) = 0 or position('''rejected''' in d) = 0 then raise exception 'update54: student_tasks لم يتغيّر'; end if;
+  execute d;
+end $$;

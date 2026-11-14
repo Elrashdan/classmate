@@ -57,14 +57,19 @@
   const BONUS = /^(بونص|بونس|بونيص|زياده|اضافي|اضافيه|والبونص|وبونص|وبونس|وزياده)$/;
   const SKIP = /^(الدرجه|درجه|درجته|درجتها|اخد|اخدت|خد|خدت|ياخد|تاخد|عليه|عليها|له|لها|يا|يعني|وبعدين|بعدين|الطالب|الطالبه|ده|دي|تمام|كده)$/;
   const ROWW = /^(رقم|نمره|نمرة|م)$/, CODEW = /^(كود|الكود|كوده)$/;
+  // «… مرفوض»: بدل الدرجة، يظهر للطالب إن مشروعه مرفوض ويتوجّه لأستاذ المادة
+  const REJ = /^(مرفوض|مرفوضه|مرفوضين|مرفوضا|رفض|ارفض|ارفضه|رفضته|اترفض|اترفضت)$/;
 
-  // يحوّل نصًّا مسموعًا إلى قائمة {name, row, code, grade, bonus, raw}
+  // يحوّل نصًّا مسموعًا إلى قائمة {name, row, code, grade, bonus, reject, raw}
   HV.parse = text => {
     const ws = norm(text).split(" ").filter(Boolean), out = [];
-    let cur = { words: [], row: null, code: null, grade: null, bonus: null, raw: [] };
-    const flush = () => { if (cur.grade != null && (cur.words.length || cur.row != null || cur.code != null)) out.push({ name: cur.words.join(" "), row: cur.row, code: cur.code, grade: cur.grade, bonus: cur.bonus, raw: cur.raw.join(" ") }); cur = { words: [], row: null, code: null, grade: null, bonus: null, raw: [] }; };
+    let cur = { words: [], row: null, code: null, grade: null, bonus: null, reject: false, raw: [] };
+    const done = () => cur.grade != null || cur.reject;
+    const flush = () => { if (done() && (cur.words.length || cur.row != null || cur.code != null)) out.push({ name: cur.words.join(" "), row: cur.row, code: cur.code, grade: cur.grade, bonus: cur.bonus, reject: cur.reject, raw: cur.raw.join(" ") }); cur = { words: [], row: null, code: null, grade: null, bonus: null, reject: false, raw: [] }; };
     for (let i = 0; i < ws.length;) {
       const w = ws[i];
+      if (!done() && REJ.test(w) && (cur.words.length || cur.row != null || cur.code != null)) { cur.reject = true; cur.raw.push(w); i++; continue; }
+      if (cur.reject && (REJ.test(w) || SKIP.test(w))) { i++; continue; }
       if (cur.grade == null && ROWW.test(w)) { const nb = readNumber(ws, i + 1); if (nb) { cur.row = Math.round(nb.v); cur.raw.push(w, ...ws.slice(i + 1, i + 1 + nb.n)); i += 1 + nb.n; continue; } }
       if (cur.grade == null && CODEW.test(w) && /^\d+$/.test(ws[i + 1] || "")) { cur.code = ws[i + 1]; cur.raw.push(w, ws[i + 1]); i += 2; continue; }
       if (BONUS.test(w) && cur.grade != null) {
@@ -73,13 +78,14 @@
         i++; continue;
       }
       const nb = readNumber(ws, i);
+      if (nb && cur.reject) { i += nb.n; continue; }
       if (nb && (cur.words.length || cur.row != null || cur.code != null) && cur.grade == null) {
         cur.grade = nb.v; cur.raw.push(...ws.slice(i, i + nb.n)); i += nb.n;
         if ((ws[i] === "من") && readNumber(ws, i + 1)) { const m = readNumber(ws, i + 1); i += 1 + m.n; } // «سبعتاشر من عشرين»
         continue;
       }
       if (nb && cur.grade != null) { /* عدد ثانٍ بلا كلمة «بونص»: يبدأ طالبًا جديدًا بلا اسم، فنتجاهله */ i += nb.n; continue; }
-      if (cur.grade != null) flush();          // بداية اسم طالب جديد
+      if (done()) flush();          // بداية اسم طالب جديد
       if (!SKIP.test(w)) { cur.words.push(w); cur.raw.push(w); }
       i++;
     }

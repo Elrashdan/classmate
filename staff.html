@@ -2278,7 +2278,7 @@
       ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" style="max-width:320px"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select></div>` : ""; })() : ""}
       ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}${partsOf(t) ? partsOf(t).map((p, i) => `<th class="c pth" title="${esc(p.name)}">${esc(p.name)}<br><small>(من ${gN(p.max)})</small></th>`).join("") : `<th class="c">الدرجة من ${gN(t.max_grade)}</th>`}<th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
-          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td class="nm">${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
+          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td class="nm">${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}${s && s.rejected_at ? ` <span class="chip bad" title="ظهر للطالب: «مشروعك مرفوض. توجّه لأستاذ المادة»">مرفوض</span>${run ? ` <button class="btn xs ghost" data-unrej="${code}" title="إلغاء الرفض">إلغاء</button>` : ""}` : ""}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
             ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}${extCell(t, e, s, run)}` : `<span class="muted">لم يسلّم</span>${extCell(t, e, s, run)}`}</td>
             <td class="small">${s && s.url ? `<button class="btn xs" data-view="${code}">عرض</button> <a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a">${esc(s.kind === "drive" ? (s.file_name || "الملف") : "رابط")}</a>${ck ? ` <span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted">«${esc(s.note)}»</div>` : ""}` : "—"}</td>`}
             ${partsOf(t) ? partsOf(t).map((p, i) => `<td class="c">${run ? `<input type="text" class="gin pin ${badVal(valOf(e.student_code, "p" + i, s), +p.max) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-p="${code}" data-pi="${i}" value="${esc(valOf(e.student_code, "p" + i, s))}" inputmode="decimal" autocomplete="off" title="${esc(p.name)} (من ${gN(p.max)})">` : gN(s && Array.isArray(s.parts) ? s.parts[i] : "")}</td>`).join("")
@@ -2294,6 +2294,7 @@
     dirtyCount();
     $("#tkBack").onclick = () => { if (Object.keys(tkEdits).length && confirmKey !== "tkleave") { confirmKey = "tkleave"; toast("لديك درجات لم تُحفظ. اضغط «حفظ الدرجات»، أو اضغط الرجوع مرة أخرى لتجاهلها."); setTimeout(() => { if (confirmKey === "tkleave") confirmKey = null; }, 5000); return; } confirmKey = null; tkSel = null; tkEdits = {}; tkForm = null; gimp = null; renderTasks(); };
     el.querySelectorAll("[data-tf]").forEach(b => b.onclick = () => { tkFilter = b.dataset.tf; renderTasks(); });
+    el.querySelectorAll("[data-unrej]").forEach(b => b.onclick = async () => { b.disabled = true; try { await rpc("task_reject", { tid: t.id, codes: [b.dataset.unrej], p_on: false, p_source: null }); say("tasks", "اتلغى رفض مشروع " + nameOf(b.dataset.unrej) + "."); await refreshSubs(t); renderTasks(); } catch (e) { b.disabled = false; showErr(e); } });
     el.querySelectorAll("[data-exc]").forEach(b => b.onclick = () => excuseToggle(t, b.dataset.exc, b.dataset.on === "1"));
     el.querySelectorAll("[data-ext]").forEach(b => b.onclick = () => { extFor = { tid: t.id, code: b.dataset.ext, msg: "" }; renderTasks(); const x = $("#extBox"); if (x) { x.scrollIntoView({ block: "nearest", behavior: "smooth" }); const r = $("#extWhy"); if (r) r.focus(); } });
     el.querySelectorAll("[data-extoff]").forEach(b => b.onclick = () => setExt(t, b.dataset.extoff, null, ""));
@@ -3118,21 +3119,22 @@
     got.forEach(g => {
       const cands = vcMatch(g, roster), sure = HV.sure(cands);
       const code = cands[0] && (sure || cands[0].score >= .6) ? cands[0].code : "";
-      const grade = gN(g.grade), bonus = g.bonus ? gN(g.bonus) : "", now = Date.now();
+      const reject = !!g.reject, grade = reject ? "" : gN(g.grade), bonus = !reject && g.bonus ? gN(g.bonus) : "", now = Date.now();
       // منع التكرار: الطالب نفسه بالدرجة نفسها خلال 15 ثانية لا يُضاف مرة أخرى، وبدرجة مختلفة خلال 6 ثوانٍ يُعدَّل بدل الإضافة
       const prev = code && voice.entries.find(e => e.code === code && now - e.at < 15000);
-      if (prev && prev.grade === grade && prev.bonus === bonus) return;
-      if (prev && now - prev.at < 6000) { Object.assign(prev, { raw: g.raw, grade, bonus, at: now }); voice.flash = prev.id; }
-      else { const id = ++vcSeq; voice.entries.unshift({ id, raw: g.raw, cands, code, sure, grade, bonus, at: now }); voice.flash = id; added++; }
+      if (prev && prev.grade === grade && prev.bonus === bonus && !!prev.reject === reject) return;
+      if (prev && now - prev.at < 6000) { Object.assign(prev, { raw: g.raw, grade, bonus, reject, at: now }); voice.flash = prev.id; }
+      else { const id = ++vcSeq; voice.entries.unshift({ id, raw: g.raw, cands, code, sure, grade, bonus, reject, at: now }); voice.flash = id; added++; }
       const wr = code && D.enroll.find(x => x.student_code === code);
-      if (code) said.push(nameOf(code).split(" ").slice(0, 2).join(" ") + "، " + grade + (bonus ? " وبونص " + bonus : "") + (wr && refusedFor(t, wr) ? "، مرفوض لغيابه " + DL(t) + "" : wr && absentOnDue(t, wr) && !excusedOf(t, code) ? "، تنبيه: كان غائبًا " + DL(t) + "" : ""));
+      if (code && reject) said.push(nameOf(code).split(" ").slice(0, 2).join(" ") + "، مرفوض");
+      else if (code) said.push(nameOf(code).split(" ").slice(0, 2).join(" ") + "، " + grade + (bonus ? " وبونص " + bonus : "") + (wr && refusedFor(t, wr) ? "، مرفوض لغيابه " + DL(t) + "" : wr && absentOnDue(t, wr) && !excusedOf(t, code) ? "، تنبيه: كان غائبًا " + DL(t) + "" : ""));
     });
     vcMsg(""); drawVoiceList();
     if (said.length) vcSay(said.join("، "));
   }
   function paintInterim() { const el = $("#vcInterim"); if (el && voice) el.textContent = voice.interim ? "…" + voice.interim.slice(-70) : (voice.listening ? (voice.speaking ? "يؤكّد بالصوت…" : "أسمعك…") : ""); }
-  const vcWhy = (t, e) => { if (!e.code) return "اختر الطالب"; const w = D.enroll.find(x => x.student_code === e.code); if (w && refusedFor(t, w)) return "مرفوض لغيابه " + DL(t); if (e.grade === "") return "اكتب الدرجة"; if (badVal(e.grade, +t.max_grade)) return "الدرجة يجب أن تكون من 0 إلى " + gN(t.max_grade); if (badVal(e.bonus, +t.max_grade)) return "البونص غير صحيح"; return ""; };
-  const vcValid = (t, e) => e.code && !(D.enroll.find(x => x.student_code === e.code) && refusedFor(t, D.enroll.find(x => x.student_code === e.code))) && e.grade !== "" && !badVal(e.grade, +t.max_grade) && !badVal(e.bonus, +t.max_grade);
+  const vcWhy = (t, e) => { if (!e.code) return "اختر الطالب"; if (e.reject) return ""; const w = D.enroll.find(x => x.student_code === e.code); if (w && refusedFor(t, w)) return "مرفوض لغيابه " + DL(t); if (e.grade === "") return "اكتب الدرجة"; if (badVal(e.grade, +t.max_grade)) return "الدرجة يجب أن تكون من 0 إلى " + gN(t.max_grade); if (badVal(e.bonus, +t.max_grade)) return "البونص غير صحيح"; return ""; };
+  const vcValid = (t, e) => e.code && e.reject ? true : e.code && !(D.enroll.find(x => x.student_code === e.code) && refusedFor(t, D.enroll.find(x => x.student_code === e.code))) && e.grade !== "" && !badVal(e.grade, +t.max_grade) && !badVal(e.bonus, +t.max_grade);
   function drawVoice() {
     const t = D.tasks.find(x => x.id === voice.tid), ov = $("#vcOv"), sup = HV.supported();
     ov.innerHTML = `<div class="gr">
@@ -3148,6 +3150,7 @@
           <details class="vc-tips small" ${store.get("cm_vc_tips") === "1" || (store.get("cm_vc_tips") == null && innerWidth > 820) ? "open" : ""}><summary><b>قل اسم الطالب ثم درجته، ثم الطالب التالي</b></summary>
             <span>«محمد أحمد علي سبعتاشر» · «سلمى خالد خمستاشر ونص»</span>
             <span>للبونص: «… ستاشر وبونص اتنين»</span>
+            <span>للرفض: «محمد أحمد علي مرفوض»، فيظهر للطالب «مشروعك مرفوض. توجّه لأستاذ المادة»</span>
             <span>للأسماء المتشابهة استخدم رقمه في الكشف: «رقم ٧ … ١٨»، أو آخر أرقام كوده: «كود ١٠٥ … ١٢»</span>
           </details>
           <label class="f"><span>أو اكتب الجملة واضغط Enter</span><input type="text" id="vcType" placeholder="مثلًا: يوسف طارق 14" autocomplete="off"></label>
@@ -3175,8 +3178,8 @@
         return `<div class="vc-row ${!ok ? "bad" : e.sure ? "ok" : "warn"}${voice.flash === e.id ? " new" : ""}" data-vc="${e.id}">
           <div class="vc-heard small muted">سمعت: «${esc(e.raw)}»${dup ? ` <b class="warn-t">· مكرر</b>` : ""}${who && isExtra(t, who) ? ` <b class="warn-t">· استثناء من ${who.grp ? "مجموعة " + esc(who.grp) : "خارج المجموعة"}</b>` : ""}${who && refusedFor(t, who) ? ` <b class="bad-t">· مرفوض: غاب ${DL(t)} (لن تُرصد إلا بقبول عذره من الكشف)</b>` : who && absentOnDue(t, who) ? ` <b class="bad-t">· غائب ${DL(t)}${excusedOf(t, who.student_code) ? " (مقبول بعذر)" : " (سلّم متأخرًا)"}</b>` : ""}</div>
           <select data-vk="code" aria-label="الطالب"><option value="">— اختر الطالب —</option>${ids.map((c, i) => { const r = roster.find(x => x.student_code === c); if (!r) return ""; const sc = e.cands.find(x => x.code === c); return `<option value="${esc(c)}" ${c === e.code ? "selected" : ""}>${roster.indexOf(r) < nIn ? (roster.indexOf(r) + 1) + ". " : "استثناء: "}${esc(r.name)} · ${esc(c)}${isExtra(t, r) ? " · مجموعة " + esc(r.grp || "—") : ""}${sc && i < e.cands.length ? ` (${Math.round(sc.score * 100)}%)` : ""}</option>`; }).join("")}</select>
-          <input type="text" data-vk="grade" class="gin ${badVal(e.grade, +t.max_grade) ? "bad" : ""}" value="${esc(e.grade)}" inputmode="decimal" aria-label="الدرجة">
-          <input type="text" data-vk="bonus" class="gin bin ${badVal(e.bonus, +t.max_grade) ? "bad" : ""}" value="${esc(e.bonus)}" placeholder="بونص" inputmode="decimal" aria-label="بونص">
+          ${e.reject ? `<span class="chip bad vc-rej">مرفوض</span><button class="btn xs ghost" data-vunrej="${e.id}" title="رصد درجة بدل الرفض">درجة بدلها</button>` : `<input type="text" data-vk="grade" class="gin ${badVal(e.grade, +t.max_grade) ? "bad" : ""}" value="${esc(e.grade)}" inputmode="decimal" aria-label="الدرجة">
+          <input type="text" data-vk="bonus" class="gin bin ${badVal(e.bonus, +t.max_grade) ? "bad" : ""}" value="${esc(e.bonus)}" placeholder="بونص" inputmode="decimal" aria-label="بونص">`}
           <button class="btn xs ghost danger" data-vdel="${e.id}" aria-label="حذف">✕</button>
           ${!ok || !e.sure ? `<div class="vc-fix">${!ok ? `<span class="vc-why">${esc(vcWhy(t, e))}</span>` : `<span class="vc-why soft">تأكد من الطالب</span>`}${(!e.code || !e.sure ? e.cands : []).filter(c => c.code !== e.code).slice(0, 3).map(c => { const r = roster.find(x => x.student_code === c.code); return r ? `<button type="button" class="vc-pick" data-vpick="${esc(c.code)}">${esc(r.name.split(" ").slice(0, 3).join(" "))}<small>رقم ${roster.indexOf(r) + 1}</small></button>` : ""; }).join("")}${e.code && !e.sure ? `<button type="button" class="vc-pick ok" data-vsure="1">✓ صحيح</button>` : ""}</div>` : ""}</div>`; }).join("")}</div>`
       : `<div class="empty">اضغط «ابدأ الإملاء» واسمح للمتصفح باستخدام الميكروفون، ثم تكلّم بصوت واضح.</div>`}`;
@@ -3188,18 +3191,21 @@
       const e = voice.entries.find(x => x.id === +row.dataset.vc);
       row.querySelectorAll("[data-vpick]").forEach(b => b.onclick = () => { e.code = b.dataset.vpick; e.sure = true; drawVoiceList(); });
       const sb2 = row.querySelector("[data-vsure]"); if (sb2) sb2.onclick = () => { e.sure = true; drawVoiceList(); };
+      const ur = row.querySelector("[data-vunrej]"); if (ur) ur.onclick = () => { e.reject = false; e.grade = ""; drawVoiceList(); };
     });
     const bar = $("#vcBar"), nBad = voice.entries.length - n;
-    if (bar) bar.innerHTML = voice.entries.length ? `<button class="btn primary vc-save" id="vcSave" ${n ? "" : "disabled"}>اعتماد ${n} درجة</button><span class="vc-bar-s">${nBad ? `<b>${nBad}</b> تحتاج إلى مراجعة` : "كل الدرجات جاهزة"}</span>` : `<span class="vc-bar-s">ستظهر هنا الدرجات التي تمليها</span>`;
+    if (bar) bar.innerHTML = voice.entries.length ? `<button class="btn primary vc-save" id="vcSave" ${n ? "" : "disabled"}>اعتماد ${n}</button><span class="vc-bar-s">${nBad ? `<b>${nBad}</b> تحتاج إلى مراجعة` : "كل الدرجات جاهزة"}</span>` : `<span class="vc-bar-s">ستظهر هنا الدرجات التي تمليها</span>`;
     el.querySelectorAll("[data-vdel]").forEach(b => b.onclick = () => { voice.entries = voice.entries.filter(x => x.id !== +b.dataset.vdel); drawVoiceList(); });
     const cl = $("#vcClear"); if (cl) cl.onclick = () => { voice.entries = []; drawVoiceList(); };
     voice.flash = null; el.scrollTop = keepScroll2;
     const sv = $("#vcSave"); if (sv) sv.onclick = async () => {
       const last = {}; voice.entries.slice().reverse().forEach(e => { if (vcValid(t, e)) last[e.code] = e; });
-      const rows = Object.values(last).map(e => ({ code: e.code, grade: Number(toNum(e.grade)), bonus: e.bonus === "" ? 0 : Number(toNum(e.bonus)) }));
+      const fin = Object.values(last), rej = fin.filter(e => e.reject).map(e => e.code);
+      const rows = fin.filter(e => !e.reject).map(e => ({ code: e.code, grade: Number(toNum(e.grade)), bonus: e.bonus === "" ? 0 : Number(toNum(e.bonus)) }));
       sv.disabled = true; sv.textContent = "جارٍ الاعتماد…";
-      try { const k = await rpc("grade_many", { tid: t.id, rows, p_source: "بالإملاء الصوتي" }); voice.entries = voice.entries.filter(e => !vcValid(t, e)); say("tasks", "رُصدت " + k + " درجة بالإملاء الصوتي." + (t.released ? "" : " لم تُعلن للطلبة بعد."));
-        if (!voice.entries.length) { closeVoice(true); await loadCourse(); } else { await refreshSubs(t); voice.msg = "رُصدت " + k + " درجة. بقيت درجات تحتاج إلى مراجعة."; drawVoice(); } }
+      try { const k = rows.length ? await rpc("grade_many", { tid: t.id, rows, p_source: "بالإملاء الصوتي" }) : 0, kr = rej.length ? await rpc("task_reject", { tid: t.id, codes: rej, p_on: true, p_source: "بالإملاء الصوتي" }) : 0;
+        voice.entries = voice.entries.filter(e => !vcValid(t, e)); say("tasks", [k ? "رُصدت " + k + " درجة بالإملاء الصوتي." + (t.released ? "" : " لم تُعلن للطلبة بعد.") : "", kr ? "اترفض مشروع " + kr + " طالب، وظهر لهم «مرفوض، توجّه لأستاذ المادة»." : ""].filter(Boolean).join(" ") || "مفيش تغيير.");
+        if (!voice.entries.length) { closeVoice(true); await loadCourse(); } else { await refreshSubs(t); voice.msg = "اتعتمد " + (k + kr) + ". بقيت سطور تحتاج إلى مراجعة."; drawVoice(); } }
       catch (err) { sv.disabled = false; sv.textContent = "اعتماد"; showErr(err); }
     };
   }

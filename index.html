@@ -793,6 +793,7 @@
   const presTxt = t => new Date(t.present_day + "T12:00:00").toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
   function tkState(t) {
     const m = t.mine || {}, past = new Date(t.due_at).getTime() < nowS();
+    if (m.rejected) return ["bad", "مرفوض · توجّه لأستاذ المادة"];
     if (m.grade != null) return ["ok", "الدرجة " + gNum(tot(m)) + " من " + gNum(t.max)];
     if (t.mode === "manual") return ["none", "رصد يدوي"];
     if (m.graded) return ["ok", "صُحِّح، والدرجة لم تُعلن بعد"];
@@ -826,6 +827,7 @@
     el.innerHTML = `
       <div class="sheet-h"><div><div class="eyebrow">${esc(t.course)}</div><h2 id="tkTitle">${esc(t.title)}</h2></div><button class="btn sm ghost" id="tkClose" ${up ? "disabled" : ""} aria-label="إغلاق">إغلاق</button></div>
       <div class="tk-meta"><span class="chip ${k}">${esc(s)}</span>${t.mode === "manual" ? "" : `${t.present_day ? `<span class="small">يوم طرح المشروع: <b>${esc(presTxt(t))}</b></span>` : ""}<span class="small">آخر موعد لرفع الملفات: ${esc(dueTxt(t))}</span>`}<span class="small muted">الدرجة العظمى ${gNum(t.max)}${Array.isArray(t.parts) && t.parts.length ? " (" + t.parts.map(p => esc(p.name) + " " + gNum(p.max)).join(" + ") + ")" : ""}</span></div>
+      ${m.rejected ? `<div class="msg bad"><b>مشروعك مرفوض.</b> توجّه لأستاذ المادة.</div>` : ""}
       ${t.details ? `<p class="tk-det">${esc(t.details)}</p>` : ""}
       ${t.at_home && t.mode !== "manual" ? `<div class="msg small">يُنفَّذ هذا المشروع في البيت، ولا يُشترط الحضور يوم طرحه.</div>` : ""}
       ${!t.at_home && t.absent_rule !== "refuse" && t.present_day && m.grade == null ? `<div class="msg warn small">من يغيب عن محاضرة يوم طرح المشروع يُحسب تسليمه متأخرًا.</div>` : ""}
