@@ -60,7 +60,8 @@
   const app = $("#app");
   if (!CM.configured) { app.innerHTML = CM.setupNotice(); return; }
 
-  const ROLE = { admin: "مسؤول", lecturer: "محاضر", ta: "معيد" };
+  const ROLE = { admin: "مسؤول", head: "رئيس القسم", lecturer: "محاضر", ta: "معيد" };
+  const isDept = () => !!me && (me.role === "admin" || me.role === "head");   // المسؤول ورئيس القسم: متابعة القسم والجدول وكل المواد
   const REASON = { old_qr_code: "رمز QR قديم من الشاشة (غالبًا صورة أُرسلت إليه)", bad_qr_code: "رمز QR غير صحيح", wrong_code: "رمز خطأ", expired_code: "رمز منتهي الصلاحية (غالبًا أُرسل إليه)", device_used: "هاتف سُجِّل منه طالب آخر", other_group: "من مجموعة أخرى والتعويض غير متاح", rejected_by_staff: "رُفض طلبه", bad_qr: "بطاقة حضور غير صحيحة", old_qr: "بطاقة حضور قديمة (غالبًا صورة)" };
   const reasonText = r => r.startsWith("too_far:") ? "خارج نطاق القاعة (" + CM.dist(+r.split(":")[1]) + ")" : (REASON[r] || r);
 
@@ -384,13 +385,13 @@
     if (c.owner_email === me.email) return "owner";
     const t = tasAll.find(t => t.course_id === c.id && t.email === me.email);
     if (t) return t.kind === "co" ? "co" : "ta";
-    return me.role === "admin" ? "admin" : null;   // المسؤول: صلاحيات صاحب المادة في كل المواد
+    return isDept() ? "admin" : null;   // المسؤول ورئيس القسم: صلاحيات صاحب المادة في كل المواد
   }
   const course = () => courses.find(c => c.id === curId) || null;
   const canRun = c => ["owner", "co", "ta", "admin"].includes(role(c));
   const canManage = c => ["owner", "co", "admin"].includes(role(c)); // students, roster, ended lectures
   const isOwner = c => role(c) === "owner" || role(c) === "admin";
-  const canCreate = () => me && (me.role !== "ta" || !!settings.ta_can_create);                 // team, course settings, delete
+  const canCreate = () => !!me && (me.role !== "ta" || !!settings.ta_can_create);                 // team, course settings, delete
   const isOwn = (s, e) => !s.grp || (e && s.grp === e.grp);
   const counted = r => r && r.status !== "pending";
   const groupsOf = () => [...new Set(D.enroll.map(e => e.grp).filter(Boolean))].sort();
@@ -825,6 +826,7 @@
       <div class="tiles small">
         <button class="tile" data-go="profile">${ICO('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}<b>ملفي الشخصي</b><small>بياناتك وموادك</small></button>
         ${canCreate() ? `<button class="tile" data-go="newc">${ICO('<path d="M12 5v14M5 12h14"/>')}<b>مادة جديدة</b><small>أضف مادة من اللائحة</small></button>` : ""}
+        ${me.role === "head" ? `<button class="tile" data-go="admin">${ICO('<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>')}<b>متابعة القسم</b><small>المواد والغياب والإنذارات</small></button>` : ""}
         ${me.role === "admin" ? `<button class="tile" data-go="admin">${ICO('<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>')}<b>لوحة المسؤول</b><small>المحاضرون والإعدادات</small></button>
           <a class="tile" href="pg-admin.html">${ICO('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>')}<b>الدراسات العليا</b><small>مواد الترم والتسجيل</small></a>` : ""}
       </div></section>`;
@@ -860,7 +862,7 @@
   }
   function bellRender() {
     const p = $("#bellPop"); if (!p) return;
-    const adm = me.role === "admin";
+    const adm = isDept();
     if (!feed) { p.innerHTML = `<div class="bl-h"><b>التنبيهات</b><button class="btn xs ghost" id="bellX" aria-label="إغلاق">✕</button></div><p class="muted small" style="padding:16px"><span class="spinner"></span> جارٍ التحميل…</p>`; $("#bellX").onclick = bellClose; return; }
     if (!adm) bellTab = "mine";
     const kinds = ["all", ...Object.keys(FK)], filt = l => bellF === "all" ? l : bellF === "late" ? l.filter(it => lateCls(it) === " late") : l.filter(it => it.kind === bellF);
@@ -998,7 +1000,7 @@
         <div class="row">
           ${view !== "home" ? `<button class="btn sm" id="goHome" aria-label="الرئيسية">${ICO(HOME_ICO)}<span class="gh-l">الرئيسية</span></button>` : ""}
           ${view === "admin" ? `<button class="btn sm primary" id="admin">رجوع للمواد</button>` : ""}
-          ${CM.dd("أدوات", [canCreate() && view === "course" ? `<button class="dd-i" id="newC">مادة جديدة</button>` : "", view !== "timetable" ? `<button class="dd-i" id="goTT">الجدول الدراسي</button>` : "", me.role === "admin" && view !== "admin" ? `<button class="dd-i" id="admin">لوحة المسؤول</button>` : "", me.role === "admin" ? `<a class="dd-i" href="pg-admin.html">الدراسات العليا</a>` : ""])}
+          ${CM.dd("أدوات", [canCreate() && view === "course" ? `<button class="dd-i" id="newC">مادة جديدة</button>` : "", view !== "timetable" ? `<button class="dd-i" id="goTT">الجدول الدراسي</button>` : "", isDept() && view !== "admin" ? `<button class="dd-i" id="admin">${me.role === "head" ? "متابعة القسم" : "لوحة المسؤول"}</button>` : "", me.role === "admin" ? `<a class="dd-i" href="pg-admin.html">الدراسات العليا</a>` : ""])}
           <button class="btn sm ghost bell-btn" id="bellBtn" aria-label="التنبيهات" title="التنبيهات">${ICO(BELL_ICO)}<i class="bell-n" id="bellN" hidden></i></button>
           ${CM.themeBtn()}
           ${CM.dd(`<span class="dd-ava">${esc(String(me.name || "؟").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().charAt(0))}</span><span class="dd-hide">حسابي</span>`, [`<button class="dd-i" id="goProf">ملفي الشخصي</button>`, `<button class="dd-i" id="pwSet">كلمة السر</button>`, `<button class="dd-i" id="goHelp">المساعدة والتواصل</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي" })}
@@ -1020,12 +1022,12 @@
         <div class="row"><button class="btn primary" id="ncSave">أضف المادة</button><span class="muted small">اختر البرنامج والفصل الدراسي، ثم المادة من القائمة، فتُملأ بقية بياناتها من اللائحة: المستوى والشعبة والكود والساعات والدرجات العظمى.</span></div>
       </div>
       ${view === "course" ? `<div class="filters">${pickerHtml("course")}</div>` : ""}
-      ${view === "home" ? homeHtml(c) : view === "profile" ? profileHtml() : view === "timetable" ? CM.band({ icon: TT_ICON, eyebrow: "القسم", title: "الجدول الدراسي", sub: me.role === "admin" ? "الأيام والفترات، وفريق كل مجموعة، والأماكن، والتصدير للطباعة" : "جدول القسم كما نشره المسؤول" }) + `<div id="ttArea"><p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p></div>` : ""}
+      ${view === "home" ? homeHtml(c) : view === "profile" ? profileHtml() : view === "timetable" ? CM.band({ icon: TT_ICON, eyebrow: "القسم", title: "الجدول الدراسي", sub: isDept() ? "الأيام والفترات، وفريق كل مجموعة، والأماكن، والتصدير للطباعة" : "جدول القسم كما نشره المسؤول" }) + `<div id="ttArea"><p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p></div>` : ""}
       <div id="courseWrap" ${view === "home" || view === "profile" || view === "timetable" ? "hidden" : ""}>
-      ${view === "admin" ? CM.band({ icon: CM.ICONS.admin, eyebrow: "لوحة المسؤول", title: "إدارة القسم", sub: "المحاضرون والمعيدون والإعدادات وتقارير القسم" }) + `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "لا توجد مواد في هذه الفترة" : "لا توجد مواد بعد"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الفصل من الأعلى، أو أنشئ مادة جديدة." : me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "اضغط «مادة جديدة» في الأعلى، ثم ارفع ملف الطلبة."}</div></div>` : `
+      ${view === "admin" ? CM.band(me.role === "head" ? { icon: CM.ICONS.admin, eyebrow: "رئيس القسم", title: "متابعة القسم", sub: "المواد والغياب والإنذارات وسجل التعديلات" } : { icon: CM.ICONS.admin, eyebrow: "لوحة المسؤول", title: "إدارة القسم", sub: "المحاضرون والمعيدون والإعدادات وتقارير القسم" }) + `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "لا توجد مواد في هذه الفترة" : "لا توجد مواد بعد"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الفصل من الأعلى، أو أنشئ مادة جديدة." : me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "اضغط «مادة جديدة» في الأعلى، ثم ارفع ملف الطلبة."}</div></div>` : `
       ${courseBand(c)}
       ${c.auto_created && !tasAll.some(x => x.course_id === c.id) && isOwner(c) ? `<div class="msg warn" style="margin-bottom:16px"><b>أنشأ النظام هذه المادة تلقائيًّا</b> لأن طلبة سجّلوها في استمارات التسجيل، ولا يوجد لها فريق بعد. أضف المحاضر أو المعيد المسؤول عنها من تبويب «الفريق» (محاضر مشارك أو معيد).</div>` : ""}
-      ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `أنت محاضر مشارك في هذه المادة مع ${esc(staffName(c.owner_email))}. يمكنك القيام بكل ما يتعلق بالمحاضرات والطلبة والكشف، أما حذف المادة وتعديل بياناتها وإدارة الفريق فهي لصاحب المادة.` : role(c) === "ta" ? `أنت معيد في هذه المادة. يمكنك بدء المحاضرات والموافقة على الطلبات والتسجيل اليدوي وإضافة طالب، أما رفع ملف الطلبة وإدارة الفريق فهما للمحاضر ${esc(staffName(c.owner_email))}.` : role(c) === "admin" ? `هذه مادة ${esc(staffName(c.owner_email))}. لك فيها صلاحيات صاحب المادة كاملة بصفتك مسؤولًا، وكل ما تفعله يُكتب في سجل المادة باسمك.` : `هذه مادة ${esc(staffName(c.owner_email))}. تطّلع عليها بصفتك مسؤولًا، للقراءة والتصدير فقط.`}</div>` : ""}
+      ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `أنت محاضر مشارك في هذه المادة مع ${esc(staffName(c.owner_email))}. يمكنك القيام بكل ما يتعلق بالمحاضرات والطلبة والكشف، أما حذف المادة وتعديل بياناتها وإدارة الفريق فهي لصاحب المادة.` : role(c) === "ta" ? `أنت معيد في هذه المادة. يمكنك بدء المحاضرات والموافقة على الطلبات والتسجيل اليدوي وإضافة طالب، أما رفع ملف الطلبة وإدارة الفريق فهما للمحاضر ${esc(staffName(c.owner_email))}.` : role(c) === "admin" ? `هذه مادة ${esc(staffName(c.owner_email))}. لك فيها صلاحيات صاحب المادة كاملة بصفتك ${me.role === "head" ? "رئيس القسم" : "مسؤولًا"}، وكل ما تفعله يُكتب في سجل المادة باسمك.` : `هذه مادة ${esc(staffName(c.owner_email))}. تطّلع عليها بصفتك مسؤولًا، للقراءة والتصدير فقط.`}</div>` : ""}
       <div id="rsReqs" hidden></div>
       <nav class="ctabs" role="tablist" aria-label="أقسام المادة"><button type="button" class="dk-home nx-only" data-dock-home aria-label="الرئيسية">${ICO(HOME_ICO)}<span class="l">الرئيسية</span></button>${CTABS.map(([k, t, ic]) => `<button role="tab" data-ct="${k}" aria-selected="${ctab === k}" aria-controls="pane-${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
       <div class="tabpane" id="pane-live" role="tabpanel" ${ctab === "live" ? "" : "hidden"}><div id="sessionArea"></div><section class="panel" id="livePanel"></section></div>
@@ -1061,7 +1063,7 @@
     };
     const pk = $("#pick"); if (pk) pk.onchange = () => { curId = pk.value; flash = {}; liveTab = "all"; regGroup = "all"; startState = null; loadCourse().catch(showErr); };
     const gtt = $("#goTT"); if (gtt) gtt.onclick = () => { view = "timetable"; stopLoops(); render(); window.scrollTo({ top: 0 }); };
-    if (view === "timetable") TT.open({ el: $("#ttArea"), rpc: (f, a) => rpc(f, a), isAdmin: me.role === "admin", me, staff, courses, loadExcelJS, saveWb }).catch(e => { $("#ttArea").innerHTML = `<div class="msg bad">${esc(errText(e))}</div>`; });
+    if (view === "timetable") TT.open({ el: $("#ttArea"), rpc: (f, a) => rpc(f, a), isAdmin: isDept(), me, staff, courses, loadExcelJS, saveWb }).catch(e => { $("#ttArea").innerHTML = `<div class="msg bad">${esc(errText(e))}</div>`; });
     const ad = $("#admin"); if (ad) ad.onclick = () => { view = view === "admin" ? "course" : "admin"; if (view === "admin") { stopLoops(); render(); } else loadCourse().catch(showErr); };
     const nc = $("#newC"); if (nc) nc.onclick = () => { $("#newCForm").hidden = !$("#newCForm").hidden; };
     wireClass("nc");
@@ -3697,7 +3699,7 @@
             <span class="small">سيُحذف ${D.sessions.length} محاضرة بما فيها من حضور وإنذارات، وطلبة المادة. إذا احتجت الكشف فصدّره إلى إكسل أولًا. للتأكيد اكتب اسم المادة كما هو: <b>${esc(c.name)}</b></span>
             <input type="text" id="delName" autocomplete="off">
             <div class="row"><button class="btn sm danger" id="delGo">حذف المادة نهائيًّا</button><button class="btn sm ghost" id="delCancel">إلغاء</button></div>
-          </div>` : `<div class="row"><button class="btn sm ghost danger" id="delAsk">حذف المادة</button></div>`}
+          </div>` : me.role === "head" && c.owner_email !== me.email ? "" : `<div class="row"><button class="btn sm ghost danger" id="delAsk">حذف المادة</button></div>`}
       </div>` : ""}`;
     el.querySelectorAll("[data-rmta]").forEach(b => b.onclick = () => act(() => rpc("remove_ta", { cid: c.id, p_email: b.dataset.rmta }), async () => { await loadBase(); await loadCourse(); }));
     const ta = $("#taAdd"); if (ta) ta.onclick = () => act(() => rpc("add_member", { cid: c.id, p_email: $("#taPick").value, p_kind: $("#taKind").value }), async () => { await loadBase(); await loadCourse(); });
@@ -3746,18 +3748,39 @@
   }
 
   /* ======================= admin ======================= */
-  let atab = ["requests", "inbox", "staff", "report", "log"].includes(store.get("cm_atab")) ? store.get("cm_atab") : "staff";
+  let atab = ["requests", "inbox", "staff", "courses", "report", "log"].includes(store.get("cm_atab")) ? store.get("cm_atab") : "staff";
+  let deptOv = null, deptOvAt = 0;
+  // «المواد»: مين بياخد الغياب في كل مادة، آخر محاضرة، متوسط الحضور، والتكليفات اللي اترصد فيها درجات (للمسؤول ورئيس القسم)
+  function deptCoursesHtml() {
+    if (!deptOv) return `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>`;
+    const by = new Map(deptOv.map(x => [x.course_id, x])), now = Date.now();
+    const rows = courses.filter(c => !c.archived && inFilter(c)).map(c => ({ c, o: by.get(c.id) || {} }));
+    const st = o => o.live ? ["ok", "محاضرة شغالة"] : !+o.lectures ? ["bad", "ما بدأش"] : (now - new Date(o.last_at)) / 864e5 > 8 ? ["warn", "متوقف"] : ["ok", "منتظم"];
+    const rank = { bad: 0, warn: 1, ok: 2 };
+    rows.forEach(r => r.s = st(r.o)); rows.sort((a, b) => rank[a.s[0]] - rank[b.s[0]] || (a.o.last_at || "").localeCompare(b.o.last_at || "") || a.c.name.localeCompare(b.c.name, "ar"));
+    const n = k => rows.filter(r => r.s[0] === k).length;
+    return `<div class="cchips" style="margin-bottom:10px"><span class="chip ok">${n("ok")} بياخدوا الغياب</span><span class="chip warn">${n("warn")} متوقفة من أكتر من 8 أيام</span><span class="chip bad">${n("bad")} ما بدأتش</span></div>
+      <div class="tbl-wrap"><table><thead><tr><th>المادة</th><th>المحاضر</th><th class="c">الطلبة</th><th class="c">المحاضرات</th><th>آخر محاضرة</th><th class="c">متوسط الحضور</th><th class="c">تكليفات اترصدت</th><th>الحالة</th><th></th></tr></thead><tbody>
+      ${rows.map(({ c, o, s }) => `<tr><td class="nm">${esc(c.name)}<div class="muted small">${esc(clsLabel(c))}</div></td><td class="small">${esc(staffName(c.owner_email))}</td><td class="c mono">${+o.students || 0}</td><td class="c mono">${+o.lectures || 0}</td>
+        <td class="small">${o.last_at ? esc(ago(o.last_at)) : "—"}</td><td class="c mono">${o.avg_pct == null ? "—" : o.avg_pct + "%"}</td><td class="c mono">${+o.tasks ? (+o.graded_tasks || 0) + " / " + o.tasks : "—"}</td>
+        <td><span class="chip ${s[0]}">${s[1]}</span></td><td><button class="btn xs" data-dopen="${c.id}">فتح</button></td></tr>`).join("") || `<tr><td colspan="9" class="muted">مفيش مواد في الفلتر ده.</td></tr>`}
+      </tbody></table></div>
+      <p class="muted small">«متوسط الحضور» محسوب على المحاضرات المنتهية لكل مجموعة. «فتح» بيوديك لكشف الحضور في المادة، وتقدر تعدّل فيها زي صاحبها.</p>`;
+  }
   let adminReqs = [], adminTks = [], inboxF = "open", inboxOpen = null, rqRole = {}, faqStats = null, faqDays = 30;
   let tmpPw = null;
   async function renderAdmin() {
     const el = $("#adminArea");
     const au = await sb.from("audit").select("*").order("at", { ascending: false }).limit(40);
-    const [rqR, tkR, fq] = await Promise.all([rpc("admin_staff_requests").catch(() => []), rpc("admin_tickets", { p_status: inboxF }).catch(() => []), atab === "inbox" ? rpc("admin_faq_stats", { p_days: faqDays }).catch(() => null) : null]);
+    const H = me.role === "head";
+    if (H && !["courses", "report", "log"].includes(atab)) atab = "courses";
+    if (atab === "courses" && (!deptOv || Date.now() - deptOvAt > 60000)) { deptOv = await rpc("dept_overview").catch(e => { showErr(e); return []; }); deptOvAt = Date.now(); }
+    const [rqR, tkR, fq] = H ? [[], [], null] : await Promise.all([rpc("admin_staff_requests").catch(() => []), rpc("admin_tickets", { p_status: inboxF }).catch(() => []), atab === "inbox" ? rpc("admin_faq_stats", { p_days: faqDays }).catch(() => null) : null]);
     adminReqs = rqR || []; adminTks = tkR || []; faqStats = fq;
     const nReq = adminReqs.filter(r => r.status === "pending").length, nTk = adminTks.filter(t => t.admin_unread || t.unread).length;
-    const AT = [["requests", "طلبات التسجيل" + (nReq ? ` <b class="tb">${nReq}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M18 8v6M15 11h6"/></svg>`], ["inbox", "الرسائل" + (nTk ? ` <b class="tb">${nTk}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>`], ["staff", "الحسابات", CTABS[4][2]], ["report", "تقرير الإنذارات", CTABS[3][2]], ["log", "السجل", CTABS[5][2]]];
-    el.innerHTML = `<nav class="ctabs admin" role="tablist" aria-label="لوحة المسؤول">${AT.map(([k, t, ic]) => `<button role="tab" data-at="${k}" aria-selected="${atab === k}">${ic}<span class="l">${t}</span></button>`).join("")}</nav>
-      ${(() => { const need = courses.filter(c => c.auto_created && !c.archived && !tasAll.some(x => x.course_id === c.id)); return need.length ? `<section class="panel" data-apane="staff" ${atab === "staff" ? "" : "hidden"}>
+    const AT = [["requests", "طلبات التسجيل" + (nReq ? ` <b class="tb">${nReq}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M18 8v6M15 11h6"/></svg>`], ["inbox", "الرسائل" + (nTk ? ` <b class="tb">${nTk}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>`], ["staff", "الحسابات", CTABS[4][2]], ["courses", "المواد", CTABS[2][2]], ["report", "تقرير الإنذارات", CTABS[3][2]], ["log", "السجل", CTABS[5][2]]].filter(x => !H || ["courses", "report", "log"].includes(x[0]));
+    el.innerHTML = `<nav class="ctabs admin" role="tablist" aria-label="${H ? "متابعة القسم" : "لوحة المسؤول"}">${AT.map(([k, t, ic]) => `<button role="tab" data-at="${k}" aria-selected="${atab === k}">${ic}<span class="l">${t}</span></button>`).join("")}</nav>
+      ${(() => { const need = courses.filter(c => c.auto_created && !c.archived && !tasAll.some(x => x.course_id === c.id)); return need.length ? `<section class="panel" data-apane="courses" ${atab === "courses" ? "" : "hidden"}>
         <div class="panel-h"><div><div class="eyebrow">أنشأها النظام من استمارات تسجيل الطلبة</div><h2>مواد تحتاج إلى فريق (${need.length})</h2></div></div>
         <p class="muted small">افتح المادة، ثم من تبويب «الفريق» أضف المحاضر (محاضر مشارك) أو المعيد المسؤول عنها، فيستطيع العمل عليها.</p>
         <div class="list">${need.map(c => `<div class="li"><div class="who"><b>${esc(c.name)}</b><small>${esc(clsLabel(c))}${c.bylaw_code ? " · " + esc(c.bylaw_code) : ""}</small></div><button class="btn sm" data-autoc="${c.id}">فتح وتعيين الفريق</button></div>`).join("")}</div></section>` : ""; })()}
@@ -3772,7 +3795,7 @@
           <div class="row" style="gap:8px"><button class="btn sm primary" id="tpwShare">إرسال الرسالة</button><button class="btn sm" id="tpwCopy">نسخ</button><button class="btn sm ghost" id="tpwClose">تم</button></div></div>` : ""}
         <div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>البريد الإلكتروني</th><th>الدور</th><th>المواد</th><th>الحالة</th><th></th></tr></thead><tbody>
         ${staff.map(u => { const o = courses.filter(c => c.owner_email === u.email).length, t = tasAll.filter(x => x.email === u.email).length;
-          return `<tr><td>${esc(u.name)}</td><td class="mono small">${esc(u.email)}</td><td>${u.email === me.email ? ROLE[u.role] : `<select data-role="${esc(u.email)}" style="width:auto;padding:3px 6px">${["ta", "lecturer", "admin"].map(r => `<option value="${r}" ${u.role === r ? "selected" : ""}>${ROLE[r]}</option>`).join("")}</select>`}</td><td class="small">${o ? o + " مادة" : ""}${o && t ? " · " : ""}${t ? "معيد في " + t : ""}${!o && !t ? `<span class="muted">—</span>` : ""}</td>
+          return `<tr><td>${esc(u.name)}</td><td class="mono small">${esc(u.email)}</td><td>${u.email === me.email ? ROLE[u.role] : `<select data-role="${esc(u.email)}" style="width:auto;padding:3px 6px">${["ta", "lecturer", "head", "admin"].map(r => `<option value="${r}" ${u.role === r ? "selected" : ""}>${ROLE[r]}</option>`).join("")}</select>`}</td><td class="small">${o ? o + " مادة" : ""}${o && t ? " · " : ""}${t ? "معيد في " + t : ""}${!o && !t ? `<span class="muted">—</span>` : ""}</td>
           <td>${u.status === "active" ? `<span class="chip ok">مفعّل</span>` : u.status === "invited" ? `<span class="chip warn">لم يدخل بعد</span>` : `<span class="chip bad">موقوف</span>`}</td>
           <td class="row" style="gap:6px;flex-wrap:nowrap">${u.email !== me.email && u.status !== "suspended" ? `<button class="btn sm ghost" data-tpw="${esc(u.email)}" title="يدخل بها مرة واحدة ثم يختار كلمة سره">كلمة سر مؤقتة</button>` : ""}${u.email === me.email ? `<span class="small muted">أنت</span>` : `<button class="btn sm ghost ${u.status === "suspended" ? "" : "danger"}" data-sus="${esc(u.email)}" data-to="${u.status === "suspended" ? "active" : "suspended"}">${u.status === "suspended" ? "تفعيل" : "إيقاف"}</button>`}</td></tr>`; }).join("")}
         </tbody></table></div>
@@ -3780,7 +3803,7 @@
         <div class="settings">
           <label class="f"><span>الاسم</span><input type="text" id="invName"></label>
           <label class="f"><span>البريد الجامعي</span><input type="email" id="invEmail" dir="ltr" placeholder="name@${esc(settings.domain || "university.edu.eg")}"></label>
-          <label class="f"><span>الدور</span><select id="invRole"><option value="lecturer">محاضر</option><option value="ta">معيد</option><option value="admin">مسؤول</option></select></label>
+          <label class="f"><span>الدور</span><select id="invRole"><option value="lecturer">محاضر</option><option value="ta">معيد</option><option value="head">رئيس القسم</option><option value="admin">مسؤول</option></select></label>
           <button class="btn primary" id="invBtn">أضف</button>
         </div>
         <p class="muted small">بعد إضافته، أرسل إليه رابط صفحة المحاضرين. يُفعَّل حسابه بمجرد دخوله ببريده والرمز الذي سيصله. ولا يستطيع صاحب الحساب الموقوف الدخول، وتبقى مواده وكشوفه محفوظة.</p>
@@ -3788,6 +3811,7 @@
         <p class="muted small">يُطبَّق تغيير الدور من الجدول فورًا: يستطيع المحاضر إنشاء مواد، ولا يستطيع المعيد ذلك إلا إذا فعّلت هذا الخيار، ويطّلع المسؤول على جميع المواد ويدير الحسابات. أما صلاحيات الشخص داخل أي مادة فتحدّدها عضويته في فريق تلك المادة.</p>
         <div class="settings"><label class="f"><span>نطاق البريد الجامعي (فارغ = أي نطاق)</span><input type="text" id="domIn" dir="ltr" value="${esc(settings.domain || "")}"></label><button class="btn" id="domSave">حفظ النطاق</button></div>
       </section>
+      <section class="panel" data-apane="courses" ${atab === "courses" ? "" : "hidden"}><div class="panel-h"><div><div class="eyebrow">كل مواد القسم · ${fYear === "all" ? "كل الأعوام" : esc(fYear)} · ${fTerm === "all" ? "كل الفصول الدراسية" : TERMS[fTerm]}</div><h2>متابعة المواد</h2></div><button class="btn sm ghost" id="dovRef">تحديث</button></div>${deptCoursesHtml()}</section>
       <section class="panel" data-apane="report" ${atab === "report" ? "" : "hidden"}>
         <div class="panel-h"><div><div class="eyebrow">كل مواد القسم · ${fYear === "all" ? "كل الأعوام" : esc(fYear)} · ${fTerm === "all" ? "كل الفصول الدراسية" : TERMS[fTerm]}</div><h2>طلبة لديهم إنذار ثالث أو انسحاب</h2></div><button class="btn sm" id="repBtn">${report === "loading" ? `<span class="spinner"></span>` : report ? "تحديث" : "إعداد التقرير"}</button></div>
         ${Array.isArray(report) ? (report.length ? `<div class="tbl-wrap"><table><thead><tr><th>الطالب</th><th>المادة</th><th>المحاضر</th><th class="c">الغياب</th><th>الحالة</th></tr></thead><tbody>
@@ -3798,7 +3822,7 @@
     document.body.classList.add("has-ctabs");
     wireAdminReq(el); wireAdminInbox(el);
     el.querySelectorAll("[data-autoc]").forEach(b => b.onclick = () => { curId = b.dataset.autoc; store.set("cm_course", curId); fYear = "all"; fTerm = "all"; ctab = "team"; store.set("cm_tab", ctab); view = "course"; flash = {}; loadCourse().catch(showErr); });
-    el.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { atab = b.dataset.at; store.set("cm_atab", atab); el.querySelectorAll("[data-at]").forEach(x => x.setAttribute("aria-selected", x.dataset.at === atab)); el.querySelectorAll("[data-apane]").forEach(p => p.hidden = p.dataset.apane !== atab); if (atab === "inbox" && !faqStats) renderAdmin(); });
+    el.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { atab = b.dataset.at; store.set("cm_atab", atab); el.querySelectorAll("[data-at]").forEach(x => x.setAttribute("aria-selected", x.dataset.at === atab)); el.querySelectorAll("[data-apane]").forEach(p => p.hidden = p.dataset.apane !== atab); if ((atab === "inbox" && !faqStats) || (atab === "courses" && !deptOv)) renderAdmin(); });
     el.querySelectorAll("[data-sus]").forEach(b => b.onclick = () => act(async () => { await rpc("admin_set_status", { p_email: b.dataset.sus, p_status: b.dataset.to }); say("admin", (b.dataset.to === "suspended" ? "أُوقف حساب " : "فُعِّل حساب ") + staffName(b.dataset.sus) + "."); }, async () => { await loadBase(); renderAdmin(); }));
     el.querySelectorAll("[data-tpw]").forEach(b => b.onclick = () => act(async () => {
       if (!confirm("إعطاء " + staffName(b.dataset.tpw) + " كلمة سر مؤقتة؟ ستتوقف كلمة سره الحالية إن كانت له واحدة.")) return;
@@ -3816,8 +3840,10 @@
       say("admin", "أُضيف " + n + ". أرسل إليه رابط صفحة المحاضرين: " + location.href.split("#")[0]);
     }, async () => { await loadBase(); renderAdmin(); });
     el.querySelectorAll("[data-role]").forEach(sel => sel.onchange = () => act(async () => { await rpc("admin_set_role", { p_email: sel.dataset.role, p_role: sel.value }); say("admin", "تغيّر دور " + staffName(sel.dataset.role) + " لـ" + ROLE[sel.value] + "."); }, async () => { await loadBase(); renderAdmin(); }));
-    $("#taCreate").onchange = ev => act(async () => { await rpc("admin_set_ta_create", { p_on: ev.target.checked }); say("admin", ev.target.checked ? "أصبح بإمكان المعيدين إنشاء مواد." : "لن يتمكن المعيدون من إنشاء مواد."); }, async () => { await loadBase(); render(); });
-    $("#domSave").onclick = () => act(async () => { await rpc("admin_set_domain", { p_domain: $("#domIn").value }); say("admin", "حُفظ النطاق."); }, async () => { await loadBase(); renderAdmin(); });
+    el.querySelectorAll("[data-dopen]").forEach(b => b.onclick = () => { curId = b.dataset.dopen; store.set("cm_course", curId); ctab = "reg"; store.set("cm_tab", ctab); view = "course"; flash = {}; loadCourse().catch(showErr); });
+    const dr = $("#dovRef"); if (dr) dr.onclick = () => { deptOv = null; renderAdmin(); };
+    if ($("#taCreate")) $("#taCreate").onchange = ev => act(async () => { await rpc("admin_set_ta_create", { p_on: ev.target.checked }); say("admin", ev.target.checked ? "أصبح بإمكان المعيدين إنشاء مواد." : "لن يتمكن المعيدون من إنشاء مواد."); }, async () => { await loadBase(); render(); });
+    if ($("#domSave")) $("#domSave").onclick = () => act(async () => { await rpc("admin_set_domain", { p_domain: $("#domIn").value }); say("admin", "حُفظ النطاق."); }, async () => { await loadBase(); renderAdmin(); });
     $("#repBtn").onclick = async () => {
       report = "loading"; renderAdmin();
       try {

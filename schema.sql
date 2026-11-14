@@ -5517,3 +5517,59 @@ do $$ declare f record; d text; begin
     execute d;
   end loop;
 end $$;
+-- تحديث 53: دور جديد «رئيس القسم» (head)
+--   له صلاحيات صاحب المادة في كل المواد (الحضور والغياب والدرجات والتكليفات والطلبة والفريق)، والجدول الدراسي كامل،
+--   و«متابعة القسم» (الجرس + تذكير الفرق + نظرة عامة على المواد + تقرير الإنذارات + السجل)، وإنشاء مواد.
+--   من غير: إدارة حسابات المحاضرين والمعيدين وأدوارهم، وطلبات التسجيل، والرسائل، والإعدادات، وحذف المواد، والدراسات العليا. دي للمسؤول بس.
+alter table public.staff drop constraint if exists staff_role_check;
+alter table public.staff add constraint staff_role_check check (role in ('admin', 'head', 'lecturer', 'ta'));
+
+do $$
+declare f record; d text; o text;
+  reps text[][] := array[
+    ['course_role',      'when staff_role() = ''admin'' then ''owner''', 'when staff_role() in (''admin'', ''head'') then ''owner'''],
+    ['course_owner',     'staff_role() = ''admin''', 'staff_role() in (''admin'', ''head'')'],
+    ['tt_admin',         'staff_role() is distinct from ''admin''', 'coalesce(staff_role(), '''') not in (''admin'', ''head'')'],
+    ['create_course',    'not in (''admin'', ''lecturer'')', 'not in (''admin'', ''head'', ''lecturer'')'],
+    ['staff_feed',       'if r = ''admin'' then', 'if r in (''admin'', ''head'') then'],
+    ['staff_feed',       'adm := admin_inbox_counts();', 'if r = ''admin'' then adm := admin_inbox_counts(); end if;'],
+    ['staff_remind',     'coalesce(staff_role(), '''') <> ''admin''', 'coalesce(staff_role(), '''') not in (''admin'', ''head'')'],
+    ['admin_save_staff', '(''admin'',''lecturer'',''ta'')', '(''admin'',''head'',''lecturer'',''ta'')'],
+    ['admin_save_staff', 'when ''admin'' then ''مسؤول'' when ''lecturer''', 'when ''admin'' then ''مسؤول'' when ''head'' then ''رئيس القسم'' when ''lecturer'''],
+    ['admin_set_role',   '(''admin'', ''lecturer'', ''ta'')', '(''admin'', ''head'', ''lecturer'', ''ta'')'],
+    ['admin_set_role',   'when ''admin'' then ''مسؤول'' when ''lecturer''', 'when ''admin'' then ''مسؤول'' when ''head'' then ''رئيس القسم'' when ''lecturer'''],
+    ['delete_course',    'if not course_owner(cid) and staff_role() is distinct from ''admin'' then', 'if not exists (select 1 from courses x where x.id = cid and x.owner_email = my_email()) and staff_role() is distinct from ''admin'' then']];
+  i int; hit boolean;
+begin
+  for i in 1 .. array_length(reps, 1) loop
+    hit := false;
+    for f in select p.oid from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname = reps[i][1] loop
+      d := pg_get_functiondef(f.oid); o := d;
+      d := replace(d, reps[i][2], reps[i][3]);
+      if d <> o then execute d; hit := true; elsif position(reps[i][3] in o) > 0 then hit := true; end if;
+    end loop;
+    if not hit then raise exception 'update53: لم يتغيّر % (%)', reps[i][1], reps[i][2]; end if;
+  end loop;
+end $$;
+
+-- نظرة عامة على مواد القسم (للمسؤول ورئيس القسم): مين بياخد الغياب، وآخر محاضرة، ومتوسط الحضور، والتكليفات اللي اترصد فيها درجات
+create or replace function public.dept_overview() returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if coalesce(staff_role(), '') not in ('admin', 'head') then raise exception 'not_allowed'; end if;
+  return coalesce((select json_agg(x) from (
+    select c.id course_id,
+      (select count(*) from enrollments e where e.course_id = c.id) students,
+      (select count(*) from sessions s where s.course_id = c.id and s.ended) lectures,
+      (select max(s.started_at) from sessions s where s.course_id = c.id) last_at,
+      exists (select 1 from sessions s where s.course_id = c.id and not s.ended) live,
+      (select round(100.0 * sum(q.p) / nullif(sum(q.d), 0)) from (
+         select (select count(*) from attendance a where a.session_id = s.id and a.status <> 'pending') p,
+                (select count(*) from enrollments e where e.course_id = c.id and (coalesce(s.grp, '') = '' or e.grp = s.grp)) d
+         from sessions s where s.course_id = c.id and s.ended) q) avg_pct,
+      (select count(*) from tasks t where t.course_id = c.id) tasks,
+      (select count(*) from tasks t where t.course_id = c.id and exists (select 1 from submissions su where su.task_id = t.id and su.grade is not null)) graded_tasks
+    from courses c where not c.archived) x), '[]');
+end $$;
+revoke all on function public.dept_overview() from public, anon;
+grant execute on function public.dept_overview() to authenticated;
