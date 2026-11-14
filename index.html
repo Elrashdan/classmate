@@ -751,6 +751,7 @@
           ${pwMsg ? `<div class="msg ${pwMsg.startsWith("!") ? "bad" : "ok"}">${esc(pwMsg.replace(/^!/, ""))}</div>` : ""}
           <button class="btn primary" id="pwSave">حفظ</button>
           ${HD.ready && !limited ? `<hr><p class="small muted">اربط حساب Google لتستعيد كلمة السر بنفسك إن نسيتها.${store.get("cm_glink_" + home.code) ? " <b class='ok-t'>مربوط.</b>" : ""}</p><button class="btn sm" id="gLink">ربط حساب Google</button>` : ""}</div>` : ""}
+        ${tasksOverview()}
         ${home.courses.length ? home.courses.map(c => `
           <article class="course" data-course="${c.id}">
             <div class="row between"><div><h2>${esc(c.name)}</h2>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ""}${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
@@ -783,6 +784,7 @@
     app.querySelectorAll("[data-qrscan]").forEach(b => b.onclick = () => openStScan());
     app.querySelectorAll("[data-ack]").forEach(b => b.onclick = () => ackWarning(b.dataset.ack, b));
     app.querySelectorAll("[data-task]").forEach(b => b.onclick = () => openTask(b.dataset.task));
+    app.querySelectorAll("[data-tkf]").forEach(b => b.onclick = () => { tkF = b.dataset.tkf; const y = scrollY; renderHome(); scrollTo(0, y); });
     wireQrCta();
     if (active && $("#" + CSS.escape(active))) { const el = $("#" + CSS.escape(active)); el.focus(); }
   }
@@ -826,11 +828,48 @@
     if (t.ext_until) return ["warn", "مفتوح لك استثنائيًا حتى " + extTxt(t)];
     return t.late === "accept" ? ["bad", "تأخرت · التسليم ما زال مفتوحًا"] : ["bad", "انتهى موعد التسليم"];
   }
+  // تصنيف التكليف عند الطالب: todo مطلوب منه · done سلّمه ومستني التصحيح · graded ليه درجة · wait هيترصد من المحاضر · missed فات
+  function tkCat(t) {
+    const m = t.mine || {}, past = new Date(t.due_at).getTime() < nowS();
+    if (m.rejected) return "todo";
+    if (m.grade != null) return "graded";
+    if (t.mode === "manual") return "wait";
+    if (m.graded || m.submitted_at) return "done";
+    if (t.refused) return "missed";
+    if (!past || t.ext_until || t.late === "accept") return "todo";
+    return "missed";
+  }
+  const TKC = { todo: "مطلوب منك", done: "سلّمته · بانتظار التصحيح", graded: "درجاتك", wait: "هتترصد من المحاضر", missed: "فات موعده" };
+  const tkOrder = (a, b) => new Date(a.due_at) - new Date(b.due_at);
+  const dueShort = t => new Date(t.due_at).toLocaleString("ar-EG", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  function tkRow(t, withCourse) {
+    const [k, s] = tkState(t), cat = tkCat(t), soon = cat === "todo" && new Date(t.due_at).getTime() - nowS() < 864e5;
+    const cn = withCourse ? ((home.courses.find(c => c.id === t.course_id) || {}).name || "") : "";
+    return `<button class="tk-row c-${cat}${soon ? " soon" : ""}" data-task="${t.id}"><i class="tk-dot" aria-hidden="true"></i><span class="tk-t">${cn ? `<em>${esc(cn)}</em>` : ""}<b>${esc(t.title)}</b><small>${t.mode === "manual" ? "درجة مرصودة من المحاضر" : (t.present_day ? "الطرح: " + esc(presTxt(t)) + " · " : "") + (cat === "todo" ? "آخر موعد: " : "الموعد: ") + esc(dueShort(t))}</small></span><span class="chip ${k}">${esc(s)}</span></button>`;
+  }
+  function tkGroups(list, withCourse, openCats) {
+    const by = {}; list.forEach(t => (by[tkCat(t)] = by[tkCat(t)] || []).push(t));
+    return ["todo", "done", "graded", "wait", "missed"].filter(k => by[k]).map(k => { const l = by[k].sort(k === "todo" ? tkOrder : (a, b) => tkOrder(b, a));
+      const rows = l.map(t => tkRow(t, withCourse)).join("");
+      return openCats.includes(k) || l.length <= 2 && list.length <= 4 ? `<div class="tk-grp"><div class="tk-gh g-${k}">${TKC[k]} <i>${l.length}</i></div>${rows}</div>`
+        : `<details class="tk-grp"><summary class="tk-gh g-${k}">${TKC[k]} <i>${l.length}</i></summary>${rows}</details>`; }).join("");
+  }
   function tasksBlock(c) {
     const list = (tasks || []).filter(t => t.course_id === c.id);
     if (!list.length) return "";
-    return `<div class="tk-list"><div class="eyebrow">التكليفات</div>${list.map(t => { const [k, s] = tkState(t);
-      return `<button class="tk-row" data-task="${t.id}"><span class="tk-t"><b>${esc(t.title)}</b><small>${t.mode === "manual" ? "درجة مرصودة من المحاضر" : (t.present_day ? "الطرح: " + esc(presTxt(t)) + " · " : "") + "رفع الملفات حتى: " + esc(dueTxt(t))}</small></span><span class="chip ${k}">${esc(s)}</span></button>`; }).join("")}</div>`;
+    return `<div class="tk-list"><div class="eyebrow">التكليفات · ${list.length}</div>${tkGroups(list, false, ["todo"])}</div>`;
+  }
+  // ملخص كل التكليفات فوق: عدّادات بتشتغل كفلتر + قائمة مرتبة بالأقرب موعدًا
+  let tkF = "todo";
+  function tasksOverview() {
+    const all = (tasks || []).filter(t => home.courses.some(c => c.id === t.course_id)); if (all.length < 2) return "";
+    const n = k => all.filter(t => tkCat(t) === k).length, cats = ["todo", "done", "graded", "missed"].filter(k => k === "todo" || n(k));
+    if (!cats.includes(tkF)) tkF = "todo";
+    const list = all.filter(t => tkCat(t) === tkF).sort(tkF === "todo" ? tkOrder : (a, b) => tkOrder(b, a));
+    const SH = { todo: "مطلوب", done: "سلّمته", graded: "درجات", missed: "فات" };
+    return `<section class="panel tk-over" id="tkOver"><div class="row between"><h3>تكليفاتي</h3><span class="small muted">${all.length} تكليف في ${new Set(all.map(t => t.course_id)).size} مادة</span></div>
+      <div class="tk-tabs" role="tablist">${cats.map(k => `<button type="button" role="tab" class="k-${k}" data-tkf="${k}" aria-selected="${tkF === k}"><b>${n(k)}</b><span>${SH[k]}</span></button>`).join("")}</div>
+      <div class="tk-olist">${list.length ? list.map(t => tkRow(t, true)).join("") : `<div class="empty">${tkF === "todo" ? "مفيش حاجة مطلوبة منك دلوقتي. 👌" : "لا يوجد."}</div>`}</div></section>`;
   }
   function openTask(id) {
     tkId = id; pickFile = null; linkMode = !HD.ready; tkMsg = null;

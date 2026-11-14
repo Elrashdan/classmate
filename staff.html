@@ -413,7 +413,12 @@
   const msgHtml = k => flash[k] ? `<div class="msg ${flash[k].startsWith("!") ? "bad" : "ok"}">${esc(flash[k].replace(/^!/, ""))}</div>` : "";
 
   /* ======================= data ======================= */
-  async function loadCourse() {
+  // شريط تحميل رفيع فوق الصفحة: عشان الضغطة يبان إنها اشتغلت ومتحسّش إن الموقع علّق
+  let ldN = 0;
+  const ldOn = () => { ldN++; document.documentElement.classList.add("cm-ld"); };
+  const ldOff = () => { ldN = Math.max(0, ldN - 1); if (!ldN) document.documentElement.classList.remove("cm-ld"); };
+  async function loadCourse() { ldOn(); try { return await loadCourse0(); } finally { ldOff(); } }
+  async function loadCourse0() {
     stopLoops();
     const c = course();
     if (!c) { D = null; return render(); }
@@ -612,8 +617,12 @@
     else { if (view === "admin" || view === "timetable") stopLoops(); render(); }
     window.scrollTo({ top: 0 });
   });
+  function unlockScroll() {
+    try { if (view !== "course" || ctab !== "tasks") { gbFull = false; document.documentElement.classList.remove("gb-lock"); } } catch (e) {}
+    if (!$("#bellPop") || $("#bellPop").hidden) document.documentElement.classList.remove("bell-lock");
+  }
   function showTab(k) {
-    ctab = k; store.set("cm_tab", k); closeFpop(); navMark();
+    ctab = k; store.set("cm_tab", k); closeFpop(); navMark(); unlockScroll();
     const cb = $("#cband"), c0 = course(); if (cb && c0) { cb.outerHTML = courseBand(c0); const nb = $("#cband"); if (nb) { nb.classList.add("swap"); } }
     document.querySelectorAll("[data-ct]").forEach(b => b.setAttribute("aria-selected", b.dataset.ct === k));
     document.querySelectorAll(".tabpane").forEach(p => p.hidden = p.id !== "pane-" + k);
@@ -1028,6 +1037,8 @@
     };
   }
   function render() {
+    // أي قفل سكرول من شاشة سابقة (الكشف بملء الشاشة / الجرس) لازم يتشال، وإلا الصفحة تبان واقفة
+    unlockScroll();
     const c = course();
     const owned = courses.filter(x => x.owner_email === me.email).length;
     app.innerHTML = `
@@ -1100,7 +1111,7 @@
     const pk = $("#pick"); if (pk) pk.onchange = () => { curId = pk.value; flash = {}; liveTab = "all"; regGroup = "all"; startState = null; loadCourse().catch(showErr); };
     const gtt = $("#goTT"); if (gtt) gtt.onclick = () => { view = "timetable"; stopLoops(); render(); window.scrollTo({ top: 0 }); };
     if (view === "timetable") TT.open({ el: $("#ttArea"), rpc: (f, a) => rpc(f, a), isAdmin: isDept(), me, staff, courses, loadExcelJS, saveWb }).catch(e => { $("#ttArea").innerHTML = `<div class="msg bad">${esc(errText(e))}</div>`; });
-    const ad = $("#admin"); if (ad) ad.onclick = () => { view = view === "admin" ? "course" : "admin"; if (view === "admin") { stopLoops(); render(); } else loadCourse().catch(showErr); };
+    const ad = $("#admin"); if (ad) ad.onclick = () => { stopLoops(); view = view === "admin" ? "home" : "admin"; render(); window.scrollTo({ top: 0 }); };
     const nc = $("#newC"); if (nc) nc.onclick = () => { $("#newCForm").hidden = !$("#newCForm").hidden; };
     wireClass("nc");
     const ncc = $("#ncCat"); if (ncc) { ncRefresh(); ncc.onchange = ncChose; }
@@ -2138,8 +2149,8 @@
     const common = all.filter(t => !t.grp || !gs.includes(t.grp)); if (common.length) out.push(["لكل المجموعات", common]);
     return out;
   }
-  const tkToolbar = () => `<div class="tk-tools no-print"><div class="cchips seg">${[["cards", "بطاقات التكليفات"], ["sheet", "كشف الدرجات"]].map(([k, l]) => `<button type="button" class="cchip" data-tklay="${k}" aria-pressed="${tkLay === k}">${l}</button>`).join("")}</div><span class="small muted">ترتيب:</span><div class="cchips">${[["az", "أبجدي"], ["new", "الأحدث"], ["old", "الأقدم"], ["due", "موعد التسليم"]].map(([k, l]) => `<button type="button" class="cchip" data-tksort="${k}" aria-pressed="${tkSort === k}">${l}</button>`).join("")}</div>
-    ${tkLay !== "sheet" && courseGroups().length > 1 && D.tasks.some(t => t.grp) ? `<label class="row small" style="gap:6px;margin-inline-start:auto"><input type="checkbox" id="tkSplit" ${tkSplit ? "checked" : ""}> تقسيم حسب المجموعة</label>` : ""}</div>`;
+  const tkToolbar = () => `<div class="tk-sortbar no-print"><div class="cchips seg">${[["cards", "بطاقات التكليفات"], ["sheet", "كشف الدرجات"]].map(([k, l]) => `<button type="button" class="cchip" data-tklay="${k}" aria-pressed="${tkLay === k}">${l}</button>`).join("")}</div><div class="tk-sortrow"><span class="small muted">ترتيب</span><div class="cchips">${[["az", "أبجدي"], ["new", "الأحدث"], ["old", "الأقدم"], ["due", "موعد التسليم"]].map(([k, l]) => `<button type="button" class="cchip" data-tksort="${k}" aria-pressed="${tkSort === k}">${l}</button>`).join("")}</div></div>
+    ${tkLay !== "sheet" && courseGroups().length > 1 && D.tasks.some(t => t.grp) ? `<label class="row small tk-splitl"><input type="checkbox" id="tkSplit" ${tkSplit ? "checked" : ""}> تقسيم حسب المجموعة</label>` : ""}</div>`;
   /* ---------- كشف الدرجات: الطلبة صفوف والتكليفات أعمدة، والرصد في الخانة مباشرة ويُحفظ تلقائيًّا ---------- */
   const gbAvg = e => { let got = 0, den = 0, any = false; D.tasks.forEach(t => { if (!(inTaskGrp(t, e) || hasWork(t, e.student_code))) return; den += Number(t.max_grade); const sb = subOf(t, e.student_code); if (sb && sb.grade != null) { any = true; got += totalOf(sb); } }); return any && den ? Math.round(got / den * 100) : null; };
   function gbHtml() {
@@ -3849,13 +3860,15 @@
   }
   let adminReqs = [], adminTks = [], inboxF = "open", inboxOpen = null, rqRole = {}, faqStats = null, faqDays = 30;
   let tmpPw = null;
-  async function renderAdmin() {
+  async function renderAdmin() { ldOn(); try { return await renderAdmin0(); } finally { ldOff(); } }
+  async function renderAdmin0() {
     const el = $("#adminArea");
     const au = await sb.from("audit").select("*").order("at", { ascending: false }).limit(40);
     const H = me.role === "head";
     if (H && !["courses", "report", "log"].includes(atab)) atab = "courses";
     if (atab === "courses" && (!deptOv || Date.now() - deptOvAt > 60000)) { deptOv = await rpc("dept_overview").catch(e => { showErr(e); return []; }); deptOvAt = Date.now(); }
     const [rqR, tkR, fq] = H ? [[], [], null] : await Promise.all([rpc("admin_staff_requests").catch(() => []), rpc("admin_tickets", { p_status: inboxF }).catch(() => []), atab === "inbox" ? rpc("admin_faq_stats", { p_days: faqDays }).catch(() => null) : null]);
+    if (view !== "admin" || !el || !el.isConnected) return;   // المستخدم خرج من اللوحة قبل ما التحميل يخلص
     adminReqs = rqR || []; adminTks = tkR || []; faqStats = fq;
     const nReq = adminReqs.filter(r => r.status === "pending").length, nTk = adminTks.filter(t => t.admin_unread || t.unread).length;
     const AT = [["requests", "طلبات التسجيل" + (nReq ? ` <b class="tb">${nReq}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M18 8v6M15 11h6"/></svg>`], ["inbox", "الرسائل" + (nTk ? ` <b class="tb">${nTk}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>`], ["staff", "الحسابات", CTABS[4][2]], ["courses", "المواد", CTABS[2][2]], ["report", "تقرير الإنذارات", CTABS[3][2]], ["log", "السجل", CTABS[5][2]]].filter(x => !H || ["courses", "report", "log"].includes(x[0]));

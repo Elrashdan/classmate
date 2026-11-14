@@ -33,6 +33,14 @@
       el.addEventListener("click", e => { if (Math.abs(dx) > 10) { e.preventDefault(); e.stopPropagation(); dx = 0; } }, true);
     });
   };
+  // الجداول اللي بتتسحب بالعرض: علامة عشان الـCSS يبيّن إن فيه باقي
+  (function () {
+    const mark = w => { const can = w.scrollWidth > w.clientWidth + 4; w.classList.toggle("can-x", can); if (can) w.classList.toggle("at-end", Math.abs(w.scrollLeft) + w.clientWidth >= w.scrollWidth - 6); };
+    let t = 0; const all = () => { clearTimeout(t); t = setTimeout(() => document.querySelectorAll(".tbl-wrap").forEach(mark), 180); };
+    document.addEventListener("scroll", e => { const w = e.target; if (w && w.classList && w.classList.contains("tbl-wrap")) mark(w); }, true);
+    addEventListener("resize", all);
+    document.addEventListener("DOMContentLoaded", () => { try { new MutationObserver(all).observe(document.body, { childList: true, subtree: true }); } catch (e) {} all(); });
+  })();
   CM.store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
@@ -629,7 +637,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b98)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b99)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
