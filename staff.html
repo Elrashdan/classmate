@@ -826,7 +826,7 @@
       <div class="tiles small">
         <button class="tile" data-go="profile">${ICO('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}<b>ملفي الشخصي</b><small>بياناتك وموادك</small></button>
         ${canCreate() ? `<button class="tile" data-go="newc">${ICO('<path d="M12 5v14M5 12h14"/>')}<b>مادة جديدة</b><small>أضف مادة من اللائحة</small></button>` : ""}
-        ${me.role === "head" ? `<button class="tile" data-go="admin">${ICO('<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>')}<b>متابعة القسم</b><small>المواد والغياب والإنذارات</small></button>` : ""}
+        ${isDept() ? `<button class="tile" data-go="dept">${ICO('<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>')}<b>متابعة القسم</b><small>المواد والغياب والإنذارات</small></button>` : ""}
         ${me.role === "admin" ? `<button class="tile" data-go="admin">${ICO('<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>')}<b>لوحة المسؤول</b><small>المحاضرون والإعدادات</small></button>
           <a class="tile" href="pg-admin.html">${ICO('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>')}<b>الدراسات العليا</b><small>مواد الترم والتسجيل</small></a>` : ""}
       </div></section>`;
@@ -979,6 +979,7 @@
       const g = b.dataset.go;
       if (g === "profile") { view = "profile"; render(); }
       else if (g === "admin") { view = "admin"; stopLoops(); render(); }
+      else if (g === "dept") { atab = "courses"; store.set("cm_atab", atab); view = "admin"; stopLoops(); render(); }
       else if (g === "newc") { view = "course"; render(); const f = $("#newCForm"); if (f) { f.hidden = false; f.scrollIntoView({ block: "start" }); } }
       window.scrollTo({ top: 0 });
     });
