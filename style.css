@@ -1749,3 +1749,15 @@ html[data-skin="nx"] header.top{ box-shadow: inset 0 0 0 1px color-mix(in srgb, 
 .vc-perm:empty{ display: none; }
 .vc-perm .btn svg{ width: 16px; height: 16px; vertical-align: -3px; }
 .vc-perm .msg{ text-align: start; width: 100%; }
+/* b96: منع المحتوى العريض (جداول جوه details) من توسيع الصفحة على الموبايل */
+html,body{overflow-x:clip}
+.panel{grid-template-columns:minmax(0,1fr)}
+.panel>*,.panel details{min-width:0;max-width:100%}
+@media (max-width:600px){
+  .rq-done .tbl-wrap table,.rq-done .tbl-wrap tbody{display:block}
+  .rq-done .tbl-wrap tr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  .rq-done .tbl-wrap tr:last-child{border-bottom:0}
+  .rq-done .tbl-wrap td{display:block;padding:0;border:0}
+  .rq-done .tbl-wrap td.nm{flex:1 1 100%}
+  .rq-done .tbl-wrap td .mono{overflow-wrap:anywhere}
+}
