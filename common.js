@@ -649,7 +649,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b102)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b103)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
@@ -671,6 +671,22 @@
     });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", legal); else legal();
+
+  // b103: ستارة التحميل في المظهر الحديث — بتغطي الشاشة أول ما الصفحة تفتح، وتطلع لفوق لما المحتوى يجهز
+  (function curtain() {
+    const R = document.documentElement, app = document.getElementById("app");
+    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!app || R.dataset.skin !== "nx" || R.dataset.motion === "off" || reduce || !app.querySelector(":scope > .hd-loader")) { R.classList.add("nx-booted"); return; }
+    const c = document.createElement("div"); c.id = "nxCurtain"; c.setAttribute("role", "status"); c.setAttribute("aria-label", "جارٍ التحميل");
+    c.innerHTML = `<div class="nc-in">${CM.markHtml()}<b class="wm">hadro</b></div><span class="nc-bar"><i></i></span>`;
+    document.body.appendChild(c); R.classList.add("nx-booted");
+    const t0 = performance.now(), MIN = 650, MAX = 9000; let gone = false;
+    const lift = () => { if (gone) return; gone = true; mo.disconnect(); clearTimeout(fs);
+      setTimeout(() => { c.classList.add("up"); R.classList.add("nx-lifted"); setTimeout(() => c.remove(), 900); setTimeout(() => R.classList.remove("nx-lifted"), 1300); }, Math.max(0, MIN - (performance.now() - t0))); };
+    const ready = () => app.children.length && !app.querySelector(":scope > .hd-loader");
+    const mo = new MutationObserver(() => { if (ready()) lift(); }); mo.observe(app, { childList: true });
+    const fs = setTimeout(lift, MAX);
+  })();
 
   CM.setupNotice = () => `<div class="panel setup"><h2>لم يُربط التطبيق بقاعدة البيانات بعد</h2>
     <p class="muted">افتح ملف <span class="mono">config.js</span> وضع فيه Project URL و anon key من Supabase، كما هو موضّح في دليل التشغيل.</p></div>`;

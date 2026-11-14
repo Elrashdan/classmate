@@ -1928,3 +1928,29 @@ html[data-skin="nx"] .btn:active:not(:disabled){ transform: scale(.955); transit
   html[data-skin="nx"] .btn > svg{ transition: transform .5s var(--spring); }
 }
 @media (prefers-reduced-motion: reduce){ html[data-skin="nx"] .nx-w > i{ animation: none !important; transform: none !important; opacity: 1 !important; } }
+
+/* ===== b103: ستارة التحميل + إطار الصفحة المدوّر (المظهر الحديث) ===== */
+html[data-skin="nx"]:not([data-motion="off"]):not(.nx-booted) #app > .hd-loader{ position: fixed; inset: 0; z-index: 300; min-height: 0; background: var(--nx-dark); color: var(--nx-base); }
+#nxCurtain{ position: fixed; inset: 0; z-index: 300; background: var(--nx-dark); color: var(--nx-base); display: grid; place-content: center; justify-items: center; gap: 26px; transform: translateY(0); transition: transform .85s cubic-bezier(.65,0,.35,1); will-change: transform; border-radius: 0 0 34px 34px; }
+#nxCurtain.up{ transform: translateY(-106%); }
+#nxCurtain .nc-in{ display: flex; align-items: center; gap: 14px; animation: ncIn .7s cubic-bezier(.16,1,.3,1) both; }
+#nxCurtain .mark{ width: 54px; height: 54px; border-radius: 16px; background: var(--nx-hi); color: var(--nx-dark); display: grid; place-items: center; flex: 0 0 auto; }
+#nxCurtain .mark svg{ width: 100%; height: 100%; }
+#nxCurtain .wm{ font-family: var(--f-display); font-size: 2.1rem; font-weight: 600; letter-spacing: .02em; line-height: 1; color: var(--nx-base); margin: 0; }
+#nxCurtain .nc-bar{ width: 168px; height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--nx-base) 20%, transparent); overflow: hidden; }
+#nxCurtain .nc-bar i{ display: block; height: 100%; background: var(--nx-hi); transform-origin: right center; transform: scaleX(0); animation: ncBar 2.6s cubic-bezier(.3,.6,.2,1) .12s forwards; }
+html[dir="ltr"] #nxCurtain .nc-bar i{ transform-origin: left center; }
+#nxCurtain.up .nc-bar i{ animation: none; transform: scaleX(1); transition: transform .25s; }
+@keyframes ncIn{ from{ opacity: 0; transform: translateY(16px); } }
+@keyframes ncBar{ to{ transform: scaleX(.88); } }
+html[data-skin="nx"].nx-lifted:not([data-motion="off"]) #app > :not(nav):not(.ctabs):not(.nx-dock){ animation: ncRise .8s cubic-bezier(.16,1,.3,1) both; }
+html[data-skin="nx"].nx-lifted #app > :nth-child(2){ animation-delay: .08s; } html[data-skin="nx"].nx-lifted #app > :nth-child(3){ animation-delay: .16s; } html[data-skin="nx"].nx-lifted #app > :nth-child(n+4){ animation-delay: .22s; }
+@keyframes ncRise{ from{ opacity: 0; transform: translateY(26px); } }
+/* الإطار: الصفحة «ورقة» بحواف مدوّرة كبيرة جوه خلفية بلون مختلف */
+html[data-skin="nx"]{ --frame: color-mix(in srgb, var(--nx-base) 30%, #fff); --frame-gap: 10px; --frame-r: 30px; background: var(--frame); }
+html[data-skin="nx"][data-theme="dark"]{ --frame: color-mix(in srgb, var(--nx-dark) 35%, #000); }
+@media (prefers-color-scheme: dark){ html[data-skin="nx"]:not([data-theme="light"]){ --frame: color-mix(in srgb, var(--nx-dark) 35%, #000); } }
+html[data-skin="nx"] body{ margin: var(--frame-gap); min-height: calc(100vh - 2 * var(--frame-gap)); min-height: calc(100svh - 2 * var(--frame-gap)); border-radius: var(--frame-r); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent); }
+@media (max-width: 760px){ html[data-skin="nx"]{ --frame-gap: 6px; --frame-r: 24px; } html[data-skin="nx"] .wrap{ padding-inline: 11px; } }
+@media print{ html[data-skin="nx"] body{ margin: 0; border-radius: 0; box-shadow: none; } html[data-skin="nx"]{ background: #fff; } }
+#nxCurtain .mark{ --logo-dot: var(--nx-dark); } #nxCurtain .wm{ direction: ltr; }
