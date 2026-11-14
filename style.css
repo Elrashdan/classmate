@@ -1890,3 +1890,11 @@ details.tk-grp[open]>summary.tk-gh::after{transform:rotate(180deg)}
 .lvl-tx small{color:var(--muted);font-size:.78rem}
 .lvl-bt{display:flex;gap:6px;margin-inline-start:auto}
 .lvl-bt .btn{display:inline-flex;align-items:center;gap:5px}
+/* b101: رصد بالصوت جوه عرض الأعمال */
+.gr-vc{display:grid;gap:6px;padding:10px;border-radius:14px;border:1px dashed var(--line);background:var(--sunk)}
+.gr-vc .btn{justify-content:center;gap:8px}
+.gr-vc .btn svg{width:18px;height:18px}
+.gr-vc.on{border-style:solid;border-color:var(--accent)}
+.gr-vc.on .btn svg{animation:gvPulse 1.1s ease-in-out infinite}
+@keyframes gvPulse{50%{transform:scale(1.25)}}
+.gr-vc .bad-t{color:var(--bad)}

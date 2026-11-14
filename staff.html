@@ -2575,7 +2575,7 @@
     grader = { tid: t.id, f, order, i: Math.max(0, code ? order.indexOf(code) : 0), msg: "" };
     $("#grOv").hidden = false; document.body.classList.add("noscroll"); drawGrader(true);
   }
-  function closeGrader() { if (!grader) return; grader = null; $("#grOv").hidden = true; document.body.classList.remove("noscroll"); renderTasks(); }
+  function closeGrader() { if (!grader) return; gvStop(); grader = null; $("#grOv").hidden = true; document.body.classList.remove("noscroll"); renderTasks(); }
   function drawGrader(newPreview) {
     const t = grader && D.tasks.find(x => x.id === grader.tid); if (!t) return closeGrader();
     const ov = $("#grOv"), code = grader.order[grader.i], e = D.enroll.find(x => x.student_code === code), s = code ? subOf(t, code) : null;
@@ -2602,6 +2602,8 @@
         <label class="f"><span>بونص</span><input type="text" id="grB" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(v("bonus"))}"></label>
         <div class="gr-tot"><span>المجموع</span><b id="grT"></b></div>
       </div>
+      ${partsOf(t) ? "" : `<div class="gr-vc${grader.vcOn ? " on" : ""}" id="grVcBox"><button type="button" class="btn ${grader.vcOn ? "primary" : ""}" id="grVc" aria-pressed="${!!grader.vcOn}">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} ${grader.vcOn ? "بسمعك… اضغط للإيقاف" : "رصد بالصوت"}</button>
+        <span class="small muted" id="grVcTxt">${grader.vcOn ? "قول الدرجة، وهتتحفظ وأنقلك للتالي." : "قول الدرجة بس («سبعتاشر»، «خمستاشر ونص»، «مرفوض») والعمل قدامك."}</span></div>`}
       <div class="gr-quick" aria-label="درجات سريعة" ${partsOf(t) ? "hidden" : ""}>${[1, .9, .8, .7, .6, .5].map(p => `<button class="btn xs" data-q="${Math.round(t.max_grade * p * 4) / 4}">${gN(Math.round(t.max_grade * p * 4) / 4)}</button>`).join("")}</div>
       <label class="f"><span>ملاحظة للطالب</span><textarea id="grFb" maxlength="2000" rows="3" placeholder="اختياري">${esc(v("feedback"))}</textarea></label>
       ${grader.msg ? `<div class="msg ${grader.msg.startsWith("!") ? "bad" : "ok"} small">${esc(grader.msg.replace(/^!/, ""))}</div>` : ""}
@@ -2629,7 +2631,62 @@
     $("#grSave").onclick = () => graderSave(t, code);
     [G, B].forEach(i => i.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); graderSave(t, code); } });
     const gs2 = $("#grStamp"); if (gs2) gs2.onclick = () => stampCopy(t, code, gs2);
-    setTimeout(() => { const f0 = PI[0] || G; f0.focus(); f0.select(); }, 30);
+    const gvb = $("#grVc"); if (gvb) gvb.onclick = () => { if (grader.vcOn) { gvStop(); drawGrader(false); } else gvStart(); };
+    if (!grader.vcOn) setTimeout(() => { const f0 = PI[0] || G; f0.focus(); f0.select(); }, 30);   // مع الصوت منفتحش الكيبورد على الموبايل
+  }
+  /* ---------- الرصد بالصوت جوه «عرض الأعمال وتصحيحها»: الطالب معروف، فالكلام درجة بس ---------- */
+  const gvTxt = (m, bad) => { const x = $("#grVcTxt"); if (x) { x.textContent = m; x.classList.toggle("bad-t", !!bad); } };
+  function gvStart() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { grader.msg = "!المتصفح ده مبيدعمش الإملاء الصوتي. افتح البرنامج من Google Chrome أو Safari."; return drawGrader(false); }
+    grader.vcOn = true; grader.msg = ""; drawGrader(false); gvListen();
+    try { if (navigator.wakeLock) navigator.wakeLock.request("screen").then(w => { if (grader && grader.vcOn) grader.vcWake = w; else w.release(); }).catch(() => {}); } catch (e) {}
+  }
+  function gvStop() {
+    if (!grader) return; grader.vcOn = false; const r = grader.vcRec; grader.vcRec = null;
+    if (r) { r.onresult = null; r.onend = null; try { r.abort(); } catch (e) {} }
+    if (grader.vcWake) { grader.vcWake.release().catch(() => {}); grader.vcWake = null; }
+  }
+  function gvListen() {
+    if (!grader || !grader.vcOn || grader.vcRec || grader.vcBusy) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition, rec = new SR();
+    rec.lang = "ar-EG"; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 1;
+    let done = false, timer = null, last = "";
+    const finish = text => { if (done) return; done = true; clearTimeout(timer); rec.onresult = null; try { rec.abort(); } catch (e) {} gvHear(text); };
+    rec.onresult = ev => { if (!grader || done) return; let fin = "", int = "";
+      for (let i = 0; i < ev.results.length; i++) { const r = ev.results[i]; if (r.isFinal) fin += r[0].transcript + " "; else int += r[0].transcript + " "; }
+      if (fin.trim()) return finish(fin);
+      int = int.trim(); if (int) gvTxt("… " + int);
+      clearTimeout(timer); if (int && int !== last && HV.parseOne(int)) { last = int; timer = setTimeout(() => finish(last), 900); } };
+    rec.onerror = ev => { if (!grader) return;
+      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { gvStop(); grader.msg = "!الميكروفون مش مسموح. اسمح بيه للموقع من علامة القفل جنب الرابط، وبعدين جرّب تاني."; drawGrader(false); }
+      else if (ev.error === "network") gvTxt("الإملاء الصوتي محتاج إنترنت.", true); };
+    rec.onend = () => { clearTimeout(timer); if (!grader) return; if (grader.vcRec === rec) grader.vcRec = null; if (!done && last) { done = true; gvHear(last); return; } if (grader.vcOn) setTimeout(gvListen, 40); };
+    grader.vcRec = rec; try { rec.start(); } catch (e) { grader.vcRec = null; setTimeout(gvListen, 300); }
+  }
+  async function gvHear(text) {
+    if (!grader || !grader.vcOn) return;
+    const t = D.tasks.find(x => x.id === grader.tid), code = grader.order[grader.i], e = code && D.enroll.find(x => x.student_code === code), r = HV.parseOne(text);
+    const again = () => { if (grader && grader.vcOn) setTimeout(gvListen, 40); };
+    if (!t || !e) { gvTxt("مفيش طالب معروض."); return again(); }
+    if (!r) { gvTxt("سمعت «" + String(text).trim() + "» ومفهمتش درجة. قول الدرجة تاني.", true); return again(); }
+    const go = d => { grader.i = Math.min(Math.max(0, grader.i + d), Math.max(0, grader.order.length - 1)); grader.msg = ""; drawGrader(true); };
+    if (r.cmd === "stop") { gvStop(); return drawGrader(false); }
+    if (r.cmd === "next") { go(1); return again(); }
+    if (r.cmd === "prev") { go(-1); return again(); }
+    if (r.cmd === "clear") { const G = $("#grG"), B = $("#grB"); if (G) { G.value = ""; B.value = ""; G.dispatchEvent(new Event("input")); } gvTxt("اتمسحت. قول الدرجة."); return again(); }
+    grader.vcBusy = true;
+    try {
+      if (r.cmd === "save") { await graderSave(t, code); }
+      else if (r.reject) {
+        gvTxt("مرفوض · " + e.name + "…");
+        await rpc("task_reject", { tid: t.id, codes: [code], p_on: true, p_source: "بالإملاء الصوتي" }); await refreshSubs(t);
+        if (grader) { if (grader.f === "ungraded") grader.order = graderOrder(t, "ungraded"); grader.i = Math.min(grader.i + (grader.f === "ungraded" ? 0 : 1), Math.max(0, grader.order.length - 1)); grader.msg = "اتسجّل «مرفوض» لـ" + e.name + ". هيظهرله: توجّه لأستاذ المادة."; drawGrader(true); }
+      } else if (refusedFor(t, e)) { gvTxt("التسليم ده مرفوض لغياب الطالب، مينفعش يترصد.", true); }
+      else if (r.grade < 0 || r.grade > Number(t.max_grade)) { gvTxt("سمعت " + gN(r.grade) + " والدرجة من " + gN(t.max_grade) + ". قولها تاني.", true); }
+      else { const G = $("#grG"), B = $("#grB"); G.value = gN(r.grade); if (r.bonus != null) B.value = gN(r.bonus); G.dispatchEvent(new Event("input")); gvTxt(gN(r.grade) + (r.bonus != null ? " + بونص " + gN(r.bonus) : "") + " · " + e.name + "…"); await graderSave(t, code); }
+    } catch (er) { if (grader) { grader.msg = "!" + errText(er); drawGrader(false); } }
+    if (grader) { grader.vcBusy = false; again(); }
   }
   async function graderSave(t, code) {
     const P = partsOf(t);
