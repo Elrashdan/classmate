@@ -3070,7 +3070,7 @@
     };
     rec.onerror = ev => {
       if (!voice) return;
-      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { voice.listening = false; voice.msg = "!لم يُسمح باستخدام الميكروفون. اسمح للمتصفح باستخدامه من إعدادات الموقع ثم أعد المحاولة."; drawVoice(); }
+      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { setTimeout(() => vcPerm(), 50); voice.listening = false; voice.msg = "!لم يُسمح باستخدام الميكروفون. اسمح للمتصفح باستخدامه من إعدادات الموقع ثم أعد المحاولة."; drawVoice(); }
       else if (ev.error === "network") vcMsg("!الإملاء الصوتي يحتاج إلى إنترنت.");
     };
     rec.onend = () => {
@@ -3145,6 +3145,7 @@
         <section class="vc-mic">
           <button class="vc-btn ${voice.listening ? "on" : voice.started ? "paused" : ""}" id="vcMic" aria-pressed="${voice.listening}" ${sup ? "" : "disabled"}>${voice.listening ? ICO('<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>') : ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')}<span>${voice.listening ? "إيقاف مؤقت" : voice.started ? "استكمال الإملاء" : "ابدأ الإملاء"}</span><small>${voice.listening ? "أو اضغط مسافة" : voice.started ? "متوقف مؤقتًا · اضغط مسافة للاستكمال" : ""}</small></button>
           <div class="vc-state ${voice.listening ? "on" : voice.started ? "paused" : ""}"><i></i>${voice.listening ? "يستمع الآن" : voice.started ? "متوقف مؤقتًا، ولن يُسجَّل أي كلام" : "لم يبدأ الاستماع بعد"}${voice.entries.length ? " · " + voice.entries.length + " درجة في القائمة" : ""}</div>
+          <div class="vc-perm" id="vcPerm"></div>
           <div class="vc-int" id="vcInterim" aria-live="polite"></div>
           <div id="vcMsg" class="msg small ${voice.msg.startsWith("!") ? "bad" : "ok"}" ${voice.msg ? "" : "hidden"}>${esc(voice.msg.replace(/^!/, ""))}</div>
           <details class="vc-tips small" ${store.get("cm_vc_tips") === "1" || (store.get("cm_vc_tips") == null && innerWidth > 820) ? "open" : ""}><summary><b>قل اسم الطالب ثم درجته، ثم الطالب التالي</b></summary>
@@ -3164,7 +3165,27 @@
     $("#vcSpeak").onchange = e => { voice.speak = e.target.checked; store.set("cm_vc_speak", voice.speak ? "1" : "0"); };
     $("#vcMic").onclick = () => { if (voice.listening) { vcStop(); voice.msg = ""; drawVoice(); } else vcStart(); };
     const ty = $("#vcType"); ty.onkeydown = e => { if (e.key === "Enter" && ty.value.trim()) { vcHear(ty.value); ty.value = ""; } };
-    paintInterim(); drawVoiceList();
+    paintInterim(); drawVoiceList(); vcPerm();
+  }
+  // إذن الميكروفون: حالة الإذن + زرار يطلبه من المتصفح، ولو كان مرفوض نشرح إزاي يتفتح من إعدادات المتصفح
+  let micPerm = null;
+  async function vcPerm(ask) {
+    const el = $("#vcPerm"); if (!el || !voice) return;
+    try { if (!micPerm && navigator.permissions && navigator.permissions.query) { micPerm = await navigator.permissions.query({ name: "microphone" }); micPerm.onchange = () => vcPerm(); } } catch (e) { micPerm = null; }
+    if (ask) {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw { name: "NotSupported" };
+        const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach(t => t.stop());
+        el.dataset.ok = "1"; toast("اتفتح إذن الميكروفون. اضغط «ابدأ الإملاء».");
+      } catch (e) { el.dataset.ok = ""; el.dataset.err = e && e.name || "x"; }
+    }
+    const state = micPerm ? micPerm.state : el.dataset.ok ? "granted" : el.dataset.err === "NotAllowedError" ? "denied" : "prompt";
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    const how = ios ? "من «الإعدادات» ← Safari ← الميكروفون ← «سماح»، أو اضغط «aA» جنب العنوان ← «إعدادات الموقع» ← الميكروفون ← «سماح»." : "اضغط على القفل (أو ⓘ) جنب عنوان الموقع فوق ← «الأذونات» أو «إعدادات الموقع» ← الميكروفون ← «سماح»، وبعدين حدّث الصفحة.";
+    el.innerHTML = state === "granted" ? `<span class="chip ok">الميكروفون مسموح</span>`
+      : state === "denied" ? `<div class="msg warn small"><b>المتصفح مانع الميكروفون للموقع ده.</b> ${how}<div style="margin-top:6px"><button class="btn sm" id="vcAsk">جرّب تاني</button></div></div>`
+      : `<button class="btn sm" id="vcAsk">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} السماح باستخدام الميكروفون</button>${el.dataset.err && el.dataset.err !== "NotAllowedError" ? `<span class="small muted"> مفيش ميكروفون شغال على الجهاز ده، أو المتصفح مش بيدعمه.</span>` : ""}`;
+    const b = $("#vcAsk"); if (b) b.onclick = () => vcPerm(true);
   }
   function drawVoiceList() {
     const el = $("#vcList"); if (!el || !voice) return;

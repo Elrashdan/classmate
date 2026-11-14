@@ -1745,3 +1745,7 @@ html[data-skin="nx"] .tabs button[aria-pressed=true]{ background: var(--accent);
 html[data-skin="nx"] header.top::before{ display: none !important; }
 html[data-skin="nx"] header.top{ box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent), 0 10px 30px -18px rgba(0,0,0,.35) !important; }
 .tabs button[aria-pressed=true] .muted{ color: inherit; opacity: .7; }
+.vc-perm{ display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; margin: 4px 0; }
+.vc-perm:empty{ display: none; }
+.vc-perm .btn svg{ width: 16px; height: 16px; vertical-align: -3px; }
+.vc-perm .msg{ text-align: start; width: 100%; }
