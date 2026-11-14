@@ -3171,13 +3171,15 @@
   let micPerm = null;
   async function vcPerm(ask) {
     const el = $("#vcPerm"); if (!el || !voice) return;
-    try { if (!micPerm && navigator.permissions && navigator.permissions.query) { micPerm = await navigator.permissions.query({ name: "microphone" }); micPerm.onchange = () => vcPerm(); } } catch (e) { micPerm = null; }
+    if (ask) { el.innerHTML = `<span class="small muted"><span class="spinner"></span> بيطلب الإذن من المتصفح… لو ظهرت لك رسالة اختار «سماح».</span>`; el.dataset.err = ""; }
+    const within = (p, ms, v) => Promise.race([p, new Promise(r => setTimeout(() => r(v), ms))]);
+    try { if (!micPerm && navigator.permissions && navigator.permissions.query) { micPerm = await within(navigator.permissions.query({ name: "microphone" }), 1500, null); if (micPerm) micPerm.onchange = () => vcPerm(); } } catch (e) { micPerm = null; }
     if (ask) {
-      el.innerHTML = `<span class="small muted"><span class="spinner"></span> بيطلب الإذن من المتصفح… لو ظهرت لك رسالة اختار «سماح».</span>`;
-      el.dataset.err = "";
       try {
         if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw { name: "NotSupported" };
-        const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach(t => t.stop());
+        const st = await within(navigator.mediaDevices.getUserMedia({ audio: true }), 12000, "timeout");
+        if (st === "timeout") throw { name: "Timeout" };
+        st.getTracks().forEach(t => t.stop());
         el.dataset.ok = "1"; toast("اتفتح إذن الميكروفون. اضغط «ابدأ الإملاء».");
       } catch (e) { el.dataset.ok = ""; el.dataset.err = (e && e.name) || "x"; }
     }
@@ -3194,10 +3196,13 @@
       : state === "blocked" ? box("المتصفح رفض من غير ما يسألك.", "غالبًا الميكروفون مقفول للمتصفح نفسه، أو الإذن اتقفل بعد ما اترفض كذا مرة. " + site + " " + app)
       : err === "NotSupported" ? box("المتصفح ده مش بيدعم الميكروفون.", "افتح البرنامج من Google Chrome (أندرويد أو كمبيوتر) أو Safari (آيفون).")
       : err === "NotFoundError" || err === "OverconstrainedError" ? box("مفيش ميكروفون شغال على الجهاز ده.", "وصّل ميكروفون أو سماعة بمايك، أو جرّب من الموبايل.")
+      : err === "Timeout" ? box("المتصفح ما ردّش على طلب الميكروفون.", "لو ظهرت لك علامة ميكروفون أو قفل في شريط العنوان اضغط عليها واختار «سماح». " + site + " " + app)
       : err === "NotReadableError" || err === "AbortError" ? box("الميكروفون مشغول.", "اقفل أي تطبيق تاني بيستخدمه (مكالمة، تسجيل صوت، اجتماع أونلاين) وجرّب تاني.")
       : err ? box("ما قدرناش نفتح الميكروفون (" + esc(err) + ").", site + " " + app)
       : `<button class="btn sm" id="vcAsk">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} السماح باستخدام الميكروفون</button>`;
-    const b = $("#vcAsk"); if (b) b.onclick = () => vcPerm(true);
+    const br = (UA.match(/(SamsungBrowser|MiuiBrowser|OPR|Edg|Firefox|CriOS|FxiOS|Chrome|Version)\/(\d+)/) || [])[1] || "متصفح";
+    el.insertAdjacentHTML("beforeend", `<div class="small muted vc-diag" dir="auto">${esc({ SamsungBrowser: "Samsung Internet", MiuiBrowser: "Mi Browser", OPR: "Opera", Edg: "Edge", CriOS: "Chrome (آيفون)", FxiOS: "Firefox (آيفون)", Version: "Safari" }[br] || br)} · ${ios ? "آيفون" : android ? "أندرويد" : "كمبيوتر"} · الإذن: ${esc(st0 || "؟")}${err ? " · " + esc(err) : ""} · الإملاء ${HV.supported() ? "مدعوم" : "مش مدعوم"} · ${esc((document.querySelector(".foot-b, footer") || {}).textContent ? ((document.querySelector("footer").textContent.match(/\(b\d+\)/) || [""])[0]) : "")}</div>`);
+    if (!el.dataset.wired) { el.dataset.wired = "1"; el.addEventListener("click", ev => { if (ev.target.closest("#vcAsk")) vcPerm(true); }); }
   }
   function drawVoiceList() {
     const el = $("#vcList"); if (!el || !voice) return;
