@@ -323,13 +323,24 @@
 
   /* ---------- الحركة مع التمرير (الواجهة الحديثة بس) ---------- */
   (function motion() {
-    const R = document.documentElement, SEL = ".panel, .tile, .walert-c, .sec-t, .now-c, .sband, .tw-panel, .gb-box, .bl-g, .ap-box, .msg.warn, .tiles.small > *";
+    const R = document.documentElement, SEL = ".panel, .tile, .walert-c, .sec-t, .now-c, .sband, .tw-panel, .gb-box, .bl-g, .ap-box, .msg.warn, .tiles.small > *, .kpi, .rp-sec, .tk-card, article.course, .tk-grp";
+    // b102: العنوان الكبير بيطلع كلمة كلمة من ورا قناع، والأرقام الكبيرة بتعدّ. مرة واحدة لكل عنوان/رقم جديد، مش مع كل إعادة رسم.
+    const TSEL = ".sband .sb-t > h2, .hx .hx-in > h2, .tk-over h3", seenT = {}, seenN = {};
+    const titles = () => document.querySelectorAll(TSEL).forEach((el, k) => {
+      if (el.dataset.nxt || el.children.length) return; el.dataset.nxt = "1";
+      const txt = el.textContent.trim(), slot = (el.closest("[id]") || {}).id + "|" + el.tagName + k; if (!txt || seenT[slot] === txt) return; seenT[slot] = txt;
+      el.setAttribute("aria-label", txt); el.textContent = "";
+      txt.split(/\s+/).forEach((w, i) => { const o = document.createElement("span"); o.className = "nx-w"; o.setAttribute("aria-hidden", "true"); const n = document.createElement("i"); n.textContent = w; n.style.setProperty("--i", i); o.appendChild(n); el.appendChild(o); el.appendChild(document.createTextNode(" ")); });
+    });
+    const countUp = el => { const m = /^(\d+)(%?)$/.exec(el.textContent.trim()); if (!m || el.children.length) return; const to = +m[1], suf = m[2], lab = (el.nextElementSibling || {}).textContent || "", key = lab + "|" + ((el.closest("[id]") || {}).id || "");
+      if (el.dataset.nxn) return; el.dataset.nxn = "1"; if (seenN[key] === to || to < 2) { seenN[key] = to; return; } const from = seenN[key] != null ? seenN[key] : 0; seenN[key] = to;
+      const t0 = performance.now(), D = 800, step = t => { if (!el.isConnected) return; const p = Math.min(1, (t - t0) / D), e = 1 - Math.pow(1 - p, 4); el.textContent = Math.round(from + (to - from) * e) + suf; if (p < 1) requestAnimationFrame(step); }; el.textContent = from + suf; requestAnimationFrame(step); };
     const reduce = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
     const on = () => R.dataset.skin === "nx" && R.dataset.motion !== "off" && !reduce();
     let io = null, ticking = false;
     const mark = () => {
       if (!on()) { document.querySelectorAll(".nx-r").forEach(e => e.classList.remove("nx-r", "nx-in")); return; }
-      if (!io && "IntersectionObserver" in window) io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("nx-in"); io.unobserve(e.target); } }), { threshold: .08, rootMargin: "0px 0px -6% 0px" });
+      if (!io && "IntersectionObserver" in window) io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { const x = e.target; x.classList.add("nx-in"); io.unobserve(x); setTimeout(() => x.classList.remove("nx-r", "nx-in"), 1100); } }), { threshold: .08, rootMargin: "0px 0px -6% 0px" });
       const vh = innerHeight;
       document.querySelectorAll(SEL).forEach(el => {
         if (el.dataset.nxr || el.closest(".bell-pop, .ap-dlg, #overlay, .cpk-pop, .gb-box.full")) return; el.dataset.nxr = "1";
@@ -338,6 +349,7 @@
         el.classList.add("nx-r"); if (io) io.observe(el); else el.classList.add("nx-in");
       });
       document.querySelectorAll(".home .tiles:not(.small)").forEach(t => [...t.children].forEach((c, i) => c.style.setProperty("--nxi", i)));
+      titles(); document.querySelectorAll(".kpi > b").forEach(countUp);
       frame();
     };
     const frame = () => {
@@ -637,7 +649,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b101)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b102)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
