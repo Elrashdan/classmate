@@ -18,6 +18,21 @@
   CM.fmtD = t => new Date(t).toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
   CM.mmss = ms => { ms = Math.max(0, ms); const m = Math.floor(ms / 6e4), s = Math.floor(ms % 6e4 / 1000); return m + ":" + String(s).padStart(2, "0"); };
   CM.dist = m => m == null ? "" : m >= 1000 ? (m / 1000).toFixed(1) + " كم" : m + " م";
+  // سحب العنصر يمين أو شمال لحذفه (اللمس والماوس)
+  CM.swipeDel = function (root, onDel) {
+    root.querySelectorAll("[data-sw]").forEach(el => {
+      let x0 = null, y0 = 0, dx = 0, on = false, id = null;
+      el.addEventListener("pointerdown", e => { if (e.button > 0 || e.target.closest("button,a,select,input")) return; x0 = e.clientX; y0 = e.clientY; dx = 0; on = false; id = e.pointerId; });
+      el.addEventListener("pointermove", e => { if (x0 == null || e.pointerId !== id) return; const mx = e.clientX - x0, my = e.clientY - y0;
+        if (!on) { if (Math.abs(my) > 10 && Math.abs(my) > Math.abs(mx)) { x0 = null; return; } if (Math.abs(mx) < 10) return; on = true; el.classList.add("sw-on"); try { el.setPointerCapture(id); } catch (er) {} }
+        dx = mx; el.style.transform = `translateX(${dx}px)`; el.style.opacity = String(Math.max(.25, 1 - Math.abs(dx) / 260)); });
+      const end = () => { if (x0 == null) return; x0 = null; if (!on) return; on = false; el.classList.remove("sw-on");
+        if (Math.abs(dx) > Math.min(110, el.offsetWidth * .3)) { el.style.transition = "transform .18s, opacity .18s"; el.style.transform = `translateX(${dx > 0 ? "" : "-"}110%)`; el.style.opacity = "0"; setTimeout(() => onDel(el.dataset.sw, el), 170); }
+        else { el.style.transition = "transform .18s, opacity .18s"; el.style.transform = ""; el.style.opacity = ""; setTimeout(() => el.style.transition = "", 200); } };
+      el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+      el.addEventListener("click", e => { if (Math.abs(dx) > 10) { e.preventDefault(); e.stopPropagation(); dx = 0; } }, true);
+    });
+  };
   CM.store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
@@ -616,7 +631,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b96)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b97)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

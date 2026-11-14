@@ -847,14 +847,26 @@
     const h = m / 60; if (h < 24) return "منذ " + (Math.round(h) === 1 ? "ساعة" : Math.round(h) === 2 ? "ساعتين" : Math.round(h) + " ساعات"); const d = Math.floor(h / 24); return "منذ " + (d === 1 ? "يوم" : d === 2 ? "يومين" : d <= 10 ? d + " أيام" : d + " يومًا"); };
   const ageDays = ts => ts ? (Date.now() - new Date(ts).getTime()) / 864e5 : 0;
   const lateCls = it => it.kind === "att" && it.live ? "" : ageDays(it.since) >= 3 ? " late" : ageDays(it.since) >= 1 ? " old" : "";
-  const bellCount = () => feed ? feed.mine.length + (feed.unread || 0) + (me.role === "admin" ? (+feed.admin.requests || 0) + (+feed.admin.tickets || 0) : 0) : 0;
+  // «قراءة الكل» بتحفظ آخر عدد شافه لكل عنصر (ack)، و«حذف» عنصر مطلوب منك بيخفيه لحد ما يزيد عدده (hide). الاتنين على الجهاز ده.
+  const bjGet = k => { try { return JSON.parse(store.get(k) || "{}") || {}; } catch (e) { return {}; } };
+  const bjSet = (k, o) => store.set(k, JSON.stringify(o));
+  const bKey = it => it.kind + "|" + it.course_id + "|" + (it.ref || "");
+  const bVis = l => { const h = bjGet("cm_bell_hide"); return (l || []).filter(it => !(h[bKey(it)] >= it.n)); };
+  const bellCount = () => { if (!feed) return 0; const a = bjGet("cm_bell_ack"), isA = me.role === "admin";
+    const newIt = bVis(feed.mine).filter(it => !(a[bKey(it)] >= it.n)).length;
+    const rq = isA ? Math.max(0, (+feed.admin.requests || 0) - (+a["adm:rq"] || 0)) : 0, tk = isA ? Math.max(0, (+feed.admin.tickets || 0) - (+a["adm:tk"] || 0)) : 0;
+    return newIt + (feed.unread || 0) + rq + tk; };
+  function bellAckAll() { if (!feed) return; const a = {}; [...feed.mine, ...(feed.dept || [])].forEach(it => a[bKey(it)] = it.n); a["adm:rq"] = +((feed.admin || {}).requests) || 0; a["adm:tk"] = +((feed.admin || {}).tickets) || 0; bjSet("cm_bell_ack", a); }
+  function bellHideItem(key, n) { const h = bjGet("cm_bell_hide"); h[key] = n; const keep = {}; if (feed) [...feed.mine, ...(feed.dept || [])].forEach(it => { const k = bKey(it); if (h[k] != null) keep[k] = h[k]; }); keep[key] = n; bjSet("cm_bell_hide", keep); }
+  const swipeDel = CM.swipeDel;
+  const TRASH = '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>';
   async function loadFeed() { try { feed = await rpc("staff_feed"); } catch (e) { if (!feed) feed = null; } bellBadge(); const p = $("#bellPop"); if (p && !p.hidden) bellRender(); }
   function bellBadge() { meRefresh(); const n = bellCount(), b = $("#bellN"); if (b) { b.hidden = !n; b.textContent = n > 99 ? "99+" : n; } const bt = $("#bellBtn"); if (bt) bt.classList.toggle("on", !!n); }
   function bellItem(it, dept) {
     const k = FK[it.kind] || FK.appeal;
-    return `<article class="bl-it${lateCls(it)}"><span class="bl-ic k-${it.kind}">${ICO(k.ic)}</span><div class="bl-tx"><b>${esc(it.title)}</b>
+    return `<article class="bl-it${lateCls(it)}" data-sw="it:${esc(bKey(it))}:${it.n}"><span class="bl-ic k-${it.kind}">${ICO(k.ic)}</span><div class="bl-tx"><b>${esc(it.title)}</b>
       <small>${it.n} ${k.u}${it.kind === "att" && it.live ? " · المحاضرة جارية الآن" : it.since ? " · " + ago(it.since) : ""}${lateCls(it) === " late" ? ` · <em class="bad-t">متأخر</em>` : ""}${dept && it.reminded ? ` · ذُكّر الفريق ${ago(it.reminded)}` : ""}</small></div>
-      <div class="bl-act">${dept ? `<button class="btn xs ghost" data-blrem="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}" title="إشعار لفريق المادة بأن هذا ينتظر الرد">تذكير الفريق</button>` : ""}<button class="btn xs" data-blgo="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}">فتح</button></div></article>`;
+      <div class="bl-act">${dept ? `<button class="btn xs ghost" data-blrem="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}" title="إشعار لفريق المادة بأن هذا ينتظر الرد">تذكير الفريق</button>` : ""}<button class="btn xs" data-blgo="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}">فتح</button><button class="btn xs ghost bl-del" data-bldel="it:${esc(bKey(it))}:${it.n}" title="إخفاء" aria-label="إخفاء">${ICO(TRASH)}</button></div></article>`;
   }
   function bellGroups(list, dept) {
     const by = {}; list.forEach(it => (by[it.course_id] = by[it.course_id] || { name: it.course, team: it.team, items: [] }).items.push(it));
@@ -868,21 +880,33 @@
     const kinds = ["all", ...Object.keys(FK)], filt = l => bellF === "all" ? l : bellF === "late" ? l.filter(it => lateCls(it) === " late") : l.filter(it => it.kind === bellF);
     let body = "";
     if (bellTab === "mine") {
-      body = `<h4 class="bl-sec">مطلوب منك <span class="chip ${feed.mine.length ? "warn" : "ok"}">${feed.mine.length}</span></h4>${feed.mine.length ? bellGroups(feed.mine, false) : `<div class="bl-empty">لا شيء ينتظر ردّك في موادك الآن.</div>`}
-        <h4 class="bl-sec">الإشعارات ${feed.unread ? `<span class="chip warn">${feed.unread} جديد</span>` : ""}</h4>
-        ${feed.notes.length ? `<div class="bl-notes">${feed.notes.map(n => `<div class="bl-n${n.read ? "" : " new"}"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${ago(n.at)}</small></div>`).join("")}</div>` : `<div class="bl-empty">لا توجد إشعارات بعد. يصلك هنا كل تظلم جديد وكل تذكير من مسؤول القسم وردود رسائلك.</div>`}`;
+      const vm = bVis(feed.mine), hid = feed.mine.length - vm.length;
+      body = `<h4 class="bl-sec">مطلوب منك <span class="chip ${vm.length ? "warn" : "ok"}">${vm.length}</span>${hid ? `<button class="btn xs ghost bl-sa" id="blUnhide">إظهار المخفي (${hid})</button>` : ""}</h4>${vm.length ? bellGroups(vm, false) : `<div class="bl-empty">${hid ? "خفيت كل اللي مطلوب منك. هيرجع يظهر لو جه جديد." : "لا شيء ينتظر ردّك في موادك الآن."}</div>`}
+        <h4 class="bl-sec">الإشعارات ${feed.unread ? `<span class="chip warn">${feed.unread} جديد</span>` : ""}${feed.notes.length ? `<button class="btn xs ghost danger bl-sa" id="blDelAll">حذف الكل</button>` : ""}</h4>
+        ${feed.notes.length ? `<div class="bl-notes">${feed.notes.map(n => `<div class="bl-n${n.read ? "" : " new"}" data-sw="n:${n.id}"><div class="bl-ntx"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${ago(n.at)}</small></div><button class="btn xs ghost bl-del" data-bldel="n:${n.id}" title="حذف" aria-label="حذف">${ICO(TRASH)}</button></div>`).join("")}</div>` : `<div class="bl-empty">لا توجد إشعارات. يصلك هنا كل تظلم جديد وكل تذكير من مسؤول القسم وردود رسائلك.</div>`}
+        ${feed.notes.length || vm.length ? `<p class="small muted bl-hint">اسحب أي إشعار يمين أو شمال، أو اضغط سلة المهملات، عشان تحذفه.</p>` : ""}`;
     } else {
-      const d = feed.dept, a = feed.admin || {}, list = filt(d), late = d.filter(it => lateCls(it) === " late").length;
+      const d = bVis(feed.dept), a = feed.admin || {}, list = filt(d), late = d.filter(it => lateCls(it) === " late").length;
       body = `${a.requests || a.tickets ? `<div class="bl-q">${a.requests ? `<button class="walert-c info" data-goat="requests"><span><b>طلبات تسجيل (${a.requests})</b><small>معيدون ومحاضرون بانتظار موافقتك</small></span><em>مراجعة ←</em></button>` : ""}${a.tickets ? `<button class="walert-c info" data-goat="inbox"><span><b>رسائل بانتظار ردك (${a.tickets})</b><small>استفسارات وشكاوى ومقترحات</small></span><em>فتح ←</em></button>` : ""}</div>` : ""}
         <p class="small muted bl-hint">ما ينتظر الرد في مواد الزملاء، الأقدم أولًا. «تذكير الفريق» يرسل لهم إشعارًا على الهاتف، و«فتح» يدخلك المادة لتتصرف بنفسك.</p>
         <div class="cchips bl-f">${kinds.map(k => `<button type="button" class="cchip" data-blf="${k}" aria-pressed="${bellF === k}">${k === "all" ? "الكل " + d.length : FK[k].t + " " + d.filter(it => it.kind === k).length}</button>`).join("")}<button type="button" class="cchip" data-blf="late" aria-pressed="${bellF === "late"}">متأخر ${late}</button></div>
         ${list.length ? bellGroups(list, true) : `<div class="bl-empty">${d.length ? "لا شيء في هذا التصنيف." : "كل المواد مُتابَعة، لا شيء متأخر."}</div>`}`;
     }
-    p.innerHTML = `<div class="bl-h"><b>التنبيهات</b><button class="btn xs ghost" id="bellRef" title="تحديث">↻</button><button class="btn xs ghost" id="bellX" aria-label="إغلاق">✕</button></div>
-      ${adm ? `<div class="bl-tabs" role="tablist"><button role="tab" data-blt="mine" aria-selected="${bellTab === "mine"}">تنبيهاتي <i>${feed.mine.length + (feed.unread || 0)}</i></button><button role="tab" data-blt="dept" aria-selected="${bellTab === "dept"}">متابعة القسم <i>${feed.dept.length + (+feed.admin.requests || 0) + (+feed.admin.tickets || 0)}</i></button></div>` : ""}
+    p.innerHTML = `<div class="bl-h"><b>التنبيهات</b><button class="btn xs ${bellCount() ? "primary" : "ghost"}" id="bellAll" title="يصفّر عداد الجرس">قراءة الكل</button><button class="btn xs ghost" id="bellRef" title="تحديث">↻</button><button class="btn xs ghost" id="bellX" aria-label="إغلاق">✕</button></div>
+      ${adm ? `<div class="bl-tabs" role="tablist"><button role="tab" data-blt="mine" aria-selected="${bellTab === "mine"}">تنبيهاتي <i>${bVis(feed.mine).length + (feed.unread || 0)}</i></button><button role="tab" data-blt="dept" aria-selected="${bellTab === "dept"}">متابعة القسم <i>${bVis(feed.dept).length + (+feed.admin.requests || 0) + (+feed.admin.tickets || 0)}</i></button></div>` : ""}
       <div class="bl-b">${body}</div>`;
     $("#bellX").onclick = bellClose;
     $("#bellRef").onclick = () => { feed = null; bellRender(); loadFeed(); };
+    $("#bellAll").onclick = () => { bellAckAll(); if (feed.unread) { feed.notes.forEach(n => n.read = true); feed.unread = 0; rpc("staff_notes_read").catch(() => {}); } bellBadge(); bellRender(); toast("اتصفّر عداد التنبيهات."); };
+    const del = (k, el) => { const [t, a, b] = [k.slice(0, k.indexOf(":")), k.slice(k.indexOf(":") + 1, k.lastIndexOf(":")), k.slice(k.lastIndexOf(":") + 1)];
+      if (t === "n") { const id = +k.slice(2); feed.notes = feed.notes.filter(n => n.id !== id); rpc("staff_notes_hide", { p_ids: [id] }).catch(e => { toast(errText(e)); loadFeed(); }); }
+      else { bellHideItem(a, +b); }
+      bellBadge(); bellRender(); };
+    p.querySelectorAll("[data-bldel]").forEach(b => b.onclick = () => { const el = b.closest("[data-sw]"); if (el) { el.style.transition = "transform .18s, opacity .18s"; el.style.transform = "translateX(-110%)"; el.style.opacity = "0"; } setTimeout(() => del(b.dataset.bldel, el), 170); });
+    swipeDel(p, del);
+    const da = $("#blDelAll"); if (da) da.onclick = () => { if (da.dataset.c !== "1") { da.dataset.c = "1"; da.textContent = "متأكد؟ اضغط تاني"; setTimeout(() => { if (da.isConnected) { da.dataset.c = ""; da.textContent = "حذف الكل"; } }, 3000); return; }
+      feed.notes = []; feed.unread = 0; bellBadge(); bellRender(); rpc("staff_notes_hide", { p_ids: null }).then(() => toast("اتحذفت كل الإشعارات.")).catch(e => { toast(errText(e)); loadFeed(); }); };
+    const uh = $("#blUnhide"); if (uh) uh.onclick = () => { store.del("cm_bell_hide"); bellBadge(); bellRender(); };
     p.querySelectorAll("[data-blt]").forEach(b => b.onclick = () => { bellTab = b.dataset.blt; bellF = "all"; bellRender(); });
     p.querySelectorAll("[data-blf]").forEach(b => b.onclick = () => { bellF = b.dataset.blf; bellRender(); });
     p.querySelectorAll("[data-goat]").forEach(b => b.onclick = () => { bellClose(); atab = b.dataset.goat; store.set("cm_atab", atab); view = "admin"; stopLoops(); render(); });

@@ -1761,3 +1761,20 @@ html,body{overflow-x:clip}
   .rq-done .tbl-wrap td.nm{flex:1 1 100%}
   .rq-done .tbl-wrap td .mono{overflow-wrap:anywhere}
 }
+/* b97: نافذة التنبيهات — سكرول حقيقي + حذف بالسحب أو السلة */
+.bl-b{display:flex;flex-direction:column;min-height:0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.bl-b>*{flex-shrink:0}
+.bl-h .btn.primary{margin-inline-end:2px}
+.bl-sec .bl-sa{margin-inline-start:auto}
+.bl-n{grid-template-columns:1fr auto;align-items:start;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.bl-ntx{display:grid;gap:2px;min-width:0}
+.bl-it{touch-action:pan-y}
+.bl-it.sw-on,.bl-n.sw-on{cursor:grabbing;position:relative;z-index:1}
+.bl-del{padding-inline:7px;color:var(--muted)}
+.bl-del svg{width:16px;height:16px}
+.bl-del:hover{color:var(--bad)}
+.bl-g,.bl-notes{overflow:hidden}
+.nt-list li{grid-template-columns:1fr auto;align-items:start;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.nt-tx{display:grid;gap:2px;min-width:0}
+.nt-del{padding-inline:7px;color:var(--muted)}.nt-del svg{width:16px;height:16px}
+.nt-list{overscroll-behavior:contain}

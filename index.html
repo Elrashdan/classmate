@@ -599,8 +599,11 @@
   }
   const ago = t => { const m = Math.round((Date.now() - new Date(t)) / 60000); return m < 1 ? "الآن" : m < 60 ? "منذ " + m + " دقيقة" : m < 1440 ? "منذ " + Math.round(m / 60) + " ساعة" : new Date(t).toLocaleDateString("ar-EG", { day: "numeric", month: "short" }); };
   function ntPanel() {
-    return `<div class="panel nt-panel"><div class="row between"><h3>التنبيهات</h3><button class="btn xs ghost" id="ntClose">إغلاق</button></div>
-      ${nt.items && nt.items.length ? `<ul class="nt-list">${nt.items.map(n => `<li class="${n.read_at ? "" : "new"}"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${esc(ago(n.created_at))}</small></li>`).join("")}</ul>` : `<p class="muted small">لا توجد تنبيهات بعد. ستصلك هنا تنبيهات بدء المحاضرات والتكليفات الجديدة وإعلان الدرجات.</p>`}
+    const TR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
+    const has = nt.items && nt.items.length;
+    return `<div class="panel nt-panel"><div class="row between"><h3>التنبيهات</h3><div class="row" style="gap:6px">${has ? `<button class="btn xs ghost danger" id="ntDelAll">حذف الكل</button>` : ""}<button class="btn xs ghost" id="ntClose">إغلاق</button></div></div>
+      ${has ? `<ul class="nt-list">${nt.items.map(n => `<li class="${n.read_at ? "" : "new"}" data-sw="${n.id}"><div class="nt-tx"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${esc(ago(n.created_at))}</small></div><button class="btn xs ghost nt-del" data-ntdel="${n.id}" title="حذف" aria-label="حذف">${TR}</button></li>`).join("")}</ul>
+        <p class="small muted" style="margin:0">اسحب أي تنبيه يمين أو شمال، أو اضغط سلة المهملات، عشان تحذفه.</p>` : `<p class="muted small">لا توجد تنبيهات. ستصلك هنا تنبيهات بدء المحاضرات والتكليفات الجديدة وإعلان الدرجات.</p>`}
       ${pushOk() && nt.sub !== "on" ? `<button class="btn sm" id="ntPush">فعّل الإشعارات على هذا الجهاز</button>` : nt.sub === "on" ? `<p class="small ok-t">الإشعارات مفعّلة على هذا الجهاز.</p>` : ""}</div>`;
   }
   // حالة إشعارات هذا الجهاز: on / off (يمكن التفعيل) / denied / install (آيفون من Safari: لازم الشاشة الرئيسية) / none
@@ -697,6 +700,10 @@
   }
   function wireNotifs() {
     const b = $("#ntBtn"); if (b) b.onclick = () => { nt.open = !nt.open; renderHome(); if (nt.open && nt.unread) rpc("student_notifications_read", { p_token: token }).then(() => { nt.unread = 0; const x = document.querySelector(".nt-badge"); if (x) x.remove(); }).catch(() => {}); };
+    const ntDel = id => { id = +id; nt.items = (nt.items || []).filter(n => n.id !== id); renderHome(); rpc("student_notifications_hide", { p_token: token, p_ids: [id] }).catch(() => {}); };
+    const ntL = document.querySelector(".nt-list"); if (ntL) { CM.swipeDel(ntL, k => ntDel(k)); ntL.querySelectorAll("[data-ntdel]").forEach(b => b.onclick = () => { const li = b.closest("li"); li.style.transition = "transform .18s, opacity .18s"; li.style.transform = "translateX(-110%)"; li.style.opacity = "0"; setTimeout(() => ntDel(b.dataset.ntdel), 170); }); }
+    const nda = $("#ntDelAll"); if (nda) nda.onclick = () => { if (nda.dataset.c !== "1") { nda.dataset.c = "1"; nda.textContent = "متأكد؟ اضغط تاني"; setTimeout(() => { if (nda.isConnected) { nda.dataset.c = ""; nda.textContent = "حذف الكل"; } }, 3000); return; }
+      nt.items = []; nt.unread = 0; renderHome(); rpc("student_notifications_hide", { p_token: token, p_ids: null }).catch(() => {}); };
     const c = $("#ntClose"); if (c) c.onclick = () => { nt.open = false; if (nt.items) nt.items.forEach(n => n.read_at = n.read_at || new Date().toISOString()); renderHome(); };
     const on = $("#pushOn"), on2 = $("#ntPush"); [on, on2].forEach(x => { if (x) x.onclick = enablePush; });
     wireGate(); wireTT();

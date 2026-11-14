@@ -5626,3 +5626,41 @@ do $$ declare d text; o text; begin
   if d = o or position('rejected_at is not null))' in d) = 0 or position('''rejected''' in d) = 0 then raise exception 'update54: student_tasks لم يتغيّر'; end if;
   execute d;
 end $$;
+-- ===================== update-55: حذف الإشعارات (حذف ناعم) =====================
+alter table public.notifications add column if not exists hidden_at timestamptz;
+
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.staff_feed()'::regprocedure) into f; o := f;
+  f := replace(f, 'from notifications where student_code = ''staff:'' || me order by id desc limit 40', 'from notifications where student_code = ''staff:'' || me and hidden_at is null order by id desc limit 40');
+  if f = o then raise exception 'staff_feed pattern not found'; end if;
+  execute f;
+  select pg_get_functiondef('public.student_notifications(text)'::regprocedure) into f; o := f;
+  f := replace(f, 'from notifications where student_code = code order by id desc limit 40', 'from notifications where student_code = code and hidden_at is null order by id desc limit 40');
+  if f = o then raise exception 'student_notifications pattern not found'; end if;
+  execute f;
+end $do$;
+
+-- p_ids = null يعني الكل
+create or replace function public.staff_notes_hide(p_ids bigint[]) returns int
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  if staff_role() is null then raise exception 'not_allowed'; end if;
+  update notifications set hidden_at = now(), read_at = coalesce(read_at, now())
+   where student_code = 'staff:' || my_email() and hidden_at is null and (p_ids is null or id = any(p_ids));
+  get diagnostics n = row_count; return n;
+end $$;
+create or replace function public.student_notifications_hide(p_token text, p_ids bigint[]) returns int
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token); n int;
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  update notifications set hidden_at = now(), read_at = coalesce(read_at, now())
+   where student_code = code and hidden_at is null and (p_ids is null or id = any(p_ids));
+  get diagnostics n = row_count; return n;
+end $$;
+revoke all on function public.staff_notes_hide(bigint[]), public.student_notifications_hide(text, bigint[]) from public, anon;
+grant execute on function public.staff_notes_hide(bigint[]) to authenticated;
+grant execute on function public.student_notifications_hide(text, bigint[]) to anon, authenticated;
