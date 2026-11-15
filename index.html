@@ -799,7 +799,7 @@
       rpc("student_appeals", { p_token: token }).then(a => { appeals = a || []; if (tkId) renderTask(); }).catch(() => {});
       rpc("student_appeal_windows", { p_token: token }).then(w => { apWins = w || {}; if (tkId) renderTask(); }).catch(() => {});
       const r = await rpc("student_tasks", { p_token: token });
-      tasks = r.tasks || []; tasksAt = Date.now(); tkOff = Number(r.now_ms) - Date.now();
+      tasks = r.tasks || []; tasks.forEach(t => { if (t.mine) t.mine.minus = Number(t.minus) || 0; }); tasksAt = Date.now(); tkOff = Number(r.now_ms) - Date.now();
       if (home) renderHome();
       if (tkId) renderTask();
     } catch (e) { if (String(e.message || "").includes("not_signed_in")) signOut(); }
@@ -812,7 +812,7 @@
   }
   const dueTxt = t => new Date(t.due_at).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
   const gNum = n => Number(n).toLocaleString("en", { maximumFractionDigits: 2 });
-  const tot = m => Number(m.grade) + Number(m.bonus || 0);
+  const tot = m => Math.max(0, Number(m.grade) + Number(m.bonus || 0) - Number(m.minus || 0));
   const sDL = t => t.present_day ? "يوم طرح المشروع" : t.mode === "manual" ? "يوم الاستلام" : "يوم التسليم";
   const presTxt = t => new Date(t.present_day + "T12:00:00").toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
   function tkState(t) {
@@ -894,8 +894,9 @@
       ${!t.at_home && t.absent_rule !== "refuse" && t.present_day && m.grade == null ? `<div class="msg warn small">من يغيب عن محاضرة يوم طرح المشروع يُحسب تسليمه متأخرًا.</div>` : ""}
       ${!t.at_home && t.absent_rule === "refuse" && !t.refused && m.grade == null ? `<div class="msg warn small">لا يُقبل ${t.mode === "manual" ? "المشروع" : "التسليم"} ممن يغيب عن محاضرة ${sDL(t)}.</div>` : ""}
       ${t.ext_until && m.grade == null && new Date(t.due_at).getTime() < nowS() ? `<div class="msg ok"><b>فُتح لك تسليم استثنائي</b> حتى ${esc(extTxt(t))}${t.ext_reason ? ` (${esc(t.ext_reason)})` : ""}. لا يُحسب تسليمك متأخرًا.</div>` : ""}
+      ${Number(t.minus) && m.grade == null ? `<div class="msg warn"><b>عليك خصم ${gNum(t.minus)} من درجة هذا التكليف.</b>${t.minus_note ? " السبب: " + esc(t.minus_note) + "." : ""} هيتخصم من درجتك بعد التصحيح.</div>` : ""}
       ${t.refused && m.grade == null ? `<div class="msg bad">لا يُقبل ${t.mode === "manual" ? "مشروعك" : "تسليمك"} في هذا التكليف لأنك غبت في محاضرة ${sDL(t)}. إن كان لك عذر (مرضي أو غيره) فراجِع المحاضر ليقبله.</div>` : ""}
-      ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${Array.isArray(t.parts) && t.parts.length && Array.isArray(m.parts) ? `<div class="tk-parts">${t.parts.map((p, i) => `<div><span>${esc(p.name)}</span><b>${m.parts[i] == null ? "—" : gNum(m.parts[i])} / ${gNum(p.max)}</b></div>`).join("")}</div>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
+      ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${Number(t.minus) ? `<span class="small">${gNum(Number(m.grade) + Number(m.bonus || 0))} − ${gNum(t.minus)} خصم${t.minus_note ? " (" + esc(t.minus_note) + ")" : ""}</span>` : ""}${Array.isArray(t.parts) && t.parts.length && Array.isArray(m.parts) ? `<div class="tk-parts">${t.parts.map((p, i) => `<div><span>${esc(p.name)}</span><b>${m.parts[i] == null ? "—" : gNum(m.parts[i])} / ${gNum(p.max)}</b></div>`).join("")}</div>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}
       ${appealHtml(t)}
       ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div>

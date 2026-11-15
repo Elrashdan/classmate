@@ -5729,3 +5729,51 @@ end $$;
 revoke all on function public.staff_notes_mark(bigint[]), public.student_notifications_mark(text, bigint[]) from public, anon;
 grant execute on function public.staff_notes_mark(bigint[]) to authenticated;
 grant execute on function public.student_notifications_mark(text, bigint[]) to anon, authenticated;
+-- ===================== update-57: خصم لطلبة معيّنين في التكليف =====================
+-- tasks.minus = {"كود الطالب": قيمة الخصم}. المجموع = الدرجة + البونص − الخصم (ومينزلش عن صفر).
+alter table public.tasks add column if not exists minus jsonb not null default '{}'::jsonb;
+alter table public.tasks add column if not exists minus_note text not null default '';
+
+create or replace function public.task_minus(tid uuid, code text) returns numeric
+language sql stable security definer set search_path = public as $$
+  select coalesce((select nullif(t.minus->>code, '')::numeric from tasks t where t.id = tid), 0);
+$$;
+revoke all on function public.task_minus(uuid, text) from public, anon;
+grant execute on function public.task_minus(uuid, text) to authenticated;
+
+create or replace function public.set_task_minus(tid uuid, p_minus jsonb, p_note text) returns void
+language plpgsql security definer set search_path = public as $$
+declare t tasks; k text; v numeric; clean jsonb := '{}'::jsonb; n int := 0;
+begin
+  select * into t from tasks where id = tid;
+  if t.id is null then raise exception 'not_found'; end if;
+  if not can_edit_task(t) then raise exception 'not_allowed'; end if;
+  for k in select jsonb_object_keys(coalesce(p_minus, '{}'::jsonb)) loop
+    v := nullif(p_minus->>k, '')::numeric;
+    if v is null or v <= 0 then continue; end if;
+    if v > t.max_grade then raise exception 'minus_range'; end if;
+    if not exists (select 1 from enrollments e where e.course_id = t.course_id and e.student_code = k) then continue; end if;
+    clean := clean || jsonb_build_object(k, v); n := n + 1;
+  end loop;
+  if clean = t.minus and coalesce(left(trim(p_note), 300), '') = t.minus_note then return; end if;
+  update tasks set minus = clean, minus_note = coalesce(left(trim(p_note), 300), '') where id = tid;
+  perform log_audit(t.course_id, case when n = 0 then 'ألغى الخصم في التكليف «' || t.title || '»' else 'حدّد خصمًا لـ' || n || ' طالب في التكليف «' || t.title || '»' end);
+end $$;
+revoke all on function public.set_task_minus(uuid, jsonb, text) from public, anon;
+grant execute on function public.set_task_minus(uuid, jsonb, text) to authenticated;
+
+do $do$
+declare f text; o text; r record;
+begin
+  select pg_get_functiondef('public.student_tasks(text)'::regprocedure) into f; o := f;
+  f := replace(f, $a$'excused', task_excused(t.id, code),$a$, $b$'excused', task_excused(t.id, code),
+      'minus', task_minus(t.id, code), 'minus_note', case when t.minus ? code then t.minus_note end,$b$);
+  if f = o then raise exception 'student_tasks pattern not found'; end if;
+  execute f;
+  for r in select p.oid from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('student_appeal', 'trg_notify_task') loop
+    select pg_get_functiondef(r.oid) into f; o := f;
+    f := replace(f, 's.grade + coalesce(s.bonus, 0)', 'greatest(0, s.grade + coalesce(s.bonus, 0) - task_minus(s.task_id, s.student_code))');
+    if f = o then raise exception 'total pattern not found in %', r.oid::regprocedure; end if;
+    execute f;
+  end loop;
+end $do$;

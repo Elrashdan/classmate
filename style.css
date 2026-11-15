@@ -1954,3 +1954,18 @@ html[data-skin="nx"] body{ margin: var(--frame-gap); min-height: calc(100vh - 2 
 @media (max-width: 760px){ html[data-skin="nx"]{ --frame-gap: 6px; --frame-r: 24px; } html[data-skin="nx"] .wrap{ padding-inline: 11px; } }
 @media print{ html[data-skin="nx"] body{ margin: 0; border-radius: 0; box-shadow: none; } html[data-skin="nx"]{ background: #fff; } }
 #nxCurtain .mark{ --logo-dot: var(--nx-dark); } #nxCurtain .wm{ direction: ltr; }
+/* b104: خصم لطلبة معيّنين في فورم التكليف */
+.tf-minus #tfMinusBox{display:grid;gap:10px;margin-top:10px}
+.tfm-top{display:grid;grid-template-columns:minmax(120px,170px) minmax(0,1fr);gap:10px}
+.tfm-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tfm-bar input[type=search]{flex:1 1 180px;min-width:0}
+.tfm-list{display:grid;gap:4px;max-height:260px;overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:14px;padding:6px;background:var(--surface)}
+.tfm-it{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:10px;cursor:pointer}
+.tfm-it:hover{background:var(--sunk)}
+.tfm-it.on{background:color-mix(in srgb,var(--bad) 9%,var(--surface))}
+.tfm-it>input[type=checkbox]{flex:0 0 auto;width:18px;height:18px}
+.tfm-nm{display:grid;min-width:0;flex:1 1 auto}
+.tfm-nm b{font-size:.9rem;font-weight:600;line-height:1.35}
+.tfm-nm small{color:var(--muted);font-size:.74rem}
+.tfm-it input.tfm-v{width:72px!important;min-width:0;max-width:72px;flex:0 0 72px;text-align:center;padding:5px 6px;height:auto}
+@media (max-width:600px){.tfm-top{grid-template-columns:minmax(0,1fr)}}
