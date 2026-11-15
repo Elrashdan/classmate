@@ -5777,3 +5777,65 @@ begin
     execute f;
   end loop;
 end $do$;
+-- ===================== update-58: أستاذ المادة (من الجدول الدراسي تلقائيًا، أو يُكتب يدويًا) =====================
+alter table public.courses add column if not exists prof_name text not null default '';
+
+-- المصدر: اسم مكتوب يدويًا ← محاضرو المادة في الجدول الدراسي المنشور (الأقرب لسنة المادة وترمها) ← صاحب المادة
+create or replace function public.course_prof_info(cid uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare c courses; nm text; tid uuid;
+begin
+  select * into c from courses where id = cid;
+  if c.id is null then return null; end if;
+  if trim(c.prof_name) <> '' then return jsonb_build_object('name', trim(c.prof_name), 'src', 'manual'); end if;
+  select tt.id into tid from timetables tt
+   where tt.published and exists (select 1 from tt_slots s where s.tt_id = tt.id and s.course_id = cid)
+   order by (tt.academic_year is not distinct from c.academic_year and tt.term is not distinct from c.term) desc, tt.updated_at desc limit 1;
+  if tid is not null then
+    select string_agg(n, '، ' order by cnt desc, n) into nm from (
+      select trim(st->>'n') n, count(*) cnt
+        from tt_slots s, jsonb_array_elements(case when jsonb_typeof(s.team) = 'array' then s.team else '[]'::jsonb end) g,
+             jsonb_array_elements(case when jsonb_typeof(g->'staff') = 'array' then g->'staff' else '[]'::jsonb end) st
+       where s.tt_id = tid and s.course_id = cid and st->>'k' = 'lec' and trim(coalesce(st->>'n', '')) <> ''
+       group by 1 order by 2 desc, 1 limit 4) x;
+    if nm is not null then return jsonb_build_object('name', nm, 'src', 'tt'); end if;
+  end if;
+  select name into nm from staff where email = c.owner_email;
+  return jsonb_build_object('name', coalesce(nm, ''), 'src', 'owner');
+end $$;
+create or replace function public.course_prof(cid uuid) returns text
+language sql stable security definer set search_path = public as $$ select course_prof_info(cid)->>'name'; $$;
+revoke all on function public.course_prof_info(uuid), public.course_prof(uuid) from public, anon, authenticated;
+
+create or replace function public.course_profs() returns json
+language sql stable security definer set search_path = public as $$
+  select case when staff_role() is null then '{}'::json
+    else coalesce((select json_object_agg(c.id, course_prof_info(c.id)) from courses c where not c.archived), '{}'::json) end;
+$$;
+revoke all on function public.course_profs() from public, anon;
+grant execute on function public.course_profs() to authenticated;
+
+create or replace function public.set_course_prof(cid uuid, p_name text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare c courses; v text := left(trim(coalesce(p_name, '')), 160);
+begin
+  select * into c from courses where id = cid;
+  if c.id is null then raise exception 'not_found'; end if;
+  if not course_owner(cid) then raise exception 'not_allowed'; end if;
+  if v is distinct from c.prof_name then
+    update courses set prof_name = v where id = cid;
+    perform log_audit(cid, case when v = '' then 'أرجع اسم أستاذ المادة للجدول الدراسي' else 'كتب اسم أستاذ المادة: ' || v end);
+  end if;
+  return course_prof_info(cid);
+end $$;
+revoke all on function public.set_course_prof(uuid, text) from public, anon;
+grant execute on function public.set_course_prof(uuid, text) to authenticated;
+
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.student_tasks(text)'::regprocedure) into f; o := f;
+  f := replace(f, $a$'id', t.id, 'course_id', c.id, 'course', c.name,$a$, $b$'id', t.id, 'course_id', c.id, 'course', c.name, 'prof', course_prof(c.id),$b$);
+  if f = o then raise exception 'student_tasks pattern not found'; end if;
+  execute f;
+end $do$;

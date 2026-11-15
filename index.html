@@ -1105,7 +1105,7 @@
       await auth;
       const bytes = await HD.myFile(m.file_id);
       const out = await HD.stamped(bytes, m.mime, { grade: tot(m), max: t.max, task: t.title, course: t.course,
-        student: home.code + " · " + (home.name || ""), by: "رُصدت في Hadro",  footer: "Hadro · " + home.code + " · " + t.title + " · " + gNum(tot(m)) + " من " + gNum(t.max) });
+        student: home.code + " · " + (home.name || ""), prof: t.prof ? "أستاذ المادة: " + t.prof : "", by: "رُصدت في Hadro",  footer: "Hadro · " + home.code + " · " + t.title + " · " + gNum(tot(m)) + " من " + gNum(t.max) });
       HD.saveBytes(out, HD.fileName(home.code + " - " + t.title + " - مختوم") + ".pdf");
       btn.textContent = "تم التنزيل";
     } catch (e) { tkMsg = { k: "bad", t: errText(e) }; renderTask(); }

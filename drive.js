@@ -144,7 +144,7 @@
   /* ---------- الختم: يُرسم على لوحة ثم يوضع صورةً في PDF (يحفظ الحروف العربية كما هي) ---------- */
   const fmtN = n => Number(n).toLocaleString("en", { maximumFractionDigits: 2 });
   function stampCanvas(info) {
-    const W = 1000, H = 520, c = document.createElement("canvas"); c.width = W; c.height = H;
+    const W = 1000, H = info.prof ? 566 : 520, c = document.createElement("canvas"); c.width = W; c.height = H;
     const x = c.getContext("2d"), ink = "#155e4c", F = "'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif";
     x.translate(W / 2, H / 2); x.rotate(-0.045); x.translate(-W / 2, -H / 2);
     const rr = (a, b, w, h, r) => { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); };
@@ -166,7 +166,8 @@
     fit(info.task, 38, 600, W - 160); x.fillText(info.task, W / 2, 330);
     fit(info.course, 30, 500, W - 160); x.fillText(info.course, W / 2, 374);
     fit(info.student, 30, 500, W - 160); x.fillText(info.student, W / 2, 418);
-    fit(info.by, 26, 400, W - 160); x.globalAlpha = .85; x.fillText(info.by, W / 2, 458);
+    if (info.prof) { fit(info.prof, 32, 700, W - 160); x.fillText(info.prof, W / 2, 464); }
+    fit(info.by, 26, 400, W - 160); x.globalAlpha = .85; x.fillText(info.by, W / 2, info.prof ? 506 : 458);
     return c;
   }
   function lineCanvas(text) {
@@ -194,7 +195,8 @@
     const ft = await pdf.embedPng(await png(lineCanvas(info.footer)));
     pdf.getPages().forEach((p, i) => {
       const { width: W, height: H } = p.getSize();
-      if (i === 0) { const w = Math.min(W * 0.38, 300), h = w * st.height / st.width; p.drawImage(st, { x: 18, y: H - h - 18, width: w, height: h, opacity: 1 }); }
+      // الختم على كل صفحة: كامل في الأولى، وأصغر وشفاف شوية في الباقي
+      { const w = i === 0 ? Math.min(W * 0.38, 300) : Math.min(W * 0.26, 200), h = w * st.height / st.width; p.drawImage(st, { x: 18, y: H - h - 18, width: w, height: h, opacity: i === 0 ? 1 : 0.82 }); }
       const fh = Math.min(10, H * 0.02), fw = fh * ft.width / ft.height;
       p.drawImage(ft, { x: (W - fw) / 2, y: 6, width: fw, height: fh, opacity: 0.85 });
     });

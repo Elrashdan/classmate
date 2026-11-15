@@ -75,6 +75,7 @@
   let grader = null, photo = null, gimp = null, voice = null;
   let ncManual = false;
   let tkExtra = {}; // tid -> Set: طلبة من مجموعة أخرى أضافهم المحاضر لهذا التكليف استثناءً (قبل رصد درجتهم)
+  let profs = {}, profEdit = false;
   let tkSel = null, tkForm = null, tkFilter = "all", tkEdits = {}, tkQ = "", tkBusy = null, ncBylaw = null;
   let login = { step: "pass", email: "", err: "", busy: false };
 
@@ -300,6 +301,7 @@
     ]);
     for (const r of [st, se, co, ta]) if (r.error) throw r.error;
     staff = st.data; settings = se.data; courses = co.data; tasAll = ta.data;
+    try { profs = await rpc("course_profs") || {}; } catch (e) { profs = profs || {}; }
     const fl = filtered(); if (!fl.find(c => c.id === curId)) curId = (fl.find(c => !["viewer", "admin"].includes(role(c)) && !c.archived) || fl[0] || {}).id || null;
   }
 
@@ -2051,6 +2053,9 @@
   const minusOf = (t, code) => t && t.minus && t.minus[code] != null ? Number(t.minus[code]) || 0 : 0;
   const minusOfSub = s => s ? minusOf(D && D.tasks.find(t => t.id === s.task_id), s.student_code) : 0;
   const minusChip = (t, code) => minusOf(t, code) ? ` <span class="chip bad small" title="${esc(t.minus_note || "خصم محدّد لهذا الطالب في التكليف")}">خصم ${gN(minusOf(t, code))}</span>` : "";
+  // أستاذ المادة: {name, src: manual مكتوب يدويًا | tt من الجدول الدراسي | owner صاحب المادة}
+  const profOf = c => (c && profs[c.id]) || { name: c ? staffName(c.owner_email) : "", src: "owner" };
+  const PROF_SRC = { manual: "مكتوب يدويًا", tt: "من الجدول الدراسي", owner: "صاحب المادة (المادة مش في جدول منشور)" };
   const totalOf = s => s && s.grade != null ? Math.max(0, Number(s.grade) + Number(s.bonus || 0) - minusOfSub(s)) : null;
   const isManual = t => t.mode === "manual";
   const canEditTask = (c, t) => canManage(c) || (role(c) === "ta" && t.created_by === me.email);
@@ -2302,7 +2307,7 @@
     if (t) return renderTask(el, c, t);
     const totalMax = D.tasks.reduce((a, x) => a + Number(x.max_grade), 0);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
-      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${CM.dd(D.tasks.length ? "تصدير واستيراد" : "استيراد", [D.tasks.length ? `<div class="dd-h">كشف الكنترول</div>${courseGroups().length > 1 ? `<label class="dd-sel" data-keep><span>المجموعة</span><select id="tkXg" aria-label="المجموعة التي يُصدَّر كشفها"><option value="all">كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}` : "", D.tasks.length ? `<button class="dd-i" id="tkXls">تنزيل كشف الكنترول (إكسل)</button>` : "", D.tasks.length ? `<button class="dd-i" id="tkPdf">تنزيل كشف الكنترول (PDF)</button>` : "", canRun(c) ? `${D.tasks.length ? "<hr>" : ""}<button class="dd-i" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات ودرجاتها من إكسل</button>` : ""], { end: true })}</div></div>
+      <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${CM.dd(D.tasks.length ? "تصدير واستيراد" : "استيراد", [D.tasks.length ? `<div class="dd-h">كشف الكنترول وكشف المراجعة</div>${courseGroups().length > 1 ? `<label class="dd-sel" data-keep><span>المجموعة</span><select id="tkXg" aria-label="المجموعة التي يُصدَّر كشفها"><option value="all">كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}` : "", D.tasks.length ? `<button class="dd-i" id="tkXls" title="ملف واحد فيه كشف الكنترول (المتوسط) وكشف المراجعة (درجات كل التكليفات)">تنزيل الكنترول + المراجعة (إكسل)</button>` : "", D.tasks.length ? `<button class="dd-i" id="tkPdf" title="ملف واحد فيه كشف الكنترول وكشف المراجعة">تنزيل الكنترول + المراجعة (PDF)</button>` : "", canRun(c) ? `${D.tasks.length ? "<hr>" : ""}<button class="dd-i" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات ودرجاتها من إكسل</button>` : ""], { end: true })}</div></div>
       ${msgHtml("tasks")}
       ${appealsHtml(c)}
       ${mimp ? mimpBox() : ""}
@@ -2382,7 +2387,7 @@
           `<div class="dd-h">كشف الرصد</div>`,
           `<button class="dd-i" id="tkSheet" title="كشف بأسماء الطلبة وخانات الدرجة، يُملأ على الكمبيوتر أو يُطبع ويُكتب باليد">كشف رصد للطباعة (إكسل)</button>`,
           `<button class="dd-i" id="tkSheetPdf" title="نفس كشف الرصد في ملف PDF للطباعة">كشف رصد (PDF)</button>`,
-          !man && HD.canCheck && drive ? `<hr><div class="dd-h">أعمال الطلبة</div><button class="dd-i" id="tkDl" title="ينزّل كل الملفات مرقّمة بأسماء الطلبة، مع فهرس إكسل">تنزيل كل الملفات</button>` : "",
+          !man && HD.canCheck && drive ? `<hr><div class="dd-h">أعمال الطلبة</div><button class="dd-i" id="tkDl" title="ينزّل كل الملفات مرقّمة بأسماء الطلبة، مع فهرس إكسل">تنزيل كل الملفات</button><button class="dd-i" id="tkDlSt" title="نسخة PDF من عمل كل طالب اترصدت درجته، وعليها ختم بالدرجة واسم أستاذ المادة">تنزيل الأعمال مختومة بالدرجة</button>` : "",
           !man && HD.canCheck && drive ? `<button class="dd-i" id="tkShare" title="رابط تفتحه دون حساب، ينزّل منه الدكتور كل الملفات ومعها كشف الدرجات">رابط تنزيل للدكتور</button>` : "",
           !man && HD.canCheck && drive ? `<button class="dd-i" id="tkCheck" title="يقارن كل ملف على Drive ببصمته وقت التسليم">فحص الملفات على Drive</button>` : ""
         ])}
@@ -2466,6 +2471,7 @@
     const shp = $("#tkSheetPdf"); if (shp) shp.onclick = () => exportEntrySheet(t, true);
     const vb = $("#tkVoice"); if (vb) vb.onclick = () => openVoice(t);
     const dla = $("#tkDl"); if (dla) dla.onclick = () => downloadAll(t);
+    const dls = $("#tkDlSt"); if (dls) dls.onclick = () => downloadStamped(t);
     const shb = $("#tkShare"); if (shb) shb.onclick = () => openLinks(t);
     wireLinks(t);
     const ix = $("#tkImpX"); if (ix) ix.onchange = () => { const f = ix.files[0]; ix.value = ""; if (f) importEntrySheet(t, f); };
@@ -3490,13 +3496,41 @@
     } catch (e) { showErr(e); }
     tkBusy = null; const keep = tkEdits; await loadCourse(); tkEdits = keep; renderTasks();
   }
+  const stampInfo = (t, code, s, c) => { const b = Number(s.bonus || 0);
+    return { grade: totalOf(s), max: t.max_grade, task: t.title, course: c.name + (c.bylaw_code ? " · " + c.bylaw_code : ""), student: code + " · " + nameOf(code),
+      prof: profOf(c).name ? "أستاذ المادة: " + profOf(c).name : "",
+      by: "صحّحه " + staffName(s.graded_by || me.email) + " · " + new Date(s.graded_at || Date.now()).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }) + (b ? " · منها بونص " + gN(b) : ""),
+      footer: "Hadro · " + code + " · " + t.title + " · " + gN(totalOf(s)) + " من " + gN(t.max_grade) }; };
+  // كل الأعمال المرصودة مختومة بالدرجة واسم أستاذ المادة، في ملف مضغوط (يتقسّم لو كبير)
+  async function downloadStamped(t) {
+    if (tkBusy) return;
+    const c = course(), rows = taskRows(t).map((e, i) => ({ e, n: i + 1, s: subOf(t, e.student_code) })).filter(x => x.s && x.s.kind === "drive" && x.s.file_id && x.s.grade != null && HD.stampable(x.s.mime));
+    if (!rows.length) return toast("مفيش أعمال مرصودة ينفع تتختم (PDF أو صورة JPG/PNG) في التكليف ده.");
+    tkBusy = "dl"; renderTasks();
+    const stat = txt => { const b = $("#tkDlSt"); if (b) b.textContent = txt; };
+    let ok = 0, bad = 0, part = 1, size = 0;
+    try {
+      await loadJSZip(); let zip = new window.JSZip();
+      const base = HD.fileName(t.title + " - " + c.name + " - مختوم"), LIMIT = 300 * 1048576;
+      const flush = async last => { if (!Object.keys(zip.files).length) return; stat("جارٍ الضغط…"); const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
+        HD.saveBytes(blob, base + (part > 1 || !last ? " (" + part + ")" : "") + ".zip", "application/zip"); part++; zip = new window.JSZip(); size = 0; };
+      for (let i = 0; i < rows.length; i++) { const { e, n, s } = rows[i]; stat("بيختم " + (i + 1) + " من " + rows.length + "…");
+        try { const out = await HD.stamped(await HD.publicFile(s.file_id), s.mime, stampInfo(t, e.student_code, s, c));
+          if (size && size + out.byteLength > LIMIT) await flush(false);
+          zip.file(String(n).padStart(3, "0") + " - " + HD.fileName(e.student_code + " - " + e.name) + " - " + gN(totalOf(s)) + " من " + gN(t.max_grade) + ".pdf", out); size += out.byteLength; ok++;
+        } catch (er) { bad++; } }
+      await flush(true);
+      say("tasks", (bad ? "!" : "") + "نُزّل " + ok + " عمل مختوم بالدرجة واسم أستاذ المادة" + (bad ? "، وتعذّر " + bad + " (الملف اتشال من Drive أو مش مقروء)" : "") + ".");
+    } catch (e) { showErr(e); }
+    tkBusy = null; renderTasks();
+  }
   async function stampCopy(t, code, btn) {
     const s = subOf(t, code), c = course(); if (!s) return;
     btn.disabled = true; const old = btn.textContent; btn.textContent = "جارٍ التجهيز…";
     try {
       const bytes = await HD.publicFile(s.file_id), b = Number(s.bonus || 0);
       const out = await HD.stamped(bytes, s.mime, { grade: totalOf(s), max: t.max_grade, task: t.title, course: c.name + (c.bylaw_code ? " · " + c.bylaw_code : ""),
-        student: code + " · " + nameOf(code), by: "صحّحه " + staffName(s.graded_by || me.email) + " · " + new Date(s.graded_at || Date.now()).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }) + (b ? " · منها بونص " + gN(b) : ""),
+        student: code + " · " + nameOf(code), prof: profOf(c).name ? "أستاذ المادة: " + profOf(c).name : "", by: "صحّحه " + staffName(s.graded_by || me.email) + " · " + new Date(s.graded_at || Date.now()).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }) + (b ? " · منها بونص " + gN(b) : ""),
         footer: "Hadro · " + code + " · " + t.title + " · " + gN(totalOf(s)) + " من " + gN(t.max_grade) });
       HD.saveBytes(out, HD.fileName(code + " - " + nameOf(code) + " - " + t.title + " - مختوم") + ".pdf");
     } catch (e) { showErr(e); }
@@ -3538,10 +3572,10 @@
         r.height = 20;
       });
       const ke = 7 + rows.length;
-      [["المحاضر", 1], ["رئيس القسم", 3]].forEach(([tt, cc]) => { const cl = wk.getRow(ke + 2).getCell(cc); cl.value = tt + ": ……………………"; cl.font = { name: "Arial", size: 11, bold: true }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
+      [["أستاذ المادة" + (profOf(c0).name ? " (" + profOf(c0).name + ")" : ""), 1], ["رئيس القسم", 3]].forEach(([tt, cc]) => { const cl = wk.getRow(ke + 2).getCell(cc); cl.value = tt + ": ……………………"; cl.font = { name: "Arial", size: 11, bold: true }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
       [8, 14, 38, 16].forEach((w, j) => { wk.getColumn(j + 1).width = w; });
       wk.pageSetup = { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "6:6" };
-      const ws = wb.addWorksheet("تفاصيل الدرجات", { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 7 }] });
+      const ws = wb.addWorksheet("كشف المراجعة", { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 7 }] });
       // كل تكليف عمود واحد، والتكليف المقسّم: اسمه فوق أعمدة مشاريعه الفرعية ثم عمود مجموعه
       const blocks = []; let cc = 5;
       ts.forEach(t => { const P = partsOf(t); blocks.push({ t, P, c0: cc, tot: cc + (P ? P.length : 0) }); cc += P ? P.length + 1 : 1; });
@@ -3549,9 +3583,9 @@
       const tail = ["مجموع التكليفات\n(من " + gN(S) + ")"];
       if (hasCw) tail.push("الأعمال الفصلية\n(من " + cw + ")");
       if (hasCw && ex) tail.push("الامتحان\n(من " + ex + ")", "المجموع\n(من " + (cw + ex) + ")");
-      tail.push("الغياب", "حالة الغياب");
+      tail.push("متوسط الدرجات\n(كشف الكنترول · من " + tgt + ")", "الغياب", "حالة الغياب");
       const N = sumC - 1 + tail.length;
-      sheetTitle(ws, N, "كشف درجات الأعمال الفصلية · " + c.name, courseSub(c));
+      sheetTitle(ws, N, "كشف المراجعة النهائية · درجات كل التكليفات · " + c.name, courseSub(c));
       ws.mergeCells(3, 1, 3, N);
       ws.getCell(3, 1).value = [c.bylaw_code ? "كود المقرر " + c.bylaw_code : "", c.credits ? c.credits + " ساعات معتمدة" : "", hasCw ? "النهاية العظمى: أعمال فصلية " + cw + (ex ? "، امتحان " + ex + "، المجموع " + (cw + ex) : "") : "المادة غير مربوطة بمقرر في اللائحة", "قسم الديكور · " + ((window.CLASSMATE || {}).UNIVERSITY_NAME || "")].filter(Boolean).join(" · ");
       ws.getCell(3, 1).font = { name: "Arial", size: 10, bold: true, color: { argb: XC.title } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
@@ -3586,6 +3620,7 @@
         let k = sumC + 1;
         if (hasCw) { row.getCell(k).value = { formula: `IF(${col(sumC)}${r}="","",MIN(${cw},ROUND(${col(sumC)}${r}/${S}*${cw},0)))`, result: sumV === "" ? "" : Math.min(cw, Math.round(sumV / S * cw)) }; k++; }
         if (hasCw && ex) { row.getCell(k).value = null; row.getCell(k + 1).value = { formula: `IF(OR(${col(k - 1)}${r}="",${col(k)}${r}=""),"",${col(k - 1)}${r}+${col(k)}${r})`, result: "" }; k += 2; }
+        row.getCell(k).value = avgOf(e); row.getCell(k).font = { name: "Arial", size: 10.5, bold: true }; k++;
         row.getCell(k).value = ab; row.getCell(k + 1).value = CM.warnOf(ab).t;
         row.eachCell({ includeEmpty: true }, (cl, j) => { if (j > N) return; cl.border = box; cl.font = { name: "Arial", size: 10.5 }; cl.alignment = { horizontal: j === 3 ? "right" : "center", vertical: "middle", readingOrder: "rtl" }; if (i % 2) cl.fill = fill(XC.band); });
         blocks.forEach(b => { const t = b.t, s2 = subOf(t, e.student_code);
@@ -3597,7 +3632,7 @@
       const end = 8 + rows.length;
       ws.autoFilter = { from: { row: 7, column: 1 }, to: { row: end - 1, column: N } };
       for (let j = 1; j <= N; j++) ws.getColumn(j).width = j === 1 ? 5 : j === 2 ? 12 : j === 3 ? 30 : j === 4 ? 9 : j < sumC ? (blocks.some(b => b.P && j >= b.c0 && j < b.tot) ? 10 : 12) : 14;
-      const sig = ws.getRow(end + 2); [["المحاضر", 2], ["رئيس القسم", Math.max(5, Math.floor(N / 2))], ["رئيس الكنترول", Math.max(7, N - 2)]].forEach(([t, cc2]) => { const cl = sig.getCell(Math.min(cc2, N)); cl.value = t + ": ……………………"; cl.font = { name: "Arial", size: 10.5, bold: true }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
+      const sig = ws.getRow(end + 2); [["أستاذ المادة" + (profOf(c0).name ? " (" + profOf(c0).name + ")" : ""), 2], ["المراجع", Math.max(5, Math.floor(N / 2))], ["رئيس القسم", Math.max(7, N - 2)]].forEach(([t, cc2]) => { const cl = sig.getCell(Math.min(cc2, N)); cl.value = t + ": ……………………"; cl.font = { name: "Arial", size: 10.5, bold: true }; cl.alignment = { horizontal: "right", readingOrder: "rtl" }; });
       ws.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9, printTitlesRow: "6:7" };
       // تفاصيل التسليم
       const wd = wb.addWorksheet("تفاصيل التسليم", { views: [{ rightToLeft: true, state: "frozen", ySplit: 4 }] });
@@ -3612,8 +3647,8 @@
         rr++; }));
       wd.autoFilter = { from: { row: 4, column: 1 }, to: { row: Math.max(rr - 1, 5), column: 12 } };
       [24, 12, 28, 9, 18, 7, 13, 30, 16, 8, 8, 30].forEach((w2, j) => { wd.getColumn(j + 1).width = w2; });
-      const nm = HD.fileName("كشف الكنترول - " + c0.name + (G ? " - مجموعة " + G : "") + " " + new Date().toLocaleDateString("en-CA"));
-      if (pdf) await HP.wbToPdf(wb, ["كشف الكنترول", "تفاصيل الدرجات"], nm + ".pdf"); else await saveWb(wb, nm + ".xlsx");
+      const nm = HD.fileName("كشف الكنترول والمراجعة - " + c0.name + (G ? " - مجموعة " + G : "") + " " + new Date().toLocaleDateString("en-CA"));
+      if (pdf) await HP.wbToPdf(wb, ["كشف الكنترول", "كشف المراجعة"], nm + ".pdf"); else await saveWb(wb, nm + ".xlsx");
     } catch (e) { showErr(e); }
     if (btn) { btn.disabled = false; btn.textContent = lbl; }
   }
@@ -3902,6 +3937,9 @@
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">القائمون على المادة</div><h2>فريق المادة</h2></div></div>
       ${msgHtml("team")}
       <div class="list" style="max-height:none">
+        ${(() => { const pf = profOf(c); return `<div class="li man prof-li"><span class="chip ok">أستاذ المادة</span>${profEdit && mng
+          ? `<div class="who"><input type="text" id="profIn" maxlength="160" value="${esc(pf.src === "manual" ? pf.name : "")}" placeholder="${esc(pf.name || "اكتب الاسم كما يظهر على الختم")}"><small>سيبه فاضي عشان البرنامج ياخد الاسم من الجدول الدراسي.</small></div><div class="acts"><button class="btn sm primary" id="profSave">حفظ</button><button class="btn sm ghost" id="profCancel">إلغاء</button></div>`
+          : `<div class="who"><b>${esc(pf.name || "—")}</b><small>${PROF_SRC[pf.src] || ""} · يظهر اسمه مع الدرجة على ختم أعمال الطلبة</small></div><div class="acts">${mng ? `<button class="btn sm ghost" id="profEditB">تعديل</button>` : ""}</div>`}</div>`; })()}
         <div class="li man"><span class="chip man">صاحب المادة</span><div class="who"><b>${esc(staffName(c.owner_email))}</b><small class="mono">${esc(c.owner_email)}</small></div><span></span></div>
         ${team.map(t => `<div class="li ${t.kind === "co" ? "man" : ""}"><span class="chip ${t.kind === "co" ? "man" : "none"}">${t.kind === "co" ? "محاضر مشارك" : "معيد"}</span><div class="who"><b>${esc(staffName(t.email))}</b><small class="mono">${esc(t.email)}</small></div><div class="acts">${mng ? `<button class="btn sm ghost" data-kind="${esc(t.email)}" data-to="${t.kind === "co" ? "ta" : "co"}">${t.kind === "co" ? "تحويله إلى معيد" : "تحويله إلى محاضر مشارك"}</button><button class="btn sm ghost danger" data-rmta="${esc(t.email)}">إزالة</button>` : ""}</div></div>`).join("")}
       </div>
@@ -3930,6 +3968,9 @@
             <div class="row"><button class="btn sm danger" id="delGo">حذف المادة نهائيًّا</button><button class="btn sm ghost" id="delCancel">إلغاء</button></div>
           </div>` : me.role === "head" && c.owner_email !== me.email ? "" : `<div class="row"><button class="btn sm ghost danger" id="delAsk">حذف المادة</button></div>`}
       </div>` : ""}`;
+    const pe = $("#profEditB"); if (pe) pe.onclick = () => { profEdit = true; renderTeam(); const i = $("#profIn"); if (i) i.focus(); };
+    const pc = $("#profCancel"); if (pc) pc.onclick = () => { profEdit = false; renderTeam(); };
+    const ps = $("#profSave"); if (ps) ps.onclick = () => act(async () => { profs[c.id] = await rpc("set_course_prof", { cid: c.id, p_name: $("#profIn").value }); profEdit = false; }, async () => { say("team", "حُفظ اسم أستاذ المادة."); renderTeam(); });
     el.querySelectorAll("[data-rmta]").forEach(b => b.onclick = () => act(() => rpc("remove_ta", { cid: c.id, p_email: b.dataset.rmta }), async () => { await loadBase(); await loadCourse(); }));
     const ta = $("#taAdd"); if (ta) ta.onclick = () => act(() => rpc("add_member", { cid: c.id, p_email: $("#taPick").value, p_kind: $("#taKind").value }), async () => { await loadBase(); await loadCourse(); });
     el.querySelectorAll("[data-kind]").forEach(b => b.onclick = () => act(() => rpc("add_member", { cid: c.id, p_email: b.dataset.kind, p_kind: b.dataset.to }), async () => { await loadBase(); await loadCourse(); }));
