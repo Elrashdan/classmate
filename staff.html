@@ -2357,11 +2357,11 @@
     const pass = e => { const s = subOf(t, e.student_code) || {};
       if (q && !normAr(e.name).includes(q) && !e.student_code.includes(q)) return false;
       return tkFilter === "all" || (tkFilter === "sub" && s.submitted_at) || (tkFilter === "none" && !s.submitted_at) || (tkFilter === "late" && lateOf(t, e, s))
-        || (tkFilter === "ungraded" && s.grade == null) || (tkFilter === "absdue" && absentOnDue(t, e)) || (tkFilter === "issue" && (s.check_state === "changed" || s.check_state === "missing")); };
+        || (tkFilter === "subung" && needsGrade(s)) || (tkFilter === "ungraded" && s.grade == null) || (tkFilter === "absdue" && absentOnDue(t, e)) || (tkFilter === "issue" && (s.check_state === "changed" || s.check_state === "missing")); };
     const list = rows.filter(pass), drive = rows.filter(e => (subOf(t, e.student_code) || {}).kind === "drive").length;
     const nAbs = rows.filter(e => absentOnDue(t, e)).length, absT = nAbs ? [["absdue", "غائب " + DL(t) + "", nAbs]] : [];
     const FT = man ? [["all", "الكل", rows.length], ["ungraded", "بلا درجة", rows.length - st.graded], ...absT]
-      : [["all", "الكل", rows.length], ["sub", "سلّم", st.sub], ["none", "لم يسلّم", rows.length - st.sub], ["late", "متأخر", st.late], ["ungraded", "بلا درجة", rows.length - st.graded], ...absT, ...(st.issues ? [["issue", "ملفات تغيّرت", st.issues]] : [])];
+      : [["all", "الكل", rows.length], ["sub", "سلّم", st.sub], ["none", "لم يسلّم", rows.length - st.sub], ["late", "متأخر", st.late], ["subung", "سلّم بلا درجة", rows.filter(e => needsGrade(subOf(t, e.student_code))).length], ["ungraded", "بلا درجة", rows.length - st.graded], ...absT, ...(st.issues ? [["issue", "ملفات تغيّرت", st.issues]] : [])];
     if (!FT.some(f => f[0] === tkFilter)) tkFilter = "all";
     const stampCol = !man && HD.canCheck;
     el.innerHTML = `<div class="panel-h"><div><button class="btn sm ghost" id="tkBack">→ كل التكليفات</button></div>
@@ -2608,8 +2608,13 @@
     return `<iframe src="${esc(s.url)}" title="عمل الطالب" sandbox="allow-scripts allow-same-origin allow-popups" referrerpolicy="no-referrer"></iframe>
       <div class="gr-hint">بعض المواقع لا تسمح بعرض صفحاتها داخل برامج أخرى. إن ظهرت المساحة فارغة فاضغط «فتح في نافذة جديدة».</div>`;
   }
+  // سلّم ولسه ماخدش درجة (والمرفوض مش محسوب: اتبتّ فيه)
+  const needsGrade = s => !!(s && s.submitted_at && s.grade == null && !s.rejected_at);
+  // الترتيب: اللي سلّم ولسه بلا درجة الأول، وبعدهم الباقي بترتيب الكشف
   function graderOrder(t, f) {
-    return taskRows(t).filter(e => { const s = subOf(t, e.student_code) || {}; return f === "all" || (f === "sub" && s.url) || (f === "ungraded" && s.url && s.grade == null); }).map(e => e.student_code);
+    const l = taskRows(t).filter(e => { const s = subOf(t, e.student_code) || {}; return f === "all" || (f === "sub" && s.url) || (f === "ungraded" && s.url && s.grade == null); });
+    const pr = e => { const s = subOf(t, e.student_code); return s && s.url && s.grade == null && !s.rejected_at ? 0 : 1; };
+    return l.map((e, i) => [e, i]).sort((a, b) => pr(a[0]) - pr(b[0]) || a[1] - b[1]).map(x => x[0].student_code);
   }
   function openGrader(t, code) {
     let f = "sub", order = graderOrder(t, f);
