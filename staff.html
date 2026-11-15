@@ -2388,9 +2388,9 @@
           `<button class="dd-i" id="tkSheet" title="كشف بأسماء الطلبة وخانات الدرجة، يُملأ على الكمبيوتر أو يُطبع ويُكتب باليد">كشف رصد للطباعة (إكسل)</button>`,
           `<button class="dd-i" id="tkSheetPdf" title="نفس كشف الرصد في ملف PDF للطباعة">كشف رصد (PDF)</button>`,
           !man && HD.canCheck && drive ? `<hr><div class="dd-h">أعمال الطلبة</div><button class="dd-i" id="tkDl" title="ينزّل كل الملفات مرقّمة بأسماء الطلبة، مع فهرس إكسل">تنزيل كل الملفات</button><button class="dd-i" id="tkDlSt" title="نسخة PDF من عمل كل طالب اترصدت درجته، وعليها ختم بالدرجة واسم أستاذ المادة">تنزيل الأعمال مختومة بالدرجة</button>` : "",
-          !man && HD.canCheck && drive ? `<button class="dd-i" id="tkShare" title="رابط تفتحه دون حساب، ينزّل منه الدكتور كل الملفات ومعها كشف الدرجات">رابط تنزيل للدكتور</button>` : "",
-          !man && HD.canCheck && drive ? `<button class="dd-i" id="tkCheck" title="يقارن كل ملف على Drive ببصمته وقت التسليم">فحص الملفات على Drive</button>` : ""
+          !man && HD.canCheck && drive ? `<button class="dd-i" id="tkShare" title="رابط تفتحه دون حساب، ينزّل منه الدكتور كل الملفات ومعها كشف الدرجات">رابط تنزيل للدكتور</button>` : ""
         ])}
+        ${!man && HD.canCheck && drive ? `<button class="btn" id="tkCheck" title="يتأكد إن كل ملف لسه موجود على Drive الطالب وماتغيرش، واللي ملفه اتمسح بيتبعتله تلقائيًا يعيد الرفع">${ICO('<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>')} فحص الملفات${(() => { const n = taskRows(t).filter(e => { const x = subOf(t, e.student_code); return x && x.kind === "drive" && !x.check_state; }).length; return n ? ` <span class="chip warn small" title="${n} ملف لم يُفحص">${n}</span>` : ""; })()}</button>` : ""}
         ${CM.dd("رفع درجات", [
           `<label class="dd-i" title="بعد ملء الكشف على الكمبيوتر">رفع كشف إكسل مملوء<input type="file" id="tkImpX" accept=".xlsx" hidden></label>`,
           partsOf(t) ? "" : `<label class="dd-i" title="صورة الكشف المكتوب باليد، تظهر بجانب الأسماء لتنقل الدرجات منها">صورة كشف مكتوب باليد<input type="file" id="tkImpP" accept="image/*" multiple hidden></label>`
@@ -3552,8 +3552,8 @@
         let m = null; try { m = await HD.meta(s.file_id); } catch (e) { m = null; }
         if (m) out.push({ code: s.student_code, state: HD.verdict(s, m) }); done++; upd(); } }));
       if (out.length) await rpc("record_checks", { tid: t.id, rows: out });
-      const bad = out.filter(x => x.state !== "ok").length;
-      say("tasks", (bad ? "!" : "") + "فُحص " + out.length + " ملف" + (bad ? "، منها " + bad + " عُدِّل أو حُذف بعد التسليم. اعرضها من «ملفات تغيّرت»." : "، ولم يتغيّر أي منها بعد التسليم.") + (out.length < list.length ? " تعذّر فحص " + (list.length - out.length) + " بسبب الاتصال." : ""));
+      const bad = out.filter(x => x.state !== "ok").length, gone = out.filter(x => x.state === "missing").length;
+      say("tasks", (bad ? "!" : "") + "فُحص " + out.length + " ملف" + (bad ? "، منها " + bad + " عُدِّل أو حُذف بعد التسليم. اعرضها من «ملفات تغيّرت»." + (gone ? " واتبعت تلقائيًا لـ" + gone + " طالب ملفه اتمسح إنه يعيد الرفع." : "") : "، ولم يتغيّر أي منها بعد التسليم.") + (out.length < list.length ? " تعذّر فحص " + (list.length - out.length) + " بسبب الاتصال." : ""));
       if (bad) tkFilter = "issue";
     } catch (e) { showErr(e); }
     tkBusy = null; const keep = tkEdits; await loadCourse(); tkEdits = keep; renderTasks();
