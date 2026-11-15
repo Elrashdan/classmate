@@ -2410,7 +2410,7 @@
       ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" style="max-width:320px"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select></div>` : ""; })() : ""}
       ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}${partsOf(t) ? partsOf(t).map((p, i) => `<th class="c pth" title="${esc(p.name)}">${esc(p.name)}<br><small>(من ${gN(p.max)})</small></th>`).join("") : `<th class="c">الدرجة من ${gN(t.max_grade)}</th>`}<th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
-          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td class="nm">${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}${minusChip(t, e.student_code)}${s && s.rejected_at ? ` <span class="chip bad" title="ظهر للطالب: «مشروعك مرفوض. توجّه لأستاذ المادة»">مرفوض</span>${run ? ` <button class="btn xs ghost" data-unrej="${code}" title="إلغاء الرفض">إلغاء</button>` : ""}` : ""}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
+          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td class="nm">${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}${minusChip(t, e.student_code)}${fixChip(s)}${s && s.rejected_at ? ` <span class="chip bad" title="ظهر للطالب: «مشروعك مرفوض. توجّه لأستاذ المادة»">مرفوض</span>${run ? ` <button class="btn xs ghost" data-unrej="${code}" title="إلغاء الرفض">إلغاء</button>` : ""}` : ""}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
             ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}${extCell(t, e, s, run)}` : `<span class="muted">لم يسلّم</span>${extCell(t, e, s, run)}`}</td>
             <td class="small">${s && s.url ? `<button class="btn xs" data-view="${code}">عرض</button> <a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a">${esc(s.kind === "drive" ? (s.file_name || "الملف") : "رابط")}</a>${ck ? ` <span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted">«${esc(s.note)}»</div>` : ""}` : "—"}</td>`}
             ${partsOf(t) ? partsOf(t).map((p, i) => `<td class="c">${run ? `<input type="text" class="gin pin ${badVal(valOf(e.student_code, "p" + i, s), +p.max) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-p="${code}" data-pi="${i}" value="${esc(valOf(e.student_code, "p" + i, s))}" inputmode="decimal" autocomplete="off" title="${esc(p.name)} (من ${gN(p.max)})">` : gN(s && Array.isArray(s.parts) ? s.parts[i] : "")}</td>`).join("")
@@ -2608,6 +2608,42 @@
     return `<iframe src="${esc(s.url)}" title="عمل الطالب" sandbox="allow-scripts allow-same-origin allow-popups" referrerpolicy="no-referrer"></iframe>
       <div class="gr-hint">بعض المواقع لا تسمح بعرض صفحاتها داخل برامج أخرى. إن ظهرت المساحة فارغة فاضغط «فتح في نافذة جديدة».</div>`;
   }
+  /* ---------- «مشكلة في الملف»: نطلب من الطالب يعيد الرفع، وبنقارن البصمة لما يرفع ---------- */
+  const FIX_R = [["missing", "الملف مش بيفتح / اتمسح"], ["unclear", "الصورة مش واضحة"], ["wrong", "ملف غلط (مش المشروع)"]];
+  const fixOpen = s => !!(s && s.fix_at && !s.fix_done_at);
+  const fixChip = s => !s ? "" : fixOpen(s) ? ` <span class="chip warn small" title="مستني الطالب يعيد رفع الملف">طُلب إعادة الرفع</span>`
+    : s.fix_done_at ? ` <span class="chip ${s.fix_match ? "ok" : s.fix_match === false ? "bad" : "none"} small" title="رفع الطالب ملفه تاني بعد طلب الإصلاح">${s.fix_match ? "صلّح ملفه · نفس البصمة" : s.fix_match === false ? "صلّح ملفه · ملف مختلف" : "صلّح ملفه"}</span>` : "";
+  let fixUi = null;   // { code, reason, note }
+  function fixBoxHtml(s) {
+    if (fixOpen(s)) return `<div class="fix-box warn"><b>طلبت من الطالب يعيد رفع الملف</b><span class="small">${esc(fixTxt(s.fix_reason))} · ${CM.fmtD(s.fix_at)}${s.fix_by === "فحص تلقائي" ? " · اتبعت تلقائيًا لما الفحص لقى الملف ممسوح" : ""}. التسليم مفتوح له لحد ما يرفع، ودرجته هتتشال لما يرفع عشان تتصحح تاني.</span><button class="btn xs ghost" id="fixCancel">إلغاء الطلب</button></div>`;
+    const done = s.fix_done_at ? `<div class="fix-box ${s.fix_match ? "ok" : s.fix_match === false ? "bad" : ""}"><b>${s.fix_match ? "✓ صلّح ملفه، والبصمة متطابقة" : s.fix_match === false ? "صلّح ملفه، لكن الملف مختلف عن اللي اتسلّم في الميعاد" : "صلّح ملفه"}</b><span class="small">${CM.fmtD(s.fix_done_at)} ${CM.fmtT(s.fix_done_at)}${s.fix_match ? " · نفس الملف اللي اتسلّم في الميعاد بالظبط." : s.fix_match === false ? " · راجع إنه نفس الشغل قبل ما ترصد." : ""}${s.fix_prev && s.fix_prev.grade != null ? " · درجته قبل الإصلاح كانت " + gN(Number(s.fix_prev.grade) + Number(s.fix_prev.bonus || 0)) : ""}</span></div>` : "";
+    if (fixUi && fixUi.code === s.student_code) return done + `<div class="fix-form"><b>مشكلة في ملف الطالب؟</b>
+      <div class="fix-rs">${FIX_R.map(([k, l]) => `<label class="ap-r"><input type="radio" name="fixR" value="${k}" ${fixUi.reason === k ? "checked" : ""}><span>${l}</span></label>`).join("")}</div>
+      <label class="f"><span>ملاحظة للطالب (اختياري)</span><input type="text" id="fixNote" maxlength="200" value="${esc(fixUi.note || "")}" placeholder="مثلًا: الصورة مقصوصة من تحت"></label>
+      <p class="small muted" style="margin:0">هيوصل للطالب تنبيه إن في مشكلة في ملفه ويعيد رفع صورة المشروع، والتسليم هيتفتحله حتى لو الموعد فات. لما يرفع هنقارن بصمة الملف بالأصل ونبعتلك تنبيه.</p>
+      <div class="row"><button class="btn sm primary" id="fixGo">ابعت للطالب</button><button class="btn sm ghost" id="fixX">إلغاء</button></div></div>`;
+    return done + `<button class="btn sm ghost fix-open" id="fixOpenB">${ICO('<path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>')} مشكلة في الملف؟ اطلب إعادة الرفع</button>`;
+  }
+  const fixTxt = r => (FIX_R.find(x => x[0] === r) || [0, r || "الملف مش مرفوع صح"])[1];
+  function wireFix(t, code, s) {
+    const after = async msg => { fixUi = null; await refreshSubs(t); if (grader) { grader.msg = msg; drawGrader(false); } else renderTasks(); };
+    const o = $("#fixOpenB"); if (o) o.onclick = () => { fixUi = { code, reason: s && s.check_state === "missing" ? "missing" : "unclear", note: "" }; drawGrader(false); };
+    const x = $("#fixX"); if (x) x.onclick = () => { fixUi = null; drawGrader(false); };
+    document.querySelectorAll('input[name="fixR"]').forEach(r => r.onchange = () => { fixUi.reason = r.value; });
+    const n = $("#fixNote"); if (n) n.oninput = () => { fixUi.note = n.value; };
+    const g = $("#fixGo"); if (g) g.onclick = async () => { g.disabled = true;
+      const reason = fixUi.note.trim() ? fixTxt(fixUi.reason) + " · " + fixUi.note.trim() : fixUi.reason;
+      try { await rpc("file_fix_request", { tid: t.id, codes: [code], p_reason: reason }); await after("اتبعت للطالب إنه يعيد رفع ملفه، والتسليم اتفتحله."); } catch (e) { g.disabled = false; showErr(e); } };
+    const c = $("#fixCancel"); if (c) c.onclick = async () => { try { await rpc("file_fix_cancel", { tid: t.id, p_code: code }); await after("اتلغى طلب إعادة الرفع."); } catch (e) { showErr(e); } };
+    // فحص تلقائي للملف المعروض: لو اتمسح من Drive، السيرفر بيبعت للطالب يعيد الرفع
+    if (s && s.kind === "drive" && s.file_id && HD.canCheck && !s.fix_at && s.check_state !== "missing") {
+      const key = t.id + ":" + code; if (grMeta[key]) return; grMeta[key] = 1;
+      HD.meta(s.file_id).then(async m => { const st = HD.verdict(s, m); if (st === "ok" && s.check_state === "ok") return;
+        await rpc("record_checks", { tid: t.id, rows: [{ code, state: st }] }); await refreshSubs(t);
+        if (grader && grader.order[grader.i] === code) { grader.msg = st === "missing" ? "!ملف الطالب ده اتمسح من Drive بتاعه، واتبعتله تنبيه تلقائي يعيد رفعه." : ""; drawGrader(false); } }).catch(() => {});
+    }
+  }
+  const grMeta = {};
   // سلّم ولسه ماخدش درجة (والمرفوض مش محسوب: اتبتّ فيه)
   const needsGrade = s => !!(s && s.submitted_at && s.grade == null && !s.rejected_at);
   // الترتيب: اللي سلّم ولسه بلا درجة الأول، وبعدهم الباقي بترتيب الكشف
@@ -2643,6 +2679,7 @@
         ${s && s.submitted_at ? `<span class="small">سلّم ${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.version > 1 ? " · التسليم " + s.version : ""}</span>` : `<span class="small muted">لم يسلّم</span>`}
         <div class="row">${refusedFor(t, e) ? `<span class="chip bad">مرفوض · غائب ${DL(t)}</span><button class="btn xs" id="grExc">قبول بعذر</button>` : absentOnDue(t, e) ? `<span class="chip ${excusedOf(t, code) ? "ok" : "bad"}">${excusedOf(t, code) ? "غاب " + DL(t) + " · مقبول بعذر" : "غائب " + DL(t) + " · راجِع العذر"}</span>` : ""}${s && s.late ? `<span class="chip warn">متأخر</span>` : ""}${ck ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s && s.grade != null ? `<span class="chip ok">مرصودة: ${gN(totalOf(s))}</span>` : ""}</div>
         ${s && s.note ? `<p class="small">«${esc(s.note)}»</p>` : ""}</div>
+      ${s && s.submitted_at ? fixBoxHtml(s) : ""}
       ${partsOf(t) ? `<div class="gr-parts">${partsOf(t).map((p, i) => `<label class="f"><span>${esc(p.name)} <small class="muted">(من ${gN(p.max)})</small></span><input type="text" class="grP" data-pi="${i}" inputmode="decimal" autocomplete="off" value="${esc(v("p" + i))}"></label>`).join("")}</div>` : ""}
       <div class="gr-grade">
         <label class="f" ${partsOf(t) ? "hidden" : ""}><span>الدرجة من ${gN(t.max_grade)}</span><input type="text" id="grG" inputmode="decimal" autocomplete="off" value="${esc(v("grade"))}"></label>
@@ -2678,6 +2715,7 @@
     $("#grSave").onclick = () => graderSave(t, code);
     [G, B].forEach(i => i.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); graderSave(t, code); } });
     const gs2 = $("#grStamp"); if (gs2) gs2.onclick = () => stampCopy(t, code, gs2);
+    wireFix(t, code, s);
     const gvb = $("#grVc"); if (gvb) gvb.onclick = () => { if (grader.vcOn) { gvStop(); drawGrader(false); } else gvStart(); };
     if (!grader.vcOn) setTimeout(() => { const f0 = PI[0] || G; f0.focus(); f0.select(); }, 30);   // مع الصوت منفتحش الكيبورد على الموبايل
   }

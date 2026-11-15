@@ -1973,3 +1973,13 @@ html[data-skin="nx"] body{ margin: var(--frame-gap); min-height: calc(100vh - 2 
 .apctl-g{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
 .apctl-g .f{flex:1 1 220px;min-width:0}
 .ap-fp{display:flex;flex-wrap:wrap;gap:6px}.ap-fp:empty{display:none}
+/* b108: مشكلة في الملف */
+.fix-box{display:grid;gap:4px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--sunk)}
+.fix-box.warn{border-color:color-mix(in srgb,var(--warn) 55%,var(--line));background:color-mix(in srgb,var(--warn) 9%,var(--surface))}
+.fix-box.ok{border-color:color-mix(in srgb,var(--ok) 55%,var(--line));background:color-mix(in srgb,var(--ok) 9%,var(--surface))}
+.fix-box.bad{border-color:color-mix(in srgb,var(--bad) 55%,var(--line));background:color-mix(in srgb,var(--bad) 8%,var(--surface))}
+.fix-box .btn{justify-self:start}
+.fix-form{display:grid;gap:8px;padding:12px;border-radius:12px;border:1px dashed var(--warn)}
+.fix-rs{display:grid;gap:6px}
+.fix-open{justify-self:stretch;justify-content:center;gap:6px}
+.fix-open svg{width:16px;height:16px}

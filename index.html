@@ -879,7 +879,7 @@
   }
   function closeTask() { if (up) return; if (history.state && history.state.tk) { history.back(); return; } tkId = null; $("#tkOv").hidden = true; renderHome(); }
   const extTxt = t => new Date(t.ext_until).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
-  const canSubmit = t => t.mode !== "manual" && !t.refused && !(t.mine && t.mine.graded) && (t.late === "accept" || !!t.ext_until || new Date(t.due_at).getTime() >= nowS());
+  const canSubmit = t => (t.mine && t.mine.fix) || t.mode !== "manual" && !t.refused && !(t.mine && t.mine.graded) && (t.late === "accept" || !!t.ext_until || new Date(t.due_at).getTime() >= nowS());
   function renderTask() {
     const t = (tasks || []).find(x => x.id === tkId), el = $("#tkIn");
     if (!t) { el.innerHTML = `<p class="muted">جارٍ التحميل…</p>`; return; }
@@ -899,6 +899,7 @@
       ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${Number(t.minus) ? `<span class="small">${gNum(Number(m.grade) + Number(m.bonus || 0))} − ${gNum(t.minus)} خصم${t.minus_note ? " (" + esc(t.minus_note) + ")" : ""}</span>` : ""}${Array.isArray(t.parts) && t.parts.length && Array.isArray(m.parts) ? `<div class="tk-parts">${t.parts.map((p, i) => `<div><span>${esc(p.name)}</span><b>${m.parts[i] == null ? "—" : gNum(m.parts[i])} / ${gNum(p.max)}</b></div>`).join("")}</div>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}
       ${appealHtml(t)}
+      ${m.fix ? `<div class="msg bad fix-msg"><b>في مشكلة في ملفك:</b> ${esc(m.fix_reason || "الملف مش مرفوع صح")}.<br>يرجى إعادة رفع صورة المشروع من «استبدال التسليم» تحت. التسليم مفتوح لك حتى لو الموعد فات، وتسليمك هيفضل محسوب في ميعاده.</div>` : ""}
       ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div><div id="mineChk"></div>
         <a href="${esc(m.url)}" target="_blank" rel="noopener" class="tk-file"><b>${esc(m.kind === "drive" ? m.file_name || "الملف" : m.url)}</b><small>${m.kind === "drive" ? "على Google Drive الخاص بك" + (m.size ? " · " + HD.size(m.size) : "") : "رابط"} · ${CM.fmtD(m.submitted_at)} ${CM.fmtT(m.submitted_at)}${m.version > 1 ? " · التسليم رقم " + m.version : ""}</small></a>
         ${m.late ? `<span class="small warn-t">سُلِّم بعد الموعد، ويظهر ذلك للمحاضر.</span>` : ""}
@@ -1049,7 +1050,8 @@
         p_file_id: meta.id, p_name: meta.name, p_mime: meta.mimeType || f.type, p_size: Number(meta.size) || f.size, p_md5: meta.md5Checksum, p_modified: meta.modifiedTime, p_note: note });
       fileId = null;
       if (old && old !== meta.id) HD.trash(old);
-      pickFile = null; tkMsg = { k: "ok", t: r.late ? "تم التسليم بعد الموعد، وسيظهر ذلك للمحاضر." : "تم التسليم. يمكنك استبدال الملف حتى موعد التسليم." };
+      pickFile = null; tkMsg = r.fixed ? { k: "ok", t: r.match ? "تم! ملفك اترفع واتأكدنا إنه نفس الملف اللي سلّمته في الميعاد. وصل للمحاضر تنبيه إنك صلّحت ملفك." : "ملفك اترفع ووصل للمحاضر تنبيه إنك صلّحته. ده ملف مختلف عن اللي سلّمته في الميعاد، فالمحاضر هيراجعه." }
+        : { k: "ok", t: r.late ? "تم التسليم بعد الموعد، وسيظهر ذلك للمحاضر." : "تم التسليم. يمكنك استبدال الملف حتى موعد التسليم." };
     } catch (e) {
       if (fileId) HD.trash(fileId);
       const net = /Failed to fetch|NetworkError|network|Load failed/i.test(String(e && e.message || ""));
@@ -1100,7 +1102,7 @@
     setUp("جارٍ تسجيل التسليم…", null);
     try {
       const r = await rpc("student_submit", { p_token: token, tid: t.id, p_kind: "link", p_url: url, p_file_id: null, p_name: "", p_mime: null, p_size: null, p_md5: null, p_modified: null, p_note: note });
-      tkMsg = { k: "ok", t: r.late ? "سُلِّم الرابط بعد الموعد، وسيظهر ذلك للمحاضر." : "تم تسليم الرابط." };
+      tkMsg = { k: "ok", t: r.fixed ? "الرابط اتسلّم، ووصل للمحاضر تنبيه إنك صلّحت ملفك." : r.late ? "سُلِّم الرابط بعد الموعد، وسيظهر ذلك للمحاضر." : "تم تسليم الرابط." };
     } catch (e) { tkMsg = { k: "bad", t: errText(e) }; }
     up = null; await loadTasks(true); renderTask();
   }

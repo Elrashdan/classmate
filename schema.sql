@@ -5904,3 +5904,162 @@ begin
   if f = o then raise exception 'course_appeals pattern'; end if;
   execute f;
 end $do$;
+-- ===================== update-60: «مشكلة في الملف» — طلب إعادة رفع من الطالب + مطابقة البصمة + تنبيه الفريق =====================
+alter table public.submissions add column if not exists fix_at timestamptz;
+alter table public.submissions add column if not exists fix_reason text;
+alter table public.submissions add column if not exists fix_by text;
+alter table public.submissions add column if not exists fix_done_at timestamptz;
+alter table public.submissions add column if not exists fix_match boolean;
+alter table public.submissions add column if not exists fix_prev jsonb;
+
+-- الأسباب: missing (اتمسح/مش بيفتح) · unclear (مش واضح) · wrong (ملف غلط) · أو نص حر
+create or replace function public.fix_reason_text(r text) returns text language sql immutable as $$
+  select case r when 'missing' then 'الملف مش بيفتح عندنا (اتمسح من Google Drive بتاعك أو اتقفلت مشاركته)'
+                when 'unclear' then 'صورة المشروع مش واضحة'
+                when 'wrong' then 'الملف المرفوع مش هو المشروع المطلوب'
+                else coalesce(nullif(trim(r), ''), 'الملف مش مرفوع صح') end;
+$$;
+
+create or replace function public.file_fix_request_x(tid uuid, codes text[], p_reason text, p_by text) returns int
+language plpgsql security definer set search_path = public as $$
+declare t tasks; c text; n int := 0;
+begin
+  select * into t from tasks where id = tid;
+  foreach c in array coalesce(codes, '{}') loop
+    update submissions set fix_at = now(), fix_reason = left(coalesce(p_reason, 'missing'), 300), fix_by = p_by, fix_done_at = null, fix_match = null
+     where task_id = tid and student_code = c and submitted_at is not null and (fix_at is null or fix_done_at is not null or fix_reason is distinct from left(coalesce(p_reason, 'missing'), 300));
+    if found then
+      n := n + 1;
+      insert into notifications(student_code, kind, title, body, url)
+        values (c, 'fix', 'مشكلة في ملفك · «' || t.title || '»', fix_reason_text(p_reason) || '. يرجى إعادة رفع صورة المشروع من صفحة التكليف، والتسليم مفتوح لك لحد ما ترفعه.', 'https://elrashdan.github.io/classmate/');
+    end if;
+  end loop;
+  if n > 0 then perform log_audit(t.course_id, 'طلب إعادة رفع الملف من ' || n || ' طالب في «' || t.title || '» · ' || fix_reason_text(p_reason)); end if;
+  return n;
+end $$;
+revoke all on function public.file_fix_request_x(uuid, text[], text, text) from public, anon, authenticated;
+
+create or replace function public.file_fix_request(tid uuid, codes text[], p_reason text) returns int
+language plpgsql security definer set search_path = public as $$
+declare t tasks;
+begin
+  select * into t from tasks where id = tid;
+  if t.id is null or coalesce(course_role(t.course_id), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  return file_fix_request_x(tid, codes, p_reason, my_email());
+end $$;
+revoke all on function public.file_fix_request(uuid, text[], text) from public, anon;
+grant execute on function public.file_fix_request(uuid, text[], text) to authenticated;
+
+create or replace function public.file_fix_cancel(tid uuid, p_code text) returns void
+language plpgsql security definer set search_path = public as $$
+declare t tasks;
+begin
+  select * into t from tasks where id = tid;
+  if t.id is null or coalesce(course_role(t.course_id), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  update submissions set fix_at = null, fix_reason = null, fix_by = null where task_id = tid and student_code = p_code and fix_done_at is null;
+end $$;
+revoke all on function public.file_fix_cancel(uuid, text) from public, anon;
+grant execute on function public.file_fix_cancel(uuid, text) to authenticated;
+
+-- الفحص لما يلاقي ملف اتمسح: يطلب من الطالب إعادة الرفع تلقائيًا (مرة واحدة)
+create or replace function public.record_checks(tid uuid, rows jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+declare t tasks; miss text[];
+begin
+  select * into t from tasks where id = tid;
+  if t.id is null or coalesce(course_role(t.course_id), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  update submissions s set check_state = x.state, checked_at = now()
+  from jsonb_to_recordset(rows) as x(code text, state text)
+  where s.task_id = tid and s.student_code = x.code and x.state in ('ok', 'changed', 'missing') and s.kind = 'drive';
+  select array_agg(s.student_code) into miss from submissions s join jsonb_to_recordset(rows) as x(code text, state text) on x.code = s.student_code
+   where s.task_id = tid and x.state = 'missing' and s.kind = 'drive' and s.fix_at is null and s.rejected_at is null;
+  if miss is not null then perform file_fix_request_x(tid, miss, 'missing', 'فحص تلقائي'); end if;
+end $$;
+
+-- التسليم: لو فيه طلب إصلاح مفتوح، يتقبل بعد الموعد وبعد الرصد، ويفضل بتاريخ التسليم الأصلي، ويتقارن ببصمة الأصل
+create or replace function public.student_submit(p_token text, tid uuid, p_kind text, p_url text, p_file_id text, p_name text, p_mime text, p_size bigint, p_md5 text, p_modified timestamp with time zone, p_note text)
+ returns json language plpgsql security definer set search_path to 'public', 'extensions' as $function$
+declare code text := student_from_token(p_token); t tasks; e enrollments; s submissions; lt boolean; u text := trim(coalesce(p_url, '')); ext timestamptz; fx boolean; mt boolean; nm text;
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  select * into t from tasks where id = tid;
+  if t.id is null then raise exception 'not_found'; end if;
+  if t.mode <> 'submit' then raise exception 'manual_task'; end if;
+  select * into e from enrollments where course_id = t.course_id and student_code = code;
+  select * into s from submissions where task_id = tid and student_code = code;
+  fx := s.task_id is not null and s.fix_at is not null and s.fix_done_at is null;
+  ext := task_ext_until(tid, code);
+  if e.student_code is null or (t.grp is not null and t.grp <> e.grp and s.task_id is null and ext is null)
+     or (select archived from courses where id = t.course_id) then raise exception 'not_found'; end if;
+  lt := now() > t.due_at and ext is null;
+  if not fx then
+    if lt and t.late = 'close' then raise exception 'task_closed'; end if;
+    if ext is null and t.absent_rule = 'refuse' and absent_on_due(t, code) and not task_excused(tid, code) then raise exception 'absent_on_due'; end if;
+    if s.grade is not null then raise exception 'already_graded'; end if;
+  end if;
+  if coalesce(s.version, 0) >= 30 then raise exception 'too_many_versions'; end if;
+  if p_kind = 'drive' then
+    if u !~ '^https://(drive|docs)\.google\.com/' or coalesce(p_file_id, '') !~ '^[A-Za-z0-9_-]{10,200}$'
+       or coalesce(p_md5, '') !~ '^[0-9a-f]{32}$' then raise exception 'bad_file'; end if;
+  elsif p_kind = 'link' then
+    if u !~ '^https://[^\s/$.?#][^\s]*$' or length(u) > 1000 then raise exception 'bad_link'; end if;
+    p_file_id := null; p_md5 := null; p_size := null; p_mime := null; p_modified := null;
+  else raise exception 'bad_file'; end if;
+  if fx then
+    mt := case when s.md5 is null or p_md5 is null then null else s.md5 = p_md5 end;
+    update submissions set kind = p_kind, url = u, file_id = p_file_id, file_name = left(trim(coalesce(p_name, '')), 300), mime = left(p_mime, 200),
+      size = p_size, md5 = p_md5, file_modified = p_modified, note = coalesce(nullif(left(trim(coalesce(p_note, '')), 1000), ''), note),
+      version = version + 1, check_state = null, checked_at = null,
+      fix_done_at = now(), fix_match = mt,
+      fix_prev = jsonb_build_object('file_id', s.file_id, 'url', s.url, 'md5', s.md5, 'size', s.size, 'file_name', s.file_name, 'grade', s.grade, 'bonus', s.bonus, 'feedback', s.feedback, 'graded_by', s.graded_by),
+      grade = null, bonus = 0, parts = null, feedback = '', graded_by = null, graded_at = null
+     where task_id = tid and student_code = code;
+    nm := coalesce(e.name, code);
+    insert into notifications(student_code, kind, title, body, url)
+      select 'staff:' || x, 'fixed', 'صلّح ملفه · «' || t.title || '»',
+             nm || ' (' || code || ') رفع ملفه تاني. ' || case when mt then 'البصمة متطابقة: نفس الملف اللي اتسلّم في الميعاد.' when mt is false then 'ملف مختلف عن اللي اتسلّم في الميعاد، راجعه.' else 'مفيش بصمة قديمة للمقارنة.' end,
+             'https://elrashdan.github.io/classmate/staff.html'
+        from (select owner_email x from courses where id = t.course_id union select email from course_tas where course_id = t.course_id) y;
+    perform log_audit(t.course_id, nm || ' أعاد رفع ملفه في «' || t.title || '» بعد طلب الإصلاح · ' || case when mt then 'البصمة متطابقة' when mt is false then 'ملف مختلف عن الأصل' else 'بدون مقارنة' end);
+    return json_build_object('submitted_at', s.submitted_at, 'late', s.late, 'version', s.version + 1, 'fixed', true, 'match', mt);
+  end if;
+  insert into submissions(task_id, student_code, kind, url, file_id, file_name, mime, size, md5, file_modified, note, submitted_at, late, version)
+    values (tid, code, p_kind, u, p_file_id, left(trim(coalesce(p_name, '')), 300), left(p_mime, 200), p_size, p_md5, p_modified,
+            left(trim(coalesce(p_note, '')), 1000), now(), lt, 1)
+  on conflict (task_id, student_code) do update set
+    kind = excluded.kind, url = excluded.url, file_id = excluded.file_id, file_name = excluded.file_name, mime = excluded.mime,
+    size = excluded.size, md5 = excluded.md5, file_modified = excluded.file_modified, note = excluded.note,
+    submitted_at = excluded.submitted_at, late = excluded.late, version = submissions.version + 1,
+    check_state = null, checked_at = null;
+  return json_build_object('submitted_at', now(), 'late', lt, 'version', coalesce(s.version, 0) + 1);
+end $function$;
+
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.student_tasks(text)'::regprocedure) into f; o := f;
+  f := replace(f, $a$'open', (now() <= t.due_at or t.late = 'accept' or task_ext_until(t.id, code) is not null),$a$,
+    $b$'open', (now() <= t.due_at or t.late = 'accept' or task_ext_until(t.id, code) is not null
+              or exists (select 1 from submissions f where f.task_id = t.id and f.student_code = code and f.fix_at is not null and f.fix_done_at is null)),$b$);
+  if f = o then raise exception 'student_tasks pattern 1'; end if;
+  o := f;
+  f := replace(f, $a$'graded', s.grade is not null, 'rejected', s.rejected_at is not null,$a$,
+    $b$'graded', s.grade is not null, 'rejected', s.rejected_at is not null,
+                 'fix', s.fix_at is not null and s.fix_done_at is null, 'fix_reason', case when s.fix_at is not null and s.fix_done_at is null then fix_reason_text(s.fix_reason) end, 'fix_done', s.fix_done_at,$b$);
+  if f = o then raise exception 'student_tasks pattern 2'; end if;
+  execute f;
+end $do$;
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.staff_note_meta(public.notifications)'::regprocedure) into f; o := f;
+  f := replace(f, $a$  elsif n.kind = 'remind' then$a$, $b$  elsif n.kind = 'fixed' then
+    select tk.id tid, tk.course_id cid, s.grade into a from submissions s join tasks tk on tk.id = s.task_id
+     where tk.title = substring(n.title from '«(.*)»') and s.fix_done_at between n.created_at - interval '2 minutes' and n.created_at + interval '2 minutes'
+     order by abs(extract(epoch from s.fix_done_at - n.created_at)) limit 1;
+    if not found then return null; end if;
+    return jsonb_build_object('go', 'course', 'cid', a.cid, 'k', 'grade', 'ref', a.tid, 'done', a.grade is not null);
+  elsif n.kind = 'remind' then$b$);
+  if f = o then raise exception 'note_meta pattern'; end if;
+  execute f;
+end $do$;
