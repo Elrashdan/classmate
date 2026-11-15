@@ -899,7 +899,7 @@
       ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${Number(t.minus) ? `<span class="small">${gNum(Number(m.grade) + Number(m.bonus || 0))} − ${gNum(t.minus)} خصم${t.minus_note ? " (" + esc(t.minus_note) + ")" : ""}</span>` : ""}${Array.isArray(t.parts) && t.parts.length && Array.isArray(m.parts) ? `<div class="tk-parts">${t.parts.map((p, i) => `<div><span>${esc(p.name)}</span><b>${m.parts[i] == null ? "—" : gNum(m.parts[i])} / ${gNum(p.max)}</b></div>`).join("")}</div>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}
       ${appealHtml(t)}
-      ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div>
+      ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div><div id="mineChk"></div>
         <a href="${esc(m.url)}" target="_blank" rel="noopener" class="tk-file"><b>${esc(m.kind === "drive" ? m.file_name || "الملف" : m.url)}</b><small>${m.kind === "drive" ? "على Google Drive الخاص بك" + (m.size ? " · " + HD.size(m.size) : "") : "رابط"} · ${CM.fmtD(m.submitted_at)} ${CM.fmtT(m.submitted_at)}${m.version > 1 ? " · التسليم رقم " + m.version : ""}</small></a>
         ${m.late ? `<span class="small warn-t">سُلِّم بعد الموعد، ويظهر ذلك للمحاضر.</span>` : ""}
         ${m.kind === "drive" ? `<p class="small muted">لا تحذف هذا الملف من Drive ولا تعدّله؛ فالتطبيق يحفظ بصمته، وأي تعديل بعد التسليم يظهر للمحاضر.</p>` : ""}</div>` : ""}
@@ -937,6 +937,10 @@
     const gl = $("#tkLink"); if (gl) gl.onclick = () => submitLink(t, $("#tkUrl").value.trim(), ($("#tkNote") || {}).value || "");
     const sp = $("#tkStamp"); if (sp) sp.onclick = () => myStamped(t, sp);
     wireAppeal(t);
+    // هل ملف الطالب لسه ظاهر للمحاضر؟ (لو اتمسح من Drive أو اتقفلت مشاركته المحاضر مش هيقدر يفتحه)
+    { const mm = t.mine || {}, box = $("#mineChk");
+      if (box && mm.kind === "drive" && mm.file_id && HD.canCheck) HD.meta(mm.file_id).then(x => { const b = $("#mineChk"); if (!b || tkId !== t.id) return;
+        if (x && (x.missing || x.trashed)) b.innerHTML = `<div class="msg bad"><b>ملفك مش ظاهر للمحاضر.</b> الملف اتمسح من Google Drive بتاعك أو اتقفلت مشاركته، فمش هيتفتح وقت التصحيح. ${t.open && mm.grade == null ? "ارفعه تاني دلوقتي من الزرار اللي تحت." : "بلّغ أستاذ المادة، ومتمسحش ملفات «Hadro» من Drive بتاعك لحد آخر الترم."}</div>`; }).catch(() => {}); }
   }
   /* ---------- التظلم على الدرجة ---------- */
   function appealHtml(t) {
@@ -950,8 +954,10 @@
       ${last.status === "rejected" ? `<span>سبب الرفض: ${esc(last.reply)}</span>` : ""}
       ${last.status === "pending" ? `<span class="small muted">سيراجعه المحاضر أو المعيد، ويصلك تنبيه بالقرار.</span><button class="btn sm ghost" id="apWd" style="justify-self:start">سحب التظلم</button>` : ""}</div>`;
     const w = apWins[t.id], fmtW = d => new Date(d).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
-    const canNew = (!last || last.status !== "pending") && mine.length < 3;
-    if (!canNew) return out;
+    const used = mine.filter(a => a.status !== "withdrawn").length, grant = !!(w && w.grant);
+    if (last && last.status === "pending") return out;
+    if ((used >= 3 || mine.length >= 12) && !grant) return out + `<div class="ap-win muted">استنفدت عدد التظلمات المسموح على هذا التكليف. لو عندك سبب، اطلب من أستاذ المادة يفتح لك تظلمًا جديدًا.</div>`;
+    if (grant) out += `<div class="ap-win"><b>اتفتح لك تظلم جديد على هذا التكليف.</b> تقدر تقدّمه مرة واحدة.</div>`;
     if (w && !w.open) {
       const soon = w.mode === "window" && w.from && new Date(w.from) > new Date();
       return out + `<div class="ap-win muted">${soon ? `باب التظلم على هذه الدرجة يُفتح ${esc(fmtW(w.from))} ويُغلق ${esc(fmtW(w.until))}.` : w.mode === "window" ? "انتهت مهلة التظلم على هذه الدرجة." : "باب التظلم على هذه الدرجة مغلق."}</div>`;

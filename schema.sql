@@ -5839,3 +5839,68 @@ begin
   if f = o then raise exception 'student_tasks pattern not found'; end if;
   execute f;
 end $do$;
+-- ===================== update-59: التظلم المسحوب مبيتحسبش من الحد + فتح تظلم جديد لطالب معيّن =====================
+create table if not exists public.appeal_grants (
+  task_id uuid not null references public.tasks(id) on delete cascade,
+  student_code text not null,
+  by_email text not null default '',
+  at timestamptz not null default now(),
+  used_at timestamptz,
+  primary key (task_id, student_code)
+);
+alter table public.appeal_grants enable row level security;
+
+create or replace function public.appeal_granted(tid uuid, code text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from appeal_grants g where g.task_id = tid and g.student_code = code and g.used_at is null);
+$$;
+revoke all on function public.appeal_granted(uuid, text) from public, anon, authenticated;
+
+-- فريق المادة يفتح لطالب معيّن تظلمًا جديدًا على تكليف، حتى لو استنفد محاولاته أو الباب مقفول
+create or replace function public.appeal_grant(tid uuid, p_code text) returns void
+language plpgsql security definer set search_path = public as $$
+declare t tasks; nm text;
+begin
+  select * into t from tasks where id = tid;
+  if t.id is null then raise exception 'not_found'; end if;
+  if coalesce(course_role(t.course_id), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  if not coalesce(t.released, false) then raise exception 'appeal_not_released'; end if;
+  select name into nm from enrollments where course_id = t.course_id and student_code = p_code;
+  if nm is null then raise exception 'not_found'; end if;
+  if exists (select 1 from grade_appeals where task_id = tid and student_code = p_code and status = 'pending') then raise exception 'appeal_open'; end if;
+  insert into appeal_grants(task_id, student_code, by_email) values (tid, p_code, my_email())
+    on conflict (task_id, student_code) do update set by_email = excluded.by_email, at = now(), used_at = null;
+  insert into notifications(student_code, kind, title, body, url)
+    values (p_code, 'appeal', 'اتفتح لك تظلم جديد · «' || t.title || '»', 'تقدر تقدّم تظلمًا على درجة هذا التكليف من صفحته.', 'https://elrashdan.github.io/classmate/');
+  perform log_audit(t.course_id, 'فتح تظلمًا جديدًا للطالب ' || nm || ' على «' || t.title || '»');
+end $$;
+revoke all on function public.appeal_grant(uuid, text) from public, anon;
+grant execute on function public.appeal_grant(uuid, text) to authenticated;
+
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.student_appeal(text,uuid,text,text,text,text,text,text,bigint)'::regprocedure) into f;
+  o := f; f := replace(f, $a$if not appeal_is_open(t) then raise exception 'appeal_closed'; end if;$a$, $b$if not appeal_is_open(t) and not appeal_granted(tid, code) then raise exception 'appeal_closed'; end if;$b$);
+  if f = o then raise exception 'student_appeal pattern 1'; end if;
+  o := f; f := replace(f, $a$select count(*) into n from grade_appeals where task_id = tid and student_code = code;
+  if n >= 3 then raise exception 'appeal_limit'; end if;$a$, $b$select count(*) filter (where status <> 'withdrawn'), count(*) into n, n_all from grade_appeals where task_id = tid and student_code = code;
+  if (n >= 3 or n_all >= 12) and not appeal_granted(tid, code) then raise exception 'appeal_limit'; end if;$b$);
+  if f = o then raise exception 'student_appeal pattern 2'; end if;
+  o := f; f := replace(f, 'a grade_appeals; n int;', 'a grade_appeals; n int; n_all int;');
+  if f = o then raise exception 'student_appeal pattern 3'; end if;
+  o := f; f := replace(f, $a$    returning * into a;$a$, $b$    returning * into a;
+  update appeal_grants set used_at = now() where task_id = tid and student_code = code and used_at is null;$b$);
+  if f = o then raise exception 'student_appeal pattern 4'; end if;
+  execute f;
+
+  select pg_get_functiondef('public.student_appeal_windows(text)'::regprocedure) into f;
+  o := f; f := replace(f, $a$json_build_object('open', appeal_is_open(t),$a$, $b$json_build_object('open', appeal_is_open(t) or appeal_granted(t.id, code), 'grant', appeal_granted(t.id, code),$b$);
+  if f = o then raise exception 'windows pattern'; end if;
+  execute f;
+
+  select pg_get_functiondef('public.course_appeals(uuid)'::regprocedure) into f;
+  o := f; f := replace(f, $a$'cur_grade', s.grade,$a$, $b$'cur_grade', s.grade, 'sub_md5', s.md5, 'sub_file_id', s.file_id,$b$);
+  if f = o then raise exception 'course_appeals pattern'; end if;
+  execute f;
+end $do$;

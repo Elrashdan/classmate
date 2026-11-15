@@ -3098,6 +3098,7 @@
         ${s.k === "on" ? `<button class="btn sm" id="apCloseNow">إغلاق باب التظلم الآن</button>` : `<button class="btn sm primary" id="apOpenNow">فتح باب التظلم</button>`}
         ${CM.dd("مهلة محددة", [`<div class="dd-h">افتح الآن لمدة</div>`, quick(1, "يوم واحد"), quick(2, "يومين"), quick(3, "3 أيام"), quick(7, "أسبوع"), `<hr><button class="dd-i" id="apPick">حدّد موعد الفتح والإغلاق…</button>`], { end: true })}
       </div>
+      ${t.released ? `<div class="apctl-g"><label class="f"><span>فتح تظلم جديد لطالب معيّن (حتى لو استنفد محاولاته أو الباب مقفول)</span><select id="apGrantSel"><option value="">اختر الطالب…</option>${taskRows(t).map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}</option>`).join("")}</select></label><button class="btn sm" id="apGrantGo">افتح له تظلمًا</button></div>` : ""}
       ${apWin && apWin.tid === t.id ? `<div class="apctl-f">
         <label class="f"><span>يُفتح</span><input type="datetime-local" id="apFrom" value="${esc(apWin.from)}"></label>
         <label class="f"><span>يُغلق</span><input type="datetime-local" id="apUntil" value="${esc(apWin.until)}"></label>
@@ -3112,6 +3113,8 @@
     document.querySelectorAll("[data-apq]").forEach(b => b.onclick = () => { const d = +b.dataset.apq, u = new Date(Date.now() + d * 86400e3); u.setHours(23, 59, 0, 0); set("window", new Date().toISOString(), u.toISOString(), "فُتح باب التظلم حتى " + fmtDT(u) + "."); });
     const pk = $("#apPick"); if (pk) pk.onclick = () => { const f = new Date(), u = new Date(Date.now() + 3 * 86400e3); u.setHours(23, 59, 0, 0); apWin = { tid: t.id, from: dtLocal(t.appeal_from || f), until: dtLocal(t.appeal_until || u) }; renderTasks(); const i = $("#apFrom"); if (i) i.focus(); };
     const x = $("#apWinX"); if (x) x.onclick = () => { apWin = null; renderTasks(); };
+    const gg = $("#apGrantGo"); if (gg) gg.onclick = () => { const code = $("#apGrantSel").value; if (!code) return toast("اختر الطالب الأول.");
+      act(() => rpc("appeal_grant", { tid: t.id, p_code: code }), async () => { say("tasks", "اتفتح تظلم جديد لـ" + nameOf(code) + " على «" + t.title + "»، ووصله تنبيه. يقدر يقدّمه مرة واحدة."); renderTasks(); }); };
     const g = $("#apWinGo"); if (g) g.onclick = () => { const f = $("#apFrom").value, u = $("#apUntil").value; if (!f || !u) return; set("window", new Date(f).toISOString(), new Date(u).toISOString(), "حُفظت مهلة التظلم: من " + fmtDT(f) + " حتى " + fmtDT(u) + "."); };
   }
   function appealsHtml(c) {
@@ -3124,6 +3127,7 @@
         <div class="ap-who"><b>${esc(a.name || a.student_code)}</b><span class="small muted mono">${esc(a.student_code)}${a.grp ? " · مجموعة " + esc(a.grp) : ""}</span></div>
         <div class="ap-what"><span class="chip">${esc(a.task)}</span><span class="chip warn">${esc(AP_R[a.reason])}</span><span class="small">الدرجة الحالية: <b>${a.cur_grade != null ? gN(Number(a.cur_grade) + Number(a.cur_bonus || 0)) : "لم تُرصد"}</b> من ${gN(a.max)}</span></div>
         ${a.note ? `<p class="ap-note">«${esc(a.note)}»</p>` : ""}
+        <div class="ap-fp small" data-apfp="${a.id}"></div>
         <a class="ap-img" href="${esc(a.file_url)}" target="_blank" rel="noopener">${imgOf(a) ? `<img src="${esc(imgOf(a))}" alt="صورة المشروع" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}<span>افتح صورة المشروع ↗</span></a>
         ${can ? `<div class="ap-act">
           <label class="f"><span>الدرجة الجديدة (من ${gN(a.max)})</span><input type="text" inputmode="decimal" data-apg="${a.id}" value="${a.cur_grade != null ? esc(gN(a.cur_grade)) : ""}"></label>
@@ -3134,7 +3138,22 @@
       ${apShowOld ? `<div class="tbl-wrap"><table><thead><tr><th>الطالب</th><th>التكليف</th><th>السبب</th><th>القرار</th><th>بواسطة</th></tr></thead><tbody>${old.map(a => `<tr><td>${esc(a.name || a.student_code)}</td><td>${esc(a.task)}</td><td class="small">${esc(AP_R[a.reason])}</td><td class="small">${a.status === "accepted" ? `<span class="ok-t">قُبل · ${gN(a.old_grade ?? 0)} ← ${gN(a.new_grade)}</span>` : `<span class="bad-t">رُفض</span> · ${esc(a.reply)}`}</td><td class="small muted">${esc(a.decided_by || "")}</td></tr>`).join("")}</tbody></table></div>` : ""}
     </section>`;
   }
+  // بصمة الملف المرفق بالتظلم مقابل بصمة التسليم الأصلي المسجّلة وقت الرفع
+  const apFp = {};
+  async function appealPrints(el) {
+    if (!HD.canCheck) return;
+    for (const a of (D.appeals || []).filter(x => x.status === "pending" && x.file_id)) {
+      const box = el.querySelector(`[data-apfp="${a.id}"]`); if (!box) continue;
+      try {
+        if (!apFp[a.id]) { const [m, o] = await Promise.all([HD.meta(a.file_id), a.sub_file_id ? HD.meta(a.sub_file_id) : null]); apFp[a.id] = { m, o }; }
+        const { m, o } = apFp[a.id], same = a.sub_md5 && m && m.md5Checksum && m.md5Checksum === a.sub_md5, gone = o && (o.missing || o.trashed);
+        box.innerHTML = (same ? `<span class="chip ok">✓ نفس الملف اللي اتسلّم في الموعد (البصمة متطابقة)</span>` : a.sub_md5 && m && m.md5Checksum ? `<span class="chip warn">ملف مختلف عن اللي اتسلّم في الموعد</span>` : "")
+          + (gone ? ` <span class="chip bad">ملف التسليم الأصلي اتشال من Drive الطالب أو اتقفلت مشاركته</span>` : "");
+      } catch (e) {}
+    }
+  }
   function wireAppeals(el) {
+    appealPrints(el);
     const ob = $("#apOld"); if (ob) ob.onclick = () => { apShowOld = !apShowOld; renderTasks(); };
     el.querySelectorAll("[data-apok]").forEach(b => b.onclick = () => act(async () => {
       const id = b.dataset.apok, a = D.appeals.find(x => x.id === id), v = toNum(el.querySelector(`[data-apg="${id}"]`).value);

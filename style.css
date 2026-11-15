@@ -1969,3 +1969,7 @@ html[data-skin="nx"] body{ margin: var(--frame-gap); min-height: calc(100vh - 2 
 .tfm-nm small{color:var(--muted);font-size:.74rem}
 .tfm-it input.tfm-v{width:72px!important;min-width:0;max-width:72px;flex:0 0 72px;text-align:center;padding:5px 6px;height:auto}
 @media (max-width:600px){.tfm-top{grid-template-columns:minmax(0,1fr)}}
+/* b107: فتح تظلم لطالب + بصمة ملف التظلم */
+.apctl-g{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.apctl-g .f{flex:1 1 220px;min-width:0}
+.ap-fp{display:flex;flex-wrap:wrap;gap:6px}.ap-fp:empty{display:none}
