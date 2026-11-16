@@ -2526,3 +2526,23 @@ html[data-skin="nx"]{ --dd-hover: var(--nx-hi, var(--accent)); --dd-hover-ink: v
 details.dd[open] > summary.btn{ border-color: var(--dd-hover) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-hover) 30%, transparent); }
 @keyframes ddIn{ from{ opacity: 0; transform: translateY(-4px) scale(.98); } }
 @media (prefers-reduced-motion: reduce){ .dd-m{ animation: none; } }
+/* b117: قايمة «كل المواد» (وأي قايمة في التحية) تنزل فوق الكروت مش وراها */
+.dh-hi{ position: relative; z-index: 30; }
+.dh-hi .cpk.open, .dh-chips .cpk{ z-index: 31; }
+.dh-chips .cpk-pop{ z-index: 60; }
+/* b117: الشريط اللي فوق ثابت، فأي «انزل للجزء ده» يقف تحته مش وراه (زي زرار «رجوع لكل التكليفات») */
+html{ scroll-padding-top: 96px; }
+@media (max-width: 760px){ html{ scroll-padding-top: 88px; } }
+/* قايمة اختيار المادة: خلفية مصمتة عشان الكروت اللي وراها ماتبانش من خلالها */
+.dh-chips .cpk-pop, html[data-skin="nx"] .dh-chips .cpk-pop{ background: var(--dd-bg) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border: 1.5px solid var(--dd-line) !important; box-shadow: 0 30px 70px -20px rgba(0,0,0,.6) !important; }
+header.top .top-q{ z-index: 1; }
+header.top details.dd[open]{ position: relative; z-index: 5; }
+@media (max-width: 760px){
+  .dh-chips .cpk{ position: static; }
+  .dh-chips .cpk-pop{ inset-inline: 0 !important; width: auto !important; max-height: 65vh; }
+}
+@media (max-width: 760px){
+  .dh-hi .dh-chips, .dh-hi .dh-chips .cpk{ position: static; }
+  .dh-chips .cpk-pop, html[data-skin="nx"] .dh-chips .cpk-pop{ position: absolute !important; top: calc(100% + 8px) !important; bottom: auto !important; inset-inline: 0 !important; width: auto !important; max-height: 60vh; overflow: auto; z-index: 70 !important; border-radius: 20px; }
+  .dh-chips .cpk-pop .cchips{ flex-wrap: wrap; }
+}
