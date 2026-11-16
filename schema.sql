@@ -6339,3 +6339,15 @@ do $$ declare r record; begin
     perform public.tt_sync_team(r.course_id);
   end loop;
 end $$;
+
+-- ===================== update-65: إشعار «صلّح ملفه» والتظلم بيحملوا كود الطالب، عشان الإشعار يفتح عمل الطالب نفسه =====================
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.staff_note_meta(public.notifications)'::regprocedure) into f; o := f;
+  f := replace(f, $a$select tk.id tid, tk.course_id cid, s.grade into a from submissions s$a$, $b$select tk.id tid, tk.course_id cid, s.grade, s.student_code code into a from submissions s$b$);
+  f := replace(f, $a$'k', 'grade', 'ref', a.tid, 'done', a.grade is not null);$a$, $b$'k', 'grade', 'ref', a.tid, 'code', a.code, 'done', a.grade is not null);$b$);
+  f := replace(f, $a$select ga.status, tk.id tid, tk.course_id cid into a from grade_appeals ga$a$, $b$select ga.status, ga.student_code code, tk.id tid, tk.course_id cid into a from grade_appeals ga$b$);
+  f := replace(f, $a$'k', 'appeal', 'ref', a.tid, 'done', a.status <> 'pending');$a$, $b$'k', 'appeal', 'ref', a.tid, 'code', a.code, 'done', a.status <> 'pending');$b$);
+  if f <> o then execute f; end if;
+end $do$;

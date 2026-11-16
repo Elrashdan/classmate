@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b112">
+<link rel="stylesheet" href="style.css?v=b113">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,15 +45,15 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b112"></script>
-<script src="vendor/qrcode.js?v=b112"></script>
-<script src="config.js?v=b112"></script>
-<script src="common.js?v=b112"></script>
-<script src="drive.js?v=b112"></script>
-<script src="pack.js?v=b112"></script>
-<script src="catalog.js?v=b112"></script>
-<script src="voice.js?v=b112"></script>
-<script src="timetable.js?v=b112"></script>
+<script src="vendor/supabase.js?v=b113"></script>
+<script src="vendor/qrcode.js?v=b113"></script>
+<script src="config.js?v=b113"></script>
+<script src="common.js?v=b113"></script>
+<script src="drive.js?v=b113"></script>
+<script src="pack.js?v=b113"></script>
+<script src="catalog.js?v=b113"></script>
+<script src="voice.js?v=b113"></script>
+<script src="timetable.js?v=b113"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -826,7 +826,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b112: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b113: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -1096,18 +1096,24 @@
     if (!n.read) { n.read = true; feed.unread = Math.max(0, (feed.unread || 0) - 1); rpc("staff_notes_mark", { p_ids: [id] }).catch(() => {}); bellBadge(); }
     const g = n.go;
     if (!g) { bellRender(); return; }
-    if (g.go === "course") return bellGo(g.cid, g.k, g.ref || "");
+    if (g.go === "course") return bellGo(g.cid, g.k, g.ref || "", g.code || "");
     if (g.go === "admin") { bellClose(); atab = g.tab; store.set("cm_atab", atab); if (g.tab === "inbox" && g.ref) { inboxF = "all"; inboxOpen = g.ref; } view = "admin"; stopLoops(); render(); window.scrollTo({ top: 0 }); return; }
     if (g.go === "help") { bellClose(); openStaffHelp("list"); return; }
     bellRender();
   }
-  function bellGo(cid, kind, ref) {
+  function bellGo(cid, kind, ref, code) {
     bellClose();
     if (!courses.some(c => c.id === cid)) { toast("هذه المادة غير متاحة في قائمتك."); return; }
     curId = cid; store.set("cm_course", curId); ctab = (FK[kind] || FK.appeal).tab; store.set("cm_tab", ctab); view = "course";
     flash = {}; liveTab = "all"; regGroup = "all"; rpGroup = "all"; rpLevel = null; startState = null; tkSel = kind === "grade" ? ref : null; tkForm = null;
     fYear = "all"; fTerm = "all";
-    loadCourse().then(() => { const w = kind === "warn" ? $("#wAlert") : kind === "appeal" ? $("#apBox") : kind === "petition" ? $("#ptBox") : null; if (w) w.scrollIntoView({ block: "center" }); else window.scrollTo({ top: 0 }); }).catch(showErr);
+    loadCourse().then(() => {
+      // تسليم اتعدّل أو مستني تصحيح: نفتح «عرض الأعمال» على الطالب نفسه على طول
+      if (kind === "grade" && ref) { const t = D.tasks.find(x => x.id === ref); if (t) { openGrader(t, code || undefined); return; } }
+      // تظلم: ننزل لكارت تظلم الطالب نفسه ونعلّمه
+      if (kind === "appeal" && code) { const a = (D.appeals || []).find(x => x.student_code === code && (!ref || x.task_id === ref) && x.status === "pending"), el = a && document.querySelector(`[data-ap="${a.id}"]`);
+        if (el) { el.scrollIntoView({ block: "center" }); el.classList.add("ap-hit"); setTimeout(() => el.classList.remove("ap-hit"), 2600); return; } }
+      const w = kind === "warn" ? $("#wAlert") : kind === "appeal" ? $("#apBox") : kind === "petition" ? $("#ptBox") : null; if (w) w.scrollIntoView({ block: "center" }); else window.scrollTo({ top: 0 }); }).catch(showErr);
   }
   function bellOpen() {
     let p = $("#bellPop"); if (!p) { p = document.createElement("div"); p.id = "bellPop"; p.className = "bell-pop"; p.setAttribute("role", "dialog"); p.setAttribute("aria-label", "التنبيهات"); document.body.appendChild(p);
