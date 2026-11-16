@@ -2509,3 +2509,20 @@ body.has-ctabs header.top, body header.top{ position: sticky; top: 8px; z-index:
 /* b114: خانة البحث: إطار واحد بس لما تدوس عليها (من غير إطار جوه إطار) */
 html header.top .top-q input[type="search"], html header.top .top-q input[type="search"]:focus, html[data-skin="nx"] header.top .top-q input[type="search"]:focus{ border: 0 !important; box-shadow: none !important; outline: none !important; background: transparent !important; border-radius: 0 !important; }
 html[data-skin="nx"] .top-q label:focus-within{ border-color: var(--ink); box-shadow: 0 0 0 3px var(--tint); }
+
+/* ===================== b114: القوائم المنسدلة بلون مميّز يبان على الخلفية ===================== */
+:root{ --dd-bg: #ffffff; --dd-line: color-mix(in srgb, var(--accent) 38%, var(--line)); --dd-hover: var(--accent); --dd-hover-ink: var(--accent-ink); --dd-ink: var(--ink); --dd-sub: var(--muted); }
+:root[data-theme="dark"]{ --dd-bg: #2a3532; --dd-ink: #f1f6f4; --dd-sub: #b8c6c1; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --dd-bg: #2a3532; --dd-ink: #f1f6f4; --dd-sub: #b8c6c1; } }
+html[data-skin="nx"]{ --dd-hover: var(--nx-hi, var(--accent)); --dd-hover-ink: var(--nx-on-hi, var(--accent-ink)); --dd-line: color-mix(in srgb, var(--nx-hi, var(--accent)) 55%, transparent); }
+.dd-m, html[data-skin="nx"] .dd-m{ background: var(--dd-bg) !important; color: var(--dd-ink); border: 1.5px solid var(--dd-line) !important; border-radius: 16px; padding: 6px; box-shadow: 0 22px 48px -14px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.04) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; animation: ddIn .16s ease-out both; }
+.dd-i, html[data-skin="nx"] .dd-i{ color: var(--dd-ink) !important; font-weight: 600; font-size: .95rem; padding: 11px 14px; border-radius: 10px; }
+.dd-i + .dd-i{ box-shadow: 0 -1px 0 color-mix(in srgb, var(--dd-ink) 9%, transparent); }
+.dd-i:hover, .dd-i:focus-visible, html[data-skin="nx"] .dd-i:hover, html[data-skin="nx"] .dd-i:focus-visible{ background: var(--dd-hover) !important; color: var(--dd-hover-ink) !important; box-shadow: none; }
+.dd-i:hover + .dd-i{ box-shadow: none; }
+.dd-i.danger, html[data-skin="nx"] .dd-i.danger{ color: var(--bad) !important; }
+.dd-i.danger:hover, html[data-skin="nx"] .dd-i.danger:hover{ background: var(--bad) !important; color: #fff !important; }
+.dd-m .f > span, .dd-m small, .dd-m .muted{ color: var(--dd-sub) !important; }
+details.dd[open] > summary.btn{ border-color: var(--dd-hover) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--dd-hover) 30%, transparent); }
+@keyframes ddIn{ from{ opacity: 0; transform: translateY(-4px) scale(.98); } }
+@media (prefers-reduced-motion: reduce){ .dd-m{ animation: none; } }
