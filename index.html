@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=b110">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js"></script>
-<script src="config.js"></script>
-<script src="common.js"></script>
-<script src="drive.js"></script>
-<script src="catalog.js"></script>
-<script src="regform.js"></script>
+<script src="vendor/qrcode.js?v=b110"></script>
+<script src="config.js?v=b110"></script>
+<script src="common.js?v=b110"></script>
+<script src="drive.js?v=b110"></script>
+<script src="catalog.js?v=b110"></script>
+<script src="regform.js?v=b110"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -791,12 +791,13 @@
 
   /* ---------------- التكليفات والتسليم ---------------- */
   let tasks = null, tasksAt = 0, tkId = null, pickFile = null, linkMode = false, tkMsg = null, up = null, tkOff = 0;
-  let appeals = [], apWins = {}, ap = null;   // ap: نموذج التظلم المفتوح { reason, note, file, mode, url, err }
+  let appeals = [], apWins = {}, ap = null, petitions = [], pt = null;   // pt: نموذج التماس التسليم { kind, note, file, err }   // ap: نموذج التظلم المفتوح { reason, note, file, mode, url, err }
   const AP_R = { not_graded: "سلّمت المشروع ولم تُرصد درجتي", wrong_grade: "درجتي مرصودة خطأ", other: "سبب آخر" };
   async function loadTasks(force) {
     if (!token || (!force && Date.now() - tasksAt < 120000)) return;
     try {
       rpc("student_appeals", { p_token: token }).then(a => { appeals = a || []; if (tkId) renderTask(); }).catch(() => {});
+      rpc("student_petitions", { p_token: token }).then(a => { petitions = a || []; if (tkId) renderTask(); }).catch(() => {});
       rpc("student_appeal_windows", { p_token: token }).then(w => { apWins = w || {}; if (tkId) renderTask(); }).catch(() => {});
       const r = await rpc("student_tasks", { p_token: token });
       tasks = r.tasks || []; tasks.forEach(t => { if (t.mine) t.mine.minus = Number(t.minus) || 0; }); tasksAt = Date.now(); tkOff = Number(r.now_ms) - Date.now();
@@ -899,6 +900,7 @@
       ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${Number(t.minus) ? `<span class="small">${gNum(Number(m.grade) + Number(m.bonus || 0))} − ${gNum(t.minus)} خصم${t.minus_note ? " (" + esc(t.minus_note) + ")" : ""}</span>` : ""}${Array.isArray(t.parts) && t.parts.length && Array.isArray(m.parts) ? `<div class="tk-parts">${t.parts.map((p, i) => `<div><span>${esc(p.name)}</span><b>${m.parts[i] == null ? "—" : gNum(m.parts[i])} / ${gNum(p.max)}</b></div>`).join("")}</div>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}
       ${appealHtml(t)}
+      ${petitionHtml(t)}
       ${m.fix ? `<div class="msg bad fix-msg"><b>في مشكلة في ملفك:</b> ${esc(m.fix_reason || "الملف مش مرفوع صح")}.<br>يرجى إعادة رفع صورة المشروع من «استبدال التسليم» تحت. التسليم مفتوح لك حتى لو الموعد فات، وتسليمك هيفضل محسوب في ميعاده.</div>` : ""}
       ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div><div id="mineChk"></div>
         <a href="${esc(m.url)}" target="_blank" rel="noopener" class="tk-file"><b>${esc(m.kind === "drive" ? m.file_name || "الملف" : m.url)}</b><small>${m.kind === "drive" ? "على Google Drive الخاص بك" + (m.size ? " · " + HD.size(m.size) : "") : "رابط"} · ${CM.fmtD(m.submitted_at)} ${CM.fmtT(m.submitted_at)}${m.version > 1 ? " · التسليم رقم " + m.version : ""}</small></a>
@@ -937,11 +939,78 @@
     const rd = $("#tkRedir"); if (rd) rd.onclick = () => driveRedirect(t, ($("#tkNote") || {}).value || "", rd);
     const gl = $("#tkLink"); if (gl) gl.onclick = () => submitLink(t, $("#tkUrl").value.trim(), ($("#tkNote") || {}).value || "");
     const sp = $("#tkStamp"); if (sp) sp.onclick = () => myStamped(t, sp);
-    wireAppeal(t);
+    wireAppeal(t); wirePetition(t);
     // هل ملف الطالب لسه ظاهر للمحاضر؟ (لو اتمسح من Drive أو اتقفلت مشاركته المحاضر مش هيقدر يفتحه)
     { const mm = t.mine || {}, box = $("#mineChk");
       if (box && mm.kind === "drive" && mm.file_id && HD.canCheck) HD.meta(mm.file_id).then(x => { const b = $("#mineChk"); if (!b || tkId !== t.id) return;
         if (x && (x.missing || x.trashed)) b.innerHTML = `<div class="msg bad"><b>ملفك مش ظاهر للمحاضر.</b> الملف اتمسح من Google Drive بتاعك أو اتقفلت مشاركته، فمش هيتفتح وقت التصحيح. ${t.open && mm.grade == null ? "ارفعه تاني دلوقتي من الزرار اللي تحت." : "بلّغ أستاذ المادة، ومتمسحش ملفات «Hadro» من Drive بتاعك لحد آخر الترم."}</div>`; }).catch(() => {}); }
+  }
+  /* ---------- التماس تسليم: الموعد فات أو التسليم مرفوض، وعند الطالب عذر ---------- */
+  function petitionHtml(t) {
+    const m = t.mine || {};
+    if (limited || t.mode === "manual" || m.grade != null || m.fix || canSubmit(t) || (m.submitted_at && !t.refused)) return "";
+    const mine = petitions.filter(p => p.task_id === t.id), last = mine[0];
+    let out = "";
+    if (last && last.status !== "withdrawn") out += `<div class="ap-st ${last.status}"><div class="row between"><b>التماس التسليم: ${last.status === "pending" ? "قيد المراجعة" : last.status === "accepted" ? "اتقبل" : "اترفض"}</b><span class="small muted">${esc(CM.fmtD(last.created_at))}</span></div>
+      <span class="small">${last.kind === "sick" ? "عذر مرضي" : esc(last.note)}</span>
+      ${last.status === "rejected" ? `<span>سبب الرفض: ${esc(last.reply)}</span>` : ""}
+      ${last.status === "pending" ? `<span class="small muted">أستاذ المادة هيراجعه، ويوصلك تنبيه بالقرار.</span><button class="btn sm ghost" id="ptWd" style="justify-self:start">سحب الالتماس</button>` : ""}</div>`;
+    if (last && last.status === "pending") return out;
+    if (mine.filter(p => p.status !== "withdrawn").length >= 3) return out;
+    if (!pt || pt.tid !== t.id) return out + `<button class="btn block ap-open" id="ptOpen">فاتك ميعاد التسليم وعندك عذر؟ قدّم التماس تسليم</button>`;
+    return out + `<div class="ap-form" id="ptForm"><h3>التماس تسليم «${esc(t.title)}»</h3>
+      <div class="ap-rs" role="radiogroup">
+        <label class="ap-r"><input type="radio" name="ptK" value="sick" ${pt.kind === "sick" ? "checked" : ""}><span><b>عذر مرضي</b> · لازم ترفع الشهادة الطبية، ومن غيرها الالتماس مش هيتقبل</span></label>
+        <label class="ap-r"><input type="radio" name="ptK" value="other" ${pt.kind === "other" ? "checked" : ""}><span><b>سبب آخر</b> · اكتب السبب</span></label></div>
+      <label class="f"><span>${pt.kind === "other" ? "اكتب السبب" : "توضيح (اختياري)"}</span><textarea id="ptNote" rows="2" maxlength="1000">${esc(pt.note || "")}</textarea></label>
+      ${pt.kind === "sick" ? `<div class="ap-ph"><b>الشهادة الطبية (إلزامية)</b><span class="small muted">صورة واضحة أو PDF، يظهر فيها اسمك والتاريخ.</span>
+        ${HD.ready ? `<label class="filepick"><input type="file" id="ptFile" accept="image/*,application/pdf"><span class="fp-b">${pt.file ? `<b>${esc(pt.file.name)}</b><small>${HD.size(pt.file.size)} · اضغط لاختيار ملف تاني</small>` : `<b>صوّر الشهادة أو اختر ملف</b><small>بتترفع على Google Drive بتاعك</small>`}</span></label>`
+          : `<label class="f"><span>رابط الشهادة (مفتوح لمن معه الرابط)</span><input type="url" id="ptUrl" dir="ltr" placeholder="https://" value="${esc(pt.url || "")}"></label>`}</div>` : ""}
+      ${pt.err ? `<div class="msg bad">${esc(pt.err)}</div>` : ""}
+      <div class="row"><button class="btn primary" id="ptGo">إرسال الالتماس</button><button class="btn ghost" id="ptX">إلغاء</button></div></div>`;
+  }
+  function wirePetition(t) {
+    const o = $("#ptOpen"); if (o) o.onclick = () => { pt = { tid: t.id, kind: "sick", note: "", file: null }; renderTask(); const f = $("#ptForm"); if (f) f.scrollIntoView({ block: "start", behavior: "smooth" }); };
+    const wd = $("#ptWd"); if (wd) wd.onclick = async () => { if (!confirm("سحب الالتماس؟")) return; try { const p = petitions.find(x => x.task_id === t.id && x.status === "pending"); await rpc("student_petition_withdraw", { p_token: token, pid: p.id }); petitions = await rpc("student_petitions", { p_token: token }) || []; } catch (e) { tkMsg = { k: "bad", t: errText(e) }; } renderTask(); };
+    if (!$("#ptForm")) return;
+    const keep = () => { const n = $("#ptNote"); if (n) pt.note = n.value; const u = $("#ptUrl"); if (u) pt.url = u.value.trim(); };
+    document.querySelectorAll('input[name="ptK"]').forEach(r => r.onchange = () => { keep(); pt.kind = r.value; pt.err = ""; renderTask(); });
+    $("#ptX").onclick = () => { pt = null; renderTask(); };
+    const fi = $("#ptFile"); if (fi) fi.onchange = async () => { const f = fi.files[0]; if (!f) return; keep();
+      if (f.size > 50 * 1048576) { pt.err = "حجم الملف كبير جدًّا (أكثر من 50 م.ب)."; return renderTask(); }
+      try { const buf = await f.arrayBuffer(); pt.file = new File([buf], f.name, { type: f.type || "image/jpeg" }); pt.err = ""; } catch (e) { pt.err = "تعذّرت قراءة الملف من هاتفك. احفظه في الهاتف أولًا ثم اختره."; }
+      renderTask(); };
+    $("#ptGo").onclick = () => { keep(); sendPetition(t); };
+  }
+  async function sendPetition(t) {
+    if (up) return;
+    if (pt.kind === "other" && (pt.note || "").trim().length < 5) { pt.err = "اكتب سبب الالتماس."; return renderTask(); }
+    const viaFile = pt.kind === "sick" && HD.ready;
+    if (pt.kind === "sick" && viaFile && !pt.file) { pt.err = "ارفع الشهادة الطبية، من غيرها الالتماس مش هيتقبل."; return renderTask(); }
+    if (pt.kind === "sick" && !viaFile && !/^https:\/\//.test(pt.url || "")) { pt.err = "الصق رابط الشهادة الطبية (يبدأ بـ https://)."; return renderTask(); }
+    let fileId = null, meta = null;
+    const auth = viaFile ? HD.authorize() : null;
+    try {
+      if (viaFile) {
+        setUp("في انتظار موافقة Google…", null); await auth;
+        setUp("جارٍ تجهيز المجلد على Drive…", null);
+        const folder = await HD.folders(t.course, t.title);
+        const ext = (pt.file.name.match(/\.[A-Za-z0-9]{1,8}$/) || [".jpg"])[0];
+        setUp("جارٍ رفع الشهادة…", 0);
+        meta = await HD.upload(pt.file, folder, HD.fileName(home.code + " - " + (home.name || "") + " - شهادة طبية - " + t.title) + ext, p => { if (up) { up.pct = p; const b = $("#upBar"); if (b) b.style.width = Math.round(p * 100) + "%"; } });
+        fileId = meta.id; setUp("جارٍ إتاحة الشهادة للمحاضر…", 1);
+        await HD.shareAnyone(meta.id);
+      }
+      setUp("جارٍ إرسال الالتماس…", 1);
+      await rpc("student_petition", { p_token: token, tid: t.id, p_kind: pt.kind, p_note: pt.note || "", p_file_id: fileId, p_url: viaFile ? (meta.webViewLink || "https://drive.google.com/file/d/" + meta.id + "/view") : (pt.kind === "sick" ? pt.url : null), p_name: viaFile ? meta.name : "", p_mime: viaFile ? (meta.mimeType || pt.file.type) : null, p_size: viaFile ? Number(meta.size || pt.file.size) : null });
+      pt = null; tkMsg = { k: "ok", t: "اتبعت التماسك لأستاذ المادة. لو اتقبل هيتفتحلك التسليم ويوصلك تنبيه." };
+      petitions = await rpc("student_petitions", { p_token: token }).catch(() => petitions) || petitions;
+    } catch (e) {
+      if (fileId) HD.trash(fileId);
+      if (pt) pt.err = errText(e);
+      logErr("petition", e, pt && pt.file);
+    }
+    up = null; renderTask();
   }
   /* ---------- التظلم على الدرجة ---------- */
   function appealHtml(t) {

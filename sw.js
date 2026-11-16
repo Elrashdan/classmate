@@ -3,16 +3,28 @@
  */
 // Hadro offline cache: the student page (and its QR) must open with no internet.
 // Network first (so updates arrive), cache as fallback. Never touches Supabase API calls.
-const CACHE = "hadro-v109";
+const VER = "b110";
+const CACHE = "hadro-v110";
 const CDN = [];
-const LOCAL = ["./", "index.html", "style.css", "common.js", "drive.js", "catalog.js", "regform.js", "config.js", "vendor/qrcode.js", "vendor/jsQR.js", "icon.svg", "icon-192.png", "manifest.json"];
-const CACHE_HOSTS = ["cdn.jsdelivr.net", "fonts.googleapis.com", "fonts.gstatic.com"];
+// ملفات الـJS والـCSS بتتطلب برقم النسخة (?v=bNN)، فينفع تتاخد من الذاكرة على طول من غير ما نستنى الشبكة
+const V = u => u + "?v=" + VER;
+const LOCAL = ["./", "index.html", V("style.css"), V("common.js"), V("drive.js"), V("catalog.js"), V("regform.js"), V("config.js"), V("vendor/qrcode.js"), V("vendor/supabase.js"), "vendor/jsQR.js", "icon.svg", "icon-192.png", "manifest.json"];
+const CACHE_HOSTS = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all([...LOCAL, ...CDN].map(u => c.add(u).catch(() => {})))).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  // الخطوط والمكتبات الخارجية مبتتغيرش: بننقلها للنسخة الجديدة بدل ما نحمّلها تاني
+  e.waitUntil((async () => {
+    const keys = await caches.keys(), now = await caches.open(CACHE);
+    for (const k of keys.filter(k => k !== CACHE)) {
+      const old = await caches.open(k);
+      for (const r of await old.keys()) { const h = new URL(r.url).hostname; if (CACHE_HOSTS.includes(h)) { const m = await old.match(r); if (m) await now.put(r, m).catch(() => {}); } }
+      await caches.delete(k);
+    }
+    await self.clients.claim();
+  })());
 });
 self.addEventListener("fetch", e => {
   const req = e.request;
@@ -20,15 +32,23 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   const mine = url.origin === location.origin;
   if (!mine && !CACHE_HOSTS.includes(url.hostname)) return;
+  const fixed = !mine || url.searchParams.has("v");   // ثابتة: خط/مكتبة خارجية أو ملف برقم نسخته
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    try {
-      // ملفاتنا: نتحقق من الخادم في كل مرة (no-cache) حتى يصل أي تحديث فورًا ولا يُستخدم نسخة قديمة من ذاكرة المتصفح
-      const res = await Promise.race([mine ? fetch(req.url, { cache: "no-cache", credentials: "same-origin" }) : fetch(req), new Promise((_, rej) => setTimeout(() => rej(new Error("slow")), 6000))]);
+    if (fixed) {
+      const hit = await cache.match(req);
+      if (hit) return hit;
+      const res = await fetch(req);
       if (res && (res.ok || res.type === "opaque")) cache.put(req, res.clone()).catch(() => {});
       return res;
+    }
+    try {
+      // الصفحات: نتحقق من الخادم (no-cache) عشان التحديث يوصل فورًا، ولو الشبكة بطيئة نفتح النسخة المحفوظة
+      const res = await Promise.race([fetch(req.url, { cache: "no-cache", credentials: "same-origin" }), new Promise((_, rej) => setTimeout(() => rej(new Error("slow")), 4000))]);
+      if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
+      return res;
     } catch (err) {
-      const hit = await cache.match(req, { ignoreSearch: mine });
+      const hit = await cache.match(req, { ignoreSearch: true });
       if (hit) return hit;
       if (req.mode === "navigate") { const page = await cache.match("index.html"); if (page) return page; }
       throw err;

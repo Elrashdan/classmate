@@ -134,6 +134,7 @@
     drive_no_share: "حسابك لا يسمح بمشاركة الملفات لمن معه الرابط (غالبًا حساب جامعي مقيّد). استخدم حساب Gmail شخصيًّا.",
     drive_forbidden: "رفض Google هذا الطلب. جرّب مرة أخرى أو استخدم حساب Gmail شخصيًّا.",
     drive_missing: "الملف غير موجود على Drive الطالب، أو لم يعد متاحًا لمن معه الرابط.",
+    petition_sick_file: "العذر المرضي لازم ترفع معاه الشهادة الطبية.", petition_note: "اكتب سبب الالتماس.", petition_open: "عندك التماس على التكليف ده لسه بيتراجع.", petition_limit: "استنفدت عدد الالتماسات المسموح على التكليف ده.", petition_not_needed: "التسليم مفتوح لك بالفعل، سلّم على طول.", bad_until: "الموعد لازم يكون بعد دلوقتي وفي خلال 60 يوم.", appeal_reply: "اكتب السبب.",
     minus_range: "قيمة الخصم لازم تكون أكبر من صفر ومتزيدش عن الدرجة العظمى للتكليف.",
     bonus_range: "البونص أكبر من الدرجة العظمى للتكليف أو أقل من صفر.",
     manual_task: "هذا رصد يدوي، لا يُسلَّم من التطبيق.",
@@ -650,7 +651,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b109)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b110)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
@@ -681,7 +682,7 @@
     const c = document.createElement("div"); c.id = "nxCurtain"; c.setAttribute("role", "status"); c.setAttribute("aria-label", "جارٍ التحميل");
     c.innerHTML = `<div class="nc-in">${CM.markHtml()}<b class="wm">hadro</b></div><span class="nc-bar"><i></i></span>`;
     document.body.appendChild(c); R.classList.add("nx-booted");
-    const t0 = performance.now(), MIN = 650, MAX = 9000; let gone = false;
+    const t0 = performance.now(), MIN = 300, MAX = 9000; let gone = false;
     const lift = () => { if (gone) return; gone = true; mo.disconnect(); clearTimeout(fs);
       setTimeout(() => { c.classList.add("up"); R.classList.add("nx-lifted"); setTimeout(() => c.remove(), 900); setTimeout(() => R.classList.remove("nx-lifted"), 1300); }, Math.max(0, MIN - (performance.now() - t0))); };
     const ready = () => app.children.length && !app.querySelector(":scope > .hd-loader");

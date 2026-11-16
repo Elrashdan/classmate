@@ -6063,3 +6063,142 @@ begin
   if f = o then raise exception 'note_meta pattern'; end if;
   execute f;
 end $do$;
+-- ===================== update-61: التماس تسليم (عذر مرضي بشهادة، أو سبب آخر) =====================
+create table if not exists public.submit_petitions (
+  id uuid primary key default gen_random_uuid(),
+  task_id uuid not null references public.tasks(id) on delete cascade,
+  student_code text not null,
+  kind text not null check (kind in ('sick', 'other')),
+  note text not null default '',
+  file_id text, file_url text, file_name text, mime text, size bigint,
+  status text not null default 'pending' check (status in ('pending', 'accepted', 'rejected', 'withdrawn')),
+  reply text not null default '', until timestamptz,
+  decided_by text, decided_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists submit_petitions_task on public.submit_petitions(task_id, status);
+alter table public.submit_petitions enable row level security;
+
+create or replace function public.student_petition(p_token text, tid uuid, p_kind text, p_note text, p_file_id text, p_url text, p_name text, p_mime text, p_size bigint) returns json
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token); t tasks; s submissions; nm text; p submit_petitions; n int;
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  select * into t from tasks where id = tid;
+  select name into nm from enrollments where course_id = t.course_id and student_code = code;
+  if t.id is null or nm is null then raise exception 'not_found'; end if;
+  if t.mode <> 'submit' then raise exception 'manual_task'; end if;
+  select * into s from submissions where task_id = tid and student_code = code;
+  if s.grade is not null then raise exception 'already_graded'; end if;
+  if task_ext_until(tid, code) is not null then raise exception 'petition_not_needed'; end if;
+  if p_kind not in ('sick', 'other') then raise exception 'bad_reason'; end if;
+  if p_kind = 'sick' and coalesce(p_url, '') !~ '^https://' then raise exception 'petition_sick_file'; end if;
+  if p_kind = 'other' and length(trim(coalesce(p_note, ''))) < 5 then raise exception 'petition_note'; end if;
+  if exists (select 1 from submit_petitions where task_id = tid and student_code = code and status = 'pending') then raise exception 'petition_open'; end if;
+  select count(*) into n from submit_petitions where task_id = tid and student_code = code and status <> 'withdrawn';
+  if n >= 3 then raise exception 'petition_limit'; end if;
+  insert into submit_petitions(task_id, student_code, kind, note, file_id, file_url, file_name, mime, size)
+    values (tid, code, p_kind, left(trim(coalesce(p_note, '')), 1000), nullif(p_file_id, ''), nullif(p_url, ''), left(coalesce(p_name, ''), 200), left(coalesce(p_mime, ''), 100), p_size)
+    returning * into p;
+  insert into notifications(student_code, kind, title, body, url)
+    select 'staff:' || x, 'petition', 'التماس تسليم · «' || t.title || '»',
+           nm || ' (' || code || ') · ' || case when p_kind = 'sick' then 'عذر مرضي ومرفق شهادة' else left(trim(p_note), 140) end,
+           'https://elrashdan.github.io/classmate/staff.html'
+      from (select owner_email x from courses where id = t.course_id union select email from course_tas where course_id = t.course_id) y;
+  insert into audit(actor, course_id, action) values (nm, t.course_id, 'قدّم التماس تسليم على «' || t.title || '» · ' || case when p_kind = 'sick' then 'عذر مرضي' else 'سبب آخر' end);
+  return json_build_object('id', p.id);
+end $$;
+revoke all on function public.student_petition(text, uuid, text, text, text, text, text, text, bigint) from public;
+grant execute on function public.student_petition(text, uuid, text, text, text, text, text, text, bigint) to anon, authenticated;
+
+create or replace function public.student_petitions(p_token text) returns json
+language plpgsql stable security definer set search_path = public as $$
+declare code text := student_from_token(p_token);
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  return coalesce((select json_agg(json_build_object('id', p.id, 'task_id', p.task_id, 'kind', p.kind, 'note', p.note, 'status', p.status, 'reply', p.reply, 'until', p.until, 'created_at', p.created_at) order by p.created_at desc)
+    from submit_petitions p where p.student_code = code and p.created_at > now() - interval '200 days'), '[]'::json);
+end $$;
+revoke all on function public.student_petitions(text) from public;
+grant execute on function public.student_petitions(text) to anon, authenticated;
+
+create or replace function public.student_petition_withdraw(p_token text, pid uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token);
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  update submit_petitions set status = 'withdrawn', decided_at = now() where id = pid and student_code = code and status = 'pending';
+end $$;
+revoke all on function public.student_petition_withdraw(text, uuid) from public;
+grant execute on function public.student_petition_withdraw(text, uuid) to anon, authenticated;
+
+create or replace function public.course_petitions(cid uuid) returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if course_role(cid) is null then raise exception 'not_allowed'; end if;
+  return coalesce((select json_agg(json_build_object('id', p.id, 'task_id', p.task_id, 'task', t.title, 'student_code', p.student_code, 'name', e.name, 'grp', e.grp,
+      'kind', p.kind, 'note', p.note, 'file_id', p.file_id, 'file_url', p.file_url, 'file_name', p.file_name, 'status', p.status, 'reply', p.reply, 'until', p.until,
+      'decided_by', staff_name(p.decided_by), 'decided_at', p.decided_at, 'created_at', p.created_at) order by (p.status = 'pending') desc, p.created_at desc)
+    from submit_petitions p join tasks t on t.id = p.task_id left join enrollments e on e.course_id = t.course_id and e.student_code = p.student_code
+    where t.course_id = cid and p.status <> 'withdrawn' and (p.status = 'pending' or p.created_at > now() - interval '120 days')), '[]'::json);
+end $$;
+revoke all on function public.course_petitions(uuid) from public, anon;
+grant execute on function public.course_petitions(uuid) to authenticated;
+
+-- القبول = تسليم استثنائي للطالب لحد p_until (والتنبيه بيوصله من trg_notify_ext)
+create or replace function public.petition_decide(pid uuid, p_accept boolean, p_until timestamptz, p_reply text) returns void
+language plpgsql security definer set search_path = public as $$
+declare p submit_petitions; t tasks; nm text;
+begin
+  select * into p from submit_petitions where id = pid for update;
+  if p.id is null then raise exception 'not_found'; end if;
+  select * into t from tasks where id = p.task_id;
+  if coalesce(course_role(t.course_id), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  if p.status <> 'pending' then raise exception 'appeal_decided'; end if;
+  nm := coalesce((select name from enrollments where course_id = t.course_id and student_code = p.student_code), p.student_code);
+  if p_accept then
+    if p_until is null or p_until <= now() or p_until > now() + interval '60 days' then raise exception 'bad_until'; end if;
+    insert into task_extensions(task_id, student_code, until, reason, by_email, at, active)
+      values (t.id, p.student_code, p_until, left('التماس مقبول' || case when p.kind = 'sick' then ' (عذر مرضي)' else '' end, 300), my_email(), now(), true)
+    on conflict (task_id, student_code) do update set until = excluded.until, reason = excluded.reason, by_email = excluded.by_email, at = now(), active = true;
+    update submit_petitions set status = 'accepted', until = p_until, reply = left(trim(coalesce(p_reply, '')), 500), decided_by = my_email(), decided_at = now() where id = pid;
+    perform log_audit(t.course_id, 'قبل التماس تسليم ' || nm || ' في «' || t.title || '» حتى ' || to_char(p_until at time zone 'Africa/Cairo', 'YYYY-MM-DD HH24:MI'));
+  else
+    if length(trim(coalesce(p_reply, ''))) < 3 then raise exception 'appeal_reply'; end if;
+    update submit_petitions set status = 'rejected', reply = left(trim(p_reply), 500), decided_by = my_email(), decided_at = now() where id = pid;
+    insert into notifications(student_code, kind, title, body, url)
+      values (p.student_code, 'petition', 'رُفض التماس التسليم · «' || t.title || '»', left(trim(p_reply), 300), 'https://elrashdan.github.io/classmate/');
+    perform log_audit(t.course_id, 'رفض التماس تسليم ' || nm || ' في «' || t.title || '»');
+  end if;
+end $$;
+revoke all on function public.petition_decide(uuid, boolean, timestamptz, text) from public, anon;
+grant execute on function public.petition_decide(uuid, boolean, timestamptz, text) to authenticated;
+
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.staff_note_meta(public.notifications)'::regprocedure) into f; o := f;
+  f := replace(f, $a$  elsif n.kind = 'remind' then$a$, $b$  elsif n.kind = 'petition' then
+    select tk.id tid, tk.course_id cid, p.status into a from submit_petitions p join tasks tk on tk.id = p.task_id
+     where tk.title = substring(n.title from '«(.*)»') and p.created_at between n.created_at - interval '2 minutes' and n.created_at + interval '2 minutes'
+     order by abs(extract(epoch from p.created_at - n.created_at)) limit 1;
+    if not found then return null; end if;
+    return jsonb_build_object('go', 'course', 'cid', a.cid, 'k', 'petition', 'ref', a.tid, 'done', a.status <> 'pending');
+  elsif n.kind = 'remind' then$b$);
+  if f = o then raise exception 'note_meta pattern'; end if;
+  execute f;
+end $do$;
+-- ===================== update-62: تسريع القراءة (نفس الصلاحيات بالظبط) =====================
+-- بدل ما الصلاحية تتحسب لكل صف (آلاف المرات)، بتتحسب مرة لكل مادة
+create or replace function public.my_course_ids() returns setof uuid
+language sql stable security definer set search_path = public as $$
+  select c.id from courses c where course_role(c.id) is not null;
+$$;
+revoke all on function public.my_course_ids() from public, anon;
+grant execute on function public.my_course_ids() to authenticated;
+
+alter policy enroll_read on public.enrollments using (course_id in (select public.my_course_ids()));
+alter policy sessions_read on public.sessions using (course_id in (select public.my_course_ids()));
+alter policy attendance_read on public.attendance using (session_id in (select s.id from public.sessions s where s.course_id in (select public.my_course_ids())));
+alter policy attempts_read on public.attempts using (session_id in (select s.id from public.sessions s where s.course_id in (select public.my_course_ids())));
+alter policy submissions_read on public.submissions using (task_id in (select t.id from public.tasks t where t.course_id in (select public.my_course_ids())));

@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=b110">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,15 +45,15 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js"></script>
-<script src="vendor/qrcode.js"></script>
-<script src="config.js"></script>
-<script src="common.js"></script>
-<script src="drive.js"></script>
-<script src="pack.js"></script>
-<script src="catalog.js"></script>
-<script src="voice.js"></script>
-<script src="timetable.js"></script>
+<script src="vendor/supabase.js?v=b110"></script>
+<script src="vendor/qrcode.js?v=b110"></script>
+<script src="config.js?v=b110"></script>
+<script src="common.js?v=b110"></script>
+<script src="drive.js?v=b110"></script>
+<script src="pack.js?v=b110"></script>
+<script src="catalog.js?v=b110"></script>
+<script src="voice.js?v=b110"></script>
+<script src="timetable.js?v=b110"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -443,14 +443,15 @@
     if (focus) { const r = await sb.from("attempts").select("*").eq("session_id", focus.id).order("at", { ascending: false }).limit(300); if (r.error) throw r.error; attempts = r.data; }
     // الطلبات الثانوية تُرسل معًا بالتوازي (أسرع بكثير على شبكات الهاتف)
     const safe = p => p.then(r => r, () => null);
-    const [bnd, nr, tk, rsq, apq, anq, psq] = await Promise.all([
+    const [bnd, nr, tk, rsq, apq, anq, psq, ptq] = await Promise.all([
       safe(rpc("course_bindings2", { cid: c.id }).catch(() => rpc("course_bindings", { cid: c.id }))),
       safe(sb.from("warning_notices").select("student_code,level,seen_at").eq("course_id", c.id)),
       sb.from("tasks").select("*").eq("course_id", c.id).order("due_at"),
       canRun(c) ? safe(rpc("course_reset_requests", { cid: c.id })) : null,
       safe(rpc("course_appeals", { cid: c.id })),
       safe(sb.from("warning_announced").select("student_code,level,announced_at").eq("course_id", c.id)),
-      safe(rpc("course_push_status", { cid: c.id }))
+      safe(rpc("course_push_status", { cid: c.id })),
+      safe(rpc("course_petitions", { cid: c.id }))
     ]);
     const announced = {}; if (anq && !anq.error) anq.data.forEach(n => { (announced[n.student_code] = announced[n.student_code] || {})[n.level] = n.announced_at; });
     const bindings = {}; (bnd || []).forEach(b => bindings[b.student_code] = b);
@@ -469,7 +470,7 @@
     if (tkSel && !tasks.some(t => t.id === tkSel)) tkSel = null;
     const resets = rsq || [], appeals = apq || [];
     pushRecent(c.id);
-    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, announced, push: new Set(psq || []), tasks, subs, excuses, resets, exts, appeals };
+    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, announced, push: new Set(psq || []), tasks, subs, excuses, resets, exts, appeals, petitions: ptq || [] };
     clearInterval(rsPollT); if (canRun(c)) rsPollT = setInterval(pollResets, 10000);
     if (scan && !sessions.some(x => x.id === scan.sid && !x.ended)) closeScanner();
     render();
@@ -852,6 +853,7 @@
     appeal: { t: "تظلم", ic: '<path d="M12 3v18M5 7l7-4 7 4M3 13l2-6 2 6a2.8 2.8 0 0 1-4 0zM17 13l2-6 2 6a2.8 2.8 0 0 1-4 0z"/>', tab: "tasks", u: "طالب" },
     att: { t: "حضور معلّق", ic: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', tab: "live", u: "طالب" },
     warn: { t: "إنذار غياب", ic: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>', tab: "report", u: "طالب" },
+    petition: { t: "التماس تسليم", ic: '<path d="M4 4h16v12H8l-4 4z"/><path d="M9 9h6M9 12h4"/>', tab: "tasks", u: "طالب" },
     grade: { t: "تصحيح", ic: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>', tab: "tasks", u: "تسليم" }
   };
   const ago = ts => { if (!ts) return ""; const m = Math.max(0, (Date.now() - new Date(ts).getTime()) / 6e4); if (m < 1) return "الآن"; if (m < 60) return "منذ " + Math.round(m) + " دقيقة";
@@ -943,7 +945,7 @@
     curId = cid; store.set("cm_course", curId); ctab = (FK[kind] || FK.appeal).tab; store.set("cm_tab", ctab); view = "course";
     flash = {}; liveTab = "all"; regGroup = "all"; rpGroup = "all"; rpLevel = null; startState = null; tkSel = kind === "grade" ? ref : null; tkForm = null;
     fYear = "all"; fTerm = "all";
-    loadCourse().then(() => { const w = kind === "warn" ? $("#wAlert") : kind === "appeal" ? $("#apBox") : null; if (w) w.scrollIntoView({ block: "center" }); else window.scrollTo({ top: 0 }); }).catch(showErr);
+    loadCourse().then(() => { const w = kind === "warn" ? $("#wAlert") : kind === "appeal" ? $("#apBox") : kind === "petition" ? $("#ptBox") : null; if (w) w.scrollIntoView({ block: "center" }); else window.scrollTo({ top: 0 }); }).catch(showErr);
   }
   function bellOpen() {
     let p = $("#bellPop"); if (!p) { p = document.createElement("div"); p.id = "bellPop"; p.className = "bell-pop"; p.setAttribute("role", "dialog"); p.setAttribute("aria-label", "التنبيهات"); document.body.appendChild(p);
@@ -2309,6 +2311,7 @@
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
       <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${CM.dd(D.tasks.length ? "تصدير واستيراد" : "استيراد", [D.tasks.length ? `<div class="dd-h">كشف الكنترول وكشف المراجعة</div>${courseGroups().length > 1 ? `<label class="dd-sel" data-keep><span>المجموعة</span><select id="tkXg" aria-label="المجموعة التي يُصدَّر كشفها"><option value="all">كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}` : "", D.tasks.length ? `<button class="dd-i" id="tkXls" title="ملف واحد فيه كشف الكنترول (المتوسط) وكشف المراجعة (درجات كل التكليفات)">تنزيل الكنترول + المراجعة (إكسل)</button>` : "", D.tasks.length ? `<button class="dd-i" id="tkPdf" title="ملف واحد فيه كشف الكنترول وكشف المراجعة">تنزيل الكنترول + المراجعة (PDF)</button>` : "", canRun(c) ? `${D.tasks.length ? "<hr>" : ""}<button class="dd-i" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات ودرجاتها من إكسل</button>` : ""], { end: true })}</div></div>
       ${msgHtml("tasks")}
+      ${petitionsHtml(c)}
       ${appealsHtml(c)}
       ${mimp ? mimpBox() : ""}
       ${bylawLine(c)}
@@ -2325,7 +2328,7 @@
     wireTaskForm(el, null);
     const nb = $("#tkNew"); if (nb) nb.onclick = () => { tkForm = "new"; tkMode = "submit"; renderTasks(); const i = $("#tfTitle"); if (i) i.focus(); };
     const mb = $("#tkMulti"); if (mb) mb.onclick = () => { const f = document.createElement("input"); f.type = "file"; f.accept = ".xlsx,.xls"; f.onchange = () => { if (f.files[0]) importMulti(f.files[0]); }; f.click(); };
-    wireMimp(); wireAppeals(el);
+    wireMimp(); wireAppeals(el); wirePetitions(el);
     const xg = $("#tkXg"); if (xg) xg.onchange = () => { tkXg = xg.value; store.set("cm_tkxg", tkXg); };
     el.querySelectorAll("[data-tklay]").forEach(b => b.onclick = () => { tkLay = b.dataset.tklay; store.set("cm_tklay", tkLay); renderTasks(); });
     wireGb(el);
@@ -2364,7 +2367,7 @@
       : [["all", "الكل", rows.length], ["sub", "سلّم", st.sub], ["none", "لم يسلّم", rows.length - st.sub], ["late", "متأخر", st.late], ["subung", "سلّم بلا درجة", rows.filter(e => needsGrade(subOf(t, e.student_code))).length], ["ungraded", "بلا درجة", rows.length - st.graded], ...absT, ...(st.issues ? [["issue", "ملفات تغيّرت", st.issues]] : [])];
     if (!FT.some(f => f[0] === tkFilter)) tkFilter = "all";
     const stampCol = !man && HD.canCheck;
-    el.innerHTML = `<div class="panel-h"><div><button class="btn sm ghost" id="tkBack">→ كل التكليفات</button></div>
+    el.innerHTML = `<div class="panel-h"><div><button class="btn tk-back" id="tkBack">${ICO('<path d="M9 5l7 7-7 7"/>')} رجوع لكل التكليفات</button></div>
       <div class="row no-print">
         ${edit ? `<button class="btn sm ${t.released ? "" : "primary"}" id="tkRel">${t.released ? "إخفاء الدرجات عن الطلبة" : "إعلان الدرجات للطلبة"}</button><button class="btn sm ghost" id="tkEdit">تعديل</button><button class="btn sm ghost danger" id="tkDel">حذف</button>` : ""}
       </div></div>
@@ -2412,7 +2415,7 @@
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
           return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td class="nm">${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}${minusChip(t, e.student_code)}${fixChip(s)}${s && s.rejected_at ? ` <span class="chip bad" title="ظهر للطالب: «مشروعك مرفوض. توجّه لأستاذ المادة»">مرفوض</span>${run ? ` <button class="btn xs ghost" data-unrej="${code}" title="إلغاء الرفض">إلغاء</button>` : ""}` : ""}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
             ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}${extCell(t, e, s, run)}` : `<span class="muted">لم يسلّم</span>${extCell(t, e, s, run)}`}</td>
-            <td class="small">${s && s.url ? `<button class="btn xs" data-view="${code}">عرض</button> <a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a">${esc(s.kind === "drive" ? (s.file_name || "الملف") : "رابط")}</a>${ck ? ` <span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted">«${esc(s.note)}»</div>` : ""}` : "—"}</td>`}
+            <td class="small tk-work">${s && s.url ? `<button class="btn sm tk-view" data-view="${code}">${ICO('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>')} عرض العمل</button><a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a" title="${esc(s.kind === "drive" ? (s.file_name || "الملف") : s.url)}">${esc(s.kind === "drive" ? (s.file_name || "الملف").replace(/^\d{6,}\s*-\s*/, "") : "رابط")}</a>${ck && ck[0] !== "none" && ck[0] !== "ok" ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted tk-note">«${esc(s.note)}»</div>` : ""}` : `<span class="muted">—</span>`}</td>`}
             ${partsOf(t) ? partsOf(t).map((p, i) => `<td class="c">${run ? `<input type="text" class="gin pin ${badVal(valOf(e.student_code, "p" + i, s), +p.max) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-p="${code}" data-pi="${i}" value="${esc(valOf(e.student_code, "p" + i, s))}" inputmode="decimal" autocomplete="off" title="${esc(p.name)} (من ${gN(p.max)})">` : gN(s && Array.isArray(s.parts) ? s.parts[i] : "")}</td>`).join("")
             : `<td class="c">${run ? `<input type="text" class="gin ${badVal(valOf(e.student_code, "grade", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? `disabled title="مرفوض: غاب ${DL(t)}. اقبل عذره أولًا لترصد درجته."` : ""} data-g="${code}" value="${esc(valOf(e.student_code, "grade", s))}" inputmode="decimal" autocomplete="off">` : gN(s && s.grade)}</td>`}
             <td class="c">${run ? `<input type="text" class="gin bin ${badVal(valOf(e.student_code, "bonus", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-b="${code}" value="${esc(valOf(e.student_code, "bonus", s))}" inputmode="decimal" autocomplete="off" placeholder="—">` : (s && Number(s.bonus) ? "+" + gN(s.bonus) : "")}</td>
@@ -2627,7 +2630,7 @@
   const fixTxt = r => (FIX_R.find(x => x[0] === r) || [0, r || "الملف مش مرفوع صح"])[1];
   function wireFix(t, code, s) {
     const after = async msg => { fixUi = null; await refreshSubs(t); if (grader) { grader.msg = msg; drawGrader(false); } else renderTasks(); };
-    const o = $("#fixOpenB"); if (o) o.onclick = () => { fixUi = { code, reason: s && s.check_state === "missing" ? "missing" : "unclear", note: "" }; drawGrader(false); };
+    const o = $("#fixOpenB"); if (o) o.onclick = () => { fixUi = { code, reason: s && s.check_state === "missing" ? "missing" : "unclear", note: "" }; if (grader) grader.det = true; drawGrader(false); };
     const x = $("#fixX"); if (x) x.onclick = () => { fixUi = null; drawGrader(false); };
     document.querySelectorAll('input[name="fixR"]').forEach(r => r.onchange = () => { fixUi.reason = r.value; });
     const n = $("#fixNote"); if (n) n.oninput = () => { fixUi.note = n.value; };
@@ -2655,69 +2658,125 @@
   function openGrader(t, code) {
     let f = "sub", order = graderOrder(t, f);
     if (code && !order.includes(code)) { f = "all"; order = graderOrder(t, f); }
-    grader = { tid: t.id, f, order, i: Math.max(0, code ? order.indexOf(code) : 0), msg: "" };
-    $("#grOv").hidden = false; document.body.classList.add("noscroll"); drawGrader(true);
+    grader = { tid: t.id, f, order, i: Math.max(0, code ? order.indexOf(code) : 0), msg: "", det: false };
+    $("#grOv").hidden = false; document.body.classList.add("noscroll"); gxFit(); drawGrader(true);
   }
   function closeGrader() { if (!grader) return; gvStop(); grader = null; $("#grOv").hidden = true; document.body.classList.remove("noscroll"); renderTasks(); }
+  // الشاشة بتتقاس على الجزء الظاهر فوق الكيبورد، فاللوحة اللي تحت بتطلع فوقه بدل ما تستخبى وراه
+  function gxFit() {
+    const ov = $("#grOv"), vv = window.visualViewport; if (!ov) return;
+    if (!vv) { ov.style.height = ""; return; }
+    ov.style.top = vv.offsetTop + "px"; ov.style.height = vv.height + "px";
+    ov.classList.toggle("kb", innerHeight - vv.height > 140);
+  }
+  if (window.visualViewport) { visualViewport.addEventListener("resize", () => { if (grader) gxFit(); }); visualViewport.addEventListener("scroll", () => { if (grader) gxFit(); }); }
+  const touchUI = () => matchMedia("(pointer: coarse)").matches;
+  // قبل الإغلاق: لو فيه أعمال لسه ماتصححتش أو ملفات فيها مشكلة، ننبّه المصحح
+  function graderAskClose() {
+    const t = grader && D.tasks.find(x => x.id === grader.tid); if (!t) return closeGrader();
+    const rows = taskRows(t), S = e => subOf(t, e.student_code);
+    const ung = rows.filter(e => needsGrade(S(e)) && !fixOpen(S(e)));
+    const bad = rows.filter(e => { const x = S(e); return x && x.kind === "drive" && x.check_state === "missing" && !x.fix_at; });
+    const wait = rows.filter(e => fixOpen(S(e)));
+    if (!ung.length && !bad.length) return closeGrader();
+    const box = $("#grAsk"); box.hidden = false;
+    box.innerHTML = `<div class="gx-ask" role="alertdialog" aria-modal="true" aria-labelledby="gxAskT"><h3 id="gxAskT">قبل ما تقفل</h3>
+      <ul>${ung.length ? `<li><b>${ung.length}</b> ${ung.length === 1 ? "مشروع اتسلّم ولسه ماتصححش" : "مشاريع اتسلّمت ولسه ماتصححتش"}</li>` : ""}
+        ${bad.length ? `<li class="bad"><b>${bad.length}</b> ${bad.length === 1 ? "ملف محذوف من Drive الطالب" : "ملفات محذوفة من Drive الطلبة"} ولسه ماتبعتش لأصحابها</li>` : ""}
+        ${wait.length ? `<li class="muted"><b>${wait.length}</b> مستنيين الطالب يعيد الرفع</li>` : ""}</ul>
+      <div class="gx-ask-b">${ung.length ? `<button class="btn primary" id="gxGoOn">كمّل التصحيح (${ung.length})</button>` : ""}
+        ${bad.length ? `<button class="btn" id="gxNotify">ابعت تنبيه للطلبة يعيدوا الرفع (${bad.length})</button>` : ""}
+        <button class="btn gx-closeany" id="gxCloseAny">إغلاق على أي حال</button>
+        <button class="btn ghost" id="gxStay">رجوع</button></div></div>`;
+    const hide = () => { box.hidden = true; box.innerHTML = ""; };
+    $("#gxStay").onclick = hide; $("#gxCloseAny").onclick = () => { hide(); closeGrader(); };
+    box.onclick = ev => { if (ev.target === box) hide(); };
+    const go = $("#gxGoOn"); if (go) go.onclick = () => { hide(); grader.f = "ungraded"; grader.order = graderOrder(t, "ungraded"); grader.i = 0; grader.msg = ""; drawGrader(true); };
+    const nt = $("#gxNotify"); if (nt) nt.onclick = async () => { nt.disabled = true; nt.textContent = "جارٍ الإرسال…";
+      try { const n = await rpc("file_fix_request", { tid: t.id, codes: bad.map(e => e.student_code), p_reason: "missing" }); await refreshSubs(t);
+        hide(); grader.msg = "اتبعت تنبيه لـ" + n + " طالب إن ملفه اتمسح ويعيد رفعه، والتسليم اتفتحلهم."; drawGrader(false); }
+      catch (e) { hide(); grader.msg = "!" + errText(e); drawGrader(false); } };
+    setTimeout(() => { const f = box.querySelector(".btn.primary") || $("#gxCloseAny"); if (f) f.focus(); }, 30);
+  }
+  const GX_ARR = d => ICO(d < 0 ? '<path d="M9 5l7 7-7 7"/>' : '<path d="M15 5l-7 7 7 7"/>');
   function drawGrader(newPreview) {
     const t = grader && D.tasks.find(x => x.id === grader.tid); if (!t) return closeGrader();
     const ov = $("#grOv"), code = grader.order[grader.i], e = D.enroll.find(x => x.student_code === code), s = code ? subOf(t, code) : null;
-    const ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, c = course();
-    if (newPreview || !$("#grPrev")) ov.innerHTML = `<div class="gr">
-      <header class="gr-h"><div class="gr-t"><span class="eyebrow">${esc(c.name)} · من ${gN(t.max_grade)}</span><b>${esc(t.title)}</b></div>
-        <select id="grF" aria-label="من يظهر"><option value="sub" ${grader.f === "sub" ? "selected" : ""}>من سلّموا</option><option value="ungraded" ${grader.f === "ungraded" ? "selected" : ""}>من سلّموا ولم تُرصد درجاتهم</option><option value="all" ${grader.f === "all" ? "selected" : ""}>كل الطلبة</option></select>
-        <span class="gr-n mono" id="grN"></span>
-        <button class="btn sm" id="grSheet" title="كشف بأسماء الطلبة وروابط أعمالهم، تملؤه وأنت تشاهد الأعمال">كشف رصد (إكسل)</button>
-        <label class="btn sm" title="ارفع كشف إكسل كتبت فيه الدرجات (بالكود أو بالاسم)">رفع كشف إكسل<input type="file" id="grImpX" accept=".xlsx" hidden></label>
-        <button class="btn sm" id="grClose">إغلاق</button></header>
-      <div class="gr-b"><div class="gr-prev" id="grPrev"></div><aside class="gr-side" id="grSide"></aside></div></div>`;
+    const ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, c = course(), P = partsOf(t);
+    if (newPreview || !$("#grPrev")) ov.innerHTML = `<div class="gr gx">
+      <div class="gr-prev" id="grPrev"></div>
+      <header class="gx-top">
+        <button class="gx-x" id="grClose" aria-label="إغلاق والرجوع للتكليف">${ICO('<path d="M6 6l12 12M18 6L6 18"/>')}<span>إغلاق</span></button>
+        <div class="gx-ttl"><span>${esc(c.name)} · من ${gN(t.max_grade)}</span><b>${esc(t.title)}</b></div>
+        <span class="gx-n mono" id="grN"></span>
+        <details class="dd gx-menu"><summary class="gx-mb" aria-label="خيارات">${ICO('<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>')}</summary>
+          <div class="dd-m">
+            <label class="f"><span>مين يظهر</span><select id="grF"><option value="sub" ${grader.f === "sub" ? "selected" : ""}>من سلّموا</option><option value="ungraded" ${grader.f === "ungraded" ? "selected" : ""}>سلّموا ولسه بلا درجة</option><option value="all" ${grader.f === "all" ? "selected" : ""}>كل الطلبة</option></select></label>
+            <button class="dd-i" id="grSheet">كشف رصد (إكسل)</button>
+            <label class="dd-i">رفع كشف إكسل<input type="file" id="grImpX" accept=".xlsx" hidden></label>
+            <a class="dd-i" id="grOpenNew" target="_blank" rel="noopener" hidden>فتح العمل في نافذة جديدة</a>
+          </div></details>
+      </header>
+      <button class="gx-arr gx-pa" id="grPrevB" aria-label="الطالب السابق">${GX_ARR(-1)}</button>
+      <button class="gx-arr gx-na" id="grNext" aria-label="الطالب التالي">${GX_ARR(1)}</button>
+      <section class="gx-panel" id="grSide" aria-label="درجة الطالب"></section>
+      <div class="gx-ask-w" id="grAsk" hidden></div></div>`;
     $("#grN").textContent = grader.order.length ? (grader.i + 1) + " / " + grader.order.length : "0";
     if (newPreview) $("#grPrev").innerHTML = e ? previewHtml(s) : "";
+    const on = $("#grOpenNew"); if (on) { on.hidden = !(s && s.url); if (s && s.url) on.href = s.url; }
+    $("#grPrevB").disabled = grader.i <= 0; $("#grNext").disabled = grader.i >= grader.order.length - 1;
     const v = k => s ? origOf(s, k) : "";
-    $("#grSide").innerHTML = !e ? `<div class="gr-empty"><b>لا يوجد طلبة هنا</b><span>${grader.f === "ungraded" ? "رُصدت درجات كل من سلّموا." : "غيّر الاختيار من الأعلى."}</span></div>` : `
-      <div class="gr-who"><span class="mono muted">${esc(code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</span><h3>${esc(e.name)}${minusChip(t, code)}</h3>
-        ${s && s.submitted_at ? `<span class="small">سلّم ${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.version > 1 ? " · التسليم " + s.version : ""}</span>` : `<span class="small muted">لم يسلّم</span>`}
-        <div class="row">${refusedFor(t, e) ? `<span class="chip bad">مرفوض · غائب ${DL(t)}</span><button class="btn xs" id="grExc">قبول بعذر</button>` : absentOnDue(t, e) ? `<span class="chip ${excusedOf(t, code) ? "ok" : "bad"}">${excusedOf(t, code) ? "غاب " + DL(t) + " · مقبول بعذر" : "غائب " + DL(t) + " · راجِع العذر"}</span>` : ""}${s && s.late ? `<span class="chip warn">متأخر</span>` : ""}${ck ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s && s.grade != null ? `<span class="chip ok">مرصودة: ${gN(totalOf(s))}</span>` : ""}</div>
-        ${s && s.note ? `<p class="small">«${esc(s.note)}»</p>` : ""}</div>
-      ${s && s.submitted_at ? fixBoxHtml(s) : ""}
-      ${partsOf(t) ? `<div class="gr-parts">${partsOf(t).map((p, i) => `<label class="f"><span>${esc(p.name)} <small class="muted">(من ${gN(p.max)})</small></span><input type="text" class="grP" data-pi="${i}" inputmode="decimal" autocomplete="off" value="${esc(v("p" + i))}"></label>`).join("")}</div>` : ""}
-      <div class="gr-grade">
-        <label class="f" ${partsOf(t) ? "hidden" : ""}><span>الدرجة من ${gN(t.max_grade)}</span><input type="text" id="grG" inputmode="decimal" autocomplete="off" value="${esc(v("grade"))}"></label>
-        <label class="f"><span>بونص</span><input type="text" id="grB" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(v("bonus"))}"></label>
-        <div class="gr-tot"><span>المجموع</span><b id="grT"></b></div>
+    const chips = !e ? "" : `${refusedFor(t, e) ? `<span class="chip bad">مرفوض · غائب ${DL(t)}</span>` : absentOnDue(t, e) ? `<span class="chip ${excusedOf(t, code) ? "ok" : "bad"}">${excusedOf(t, code) ? "غاب · مقبول بعذر" : "غائب يوم التسليم"}</span>` : ""}${s && s.late ? `<span class="chip warn">متأخر</span>` : ""}${ck && ck[0] !== "none" && ck[0] !== "ok" ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${fixChip(s)}${s && s.grade != null ? `<span class="chip ok">مرصودة: ${gN(totalOf(s))}</span>` : ""}${minusOf(t, code) ? `<span class="chip bad">خصم ${gN(minusOf(t, code))}</span>` : ""}`;
+    $("#grSide").innerHTML = !e ? `<div class="gx-empty"><b>لا يوجد طلبة هنا</b><span>${grader.f === "ungraded" ? "اترصدت درجات كل اللي سلّموا. 👌" : "غيّر الاختيار من قايمة ⋯ فوق."}</span></div>` : `
+      <div class="gx-who">
+        <div class="gx-nm"><b>${esc(e.name)}</b>
+          <div class="gx-meta"><span class="gx-m mono" dir="ltr">${esc(code)}</span>${e.grp ? `<span class="gx-m">مجموعة ${esc(e.grp)}</span>` : ""}<span class="gx-m">${s && s.submitted_at ? "سلّم " + CM.fmtD(s.submitted_at) + " الساعة " + CM.fmtT(s.submitted_at) + (s.version > 1 ? "، التسليم رقم " + s.version : "") : "لم يسلّم"}</span></div>
+          ${chips ? `<div class="gx-chips">${chips}</div>` : ""}</div>
+        <button class="gx-det-b" id="grDetB" aria-expanded="${grader.det}">${grader.det ? "إخفاء ▴" : `<span class="w">ملاحظة ومشكلة الملف</span><span class="n">تفاصيل</span> ▾`}</button></div>
+      ${grader.msg ? `<div class="msg ${grader.msg.startsWith("!") ? "bad" : "ok"} small gx-msg">${esc(grader.msg.replace(/^!/, ""))}</div>` : ""}
+      ${P ? `<div class="gr-parts gx-parts">${P.map((p, i) => `<label class="f"><span>${esc(p.name)} <small>/${gN(p.max)}</small></span><input type="text" class="grP" data-pi="${i}" inputmode="decimal" autocomplete="off" value="${esc(v("p" + i))}"></label>`).join("")}</div>` : ""}
+      <div class="gx-grade">
+        <label class="f gx-g" ${P ? "hidden" : ""}><span>الدرجة من ${gN(t.max_grade)}</span><input type="text" id="grG" inputmode="decimal" autocomplete="off" value="${esc(v("grade"))}"></label>
+        <label class="f gx-b"><span>بونص</span><input type="text" id="grB" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(v("bonus"))}"></label>
+        <div class="gx-t"><span>المجموع</span><b id="grT"></b></div>
+        ${P ? "" : `<button type="button" class="gx-mic${grader.vcOn ? " on" : ""}" id="grVc" aria-pressed="${!!grader.vcOn}" aria-label="رصد بالصوت" title="رصد بالصوت">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')}</button>`}
+        <button class="btn primary gx-save" id="grSave">اعتماد ${GX_ARR(1)}</button>
       </div>
-      ${partsOf(t) ? "" : `<div class="gr-vc${grader.vcOn ? " on" : ""}" id="grVcBox"><button type="button" class="btn ${grader.vcOn ? "primary" : ""}" id="grVc" aria-pressed="${!!grader.vcOn}">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')} ${grader.vcOn ? "بسمعك… اضغط للإيقاف" : "رصد بالصوت"}</button>
-        <span class="small muted" id="grVcTxt">${grader.vcOn ? "قول الدرجة، وهتتحفظ وأنقلك للتالي." : "قول الدرجة بس («سبعتاشر»، «خمستاشر ونص»، «مرفوض») والعمل قدامك."}</span></div>`}
-      <div class="gr-quick" aria-label="درجات سريعة" ${partsOf(t) ? "hidden" : ""}>${[1, .9, .8, .7, .6, .5].map(p => `<button class="btn xs" data-q="${Math.round(t.max_grade * p * 4) / 4}">${gN(Math.round(t.max_grade * p * 4) / 4)}</button>`).join("")}</div>
-      <label class="f"><span>ملاحظة للطالب</span><textarea id="grFb" maxlength="2000" rows="3" placeholder="اختياري">${esc(v("feedback"))}</textarea></label>
-      ${grader.msg ? `<div class="msg ${grader.msg.startsWith("!") ? "bad" : "ok"} small">${esc(grader.msg.replace(/^!/, ""))}</div>` : ""}
-      <button class="btn primary block" id="grSave">حفظ والتالي ←</button>
-      <div class="row between"><button class="btn sm" id="grPrevB">→ السابق</button><button class="btn sm" id="grNext">التالي دون حفظ ←</button></div>
-      <div class="row">${s && s.url ? `<a class="btn sm ghost" href="${esc(s.url)}" target="_blank" rel="noopener">فتح في نافذة جديدة</a>` : ""}${s && s.kind === "drive" && s.grade != null && HD.canCheck && HD.stampable(s.mime) ? `<button class="btn sm ghost" id="grStamp">نسخة مختومة</button>` : ""}</div>
-      <p class="small muted">Enter للحفظ والانتقال إلى التالي · Esc للإغلاق</p>`;
-    $("#grClose").onclick = closeGrader;
+      ${grader.vcOn ? `<p class="small gx-vct" id="grVcTxt">قول الدرجة بس، وهتتحفظ وأنقلك للتالي.</p>` : ""}
+      <div class="gx-det" ${grader.det ? "" : "hidden"}>
+        ${refusedFor(t, e) ? `<div class="row"><span class="small">الطالب غاب يوم التسليم فتسليمه مرفوض.</span><button class="btn xs" id="grExc">قبول بعذر</button></div>` : ""}
+        ${s && s.note ? `<p class="small">ملاحظة الطالب: «${esc(s.note)}»</p>` : ""}
+        <div class="gr-quick" aria-label="درجات سريعة" ${P ? "hidden" : ""}>${[1, .9, .8, .7, .6, .5].map(p => `<button class="btn xs" data-q="${Math.round(t.max_grade * p * 4) / 4}">${gN(Math.round(t.max_grade * p * 4) / 4)}</button>`).join("")}</div>
+        <label class="f"><span>ملاحظة للطالب</span><textarea id="grFb" maxlength="2000" rows="2" placeholder="اختياري">${esc(v("feedback"))}</textarea></label>
+        ${s && s.submitted_at ? fixBoxHtml(s) : ""}
+        <div class="row">${s && s.kind === "drive" && s.grade != null && HD.canCheck && HD.stampable(s.mime) ? `<button class="btn sm ghost" id="grStamp">نسخة مختومة</button>` : ""}<span class="small muted">Enter = اعتماد والتالي · Esc = إغلاق</span></div>
+      </div>`;
+    $("#grClose").onclick = graderAskClose;
     const gsx = $("#grSheet"); if (gsx) gsx.onclick = () => exportEntrySheet(t);
     const gix = $("#grImpX"); if (gix) gix.onchange = () => { const f = gix.files[0]; gix.value = ""; if (f) { closeGrader(); importEntrySheet(t, f); } };
-    $("#grF").onchange = () => { const cur = grader.order[grader.i]; grader.f = $("#grF").value; grader.order = graderOrder(t, grader.f); grader.i = Math.max(0, grader.order.indexOf(cur)); grader.msg = ""; drawGrader(true); };
+    $("#grF").onchange = () => { const cur = grader.order[grader.i]; grader.f = $("#grF").value; grader.order = graderOrder(t, grader.f); grader.i = Math.max(0, grader.order.indexOf(cur)); grader.msg = ""; ov.querySelector(".gx-menu").open = false; drawGrader(true); };
+    const go = d => { grader.i = Math.min(Math.max(0, grader.i + d), Math.max(0, grader.order.length - 1)); grader.msg = ""; fixUi = null; drawGrader(true); };
+    $("#grPrevB").onclick = () => go(-1); $("#grNext").onclick = () => go(1);
     if (!e) return;
+    const fb0 = $("#grFb");
+    $("#grDetB").onclick = () => { grader.det = !grader.det; const keep = fb0 ? fb0.value : null; drawGrader(false); if (keep != null && $("#grFb")) $("#grFb").value = keep; };
     const G = $("#grG"), B = $("#grB"), T = $("#grT");
     const ge = $("#grExc"); if (ge) ge.onclick = () => excuseToggle(t, code, true, () => drawGrader(false));
     if (refusedFor(t, e)) { G.disabled = B.disabled = true; $("#grSave").disabled = true; G.placeholder = "مرفوض"; }
     const PI = [...$("#grSide").querySelectorAll(".grP")];
     if (refusedFor(t, e)) PI.forEach(i => i.disabled = true);
-    const pSum = () => { let any = false, sum = 0; PI.forEach(i => { const x = toNum(i.value); if (x !== "") { any = true; sum += Number(x) || 0; } i.classList.toggle("bad", badVal(i.value, +partsOf(t)[+i.dataset.pi].max)); }); G.value = any ? gN(Math.round(sum * 100) / 100) : ""; };
-    const upd = () => { if (PI.length) pSum(); const g = toNum(G.value), b = toNum(B.value); G.classList.toggle("bad", badVal(G.value, +t.max_grade)); B.classList.toggle("bad", badVal(B.value, +t.max_grade)); T.textContent = g === "" || isNaN(+g) ? "—" : gN(Math.max(0, +g + (+b || 0) - minusOf(t, code))) + (minusOf(t, code) ? " (بعد خصم " + gN(minusOf(t, code)) + ")" : ""); };
+    const pSum = () => { let any = false, sum = 0; PI.forEach(i => { const x = toNum(i.value); if (x !== "") { any = true; sum += Number(x) || 0; } i.classList.toggle("bad", badVal(i.value, +P[+i.dataset.pi].max)); }); G.value = any ? gN(Math.round(sum * 100) / 100) : ""; };
+    const upd = () => { if (PI.length) pSum(); const g = toNum(G.value), b = toNum(B.value); G.classList.toggle("bad", badVal(G.value, +t.max_grade)); B.classList.toggle("bad", badVal(B.value, +t.max_grade)); T.textContent = g === "" || isNaN(+g) ? "—" : gN(Math.max(0, +g + (+b || 0) - minusOf(t, code))); };
     upd(); G.oninput = upd; B.oninput = upd; PI.forEach(i => i.oninput = upd);
     PI.forEach((i, k) => i.onkeydown = ev => { if (ev.key !== "Enter") return; ev.preventDefault(); if (PI[k + 1]) { PI[k + 1].focus(); PI[k + 1].select(); } else graderSave(t, code); });
     $("#grSide").querySelectorAll("[data-q]").forEach(b => b.onclick = () => { G.value = b.dataset.q; upd(); G.focus(); });
-    const go = d => { grader.i = Math.min(Math.max(0, grader.i + d), Math.max(0, grader.order.length - 1)); grader.msg = ""; drawGrader(true); };
-    $("#grPrevB").onclick = () => go(-1); $("#grNext").onclick = () => go(1);
     $("#grSave").onclick = () => graderSave(t, code);
     [G, B].forEach(i => i.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); graderSave(t, code); } });
     const gs2 = $("#grStamp"); if (gs2) gs2.onclick = () => stampCopy(t, code, gs2);
     wireFix(t, code, s);
     const gvb = $("#grVc"); if (gvb) gvb.onclick = () => { if (grader.vcOn) { gvStop(); drawGrader(false); } else gvStart(); };
-    if (!grader.vcOn) setTimeout(() => { const f0 = PI[0] || G; f0.focus(); f0.select(); }, 30);   // مع الصوت منفتحش الكيبورد على الموبايل
+    // على الكمبيوتر بس: المؤشر في خانة الدرجة. على الموبايل منفتحش الكيبورد لوحده عشان العمل يفضل باين
+    if (!grader.vcOn && !touchUI() && !fixUi) setTimeout(() => { const f0 = PI[0] || G; f0.focus(); f0.select(); }, 30);
   }
   /* ---------- الرصد بالصوت جوه «عرض الأعمال وتصحيحها»: الطالب معروف، فالكلام درجة بس ---------- */
   const gvTxt = (m, bad) => { const x = $("#grVcTxt"); if (x) { x.textContent = m; x.classList.toggle("bad-t", !!bad); } };
@@ -2804,7 +2863,7 @@
   }
   document.addEventListener("keydown", ev => {
     if (ev.key !== "Escape") return;
-    if (grader) closeGrader(); else if (photo) closePhoto(); else if (voice) closeVoice();
+    if (grader) { const ask = $("#grAsk"); if (ask && !ask.hidden) { ask.hidden = true; ask.innerHTML = ""; } else graderAskClose(); } else if (photo) closePhoto(); else if (voice) closeVoice();
   });
 
   /* ---------- تنزيل كل ملفات التكليف: مرقّمة بأسماء الطلبة + فهرس ---------- */
@@ -3155,6 +3214,38 @@
       act(() => rpc("appeal_grant", { tid: t.id, p_code: code }), async () => { say("tasks", "اتفتح تظلم جديد لـ" + nameOf(code) + " على «" + t.title + "»، ووصله تنبيه. يقدر يقدّمه مرة واحدة."); renderTasks(); }); };
     const g = $("#apWinGo"); if (g) g.onclick = () => { const f = $("#apFrom").value, u = $("#apUntil").value; if (!f || !u) return; set("window", new Date(f).toISOString(), new Date(u).toISOString(), "حُفظت مهلة التظلم: من " + fmtDT(f) + " حتى " + fmtDT(u) + "."); };
   }
+  /* ---------- التماسات التسليم: الطالب فاته الموعد وعنده عذر ---------- */
+  let ptShowOld = false, ptDec = null;   // ptDec = { id, accept }
+  const PT_K = { sick: "عذر مرضي", other: "سبب آخر" };
+  function petitionsHtml(c) {
+    const all = D.petitions || [], open = all.filter(p => p.status === "pending"), old = all.filter(p => p.status !== "pending");
+    if (!all.length) return "";
+    const can = canRun(c), until = d => { const u = new Date(Date.now() + d * 864e5); u.setHours(23, 59, 0, 0); return u; };
+    const card = p => `<article class="ap-c pt-c" data-pt="${p.id}">
+        <div class="ap-who"><b>${esc(p.name || p.student_code)}</b><span class="small muted"><span class="mono" dir="ltr">${esc(p.student_code)}</span>${p.grp ? "، مجموعة " + esc(p.grp) : ""}</span></div>
+        <div class="ap-what"><span class="chip">${esc(p.task)}</span><span class="chip ${p.kind === "sick" ? "warn" : ""}">${PT_K[p.kind]}</span><span class="small muted">${CM.fmtD(p.created_at)}</span></div>
+        ${p.note ? `<p class="ap-note">«${esc(p.note)}»</p>` : ""}
+        ${p.file_url ? `<a class="btn sm pt-file" href="${esc(p.file_url)}" target="_blank" rel="noopener">${ICO('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>')} عرض الشهادة الطبية</a>` : p.kind === "sick" ? `<span class="chip bad">مفيش شهادة مرفقة</span>` : ""}
+        ${p.status !== "pending" ? `<div class="small ${p.status === "accepted" ? "ok-t" : "bad-t"}">${p.status === "accepted" ? "اتقبل · التسليم مفتوح له حتى " + fmtDT(p.until) : "اترفض · " + esc(p.reply)}${p.decided_by ? " · " + esc(p.decided_by) : ""}</div>`
+        : !can ? "" : ptDec && ptDec.id === p.id ? (ptDec.accept
+          ? `<div class="pt-dec"><b>افتح له التسليم لحد:</b><div class="row">${[1, 2, 3, 7].map(d => `<button class="btn sm" data-ptu="${d}">${d === 1 ? "بكرة" : d === 7 ? "أسبوع" : d + " أيام"}<small class="muted">${CM.fmtD(until(d))}</small></button>`).join("")}</div><button class="btn sm ghost" id="ptX">إلغاء</button></div>`
+          : `<div class="pt-dec"><label class="f"><span>سبب الرفض (هيوصل للطالب)</span><input type="text" id="ptWhy" maxlength="300" placeholder="مثلًا: الشهادة مش واضحة أو مش في يوم التسليم"></label><div class="row"><button class="btn sm danger" id="ptNo">رفض الالتماس</button><button class="btn sm ghost" id="ptX">إلغاء</button></div></div>`)
+          : `<div class="row"><button class="btn sm primary" data-pta="${p.id}">قبول وفتح التسليم</button><button class="btn sm ghost" data-ptr="${p.id}">رفض</button></div>`}
+      </article>`;
+    return `<section class="ap-box pt-box" id="ptBox"><div class="row between"><h3>${open.length ? `التماسات تسليم بانتظار قرارك <span class="chip warn">${open.length}</span>` : "التماسات التسليم"}</h3>${old.length ? `<button class="btn sm ghost" id="ptOld">${ptShowOld ? "إخفاء" : "عرض"} السابقة (${old.length})</button>` : ""}</div>
+      ${open.map(card).join("")}${ptShowOld ? old.map(card).join("") : ""}</section>`;
+  }
+  function wirePetitions(el) {
+    const o = el.querySelector("#ptOld"); if (o) o.onclick = () => { ptShowOld = !ptShowOld; renderTasks(); };
+    el.querySelectorAll("[data-pta]").forEach(b => b.onclick = () => { ptDec = { id: b.dataset.pta, accept: true }; renderTasks(); });
+    el.querySelectorAll("[data-ptr]").forEach(b => b.onclick = () => { ptDec = { id: b.dataset.ptr, accept: false }; renderTasks(); const i = $("#ptWhy"); if (i) i.focus(); });
+    const x = el.querySelector("#ptX"); if (x) x.onclick = () => { ptDec = null; renderTasks(); };
+    const done = async m => { ptDec = null; D.petitions = await rpc("course_petitions", { cid: D.cid }).catch(() => D.petitions); const er = await sb.from("task_extensions").select("*").in("task_id", D.tasks.map(t => t.id)); if (!er.error) { D.exts = {}; er.data.forEach(x => { if (x.active) (D.exts[x.task_id] = D.exts[x.task_id] || {})[x.student_code] = x; }); } say("tasks", m); renderTasks(); };
+    el.querySelectorAll("[data-ptu]").forEach(b => b.onclick = () => { const u = new Date(Date.now() + +b.dataset.ptu * 864e5); u.setHours(23, 59, 0, 0); const p = D.petitions.find(x => x.id === ptDec.id);
+      rpc("petition_decide", { pid: ptDec.id, p_accept: true, p_until: u.toISOString(), p_reply: "" }).then(() => done("اتقبل الالتماس، واتفتح لـ" + (p.name || p.student_code) + " التسليم لحد " + fmtDT(u) + "، ووصله تنبيه.")).catch(showErr); });
+    const no = el.querySelector("#ptNo"); if (no) no.onclick = () => { const why = $("#ptWhy").value.trim(); if (why.length < 3) return toast("اكتب سبب الرفض.");
+      rpc("petition_decide", { pid: ptDec.id, p_accept: false, p_until: null, p_reply: why }).then(() => done("اترفض الالتماس، ووصل للطالب السبب.")).catch(showErr); };
+  }
   function appealsHtml(c) {
     const all = (D.appeals || []), open = all.filter(a => a.status === "pending"), old = all.filter(a => a.status !== "pending");
     if (!all.length) return "";
@@ -3162,7 +3253,7 @@
     const imgOf = a => a.file_id ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(a.file_id)}&sz=w600` : "";
     return `<section class="ap-box" id="apBox"><div class="row between"><h3>${open.length ? `تظلمات بانتظار قرارك <span class="chip warn">${open.length}</span>` : "التظلمات"}</h3>${old.length ? `<button class="btn sm ghost" id="apOld">${apShowOld ? "إخفاء" : "عرض"} القرارات السابقة (${old.length})</button>` : ""}</div>
       ${open.map(a => `<article class="ap-c" data-ap="${a.id}">
-        <div class="ap-who"><b>${esc(a.name || a.student_code)}</b><span class="small muted mono">${esc(a.student_code)}${a.grp ? " · مجموعة " + esc(a.grp) : ""}</span></div>
+        <div class="ap-who"><b>${esc(a.name || a.student_code)}</b><span class="small muted"><span class="mono" dir="ltr">${esc(a.student_code)}</span>${a.grp ? "، مجموعة " + esc(a.grp) : ""}</span></div>
         <div class="ap-what"><span class="chip">${esc(a.task)}</span><span class="chip warn">${esc(AP_R[a.reason])}</span><span class="small">الدرجة الحالية: <b>${a.cur_grade != null ? gN(Number(a.cur_grade) + Number(a.cur_bonus || 0)) : "لم تُرصد"}</b> من ${gN(a.max)}</span></div>
         ${a.note ? `<p class="ap-note">«${esc(a.note)}»</p>` : ""}
         <div class="ap-fp small" data-apfp="${a.id}"></div>
