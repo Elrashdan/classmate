@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b111">
+<link rel="stylesheet" href="style.css?v=b112">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,15 +45,15 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b111"></script>
-<script src="vendor/qrcode.js?v=b111"></script>
-<script src="config.js?v=b111"></script>
-<script src="common.js?v=b111"></script>
-<script src="drive.js?v=b111"></script>
-<script src="pack.js?v=b111"></script>
-<script src="catalog.js?v=b111"></script>
-<script src="voice.js?v=b111"></script>
-<script src="timetable.js?v=b111"></script>
+<script src="vendor/supabase.js?v=b112"></script>
+<script src="vendor/qrcode.js?v=b112"></script>
+<script src="config.js?v=b112"></script>
+<script src="common.js?v=b112"></script>
+<script src="drive.js?v=b112"></script>
+<script src="pack.js?v=b112"></script>
+<script src="catalog.js?v=b112"></script>
+<script src="voice.js?v=b112"></script>
+<script src="timetable.js?v=b112"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -634,7 +634,7 @@
   function tabBadges() {
     if (!D || !$(".ctabs, .nx-dock")) return;
     const s = running(), pend = s ? Object.values(D.att[s.id] || {}).filter(r => r.status === "pending").length : 0;
-    const put = (k, html) => { const el = document.querySelector(`[data-tbx="${k}"]`); if (el) el.outerHTML = `<i class="tbx" data-tbx="${k}">${html}</i>`; };
+    const put = (k, html) => document.querySelectorAll(`[data-tbx="${k}"]`).forEach(el => { el.outerHTML = `<i class="tbx" data-tbx="${k}">${html}</i>`; });
     put("live", s && !s.ended ? (pend ? `<b class="tb" title="${pend} طلب معلّق">${pend}</b>` : `<b class="live-dot" title="توجد محاضرة جارية"></b>`) : "");
     const ug = D.enroll.length > 1 && groupsOf().length ? D.enroll.filter(e => !e.grp).length : 0;
     put("students", ug ? `<b class="tb" title="${ug} طالب دون مجموعة">${ug}</b>` : "");
@@ -826,7 +826,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b111: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b112: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -1686,7 +1686,7 @@
       <div class="rs-bar"><input type="search" id="rgQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rg.q)}" autocomplete="off"><span class="small muted">${rows.length === base.length ? base.length + " طالب" : "عرض " + rows.length + " من " + base.length}</span>${busy ? `<button class="btn sm ghost" id="rgClear">إلغاء الترتيب والتصفية</button>` : ""}</div>
       <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => { const lab = rh("s" + s.n, `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`); return `<th class="c ${delSess === s.id ? "th-on" : ""}">${lab}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="حذف المحاضرة ${s.n}" aria-label="حذف المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
       ${rows.length ? "" : `<tr><td colspan="${ss.length + 6}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
-      ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${CM.lvl(ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}${mng && missedSess(e).length ? ` <button class="btn xs ghost pm-btn ${pastMark && pastMark.code === e.student_code ? "on" : ""}" data-pm="${esc(e.student_code)}" title="تحضيره في محاضرات سابقة غاب عنها">تحضير</button>` : ""}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
+      ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${CM.lvl(ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm"><div class="nm-c"><span class="nm-t" title="${esc(e.name)}">${esc(e.name)}</span>${mng && missedSess(e).length ? `<span class="nm-tags"><button class="btn xs ghost pm-btn ${pastMark && pastMark.code === e.student_code ? "on" : ""}" data-pm="${esc(e.student_code)}" title="تحضيره في محاضرات سابقة غاب عنها">تحضير</button></span>` : ""}</div></td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
       </tbody></table></div>
       <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة أخرى · م معلّق · غ غائب · النقطة تعني أن المحاضرة ليست لمجموعته.${mng ? " إذا أنشأت محاضرة بالخطأ، فاضغط «حذف» أسفل رقمها. ولتحضير طالب في محاضرة سابقة غاب عنها، اضغط «غ» في خانتها أو زر «تحضير» بجوار اسمه." : ""} يُحتسب الغياب فور إغلاق التسجيل في المحاضرة، وإذا سُجِّل الطالب بعد ذلك يدويًّا أو بمسح بطاقته أُلغي الغياب. ويُلغي كل حضور تعويضي غيابًا واحدًا. الغياب مرتين إنذار أول، و3 مرات إنذار ثانٍ، و4 مرات إنذار ثالث ونهائي، و5 مرات انسحاب إجباري.</p>`
       : `<div class="empty">سيمتلئ الكشف بمجرد بدء المحاضرات.</div>`}`;
@@ -2577,8 +2577,8 @@
       ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" style="max-width:320px"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select></div>` : ""; })() : ""}
       ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}${partsOf(t) ? partsOf(t).map((p, i) => `<th class="c pth" title="${esc(p.name)}">${esc(p.name)}<br><small>(من ${gN(p.max)})</small></th>`).join("") : `<th class="c">الدرجة من ${gN(t.max_grade)}</th>`}<th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
-          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td class="nm">${esc(e.name)}${extraChip(t, e)}${absChip(t, e)}${minusChip(t, e.student_code)}${fixChip(s)}${s && s.rejected_at ? ` <span class="chip bad" title="ظهر للطالب: «مشروعك مرفوض. توجّه لأستاذ المادة»">مرفوض</span>${run ? ` <button class="btn xs ghost" data-unrej="${code}" title="إلغاء الرفض">إلغاء</button>` : ""}` : ""}</td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
-            ${man ? "" : `<td class="small">${s && s.submitted_at ? `${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}${s.late ? ` <span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? ` <span class="muted">(التسليم ${s.version})</span>` : ""}${extCell(t, e, s, run)}` : `<span class="muted">لم يسلّم</span>${extCell(t, e, s, run)}`}</td>
+          return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td class="nm"><div class="nm-c"><b class="nm-t" title="${esc(e.name)}">${esc(e.name)}</b><div class="nm-tags">${extraChip(t, e)}${absChip(t, e)}${minusChip(t, e.student_code)}${fixChip(s)}${s && s.rejected_at ? ` <span class="chip bad" title="ظهر للطالب: «مشروعك مرفوض. توجّه لأستاذ المادة»">مرفوض</span>${run ? ` <button class="btn xs ghost" data-unrej="${code}" title="إلغاء الرفض">إلغاء</button>` : ""}` : ""}</div></div></td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
+            ${man ? "" : `<td class="small tk-subc"><div class="cell-s">${s && s.submitted_at ? `<span class="nowrap">${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}</span>${s.late || s.version > 1 ? `<span class="nm-tags">${s.late ? `<span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? `<span class="muted">التسليم ${s.version}</span>` : ""}</span>` : ""}${extCell(t, e, s, run)}` : `<span class="muted">لم يسلّم</span>${extCell(t, e, s, run)}`}</div></td>
             <td class="small tk-work">${s && s.url ? `<button class="btn sm tk-view" data-view="${code}">${ICO('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>')} عرض العمل</button><a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a" title="${esc(s.kind === "drive" ? (s.file_name || "الملف") : s.url)}">${esc(s.kind === "drive" ? (s.file_name || "الملف").replace(/^\d{6,}\s*-\s*/, "") : "رابط")}</a>${ck && ck[0] !== "none" && ck[0] !== "ok" ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted tk-note">«${esc(s.note)}»</div>` : ""}` : `<span class="muted">—</span>`}</td>`}
             ${partsOf(t) ? partsOf(t).map((p, i) => `<td class="c">${run ? `<input type="text" class="gin pin ${badVal(valOf(e.student_code, "p" + i, s), +p.max) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-p="${code}" data-pi="${i}" value="${esc(valOf(e.student_code, "p" + i, s))}" inputmode="decimal" autocomplete="off" title="${esc(p.name)} (من ${gN(p.max)})">` : gN(s && Array.isArray(s.parts) ? s.parts[i] : "")}</td>`).join("")
             : `<td class="c">${run ? `<input type="text" class="gin ${badVal(valOf(e.student_code, "grade", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? `disabled title="مرفوض: غاب ${DL(t)}. اقبل عذره أولًا لترصد درجته."` : ""} data-g="${code}" value="${esc(valOf(e.student_code, "grade", s))}" inputmode="decimal" autocomplete="off">` : gN(s && s.grade)}</td>`}
@@ -2891,23 +2891,28 @@
     $("#grPrevB").disabled = grader.i <= 0; $("#grNext").disabled = grader.i >= grader.order.length - 1;
     const v = k => s ? origOf(s, k) : "";
     const chips = !e ? "" : `${refusedFor(t, e) ? `<span class="chip bad">مرفوض · غائب ${DL(t)}</span>` : absentOnDue(t, e) ? `<span class="chip ${excusedOf(t, code) ? "ok" : "bad"}">${excusedOf(t, code) ? "غاب · مقبول بعذر" : "غائب يوم التسليم"}</span>` : ""}${s && s.late ? `<span class="chip warn">متأخر</span>` : ""}${ck && ck[0] !== "none" && ck[0] !== "ok" ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${fixChip(s)}${s && s.grade != null ? `<span class="chip ok">مرصودة: ${gN(totalOf(s))}</span>` : ""}${minusOf(t, code) ? `<span class="chip bad">خصم ${gN(minusOf(t, code))}</span>` : ""}`;
+    const subT = s && s.submitted_at ? "سلّم " + CM.fmtD(s.submitted_at) + " " + CM.fmtT(s.submitted_at) + (s.version > 1 ? " · تسليم " + s.version : "") : "لم يسلّم";
+    const msgH = grader.msg ? `<div class="msg ${grader.msg.startsWith("!") ? "bad" : "ok"} small gx-msg">${esc(grader.msg.replace(/^!/, ""))}</div>` : "";
     $("#grSide").innerHTML = !e ? `<div class="gx-empty"><b>لا يوجد طلبة هنا</b><span>${grader.f === "ungraded" ? "اترصدت درجات كل اللي سلّموا. 👌" : "غيّر الاختيار من قايمة ⋯ فوق."}</span></div>` : `
-      <div class="gx-who">
-        <div class="gx-nm"><b>${esc(e.name)}</b>
-          <div class="gx-meta"><span class="gx-m mono" dir="ltr">${esc(code)}</span>${e.grp ? `<span class="gx-m">مجموعة ${esc(e.grp)}</span>` : ""}<span class="gx-m">${s && s.submitted_at ? "سلّم " + CM.fmtD(s.submitted_at) + " الساعة " + CM.fmtT(s.submitted_at) + (s.version > 1 ? "، التسليم رقم " + s.version : "") : "لم يسلّم"}</span></div>
-          ${chips ? `<div class="gx-chips">${chips}</div>` : ""}</div>
-        <button class="gx-det-b" id="grDetB" aria-expanded="${grader.det}">${grader.det ? "إخفاء ▴" : `<span class="w">ملاحظة ومشكلة الملف</span><span class="n">تفاصيل</span> ▾`}</button></div>
-      ${grader.msg ? `<div class="msg ${grader.msg.startsWith("!") ? "bad" : "ok"} small gx-msg">${esc(grader.msg.replace(/^!/, ""))}</div>` : ""}
-      ${P ? `<div class="gr-parts gx-parts">${P.map((p, i) => `<label class="f"><span>${esc(p.name)} <small>/${gN(p.max)}</small></span><input type="text" class="grP" data-pi="${i}" inputmode="decimal" autocomplete="off" value="${esc(v("p" + i))}"></label>`).join("")}</div>` : ""}
-      <div class="gx-grade">
-        <label class="f gx-g" ${P ? "hidden" : ""}><span>الدرجة من ${gN(t.max_grade)}</span><input type="text" id="grG" inputmode="decimal" autocomplete="off" value="${esc(v("grade"))}"></label>
-        <label class="f gx-b"><span>بونص</span><input type="text" id="grB" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(v("bonus"))}"></label>
-        <div class="gx-t"><span>المجموع</span><b id="grT"></b></div>
-        ${P ? "" : `<button type="button" class="gx-mic${grader.vcOn ? " on" : ""}" id="grVc" aria-pressed="${!!grader.vcOn}" aria-label="رصد بالصوت" title="رصد بالصوت">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')}</button>`}
-        <button class="btn primary gx-save" id="grSave">اعتماد ${GX_ARR(1)}</button>
+      ${grader.det ? "" : msgH}
+      <div class="gx-bar">
+        <div class="gx-who"><b class="gx-name" title="${esc(e.name)}">${esc(e.name)}</b>
+          <span class="gx-sub"><bdi class="mono" dir="ltr">${esc(code)}</bdi>${e.grp ? " · مجموعة " + esc(e.grp) : ""} · ${esc(subT)}</span>
+          ${chips ? `<span class="gx-chips">${chips}</span>` : ""}</div>
+        ${P ? `<div class="gr-parts gx-parts">${P.map((p, i) => `<label class="gx-f gx-p" title="${esc(p.name)} من ${gN(p.max)}"><span>${esc(p.name)}</span><input type="text" class="grP" data-pi="${i}" inputmode="decimal" autocomplete="off" value="${esc(v("p" + i))}" aria-label="${esc(p.name)} من ${gN(p.max)}"><small>/${gN(p.max)}</small></label>`).join("")}</div>` : ""}
+        <div class="gx-grade">
+          <label class="gx-f gx-g" ${P ? "hidden" : ""} title="الدرجة من ${gN(t.max_grade)}"><span>الدرجة</span><input type="text" id="grG" inputmode="decimal" autocomplete="off" value="${esc(v("grade"))}" aria-label="الدرجة من ${gN(t.max_grade)}"><small>/${gN(t.max_grade)}</small></label>
+          <label class="gx-f gx-b" title="بونص"><span>بونص</span><input type="text" id="grB" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(v("bonus"))}" aria-label="بونص"></label>
+          <div class="gx-t" title="المجموع"><span>المجموع</span><b id="grT"></b></div>
+          ${P ? "" : `<button type="button" class="gx-mic${grader.vcOn ? " on" : ""}" id="grVc" aria-pressed="${!!grader.vcOn}" aria-label="رصد بالصوت" title="رصد بالصوت">${ICO('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>')}</button>`}
+          <button type="button" class="gx-det-b${grader.det ? " on" : ""}" id="grDetB" aria-expanded="${grader.det}" title="ملاحظة للطالب، مشكلة في الملف، درجات سريعة" aria-label="ملاحظة ومشكلة الملف">${ICO('<path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/>')}<span>ملاحظة</span></button>
+          <button class="btn primary gx-save" id="grSave">اعتماد ${GX_ARR(1)}</button>
+        </div>
       </div>
       ${grader.vcOn ? `<p class="small gx-vct" id="grVcTxt">قول الدرجة بس، وهتتحفظ وأنقلك للتالي.</p>` : ""}
       <div class="gx-det" ${grader.det ? "" : "hidden"}>
+        <div class="gx-det-h"><b>ملاحظة ومشكلة الملف</b><button type="button" class="btn xs ghost" id="grDetX" aria-label="إغلاق">✕</button></div>
+        ${grader.det ? msgH : ""}
         ${refusedFor(t, e) ? `<div class="row"><span class="small">الطالب غاب يوم التسليم فتسليمه مرفوض.</span><button class="btn xs" id="grExc">قبول بعذر</button></div>` : ""}
         ${s && s.note ? `<p class="small">ملاحظة الطالب: «${esc(s.note)}»</p>` : ""}
         <div class="gr-quick" aria-label="درجات سريعة" ${P ? "hidden" : ""}>${[1, .9, .8, .7, .6, .5].map(p => `<button class="btn xs" data-q="${Math.round(t.max_grade * p * 4) / 4}">${gN(Math.round(t.max_grade * p * 4) / 4)}</button>`).join("")}</div>
@@ -2923,6 +2928,7 @@
     $("#grPrevB").onclick = () => go(-1); $("#grNext").onclick = () => go(1);
     if (!e) return;
     const fb0 = $("#grFb");
+    const gdx = $("#grDetX"); if (gdx) gdx.onclick = () => $("#grDetB").click();
     $("#grDetB").onclick = () => { grader.det = !grader.det; const keep = fb0 ? fb0.value : null; drawGrader(false); if (keep != null && $("#grFb")) $("#grFb").value = keep; };
     const G = $("#grG"), B = $("#grB"), T = $("#grT");
     const ge = $("#grExc"); if (ge) ge.onclick = () => excuseToggle(t, code, true, () => drawGrader(false));
@@ -4128,7 +4134,7 @@
       if (r) return `<span class="chip warn">معلّق</span> <button class="btn sm" data-rap="${code}">موافقة</button>`;
       return `<button class="btn sm primary" data-rman="${code}" ${rosterMan === e.student_code ? "aria-pressed=\"true\"" : ""}>تحضير${isOwn(ms, e) ? "" : " (تعويض)"}</button>`; };
     tb.innerHTML = `<thead><tr>${head("code")}${head("name")}${ms ? head("now") : ""}${head("grp")}${head("acc")}${mng ? "<th></th>" : ""}</tr></thead><tbody>
-      ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}${e.source === "form" ? ` <span class="chip warn small" title="أضاف نفسه من استمارة التسجيل الأكاديمي${e.added_at ? " يوم " + esc(CM.fmtD(e.added_at)) : ""}، ولم يرد في ملف الطلبة الذي رفعته. راجِعه، وأزِله إن لم يكن من طلبة المادة.">بالاستمارة</span>` : ""}</td>${ms ? `<td style="white-space:nowrap">${nowCell(e)}</td>` : ""}
+      ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td class="nm"><div class="nm-c"><span class="nm-t" title="${esc(e.name)}">${esc(e.name)}</span>${e.source === "form" ? `<span class="nm-tags"><span class="chip warn small" title="أضاف نفسه من استمارة التسجيل الأكاديمي${e.added_at ? " يوم " + esc(CM.fmtD(e.added_at)) : ""}، ولم يرد في ملف الطلبة الذي رفعته. راجِعه، وأزِله إن لم يكن من طلبة المادة.">بالاستمارة</span></span>` : ""}</div></td>${ms ? `<td style="white-space:nowrap">${nowCell(e)}</td>` : ""}
         <td>${mng ? `<select data-grp="${esc(e.student_code)}" style="width:auto;padding:3px 6px">${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${esc(g) || "—"}</option>`).join("")}</select>` : esc(e.grp || "—")}</td>
         <td>${b.device_bound ? `<span class="chip ok"${b.device_label ? ` title="${esc(b.device_label)}"` : ""}>مرتبط بهاتف</span>${b.moved_at && Date.now() - new Date(b.moved_at) < 30 * 864e5 ? `<div class="small muted">نقل حسابه بنفسه ${esc(CM.fmtD(b.moved_at))}</div>` : ""}` : b.registered ? `<span class="chip warn">بانتظار ربط هاتف</span>` : `<span class="chip none">لم ينشئ حسابًا</span>`}</td>
         ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الهاتف"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "حذف الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "إزالة من المادة"}</button></div></td>` : ""}</tr>
@@ -4258,7 +4264,7 @@
           ? `<div class="who"><input type="text" id="profIn" maxlength="160" value="${esc(pf.src === "manual" ? pf.name : "")}" placeholder="${esc(pf.name || "اكتب الاسم كما يظهر على الختم")}"><small>سيبه فاضي عشان البرنامج ياخد الاسم من الجدول الدراسي.</small></div><div class="acts"><button class="btn sm primary" id="profSave">حفظ</button><button class="btn sm ghost" id="profCancel">إلغاء</button></div>`
           : `<div class="who"><b>${esc(pf.name || "—")}</b><small>${PROF_SRC[pf.src] || ""} · يظهر اسمه مع الدرجة على ختم أعمال الطلبة</small></div><div class="acts">${mng ? `<button class="btn sm ghost" id="profEditB">تعديل</button>` : ""}</div>`}</div>`; })()}
         <div class="li man"><span class="chip man">صاحب المادة</span><div class="who"><b>${esc(staffName(c.owner_email))}</b><small class="mono">${esc(c.owner_email)}</small></div><span></span></div>
-        ${team.map(t => `<div class="li ${t.kind === "co" ? "man" : ""}"><span class="chip ${t.kind === "co" ? "man" : "none"}">${t.kind === "co" ? "محاضر مشارك" : "معيد"}</span><div class="who"><b>${esc(staffName(t.email))}</b><small class="mono">${esc(t.email)}</small></div><div class="acts">${mng ? `<button class="btn sm ghost" data-kind="${esc(t.email)}" data-to="${t.kind === "co" ? "ta" : "co"}">${t.kind === "co" ? "تحويله إلى معيد" : "تحويله إلى محاضر مشارك"}</button><button class="btn sm ghost danger" data-rmta="${esc(t.email)}">إزالة</button>` : ""}</div></div>`).join("")}
+        ${team.map(t => `<div class="li ${t.kind === "co" ? "man" : ""}"><span class="chip ${t.kind === "co" ? "man" : "none"}">${t.kind === "co" ? "محاضر مشارك" : "معيد"}</span><div class="who"><b>${esc(staffName(t.email))}${t.src === "tt" ? ` <span class="chip ok small" title="اتضاف تلقائيًا لأنه مكتوب في الجدول الدراسي على المادة دي. لو اتشال من الجدول بيتشال من هنا، ولو شلته انت مش هيرجع تاني.">من الجدول الدراسي</span>` : ""}</b><small class="mono">${esc(t.email)}</small></div><div class="acts">${mng ? `<button class="btn sm ghost" data-kind="${esc(t.email)}" data-to="${t.kind === "co" ? "ta" : "co"}">${t.kind === "co" ? "تحويله إلى معيد" : "تحويله إلى محاضر مشارك"}</button><button class="btn sm ghost danger" data-rmta="${esc(t.email)}">إزالة</button>` : ""}</div></div>`).join("")}
       </div>
       ${mng ? (cands.length ? `<div class="settings"><label class="f"><span>إضافة إلى الفريق</span><select id="taPick">${cands.map(u => `<option value="${esc(u.email)}">${esc(u.name)} (${ROLE[u.role]})</option>`).join("")}</select></label><label class="f"><span>بصفته</span><select id="taKind"><option value="co">محاضر مشارك</option><option value="ta" selected>معيد</option></select></label><button class="btn" id="taAdd">أضف</button></div>` : `<p class="muted small">لا توجد حسابات أخرى لإضافتها. إن لم يكن المحاضر أو المعيد موجودًا، فاطلب من مسؤول القسم إضافته.</p>`)
         + `<p class="muted small"><b>المحاضر المشارك</b> يقوم بكل ما تقوم به في المحاضرات والطلبة والكشف (ومنه تعديل المحاضرات المنتهية)، باستثناء حذف المادة وتعديل بياناتها وإدارة الفريق. <b>المعيد</b> يبدأ المحاضرات، ويوافق على الطلبات، ويسجّل يدويًّا، ويضيف طالبًا، لكنه لا يرفع ملف الطلبة ولا يعدّل المحاضرات بعد انتهائها.</p>` : ""}

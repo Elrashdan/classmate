@@ -2383,3 +2383,106 @@ html[dir="ltr"] .tk-back:hover svg{animation-direction:reverse}
 .dh-h > .dh-chips{flex-direction:row}
 .dh-ta .btn svg{width:18px;height:18px}
 @media (max-width:640px){.dh-tt{flex:1 1 calc(100% - 60px)}.dh-ta{margin-inline-start:52px}}
+
+/* ===================== b112: شاشة التصحيح: شغل الطالب كامل بين شريطين رفيعين ===================== */
+.gr.gx{ display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; background: #161b1a; }
+.gx .gr-prev{ position: relative; inset: auto; min-height: 0; grid-row: 2; background: #161b1a; }
+.gx .gx-top{ position: relative; top: auto; inset: auto; grid-row: 1; margin: 6px 8px 0; padding: 5px 6px; border-radius: 14px; gap: 8px; box-shadow: none; }
+.gx .gx-x{ min-height: 40px; padding: 0 12px 0 10px; border-radius: 11px; font-size: .95rem; }
+.gx .gx-x svg{ width: 20px; height: 20px; }
+.gx .gx-mb{ width: 40px; height: 40px; border-radius: 11px; }
+.gx .gx-n{ font-size: .95rem; padding: 4px 9px; }
+.gx .gx-arr{ top: calc(50% - 26px); width: 52px; height: 52px; }
+.gx .gx-arr svg{ width: 26px; height: 26px; }
+.gx .gx-panel{ position: relative; grid-row: 3; bottom: auto; inset: auto; margin: 0 8px calc(6px + env(safe-area-inset-bottom, 0px)); max-width: none; max-height: none; overflow: visible; padding: 6px 8px 6px 10px; border-radius: 16px; gap: 0; display: block; box-shadow: none; }
+.gx-bar{ display: flex; align-items: center; gap: 10px; min-width: 0; }
+.gx .gx-who{ display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+.gx-name{ font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gx-sub{ font-size: .74rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gx .gx-who .gx-chips{ display: flex; flex-wrap: nowrap; gap: 4px; overflow: hidden; margin-top: 2px; }
+.gx .gx-who .gx-chips .chip{ font-size: .68rem; padding: 0 7px; line-height: 1.6; white-space: nowrap; }
+.gx .gx-grade{ display: flex; align-items: center; gap: 6px; flex: none; grid-template-columns: none; }
+.gx-f{ display: flex; align-items: center; gap: 4px; height: 44px; padding: 0 8px; border-radius: 11px; border: 1px solid var(--gx-line); background: var(--surface); cursor: text; }
+.gx-f:focus-within{ border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.gx-f > span{ font-size: .68rem; color: var(--muted); white-space: nowrap; }
+.gx-f > small{ font-size: .78rem; color: var(--muted); font-family: var(--f-mono); }
+.gx .gx-f input{ all: unset; box-sizing: border-box; width: 3.6ch; min-width: 0; font-family: var(--f-mono); font-size: 1.35rem; font-weight: 600; text-align: center; color: var(--ink); }
+.gx .gx-b input{ width: 2.6ch; }
+.gx .gx-f input.bad{ color: var(--bad); }
+.gx-f:has(input.bad){ border-color: var(--bad); background: var(--bad-soft); }
+.gx .gx-t{ display: flex; align-items: baseline; gap: 4px; min-height: 44px; height: 44px; padding: 0 10px; border-radius: 11px; background: var(--accent-soft); align-content: center; align-items: center; }
+.gx .gx-t span{ font-size: .68rem; }
+.gx .gx-t b{ font-size: 1.3rem; }
+.gx .gx-mic, .gx-det-b{ all: unset; box-sizing: border-box; cursor: pointer; height: 44px; min-width: 44px; padding: 0 10px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--gx-line); background: var(--surface); color: var(--ink); font-size: .82rem; font-weight: 600; }
+.gx .gx-mic{ width: 44px; padding: 0; }
+.gx .gx-mic svg, .gx-det-b svg{ width: 20px; height: 20px; }
+.gx-det-b.on{ background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.gx .gx-save{ min-height: 44px; height: 44px; padding: 0 16px; font-size: 1rem; border-radius: 11px; }
+.gx .gx-save svg{ width: 20px; height: 20px; }
+.gx .gx-parts{ display: flex; gap: 6px; flex: none; }
+.gx .gx-p > span{ max-width: 7ch; overflow: hidden; text-overflow: ellipsis; }
+.gx .gx-p input{ width: 2.8ch; font-size: 1.15rem; }
+.gx .gx-det{ position: absolute; bottom: calc(100% + 8px); inset-inline-end: 0; width: min(560px, calc(100vw - 16px)); max-height: min(62vh, 520px); overflow: auto; overscroll-behavior: contain; padding: 12px 14px; border-radius: 18px; border: 1px solid var(--gx-line); background: color-mix(in srgb, var(--surface) 94%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); box-shadow: 0 18px 50px rgba(0,0,0,.4); border-top: 1px solid var(--gx-line); z-index: 4; animation: dhRise .2s ease-out both; }
+.gx-det-h{ display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.gx .gx-panel > .gx-msg{ position: absolute; bottom: calc(100% + 8px); inset-inline-start: 0; max-width: min(520px, calc(100vw - 16px)); z-index: 3; box-shadow: 0 10px 30px rgba(0,0,0,.35); animation: dhRise .2s ease-out both; }
+.gx .gx-vct{ font-size: .78rem; margin-top: 4px; }
+.gx .gr-hint{ top: 70px; }
+@media (max-width: 760px){
+  .gx .gx-top{ margin: 4px 4px 0; padding: 4px; gap: 6px; }
+  .gx .gx-x{ min-height: 40px; padding: 0 10px; } .gx .gx-x span{ display: none; }
+  .gx .gx-x svg{ width: 22px; height: 22px; }
+  .gx .gx-arr{ width: 42px; height: 42px; top: calc(50% - 21px); } .gx .gx-arr svg{ width: 22px; height: 22px; }
+  .gx .gx-pa{ inset-inline-start: 4px; } .gx .gx-na{ inset-inline-end: 4px; }
+  .gx .gx-panel{ margin: 0 4px calc(4px + env(safe-area-inset-bottom, 0px)); padding: 6px; }
+  .gx-bar{ flex-wrap: wrap; gap: 6px; }
+  .gx .gx-who{ flex: 1 1 100%; flex-direction: row; align-items: baseline; gap: 6px; }
+  .gx-name{ font-size: .92rem; flex: 0 1 auto; }
+  .gx-sub{ font-size: .7rem; flex: 1 1 0; }
+  .gx .gx-who .gx-chips{ display: none; }
+  .gx .gx-grade{ flex: 1 1 100%; gap: 5px; }
+  .gx-f{ height: 42px; padding: 0 6px; flex: 1 1 0; justify-content: center; }
+  .gx .gx-b{ flex: .7 1 0; }
+  .gx .gx-t{ height: 42px; min-height: 42px; padding: 0 8px; }
+  .gx .gx-t span, .gx-f > span{ display: none; }
+  .gx .gx-mic, .gx-det-b{ height: 42px; min-width: 42px; padding: 0; }
+  .gx-det-b span{ display: none; }
+  .gx .gx-save{ height: 42px; min-height: 42px; padding: 0 12px; flex: none; }
+  .gx .gx-parts{ flex: 1 1 100%; overflow-x: auto; }
+  .gx .gx-det{ inset-inline: 0; width: auto; max-height: 55vh; }
+  .grov.kb .gx-panel{ max-height: none; }
+}
+.grov.kb .gx-top, .grov.kb .gx-arr{ display: none; }
+
+/* b112: شارة العدد جوه زرار القسم بدل ما تبقى طايرة */
+.dh-sec .tbx{ position: static; display: inline-flex; }
+.dh-sec .tbx:empty{ display: none; }
+.dh-sec .tb, html[data-skin="nx"] .dh-sec .tb{ position: static; display: inline-block; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--warn); color: #fff; font-size: 11px; font-weight: 700; line-height: 20px; text-align: center; font-style: normal; }
+.dh-sec .live-dot{ position: static; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--ok); animation: dhPl 1.6s ease-out infinite; }
+/* b112: الميكروفون في آخر خانة البحث */
+.top-q label{ padding-inline-end: 4px; }
+.top-q .btn.sm.ghost.icon.mic-s{ margin: 0 !important; width: 36px; height: 36px; min-height: 36px; padding: 0; border: 0; border-radius: 9px; background: transparent; color: var(--muted); }
+.top-q .btn.mic-s:hover{ background: var(--accent-soft); color: var(--accent); }
+.top-q .btn.mic-s.on{ background: #b0281f; color: #fff; }
+
+/* ===================== b112: الجداول: الاسم الطويل مايبوّظش ترتيب الزراير ===================== */
+.tbl-wrap td{ vertical-align: middle; }
+.tbl-wrap td .btn, .tbl-wrap td .chip{ white-space: nowrap; }
+td.nm{ min-width: 13em; max-width: 24em; }
+.nm-c{ display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
+.nm-t{ font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.nm-tags{ display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.nm-tags:empty{ display: none; }
+.nm-tags .chip{ margin: 0; }
+.cell-s{ display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.cell-s > div{ margin: 0 !important; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.tk-tbl td.tk-subc{ min-width: 10.5em; }
+.tk-tbl th:first-child, .tk-tbl td:first-child{ width: 2.5em; }
+.tk-tbl td.mono{ white-space: nowrap; }
+@media (max-width: 760px){ td.nm{ min-width: 11em; } }
+/* b112: ميل الكروت ولمعة تتبع الماوس في اللوحة الجديدة */
+.dh-card, .st-card, .st-gr{ position: relative; isolation: isolate; }
+.dh-card::before, .st-card::before, .st-gr::before{ content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit; background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 30%), color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%); opacity: 0; transition: opacity .3s; }
+html[data-skin="nx"] :is(.dh-card, .st-card, .st-gr)::before{ background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 30%), color-mix(in srgb, var(--nx-hi) 24%, transparent), transparent 70%); }
+@media (hover: hover){ :is(.dh-card, .st-card, .st-gr):hover::before{ opacity: 1; } }
+.dh-card[data-tilt], .st-card[data-tilt], .st-gr[data-tilt]{ transition: transform .18s ease-out, box-shadow .25s, border-color .25s; will-change: transform; }
+.gx .gx-f input, html[data-skin="nx"] .gx .gx-f input{ border: 0 !important; background: transparent !important; box-shadow: none !important; outline: 0 !important; padding: 0 !important; min-height: 0 !important; height: 40px !important; border-radius: 0 !important; }

@@ -6215,3 +6215,127 @@ begin
     execute f;
   end if;
 end $do$;
+
+-- ===================== update-64: فريق كل مادة يتعيّن تلقائيًا من الجدول الدراسي المنشور =====================
+--   كل عضو مربوط بحسابه في الجدول على خانة مادة (course_id) بيتضاف لفريقها: «محاضر» = محاضر مشارك، «معيد» = معيد.
+--   الإضافات التلقائية متعلّمة src = 'tt': لو اتشال من الجدول بيتشال من الفريق، ولو صاحب المادة شاله بإيده مش بيرجع (tt_team_skip).
+alter table public.course_tas add column if not exists src text not null default 'manual';
+create table if not exists public.tt_team_skip (
+  course_id uuid not null references public.courses(id) on delete cascade,
+  email text not null,
+  at timestamptz not null default now(),
+  primary key (course_id, email)
+);
+alter table public.tt_team_skip enable row level security;
+revoke all on public.tt_team_skip from anon, authenticated;
+
+create or replace function public.tt_team_want(cid uuid) returns table(email text, kind text)
+language sql stable security definer set search_path = public as $$
+  select lower(p->>'e'), case when bool_or(p->>'k' = 'lec') then 'co' else 'ta' end
+    from tt_slots s join timetables tt on tt.id = s.tt_id and tt.published
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(s.team) = 'array' then s.team else '[]'::jsonb end) g
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(g->'staff') = 'array' then g->'staff' else '[]'::jsonb end) p
+   where s.course_id = cid and coalesce(p->>'e', '') <> ''
+   group by 1;
+$$;
+
+create or replace function public.tt_sync_team(cid uuid) returns int
+language plpgsql security definer set search_path = public as $$
+declare c courses; r record; n int := 0; kn text;
+begin
+  select * into c from courses where id = cid;
+  if c.id is null or c.archived then return 0; end if;
+  for r in select w.email, w.kind from tt_team_want(cid) w join staff st on st.email = w.email and st.status <> 'suspended'
+            where w.email <> c.owner_email and not exists (select 1 from tt_team_skip k where k.course_id = cid and k.email = w.email) loop
+    kn := case when r.kind = 'co' then 'محاضرًا مشاركًا' else 'معيدًا' end;
+    if not exists (select 1 from course_tas t where t.course_id = cid and t.email = r.email) then
+      insert into course_tas(course_id, email, kind, src) values (cid, r.email, r.kind, 'tt');
+      insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, 'أضاف ' || staff_name(r.email) || ' ' || kn || ' في المادة (من الجدول الدراسي)');
+      insert into notifications(student_code, kind, title, body, url)
+        values ('staff:' || r.email, 'team', 'اتضفت لفريق مادة «' || c.name || '»', 'حسب الجدول الدراسي، ' || kn || '. المادة ظهرت في موادك.', 'https://elrashdan.github.io/classmate/staff.html');
+      n := n + 1;
+    elsif exists (select 1 from course_tas t where t.course_id = cid and t.email = r.email and t.src = 'tt' and t.kind <> r.kind) then
+      update course_tas set kind = r.kind where course_id = cid and email = r.email;
+      insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, 'غيّر ' || staff_name(r.email) || ' إلى ' || kn || ' (من الجدول الدراسي)');
+    end if;
+  end loop;
+  for r in delete from course_tas t where t.course_id = cid and t.src = 'tt'
+             and not exists (select 1 from tt_team_want(cid) w where w.email = t.email) returning t.email loop
+    insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, 'شال ' || staff_name(r.email) || ' من فريق المادة لأنه اتشال من الجدول الدراسي');
+  end loop;
+  return n;
+end $$;
+
+create or replace function public.tt_sync_slot_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op <> 'INSERT' and old.course_id is not null then perform tt_sync_team(old.course_id); end if;
+  if tg_op <> 'DELETE' and new.course_id is not null and (tg_op = 'INSERT' or new.course_id is distinct from old.course_id or new.team is distinct from old.team) then perform tt_sync_team(new.course_id); end if;
+  return null;
+end $$;
+drop trigger if exists tt_slots_sync_team on public.tt_slots;
+create trigger tt_slots_sync_team after insert or update of course_id, team or delete on public.tt_slots
+  for each row execute function public.tt_sync_slot_trg();
+
+create or replace function public.tt_sync_pub_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r record;
+begin
+  for r in select distinct course_id from tt_slots where tt_id = new.id and course_id is not null loop perform tt_sync_team(r.course_id); end loop;
+  return null;
+end $$;
+drop trigger if exists timetables_sync_team on public.timetables;
+create trigger timetables_sync_team after update of published on public.timetables
+  for each row when (old.published is distinct from new.published) execute function public.tt_sync_pub_trg();
+
+-- العضو اللي اتفعّل حسابه بعد ما اسمه اتربط في الجدول
+create or replace function public.tt_staff_link_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r record;
+begin
+  perform tt_link_staff(new.email);
+  for r in select distinct s.course_id from tt_slots s, jsonb_array_elements(case when jsonb_typeof(s.team) = 'array' then s.team else '[]'::jsonb end) g,
+             jsonb_array_elements(case when jsonb_typeof(g->'staff') = 'array' then g->'staff' else '[]'::jsonb end) p
+            where s.course_id is not null and lower(p->>'e') = new.email loop
+    perform tt_sync_team(r.course_id);
+  end loop;
+  return new;
+end $$;
+
+-- إضافة يدوية: بتبقى «يدوي» وبتلغي أي استبعاد قديم
+create or replace function public.add_member(cid uuid, p_email text, p_kind text) returns void
+language plpgsql security definer set search_path = public as $$
+declare e text := lower(trim(coalesce(p_email, ''))); k text := case when p_kind = 'co' then 'co' else 'ta' end; old text;
+begin
+  if not course_owner(cid) then raise exception 'not_allowed'; end if;
+  if not exists (select 1 from staff where email = e and status <> 'suspended') then raise exception 'not_found'; end if;
+  if exists (select 1 from courses where id = cid and owner_email = e) then raise exception 'already_owner'; end if;
+  delete from tt_team_skip where course_id = cid and email = e;
+  select kind into old from course_tas where course_id = cid and email = e;
+  if old = k then update course_tas set src = 'manual' where course_id = cid and email = e; return; end if;
+  insert into course_tas(course_id, email, kind, src) values (cid, e, k, 'manual')
+    on conflict (course_id, email) do update set kind = excluded.kind, src = 'manual';
+  perform log_audit(cid, case when old is null then 'أضاف ' else 'غيّر ' end || staff_name(e)
+    || case when k = 'co' then ' بصفة محاضر مشارك' else ' بصفة معيد' end || ' في المادة');
+end $$;
+
+-- إزالة يدوية لعضو جه من الجدول: نفتكرها عشان المزامنة متضيفوش تاني
+create or replace function public.remove_ta(cid uuid, p_email text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not course_owner(cid) then raise exception 'not_allowed'; end if;
+  if exists (select 1 from course_tas where course_id = cid and email = lower(p_email) and src = 'tt') then
+    insert into tt_team_skip(course_id, email) values (cid, lower(p_email)) on conflict do nothing;
+  end if;
+  delete from course_tas where course_id = cid and email = lower(p_email);
+  perform log_audit(cid, 'أزال ' || staff_name(lower(p_email)) || ' من فريق المادة');
+end $$;
+
+revoke all on function public.tt_team_want(uuid), public.tt_sync_team(uuid), public.tt_sync_slot_trg(), public.tt_sync_pub_trg() from public, anon, authenticated;
+
+-- أول مزامنة لكل المواد اللي في الجدول المنشور
+do $$ declare r record; begin
+  for r in select distinct s.course_id from tt_slots s join timetables t on t.id = s.tt_id and t.published where s.course_id is not null loop
+    perform public.tt_sync_team(r.course_id);
+  end loop;
+end $$;
