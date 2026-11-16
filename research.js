@@ -35,14 +35,17 @@
     const ps = A.per_session || [];
     const p50 = med(ps.map(x => x.p50)), p90 = med(ps.map(x => x.p90)), nS = med(ps.map(x => x.n));
     const thr = med(ps.map(x => x.p90 > 0 ? x.n * .9 / x.p90 : null));
-    const tMan = +o.manualSec || 0, gMan = +o.manualGradeSec || 0;
+    const sa = svAnalyze(), stx = sa && sa.g.staff ? sa.g.staff.ex : {};
+    const tMan = +o.manualSec || (stx.man_sec && stx.man_sec.med) || 0, gMan = +o.manualGradeSec || (stx.man_grade && stx.man_grade.med) || 0;
+    const tSrc = +o.manualSec ? "الباحث من الملاحظة الميدانية" : tMan ? "وسيط تقديرات " + stx.man_sec.n + " من أعضاء الفريق في استطلاع الرأي" : "";
+    const gSrc = +o.manualGradeSec ? "الباحث" : gMan ? "وسيط تقديرات " + stx.man_grade.n + " من أعضاء الفريق في استطلاع الرأي" : "";
     const manMin = tMan && nS ? nS * tMan / 60 : null;
     const bm = A.by_method || {}, appIn = (bm.code || 0) + (bm.qr || 0) + (bm.scan || 0) + (bm.manual || 0);
     const rej = sum(I.by_reason);
     const night = Object.entries(S.hour_of_day || {}).filter(([h]) => +h >= 21 || +h < 6).reduce((a, [, n]) => a + n, 0);
     const reached = sum(W.reached);
     return {
-      p50, p90, nS, thr, manMin, saveMin: manMin != null && p90 != null ? manMin - p90 : null, tMan, gMan,
+      p50, p90, nS, thr, manMin, saveMin: manMin != null && p90 != null ? manMin - p90 : null, tMan, gMan, tSrc, gSrc, sa,
       appIn, selfShare: appIn ? ((bm.code || 0) + (bm.qr || 0)) / appIn : null, manualShare: appIn ? (bm.manual || 0) / appIn : null,
       rej, rejPer100: A.checkins ? rej / A.checkins * 100 : null,
       rateApp: A.rate && A.rate.expected ? A.rate.present / A.rate.expected : null, rateImp: A.rate && A.rate.expected_imp ? A.rate.present_imp / A.rate.expected_imp : null,
@@ -59,9 +62,10 @@
   /* ---------------- الشاشة ---------------- */
   RS.open = (el, ctx) => {
     const o = Object.assign({ from: termStart(), to: today(), manualSec: "", manualGradeSec: "", courses: null }, optGet());
-    X = { el, ctx, data: null, hash: "", opt: o };
-    draw();
+    X = { el, ctx, data: null, hash: "", opt: o, svs: null, sv: null, val: null, vk: null };
+    draw(); loadSurveys();
   };
+  async function loadSurveys() { try { X.svs = await X.ctx.rpc("admin_surveys"); } catch (e) { X.svs = []; } const b = X.el.querySelector("#rsSvBox"); if (b) { b.outerHTML = svBox(); wireSv(); } }
   function draw() {
     const { el, ctx, opt: o } = X, list = ctx.courses.filter(c => !c.archived);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">للمسؤول فقط · بيانات مجمّعة ومجهّلة</div><h2>تقارير البحث العلمي</h2></div></div>
@@ -76,13 +80,16 @@
         <div class="rs-cl">${list.map(c => `<label><input type="checkbox" data-rsc="${c.id}" ${!o.courses || o.courses.includes(c.id) ? "checked" : ""}> ${esc(c.name)} <small class="muted">${esc(ctx.clsLabel(c))}</small></label>`).join("")}</div>
         <div class="row"><button class="btn xs ghost" id="rsAll">الكل</button><button class="btn xs ghost" id="rsNone">ولا مادة</button></div></details>
       <div class="row"><button class="btn primary" id="rsRun">احسب المؤشرات</button>${X.data ? `<button class="btn" id="rsDoc">${ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>')} تنزيل التقرير (Word)</button><button class="btn" id="rsXl">${ic('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>')} تنزيل البيانات (Excel)</button>` : ""}<span class="small" id="rsMsg"></span></div>
-      <div id="rsOut">${X.data ? dash() : ""}</div>`;
+      <div id="rsOut">${X.data ? dash() : ""}</div>
+      ${svBox()}
+      ${valBox()}`;
     const save = () => { o.from = $("#rsFrom").value; o.to = $("#rsTo").value; o.manualSec = $("#rsMan").value.trim(); o.manualGradeSec = $("#rsManG").value.trim();
       const ch = [...el.querySelectorAll("[data-rsc]")]; const on = ch.filter(x => x.checked).map(x => x.dataset.rsc); o.courses = on.length === ch.length ? null : on; optSet(o); };
     el.querySelectorAll("input").forEach(i => i.onchange = () => { save(); if (X.data && (i.id === "rsMan" || i.id === "rsManG")) { const out = $("#rsOut"); out.innerHTML = dash(); } });
     $("#rsAll").onclick = () => { el.querySelectorAll("[data-rsc]").forEach(x => x.checked = true); save(); };
     $("#rsNone").onclick = () => { el.querySelectorAll("[data-rsc]").forEach(x => x.checked = false); save(); };
     $("#rsRun").onclick = run;
+    wireSv(); wireVal();
     const dc = $("#rsDoc"); if (dc) dc.onclick = () => exportDoc().catch(e => msg("!" + (e.message || e)));
     const xl = $("#rsXl"); if (xl) xl.onclick = () => exportXl().catch(e => msg("!" + (e.message || e)));
   }
@@ -95,7 +102,11 @@
     try {
       const from = new Date(o.from + "T00:00:00"), to = new Date(o.to + "T23:59:59");
       X.data = await X.ctx.rpc("research_stats", { p_from: from.toISOString(), p_to: to.toISOString(), p_courses: o.courses });
-      X.hash = await sha256(JSON.stringify(X.data));
+      const svId = o.sv || (X.svs && X.svs[0] && X.svs[0].id);
+      const [rows, vals] = await Promise.all([svId ? X.ctx.rpc("admin_survey_responses", { sid: svId }).catch(() => []) : [], X.ctx.rpc("research_validations", { p_from: from.toISOString(), p_to: to.toISOString() }).catch(() => [])]);
+      X.sv = svId ? { meta: (X.svs || []).find(x => x.id === svId), rows: rows || [] } : null; X.val = vals || [];
+      X.data.survey_rows = X.sv ? X.sv.rows.length : 0; X.data.validations = X.val;
+      X.hash = await sha256(JSON.stringify({ stats: X.data, survey: X.sv ? X.sv.rows : null }));
       draw(); msg("اتحسبت المؤشرات من " + num(X.data.meta.enrollments, 0) + " تسجيل طالب في " + X.data.meta.courses + " مادة.");
     } catch (e) { b.disabled = false; b.textContent = "احسب المؤشرات"; msg("!" + X.ctx.errText(e)); }
   }
@@ -114,10 +125,94 @@
       ${card("زمن رصد الدرجة في المنصة", num(k.secGrade) + " ث", "الوسيط · " + num(G.sec_per_grade.n, 0) + " درجة متتالية")}
       ${card("تظلمات لكل 100 درجة", num(k.apPer100), num(d.appeals.total, 0) + " تظلم · الحسم خلال " + num(d.appeals.decide_p50_h) + " ساعة")}
       ${card("عمل خارج ساعات الدوام", k.afterShare != null ? num(k.afterShare * 100) + "%" : "—", "من " + num(d.workload.events, 0) + " إجراء")}
+      ${k.sa ? card("استطلاع الرأي", num(k.sa.total - k.sa.declined, 0) + " إجابة", (k.sa.g.student ? "SUS الطلبة " + num(k.sa.g.student.sus.m) : "") + (k.sa.g.staff ? " · SUS الفريق " + num(k.sa.g.staff.sus.m) : "") + " · " + k.sa.declined + " اعتذار") : ""}
+      ${X.val && X.val.length ? (() => { const t = X.val.reduce((a, v) => [a[0] + v.a, a[1] + v.b, a[2] + v.c, a[3] + v.d], [0, 0, 0, 0]); return card("التطابق مع الكشف الورقي", "κ = " + num(kappa(...t), 2), X.val.length + " محاضرة · اتفاق " + pct(t[0] + t[3], t[0] + t[1] + t[2] + t[3])); })() : ""}
     </div>
     <p class="small muted">رقم التحقق (SHA-256) لهذه النسخة من البيانات: <span class="mono" dir="ltr">${X.hash.slice(0, 16)}…</span> · يُكتب كاملًا في التقرير وملف البيانات ليُستشهد به.</p>`;
   }
 
+
+  /* ---------------- استطلاع الرأي: إطلاق وإيقاف ونتائج ---------------- */
+  const AUD = { all: "الطلبة والفريق", students: "الطلبة", staff: "الفريق (المحاضرون والمعيدون)" };
+  function svBox() {
+    const L = X.svs, o = X.opt, act = L && L.find(x => x.active);
+    return `<section class="rs-box" id="rsSvBox"><div class="row between"><h3>استطلاع رأي المستخدمين</h3>${act ? `<span class="chip ok">مفتوح الآن</span>` : ""}</div>
+      <p class="small muted">لما تطلقه، يظهر لكل مستخدم أول ما يفتح البرنامج ومايقدرش يكمل غير لما يجاوب. الاستطلاع: مقياس سهولة الاستخدام SUS (10 عبارات) ومحاور من نموذج قبول التقنية TAM (الفائدة، والثقة، والرضا، وعبء العمل للفريق)، وأسئلة مفتوحة. الإجابات تُحفظ بمعرّف مجهول.</p>
+      ${L == null ? `<p class="small muted"><span class="spinner"></span> جارٍ التحميل…</p>` : `
+      ${act ? "" : `<div class="row" style="gap:10px;align-items:end;flex-wrap:wrap"><label class="f" style="margin:0"><span>يظهر لـ</span><select id="rsAud">${Object.entries(AUD).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></label>
+        <label class="row small" style="gap:6px"><input type="checkbox" id="rsDec" checked> اسمح بزرار «أعتذر عن المشاركة»</label>
+        <button class="btn primary" id="rsSvGo">إطلاق الاستطلاع</button></div>
+        <p class="small muted" id="rsDecNote">لجان أخلاقيات البحث بتشترط إن المشاركة تكون اختيارية، والإجابة الإجبارية بتقلل مصداقية البيانات (اللي مش عايز يجاوب بيعلّم أي اختيار وخلاص). الاستطلاع هيظهر للكل ولازم يتعاملوا معاه، بس اللي مش عايز يشارك يقدر يعتذر، وعدد المعتذرين بيتحسب في التقرير. لو شلت العلامة هيبقى الرد إجباري.</p>`}
+      ${L.length ? `<div class="list">${L.map(x => `<div class="rs-sv"><div><b>${dstr(x.created_at)} · ${AUD[x.audience]}</b><div class="small muted">${x.n} إجابة · ${x.declined} اعتذار${x.allow_decline ? "" : " · إجباري"}${x.closed_at ? " · اتقفل " + dstr(x.closed_at) : ""}</div></div>
+        <div class="row" style="gap:6px"><label class="small row" style="gap:4px"><input type="radio" name="rsSvPick" value="${x.id}" ${(o.sv || L[0].id) === x.id ? "checked" : ""}> في التقرير</label>${x.active ? `<button class="btn sm danger" data-svclose="${x.id}">إيقاف</button>` : ""}</div></div>`).join("")}</div>` : `<p class="small muted">لم يُطلق أي استطلاع بعد.</p>`}`}
+    </section>`;
+  }
+  function wireSv() {
+    const go = X.el.querySelector("#rsSvGo"); if (go) go.onclick = async () => {
+      const aud = X.el.querySelector("#rsAud").value, dec = X.el.querySelector("#rsDec").checked;
+      if (!confirm("إطلاق الاستطلاع لـ" + AUD[aud] + "؟ هيظهر لكل واحد منهم أول ما يفتح البرنامج" + (dec ? "، ويقدر يعتذر." : "، ومش هيقدر يكمل غير لما يجاوب."))) return;
+      go.disabled = true; try { await X.ctx.rpc("admin_survey_start", { p_audience: aud, p_allow_decline: dec }); X.opt.sv = null; optSet(X.opt); await loadSurveys(); msg("اتطلق الاستطلاع."); } catch (e) { go.disabled = false; msg("!" + X.ctx.errText(e)); } };
+    X.el.querySelectorAll("[data-svclose]").forEach(b => b.onclick = async () => { if (!confirm("إيقاف الاستطلاع؟ مش هيظهر لحد تاني.")) return; b.disabled = true; try { await X.ctx.rpc("admin_survey_close", { sid: b.dataset.svclose }); await loadSurveys(); } catch (e) { b.disabled = false; msg("!" + X.ctx.errText(e)); } });
+    X.el.querySelectorAll('[name="rsSvPick"]').forEach(r => r.onchange = () => { X.opt.sv = r.value; optSet(X.opt); });
+  }
+  const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const sd = a => { if (a.length < 2) return null; const m = mean(a); return Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / (a.length - 1)); };
+  const alpha = mat => { const k = mat[0] ? mat[0].length : 0; if (k < 2 || mat.length < 3) return null; const vi = Array.from({ length: k }, (_, j) => sd(mat.map(r => r[j])) ** 2), vt = sd(mat.map(r => r.reduce((x, y) => x + y, 0))) ** 2; return vt ? k / (k - 1) * (1 - vi.reduce((x, y) => x + y, 0) / vt) : null; };
+  const susOf = a => { let t = 0; for (let i = 1; i <= 10; i++) { const v = +a["sus" + i]; if (!v) return null; t += i % 2 ? v - 1 : 5 - v; } return t * 2.5; };
+  const band = v => v == null ? "—" : v > 80.3 ? "ممتاز" : v > 68 ? "جيد" : v >= 51 ? "مقبول" : "ضعيف";
+  function svAnalyze() {
+    if (!X.sv || !X.sv.rows.length) return null;
+    const all = X.sv.rows, ok = all.filter(r => !r.declined), grp = { student: ok.filter(r => r.role === "student"), staff: ok.filter(r => r.role !== "student") };
+    const out = { total: all.length, declined: all.length - ok.length, meta: X.sv.meta, g: {} };
+    Object.entries(grp).forEach(([g, rows]) => { if (!rows.length) return;
+      const secs = CM.SURVEY[g === "student" ? "student" : "staff"];
+      const sus = rows.map(r => susOf(r.answers)).filter(v => v != null), m = mean(sus), s = sd(sus);
+      const susMat = rows.map(r => Array.from({ length: 10 }, (_, i) => { const v = +r.answers["sus" + (i + 1)]; return (i + 1) % 2 ? v - 1 : 5 - v; })).filter(r => r.every(v => !isNaN(v)));
+      const cons = secs.filter(x => x.k !== "sus").map(x => { const mat = rows.map(r => x.items.map((_, i) => +r.answers[x.k + (i + 1)])).filter(r => r.every(v => v >= 1)); const per = mat.map(r => mean(r));
+        return { k: x.k, t: x.t, n: mat.length, m: mean(per), sd: sd(per), a: alpha(mat), items: x.items.map((t, i) => { const v = mat.map(r => r[i]); return { t, m: mean(v), sd: sd(v), agree: v.length ? v.filter(z => z >= 4).length / v.length : null }; }) }; });
+      const ex = {}; (CM.SURVEY.extra[g === "student" ? "student" : "staff"]).forEach(x => { const v = rows.map(r => r.answers[x.k]).filter(z => z != null && z !== ""); ex[x.k] = x.opts ? Object.fromEntries(x.opts.map(([k, l]) => [l, v.filter(z => z === k).length])) : { med: med(v.map(Number)), n: v.length }; });
+      out.g[g] = { n: rows.length, sus: { m, sd: s, med: med(sus), ci: s != null ? 1.96 * s / Math.sqrt(sus.length) : null, a: alpha(susMat), n: sus.length, bands: ["ممتاز", "جيد", "مقبول", "ضعيف"].map(b => [b, sus.filter(v => band(v) === b).length]) },
+        cons, ex, secs: med(rows.map(r => r.seconds).filter(Boolean)), levels: rows.reduce((a, r) => { if (r.level) a[r.level] = (a[r.level] || 0) + 1; return a; }, {}) }; });
+    return out;
+  }
+
+  /* ---------------- عينة التحقق: كشف ورقي مقابل المنصة لنفس المحاضرة ---------------- */
+  const kappa = (a, b, c, d) => { const n = a + b + c + d; if (!n) return null; const po = (a + d) / n, pe = ((a + b) * (a + c) + (c + d) * (b + d)) / (n * n); return pe === 1 ? 1 : (po - pe) / (1 - pe); };
+  function valBox() {
+    const v = X.vk || {}, list = X.ctx.courses.filter(c => !c.archived);
+    return `<section class="rs-box" id="rsValBox"><h3>صدق التطابق: كشف ورقي مقابل المنصة</h3>
+      <p class="small muted">اختار محاضرة اتاخد فيها الحضور بالمنصة وبكشف ورقي في نفس الوقت، والصق أكواد الحاضرين من الكشف الورقي (أو ارفع ملف إكسل فيه الأكواد). البرنامج يحسب نسبة الاتفاق ومعامل كابا لكوهين، ويحفظ النتيجة (من غير أكواد) عشان تدخل في التقرير.</p>
+      <div class="row" style="gap:10px;flex-wrap:wrap;align-items:end">
+        <label class="f" style="margin:0;min-width:240px"><span>المادة</span><select id="rsVc"><option value="">اختر…</option>${list.map(c => `<option value="${c.id}" ${v.cid === c.id ? "selected" : ""}>${esc(c.name)} · ${esc(X.ctx.clsLabel(c))}</option>`).join("")}</select></label>
+        <label class="f" style="margin:0;min-width:220px"><span>المحاضرة</span><select id="rsVs" ${v.sess ? "" : "disabled"}><option value="">اختر…</option>${(v.sess || []).map(x => `<option value="${x.id}" ${v.sid === x.id ? "selected" : ""}>المحاضرة ${x.n}${x.grp ? " · مجموعة " + esc(x.grp) : ""} · ${dstr(x.at)}${x.checked ? " ✓" : ""}</option>`).join("")}</select></label></div>
+      ${v.sid ? `<label class="f"><span>أكواد الحاضرين في الكشف الورقي (كود في كل سطر أو مفصولة بمسافات)</span><textarea id="rsVt" rows="4" dir="ltr" placeholder="122401398&#10;122402138">${esc(v.txt || "")}</textarea></label>
+        <div class="row"><label class="btn sm">رفع إكسل<input type="file" id="rsVx" accept=".xlsx" hidden></label><button class="btn sm primary" id="rsVgo">احسب الاتفاق</button></div>` : ""}
+      ${v.res ? (() => { const r = v.res, n = r.a + r.b + r.c + r.d; return `<div class="tbl-wrap"><table class="rs-tbl"><thead><tr><th></th><th>حاضر ورقيًا</th><th>غائب ورقيًا</th></tr></thead><tbody>
+        <tr><th>حاضر في المنصة</th><td>${r.a}</td><td>${r.b}</td></tr><tr><th>غائب في المنصة</th><td>${r.c}</td><td>${r.d}</td></tr></tbody></table></div>
+        <p><b>نسبة الاتفاق: ${pct(r.a + r.d, n)} · كابا لكوهين: ${num(r.k, 3)}</b>${r.unknown ? ` <span class="small warn-t">(${r.unknown} كود في الكشف الورقي مش في كشف المحاضرة، اتجاهلوا)</span>` : ""}</p>
+        ${r.diff.length ? `<details><summary class="small">الأكواد المختلفة (${r.diff.length}) · للمراجعة بس ومش بتتحفظ</summary><p class="small mono" dir="ltr">${r.diff.map(esc).join("، ")}</p></details>` : ""}
+        <button class="btn sm" id="rsVsave" ${r.saved ? "disabled" : ""}>${r.saved ? "اتحفظت ✓" : "حفظ في عينة التحقق"}</button>`; })() : ""}
+    </section>`;
+  }
+  function wireVal() {
+    const box = () => { const b = X.el.querySelector("#rsValBox"); b.outerHTML = valBox(); wireVal(); };
+    const c = X.el.querySelector("#rsVc"); if (c) c.onchange = async () => { X.vk = { cid: c.value }; if (c.value) { try { X.vk.sess = await X.ctx.rpc("research_sessions", { cid: c.value }); } catch (e) { msg("!" + X.ctx.errText(e)); } } box(); };
+    const sEl = X.el.querySelector("#rsVs"); if (sEl) sEl.onchange = () => { X.vk.sid = sEl.value; X.vk.res = null; box(); };
+    const t = X.el.querySelector("#rsVt"); if (t) t.oninput = () => { X.vk.txt = t.value; };
+    const xf = X.el.querySelector("#rsVx"); if (xf) xf.onchange = async () => { const f = xf.files[0]; if (!f) return; await X.ctx.loadExcelJS(); const wb = new ExcelJS.Workbook(); await wb.xlsx.load(await f.arrayBuffer()); const out = [];
+      wb.eachSheet(ws => ws.eachRow(r => r.eachCell(cl => { const v = String(cl.text || cl.value || "").trim(); if (/^[0-9A-Za-z_-]{5,40}$/.test(v)) out.push(v); }))); X.vk.txt = out.join("\n"); box(); };
+    const go = X.el.querySelector("#rsVgo"); if (go) go.onclick = async () => {
+      const codes = new Set(String(X.vk.txt || "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).split(/[\s,،;]+/).map(x => x.trim()).filter(Boolean));
+      if (!codes.size) return msg("!الصق أكواد الحاضرين من الكشف الورقي الأول.");
+      go.disabled = true;
+      try { const ro = await X.ctx.rpc("research_session_roster", { sid: X.vk.sid }); const inR = new Set(ro.map(x => x.code)); let a = 0, b = 0, cc = 0, d = 0; const diff = [];
+        ro.forEach(x => { const p = codes.has(x.code); if (x.app && p) a++; else if (x.app) { b++; diff.push(x.code + " (منصة فقط)"); } else if (p) { cc++; diff.push(x.code + " (ورقي فقط)"); } else d++; });
+        X.vk.res = { a, b, c: cc, d, k: kappa(a, b, cc, d), diff, unknown: [...codes].filter(x => !inR.has(x)).length }; box(); }
+      catch (e) { go.disabled = false; msg("!" + X.ctx.errText(e)); } };
+    const sv = X.el.querySelector("#rsVsave"); if (sv) sv.onclick = async () => { const r = X.vk.res; sv.disabled = true;
+      try { await X.ctx.rpc("research_validation_save", { sid: X.vk.sid, a: r.a, b: r.b, c: r.c, d: r.d, k: r.k == null ? null : Math.round(r.k * 10000) / 10000, p_note: "" }); r.saved = true; (X.vk.sess.find(x => x.id === X.vk.sid) || {}).checked = true; box(); msg("اتحفظت. اضغط «احسب المؤشرات» تاني عشان تدخل في التقرير."); }
+      catch (e) { sv.disabled = false; msg("!" + X.ctx.errText(e)); } };
+  }
   /* ---------------- ملف البيانات (Excel) ---------------- */
   async function exportXl() {
     const d = X.data, o = X.opt, k = derive(d, o), ctx = X.ctx; msg("جارٍ إعداد ملف البيانات…");
@@ -131,6 +226,12 @@
     sheet("توقيت التسليم", ["الساعة (بتوقيت القاهرة)", "عدد التسليمات"], Array.from({ length: 24 }, (_, h) => [h, (d.submissions.hour_of_day || {})[h] || 0]));
     sheet("أيام العمل", ["اليوم", "عدد الإجراءات"], [6, 0, 1, 2, 3, 4, 5].map(i => [WD[i], (d.workload.weekday || {})[i] || 0]));
     sheet("التظلمات", ["السبب / القرار", "العدد"], Object.entries(d.appeals.by || {}).map(([kk, n]) => { const [r, s] = kk.split("/"); return [(AP_R[r] || r) + " / " + (AP_S[s] || s), n]; }));
+    if (X.sv && X.sv.rows.length) { const keys = [], ex = []; ["student", "staff"].forEach(g => CM.SURVEY[g].forEach(sec => sec.items.forEach((_, i) => { const kk = sec.k + (i + 1); if (!keys.includes(kk)) keys.push(kk); }))); ["student", "staff"].forEach(g => CM.SURVEY.extra[g].forEach(x => { if (!ex.includes(x.k)) ex.push(x.k); }));
+      sheet("الاستطلاع (مجهّل)", ["المعرّف", "الفئة", "المستوى", "اعتذر", "زمن الإجابة (ث)", "SUS", ...keys, ...ex, ...CM.SURVEY.open.map(x => x[0])],
+        X.sv.rows.map(r => [r.rid, r.role === "student" ? "طالب" : ROLE[r.role] || r.role, r.level || "", r.declined ? "نعم" : "", r.seconds || "", r.declined ? "" : susOf(r.answers), ...keys.map(kk => r.answers[kk] == null ? "" : r.answers[kk]), ...ex.map(kk => r.answers[kk] == null ? "" : r.answers[kk]), ...CM.SURVEY.open.map(x => r.answers[x[0]] || "")]));
+      sheet("نص عبارات الاستطلاع", ["الرمز", "العبارة", "الفئة"], [].concat(...["student", "staff"].map(g => [].concat(...CM.SURVEY[g].map(sec => sec.items.map((t, i) => [sec.k + (i + 1), t, g === "student" ? "الطلبة" : "الفريق"]))))));
+    }
+    if (X.val && X.val.length) sheet("عينة التحقق الورقية", ["المحاضرة", "التاريخ", "حاضر في الاثنين", "المنصة فقط", "الورقي فقط", "غائب في الاثنين", "كابا"], X.val.map((v, i) => [i + 1, dstr(v.at), v.a, v.b, v.c, v.d, v.k]));
     sheet("التوثيق", ["البند", "القيمة"], docMeta(d).map(x => [x[0], x[1]]));
     const ws = wb.addWorksheet("البيانات الخام (JSON)"); ws.addRow(["research_stats output"]); ws.addRow([JSON.stringify(d)]);
     await ctx.saveWb(wb, "Hadro - بيانات البحث " + o.from + " - " + o.to + ".xlsx");
@@ -175,7 +276,7 @@
       ["وسيط زمن إعادة الرفع", r2(S.fix.p50_h), "ساعة", "من الطلب حتى إعادة الرفع"],
       ["الدرجات المرصودة", G.graded, "درجة", "في تكليفات التسليم والرصد اليدوي"],
       ["وسيط زمن رصد الدرجة في المنصة", r2(G.sec_per_grade.p50), "ثانية", "الفاصل بين درجتين متتاليتين للمصحح نفسه (بين 2 و600 ثانية)"],
-      ["الربيع الأدنى والأعلى لزمن الرصد", r2(G.sec_per_grade.p25) + " – " + r2(G.sec_per_grade.p75), "ثانية", "الربيعان الأول والثالث"],
+      ["الربيع الأدنى والأعلى لزمن الرصد", G.sec_per_grade.p25 != null ? r2(G.sec_per_grade.p25) + " – " + r2(G.sec_per_grade.p75) : null, "ثانية", "الربيعان الأول والثالث"],
       ["درجات أُدخلت دفعة واحدة من كشف إكسل", G.bulk_rows, "درجة", "5 درجات أو أكثر بالتوقيت نفسه للمصحح نفسه"],
       ["وسيط زمن إعلان النتيجة بعد التسليم", r2(days(G.turnaround_h.p50)), "يوم", "من آخر الموعد أو التسليم حتى الرصد"],
       ["درجات مصحوبة بملاحظة مكتوبة", G.with_feedback, "درجة", "تغذية راجعة نصية للطالب"],
@@ -239,7 +340,7 @@
     // ١ مقدمة
     body.push(H1("1. مقدمة"),
       P("تُعد منصة Hadro نظامًا رقميًا لإدارة حضور المحاضرات، وتسليم التكليفات وتصحيحها، ورصد الدرجات والتظلمات، طُوِّر واستُخدم في قسم الديكور بكلية الفنون الجميلة. وتسجّل المنصة كل عملية بتوقيت الخادم في سجلات لا يحررها المستخدم، وهو ما يتيح استخراج مؤشرات سلوكية موضوعية عن الاستخدام الفعلي، بخلاف الاستبانات التي تقيس انطباعات المستخدمين.", { ind: true }),
-      P("ويهدف هذا التقرير إلى وصف هذه المؤشرات وصفًا كميًا، وتوثيق طريقة حسابها وحدودها، تمهيدًا لاستخدامها في البحث العلمي مصدرًا من مصادر البيانات إلى جانب أدوات أخرى (كالملاحظة الميدانية والاستبانات). ولا يدّعي التقرير بذاته علاقة سببية بين استخدام المنصة وأي نتيجة تعليمية؛ إذ إن ذلك يتطلب تصميمًا بحثيًا مقارنًا مستقلًا (انظر القسم 12).", { ind: true }),
+      P("ويهدف هذا التقرير إلى وصف هذه المؤشرات وصفًا كميًا، وتوثيق طريقة حسابها وحدودها، تمهيدًا لاستخدامها في البحث العلمي مصدرًا من مصادر البيانات إلى جانب أدوات أخرى (كالملاحظة الميدانية والاستبانات). ولا يدّعي التقرير بذاته علاقة سببية بين استخدام المنصة وأي نتيجة تعليمية؛ إذ إن ذلك يتطلب تصميمًا بحثيًا مقارنًا مستقلًا (انظر قسم حدود البيانات في آخر التقرير).", { ind: true }),
       P("وتتضمن المنصة وظائف قائمة على المعالجة الذكية للبيانات، منها: رصد الدرجات بالإملاء الصوتي (التعرف الآلي على الكلام ومطابقة الاسم المنطوق بكشف المادة)، والمطابقة التقريبية للأسماء العربية، والتحقق الآلي من سلامة الملفات ببصماتها الرقمية، والتنبيه الآلي للطلبة عند بلوغ حدود الغياب. ويمكن النظر إليها بوصفها بنية رقمية تمهيدية لإدماج أدوات الذكاء الاصطناعي في العملية التعليمية، مع مراعاة أن هذه الوظائف ليست تطبيقات للذكاء الاصطناعي التوليدي.", { ind: true }));
     // ٢ المنهجية
     body.push(H1("2. المنهجية"),
@@ -277,8 +378,8 @@
         ["معدل التسجيل (طالب/دقيقة)", num(k.thr), num(q(sess.map(x => x.p90 > 0 ? x.n * .9 / x.p90 : null), .25)), num(q(sess.map(x => x.p90 > 0 ? x.n * .9 / x.p90 : null), .75))]],
         "عدد الجلسات المحسوبة: " + sess.length + "."),
       H2("4.3 مقارنة تقديرية بالنداء اليدوي"),
-      ...(k.manMin != null ? [P("بافتراض أن نداء الطالب الواحد يدويًا يستغرق " + num(k.tMan) + " ثانية (قيمة أدخلها الباحث من الملاحظة الميدانية)، يستغرق نداء " + num(k.nS, 0) + " طالبًا (وسيط عدد الحاضرين) نحو " + num(k.manMin) + " دقيقة من زمن المحاضرة، مقابل " + num(k.p90) + " دقيقة لتسجيل 90% من الحاضرين عبر المنصة، علمًا بأن التسجيل في المنصة يجري بالتوازي مع بدء الشرح ولا يتطلب توقف المحاضر.", { ind: true }),
-        ...TBL("مقارنة تقديرية لزمن تسجيل الحضور في جلسة نموذجية", ["الطريقة", "الزمن (دقيقة)", "أساس التقدير"], [["النداء اليدوي", num(k.manMin), num(k.nS, 0) + " طالب × " + num(k.tMan) + " ثانية"], ["المنصة (حتى 90%)", num(k.p90), "قياس فعلي من السجلات"], ["الفرق", num(k.saveMin), "تقديري"]], "قيمة النداء اليدوي تقدير يعتمد على ملاحظة الباحث، وتُوصى بمراجعة القسم 12 لقياسها قياسًا منهجيًا.")]
+      ...(k.manMin != null ? [P("بافتراض أن نداء الطالب الواحد يدويًا يستغرق " + num(k.tMan) + " ثانية (المصدر: " + k.tSrc + ")، يستغرق نداء " + num(k.nS, 0) + " طالبًا (وسيط عدد الحاضرين) نحو " + num(k.manMin) + " دقيقة من زمن المحاضرة، مقابل " + num(k.p90) + " دقيقة لتسجيل 90% من الحاضرين عبر المنصة، علمًا بأن التسجيل في المنصة يجري بالتوازي مع بدء الشرح ولا يتطلب توقف المحاضر.", { ind: true }),
+        ...TBL("مقارنة تقديرية لزمن تسجيل الحضور في جلسة نموذجية", ["الطريقة", "الزمن (دقيقة)", "أساس التقدير"], [["النداء اليدوي", num(k.manMin), num(k.nS, 0) + " طالب × " + num(k.tMan) + " ثانية"], ["المنصة (حتى 90%)", num(k.p90), "قياس فعلي من السجلات"], ["الفرق", num(k.saveMin), "تقديري"]], "قيمة النداء اليدوي تقديرية، ويُوصى بقياسها قياسًا منهجيًا (انظر قسم حدود البيانات).")]
         : [P("لم يُدخل الباحث بعدُ متوسط زمن نداء الطالب الواحد يدويًا؛ لذا لا تُعرض المقارنة. ويمكن الحصول على هذه القيمة بملاحظة عدد من المحاضرات التي يُنادى فيها على الطلبة يدويًا وقياس الزمن بساعة إيقاف، ثم إدخال المتوسط في صفحة التقارير وإعادة تنزيل التقرير.", { ind: true })]),
       H2("4.4 نسب الحضور"),
       ...TBL("نسب الحضور في جلسات المنصة والجلسات المستوردة", ["نوع الجلسات", "الحاضرون", "المطلوب حضورهم", "النسبة"], [
@@ -321,7 +422,7 @@
         ["أعضاء الفريق الذين رصدوا درجات", num(G.graders, 0)], ["وسيط زمن رصد الدرجة الواحدة داخل المنصة (ثانية)", num(G.sec_per_grade.p50) + " (الربيعان: " + num(G.sec_per_grade.p25) + " – " + num(G.sec_per_grade.p75) + "؛ ن = " + num(G.sec_per_grade.n, 0) + ")"],
         ["درجات أُدخلت دفعة واحدة من كشف إكسل", num(G.bulk_rows, 0) + " في " + num(G.bulk, 0) + " دفعة"], ["وسيط الزمن من الموعد حتى الرصد (يوم)", num(days(G.turnaround_h.p50))],
         ["درجات مصحوبة بملاحظة مكتوبة للطالب", num(G.with_feedback, 0)]]),
-      ...(k.gMan ? [P("وبمقارنة الوسيط السابق بزمن تقديري للرصد اليدوي قدره " + num(k.gMan) + " ثانية للدرجة (تدوين في كشف ورقي ثم نقل إلى ملف الكنترول)، يكون الفرق نحو " + num(k.gradeSaveSec) + " ثانية للدرجة الواحدة، أي نحو " + num(k.gradeSaveSec * G.graded / 3600) + " ساعة عمل لكل الدرجات المرصودة في الفترة، مع التحفظ على أن الزمن اليدوي تقدير يحتاج إلى قياس منهجي.", { ind: true })] : []));
+      ...(k.gMan ? [P("وبمقارنة الوسيط السابق بزمن تقديري للرصد اليدوي قدره " + num(k.gMan) + " ثانية للدرجة (تدوين في كشف ورقي ثم نقل إلى ملف الكنترول؛ المصدر: " + k.gSrc + ")، يكون الفرق نحو " + num(k.gradeSaveSec) + " ثانية للدرجة الواحدة، أي نحو " + num(k.gradeSaveSec * G.graded / 3600) + " ساعة عمل لكل الدرجات المرصودة في الفترة، مع التحفظ على أن الزمن اليدوي تقدير يحتاج إلى قياس منهجي.", { ind: true })] : []));
     // ٩ التظلمات
     body.push(H1("9. التظلمات"),
       ...TBL("التظلمات حسب السبب والقرار", ["السبب", "القرار", "العدد"], Object.entries(AP.by || {}).sort((a, b) => b[1] - a[1]).map(([kk, n]) => { const [r, s] = kk.split("/"); return [AP_R[r] || r, AP_S[s] || s, num(n, 0)]; }),
@@ -337,8 +438,35 @@
     const tk = SU.tickets || {};
     body.push(H1("11. الدعم والمساعدة"),
       P("استقبلت المنصة " + num(sum(tk), 0) + " رسالة (استفسار أو شكوى أو مقترح) عبر مركز المساعدة، وطُرح على المساعد الآلي " + num(SU.faq.asked, 0) + " سؤالًا وجد لـ" + num(SU.faq.answered, 0) + " منها إجابة جاهزة، وحُوّل " + num(SU.faq.escalated, 0) + " منها إلى الإدارة.", { ind: true }));
-    // ١٢ حدود ومهددات
-    body.push(H1("12. حدود البيانات ومهددات الصدق، ومقترح لاستكمال المقارنة"),
+    let sn = 12;
+    // استطلاع الرأي
+    const sa = k.sa;
+    if (sa) {
+      const G2 = [["student", "الطلبة"], ["staff", "أعضاء الفريق"]].filter(([g]) => sa.g[g]);
+      body.push(H1((sn++) + ". نتائج استطلاع الرأي"),
+        P("طُبّق استطلاع إلكتروني داخل المنصة على " + AUD[sa.meta ? sa.meta.audience : "all"] + " بدءًا من " + (sa.meta ? dstr(sa.meta.created_at) : "—") + "، يظهر للمستخدم عند فتح المنصة" + (sa.meta && sa.meta.allow_decline ? " مع إتاحة الاعتذار عن المشاركة" : "") + "، وتضمّن مقياس قابلية استخدام النظام (SUS) المكوّن من عشر عبارات (Brooke, 1996) بترجمة عربية، ومحاور مقتبسة من نموذج قبول التقنية (Davis, 1989): الفائدة المدركة، والثقة والمصداقية، والرضا ونية الاستمرار، وعبء العمل للفريق؛ على مقياس ليكرت خماسي (1 = لا أوافق بشدة، 5 = أوافق بشدة).", { ind: true }),
+        ...TBL("المستجيبون لاستطلاع الرأي", ["الفئة", "أجابوا", "وسيط زمن الإجابة (ثانية)"], [...G2.map(([g, l]) => [l, num(sa.g[g].n, 0), num(sa.g[g].secs, 0)]), ["اعتذروا عن المشاركة", num(sa.declined, 0), "—"]],
+          sa.meta ? "نسبة الاستجابة: الطلبة " + pct(sa.g.student ? sa.g.student.n : 0, sa.meta.students) + " من " + num(sa.meta.students, 0) + " طالب مسجّل، والفريق " + pct(sa.g.staff ? sa.g.staff.n : 0, sa.meta.staff) + " من " + num(sa.meta.staff, 0) + " عضو مفعّل." : ""),
+        ...TBL("درجة قابلية الاستخدام (SUS) من 100", ["الفئة", "ن", "المتوسط", "الانحراف المعياري", "فترة الثقة 95%", "الوسيط", "معامل ألفا", "التقدير"], G2.map(([g, l]) => { const x = sa.g[g].sus;
+          return [l, num(x.n, 0), num(x.m), num(x.sd), x.ci != null ? num(x.m - x.ci) + " – " + num(x.m + x.ci) : "—", num(x.med), num(x.a, 2), band(x.m)]; }),
+          "التقدير وفق تصنيف Bangor وآخرين (2009): أعلى من 80.3 ممتاز، 68–80.3 جيد، 51–68 مقبول، أقل من 51 ضعيف؛ والمتوسط المرجعي العالمي للمقياس 68."),
+        ...[].concat(...G2.map(([g, l]) => TBL("محاور نموذج قبول التقنية: " + l, ["المحور", "ن", "المتوسط (من 5)", "الانحراف المعياري", "معامل ألفا كرونباخ"], sa.g[g].cons.map(c => [c.t, num(c.n, 0), num(c.m, 2), num(c.sd, 2), num(c.a, 2)])))),
+        ...[].concat(...G2.map(([g, l]) => TBL("عبارات المحاور تفصيليًا: " + l, ["العبارة", "المتوسط", "الانحراف المعياري", "نسبة الموافقة (4–5)"], [].concat(...sa.g[g].cons.map(c => c.items.map(it => [it.t, num(it.m, 2), num(it.sd, 2), it.agree != null ? num(it.agree * 100) + "%" : "—"])))))),
+        P("ويُستدل بمعامل ألفا كرونباخ على الاتساق الداخلي لكل محور، وتُعد القيم من 0.70 فأكثر مقبولة عادةً، مع مراعاة أن المحاور القصيرة (عبارتان أو ثلاث) تميل إلى قيم أقل.", { ind: true }));
+      if (sa.g.staff && (sa.g.staff.ex.man_sec || {}).n) body.push(P("وقدّر " + sa.g.staff.ex.man_sec.n + " من أعضاء الفريق متوسط زمن نداء الطالب الواحد يدويًا بوسيط " + num(sa.g.staff.ex.man_sec.med) + " ثانية" + ((sa.g.staff.ex.man_grade || {}).n ? "، وزمن رصد الدرجة الواحدة يدويًا ونقلها بوسيط " + num(sa.g.staff.ex.man_grade.med) + " ثانية" : "") + ".", { ind: true }));
+    }
+    // صدق التطابق
+    const V = X.val || [];
+    if (V.length) { const t = V.reduce((a, v) => [a[0] + v.a, a[1] + v.b, a[2] + v.c, a[3] + v.d], [0, 0, 0, 0]), n = t[0] + t[1] + t[2] + t[3];
+      body.push(H1((sn++) + ". صدق التطابق بين المنصة والكشف الورقي"),
+        P("سُجّل الحضور في " + V.length + " محاضرة بالمنصة وبكشف ورقي في الوقت نفسه، وقورنت الحالتان لكل طالب في كشف المحاضرة، وحُسبت نسبة الاتفاق ومعامل كابا لكوهين (Cohen, 1960) الذي يصحّح الاتفاق المتوقع بالصدفة.", { ind: true }),
+        ...TBL("الاتفاق بين المنصة والكشف الورقي (مجمّع)", ["", "حاضر ورقيًا", "غائب ورقيًا"], [["حاضر في المنصة", num(t[0], 0), num(t[1], 0)], ["غائب في المنصة", num(t[2], 0), num(t[3], 0)]],
+          "نسبة الاتفاق " + pct(t[0] + t[3], n) + "، ومعامل كابا المجمّع " + num(kappa(...t), 3) + " (ن = " + n + " حالة)."),
+        ...TBL("معامل كابا لكل محاضرة", ["المحاضرة", "التاريخ", "الحالات", "الاتفاق", "كابا"], V.map((v, i) => [String(i + 1), dstr(v.at), num(v.a + v.b + v.c + v.d, 0), pct(v.a + v.d, v.a + v.b + v.c + v.d), num(v.k, 3)]),
+          "تفسير كابا وفق Landis و Koch (1977): 0.81–1.00 شبه تام، 0.61–0.80 قوي، 0.41–0.60 متوسط."));
+    }
+    // حدود ومهددات
+    body.push(H1((sn++) + ". حدود البيانات ومهددات الصدق، ومقترح لاستكمال المقارنة"),
       BL("المؤشرات وصفية مستمدة من سجلات الاستخدام، ولا تقيس التعلم أو جودة التصميم، ولا تثبت علاقة سببية."),
       BL("أثر الجِدّة: قد يختلف سلوك المستخدمين في الفصل الأول من استخدام المنصة عن الاستخدام المستقر."),
       BL("المقارنة بالطرق اليدوية في هذا التقرير تقديرية ما لم تُقَس الطرق اليدوية قياسًا مباشرًا."),
@@ -350,6 +478,13 @@
       BL("قابلية الاستخدام: تطبيق مقياس قابلية استخدام النظام (SUS) على الطلبة والفريق، ونموذج قبول التقنية (TAM) أو النظرية الموحدة لقبول التقنية واستخدامها (UTAUT) لقياس الفائدة المدركة وسهولة الاستخدام."),
       BL("المقابلات شبه المقننة مع عينة من المحاضرين والمعيدين لتفسير الأنماط الكمية."));
     // ملاحق
+    const REFS = ["Bangor, A., Kortum, P., & Miller, J. (2009). Determining what individual SUS scores mean: Adding an adjective rating scale. Journal of Usability Studies, 4(3), 114–123.",
+      "Brooke, J. (1996). SUS: A \"quick and dirty\" usability scale. In P. W. Jordan, B. Thomas, B. A. Weerdmeester, & I. L. McClelland (Eds.), Usability evaluation in industry (pp. 189–194). Taylor & Francis.",
+      "Cohen, J. (1960). A coefficient of agreement for nominal scales. Educational and Psychological Measurement, 20(1), 37–46.",
+      "Davis, F. D. (1989). Perceived usefulness, perceived ease of use, and user acceptance of information technology. MIS Quarterly, 13(3), 319–340.",
+      "Landis, J. R., & Koch, G. G. (1977). The measurement of observer agreement for categorical data. Biometrics, 33(1), 159–174.",
+      "Venkatesh, V., Morris, M. G., Davis, G. B., & Davis, F. D. (2003). User acceptance of information technology: Toward a unified view. MIS Quarterly, 27(3), 425–478."];
+    body.push(H1("المراجع"), ...REFS.map(r => new Paragraph({ alignment: AlignmentType.LEFT, spacing: { after: 100, line: 300 }, indent: { left: 400, hanging: 400 }, children: [new TextRun({ text: r, font: "Times New Roman", size: 22 })] })));
     body.push(new Paragraph({ children: [new PageBreak()] }), H1("ملحق (أ): تعريف المؤشرات وطريقة حسابها"),
       ...TBL("قاموس المؤشرات", ["المؤشر", "القيمة", "الوحدة", "طريقة الحساب"], indicators(d, k).map(x => [x[0], x[1] == null ? "—" : typeof x[1] === "number" ? num(x[1], 2) : String(x[1]), x[2], x[3]])),
       H1("ملحق (ب): بيانات التوثيق"), ...TBL("بيانات التوثيق", ["البند", "القيمة"], docMeta(d)),

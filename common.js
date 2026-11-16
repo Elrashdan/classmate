@@ -134,6 +134,7 @@
     drive_no_share: "حسابك لا يسمح بمشاركة الملفات لمن معه الرابط (غالبًا حساب جامعي مقيّد). استخدم حساب Gmail شخصيًّا.",
     drive_forbidden: "رفض Google هذا الطلب. جرّب مرة أخرى أو استخدم حساب Gmail شخصيًّا.",
     drive_missing: "الملف غير موجود على Drive الطالب، أو لم يعد متاحًا لمن معه الرابط.",
+    survey_closed: "الاستطلاع ده اتقفل.", survey_required: "الاستطلاع ده مطلوب الإجابة عنه.", survey_consent: "علّم على الموافقة على المشاركة الأول.", bad_answers: "في مشكلة في الإجابات، راجعها.",
     petition_sick_file: "العذر المرضي لازم ترفع معاه الشهادة الطبية.", petition_note: "اكتب سبب الالتماس.", petition_open: "عندك التماس على التكليف ده لسه بيتراجع.", petition_limit: "استنفدت عدد الالتماسات المسموح على التكليف ده.", petition_not_needed: "التسليم مفتوح لك بالفعل، سلّم على طول.", bad_until: "الموعد لازم يكون بعد دلوقتي وفي خلال 60 يوم.", appeal_reply: "اكتب السبب.",
     minus_range: "قيمة الخصم لازم تكون أكبر من صفر ومتزيدش عن الدرجة العظمى للتكليف.",
     bonus_range: "البونص أكبر من الدرجة العظمى للتكليف أو أقل من صفر.",
@@ -652,7 +653,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b118)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b119)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
@@ -700,4 +701,108 @@
   let t = false; const R = document.documentElement;
   const f = () => { t = false; R.classList.toggle("hd-sc", scrollY > 40); };
   addEventListener("scroll", () => { if (!t) { t = true; requestAnimationFrame(f); } }, { passive: true });
+})();
+
+/* ===================== b119: سياسة الاستخدام (موافقة إلزامية) + استطلاع الرأي ===================== */
+(function () {
+  const CM = window.CM; if (!CM) return;
+  CM.POLICY_V = 2;
+  const S5 = ["لا أوافق بشدة", "لا أوافق", "محايد", "أوافق", "أوافق بشدة"];
+  // مقياس قابلية استخدام النظام SUS (Brooke, 1996) بترجمة عربية، + محاور من نموذج قبول التقنية TAM (Davis, 1989)
+  const SUS = ["أعتقد أنني سأرغب في استخدام هذه المنصة بصورة متكررة.", "وجدت المنصة معقدة بلا داعٍ.", "وجدت المنصة سهلة الاستخدام.", "أعتقد أنني سأحتاج إلى مساعدة شخص متخصص لأتمكن من استخدام المنصة.",
+    "وجدت أن وظائف المنصة المختلفة متكاملة بصورة جيدة.", "وجدت في المنصة قدرًا كبيرًا من عدم الاتساق.", "أتصور أن معظم الناس سيتعلمون استخدام المنصة بسرعة كبيرة.", "وجدت المنصة مرهقة جدًا في الاستخدام.",
+    "شعرت بثقة كبيرة أثناء استخدام المنصة.", "احتجت إلى تعلّم أشياء كثيرة قبل أن أتمكن من استخدام المنصة."];
+  CM.SURVEY = {
+    scale: S5,
+    student: [
+      { k: "sus", t: "سهولة استخدام المنصة", items: SUS },
+      { k: "pu", t: "الفائدة المدركة", items: ["تسجيل الحضور بالمنصة أسرع من النداء بالأسماء أو الكشف الورقي.", "تسليم التكليفات عبر المنصة أيسر من التسليم الورقي أو عبر تطبيقات المراسلة.", "تساعدني المنصة على متابعة غيابي وإنذاراتي أولًا بأول.", "تساعدني المنصة على معرفة درجاتي والتظلم عليها بسهولة."] },
+      { k: "tr", t: "الثقة والمصداقية", items: ["أثق في أن حضوري يُسجَّل بدقة.", "أشعر أن المنصة تمنع تسجيل الحضور لمن لم يحضر فعلًا.", "أثق في أن ملفاتي المسلَّمة تبقى كما سلّمتها."] },
+      { k: "sat", t: "الرضا ونية الاستمرار", items: ["أنا راضٍ بصفة عامة عن المنصة.", "أفضّل المنصة على الطرق اليدوية (الكشف الورقي والتسليم الورقي).", "أرغب في استخدام المنصة في مقررات أخرى.", "أنصح زملائي بالاعتماد على المنصة."] }],
+    staff: [
+      { k: "sus", t: "سهولة استخدام المنصة", items: SUS },
+      { k: "pu", t: "الفائدة المدركة", items: ["توفر المنصة وقتًا في تسجيل الحضور مقارنة بالنداء اليدوي.", "توفر المنصة وقتًا في تجميع التكليفات وتصحيحها ورصد درجاتها.", "تقلّل المنصة أخطاء نقل الدرجات وإعداد كشوف الكنترول.", "تسهّل المنصة متابعة الغياب وإبلاغ الطلبة بالإنذارات.", "تسهّل المنصة التعامل مع التظلمات بعدالة وشفافية."] },
+      { k: "tr", t: "الثقة والمصداقية", items: ["أثق في دقة بيانات الحضور في المنصة.", "تمنع المنصة تسجيل الحضور بالنيابة عن طالب غائب.", "أثق في أن ملفات الطلبة لم تتغير بعد التسليم (البصمة الرقمية)."] },
+      { k: "wl", t: "عبء العمل", items: ["خفّفت المنصة من عبء عملي الإداري في المقررات.", "أصبحت أنجز مهام المقرر في وقت أقل مما كان قبل المنصة."] },
+      { k: "sat", t: "الرضا ونية الاستمرار", items: ["أنا راضٍ بصفة عامة عن المنصة.", "أفضّل المنصة على الطرق اليدوية.", "سأستمر في استخدام المنصة في مقرراتي."] }],
+    extra: {
+      student: [{ k: "dev", t: "الجهاز الذي تستخدم عليه المنصة غالبًا", opts: [["android", "هاتف أندرويد"], ["ios", "آيفون"], ["pc", "كمبيوتر"]] }],
+      staff: [{ k: "exp", t: "سنوات الخبرة في التدريس", opts: [["0-2", "أقل من 3"], ["3-5", "3 إلى 5"], ["6-10", "6 إلى 10"], ["10+", "أكثر من 10"]] },
+        { k: "man_sec", t: "تقديرك لمتوسط زمن نداء الطالب الواحد يدويًا (بالثانية)", num: true },
+        { k: "man_grade", t: "تقديرك لزمن رصد الدرجة الواحدة يدويًا ونقلها إلى الكشف (بالثانية)", num: true }]
+    },
+    open: [["o_like", "ما أكثر ما أفادك في المنصة؟"], ["o_improve", "ما الذي يحتاج إلى تحسين؟"]]
+  };
+  const POLICY = [
+    "تحفظ المنصة بيانات استخدامك اللازمة لعملها: الحضور (الوقت والموقع لحظة التسجيل فقط والجهاز المرتبط)، والتكليفات (رابط الملف وبصمته ووقت تسليمه) والدرجات والتظلمات.",
+    "تُستخدم بيانات الاستخدام بعد تجميعها وإخفاء هويات أصحابها في تطوير المنصة وفي البحث العلمي، ولا يُنشر أي اسم أو كود أو بيانات تكشف شخصية أي مستخدم.",
+    "قد يُطلب منك من وقت لآخر الإجابة عن استطلاع رأي قصير عن تجربتك مع المنصة، وتُحفظ إجاباتك بمعرّف مجهول.",
+    "لا تُباع البيانات ولا تُشارك مع أي جهة خارج القسم، ولا تُستخدم في الإعلانات.",
+    "تلتزم بتسجيل حضورك بنفسك ومن هاتفك، وبعدم تعديل ملف التكليف بعد تسليمه."];
+  const box = () => { let o = document.getElementById("cmGate"); if (!o) { o = document.createElement("div"); o.id = "cmGate"; o.className = "cg-ov"; o.setAttribute("role", "dialog"); o.setAttribute("aria-modal", "true"); document.body.appendChild(o); } document.documentElement.classList.add("cg-lock"); return o; };
+  const done = () => { const o = document.getElementById("cmGate"); if (o) o.remove(); document.documentElement.classList.remove("cg-lock"); };
+  // api: { get(), accept(v), submit(sid, answers, declined, consent, seconds), who: "student" | "staff", err(e) }
+  CM.gate = async api => {
+    if (CM.gate.busy) return; CM.gate.busy = true;
+    try {
+      const g = await api.get(); if (!g) return;
+      if ((+g.policy || 0) < CM.POLICY_V) await policy(api);
+      if (g.survey) await survey(api, g.survey);
+    } catch (e) { /* البوابة متمنعش استخدام البرنامج لو حصل خطأ في الاتصال */ }
+    finally { CM.gate.busy = false; }
+  };
+  function policy(api) {
+    return new Promise(res => {
+      const o = box();
+      o.innerHTML = `<div class="cg-card"><div class="cg-h"><span class="cg-ic">${CM.markHtml()}</span><div><b>تحديث سياسة الاستخدام والخصوصية</b><small>اقرأها ووافق عليها لتتابع استخدام Hadro</small></div></div>
+        <ul class="cg-ul">${POLICY.map(p => `<li>${CM.esc(p)}</li>`).join("")}</ul>
+        <p class="small"><a href="privacy.html" target="_blank" rel="noopener">اقرأ سياسة الاستخدام والخصوصية كاملة ↗</a></p>
+        <label class="cg-ok"><input type="checkbox" id="cgAgree"> قرأت سياسة الاستخدام والخصوصية وأوافق عليها</label>
+        <p class="small bad-t" id="cgErr"></p>
+        <button class="btn primary block" id="cgGo" disabled>متابعة</button></div>`;
+      const ag = o.querySelector("#cgAgree"), go = o.querySelector("#cgGo");
+      ag.onchange = () => go.disabled = !ag.checked;
+      go.onclick = async () => { go.disabled = true; try { await api.accept(CM.POLICY_V); done(); res(); } catch (e) { o.querySelector("#cgErr").textContent = api.err ? api.err(e) : "تعذّر الحفظ. حاول مرة أخرى."; go.disabled = false; } };
+    });
+  }
+  function survey(api, sv) {
+    return new Promise(res => {
+      const o = box(), who = api.who === "staff" ? "staff" : "student", secs = CM.SURVEY[who], ex = CM.SURVEY.extra[who], ans = {}, t0 = Date.now();
+      const total = secs.reduce((a, s) => a + s.items.length, 0);
+      let n = 0;
+      o.innerHTML = `<div class="cg-card cg-sv"><div class="cg-h"><span class="cg-ic">${CM.markHtml()}</span><div><b>استطلاع رأي عن تجربتك مع Hadro</b><small>نحو 4 دقائق · ${total} عبارة</small></div></div>
+        <div class="cg-consent"><p>هذا الاستطلاع جزء من دراسة أكاديمية عن استخدام المنصات الرقمية في تعليم العمارة الداخلية. إجاباتك تُحفظ بمعرّف مجهول، ولا يطّلع أحد على إجابات شخص بعينه، وتُعرض النتائج مجمّعة فقط. ${sv.allow_decline ? "مشاركتك اختيارية، ويمكنك الاعتذار من الزر في آخر الصفحة." : ""}</p>
+          <label class="cg-ok"><input type="checkbox" id="cgCons"> أوافق على المشاركة واستخدام إجاباتي في البحث العلمي</label></div>
+        <div class="cg-prog"><i id="cgBar"></i><span id="cgN">0 / ${total}</span></div>
+        ${secs.map(s => `<section class="cg-sec"><h3>${CM.esc(s.t)}</h3>${s.items.map((t, i) => { const id = s.k + (i + 1);
+          return `<div class="cg-q" data-q="${id}"><p>${CM.esc(t)}</p><div class="cg-l" role="radiogroup" aria-label="${CM.esc(t)}">${S5.map((l, j) => `<button type="button" role="radio" aria-checked="false" data-v="${j + 1}" title="${l}"><b>${j + 1}</b><small>${l}</small></button>`).join("")}</div></div>`; }).join("")}</section>`).join("")}
+        <section class="cg-sec"><h3>أسئلة إضافية</h3>${ex.map(x => x.opts ? `<div class="cg-q"><p>${CM.esc(x.t)}</p><div class="cg-ch">${x.opts.map(([v, l]) => `<label><input type="radio" name="cgx_${x.k}" value="${v}"> ${CM.esc(l)}</label>`).join("")}</div></div>`
+          : `<label class="f"><span>${CM.esc(x.t)} <small class="muted">اختياري</small></span><input type="text" inputmode="decimal" data-x="${x.k}"></label>`).join("")}
+          ${CM.SURVEY.open.map(([k, t]) => `<label class="f"><span>${CM.esc(t)} <small class="muted">اختياري</small></span><textarea data-o="${k}" rows="2" maxlength="600"></textarea></label>`).join("")}</section>
+        <p class="small bad-t" id="cgErr"></p>
+        <div class="cg-act"><button class="btn primary" id="cgSend">إرسال الإجابات</button>${sv.allow_decline ? `<button class="btn ghost" id="cgNo">أعتذر عن المشاركة</button>` : ""}</div></div>`;
+      const card = o.querySelector(".cg-card");
+      const prog = () => { o.querySelector("#cgN").textContent = n + " / " + total; o.querySelector("#cgBar").style.width = (n / total * 100) + "%"; };
+      o.querySelectorAll(".cg-q[data-q]").forEach(q => q.querySelectorAll("[data-v]").forEach(b => b.onclick = () => {
+        if (ans[q.dataset.q] == null) n++; ans[q.dataset.q] = +b.dataset.v; q.classList.add("on"); q.classList.remove("miss");
+        q.querySelectorAll("[data-v]").forEach(x => x.setAttribute("aria-checked", x === b)); prog();
+        const nx = q.parentElement.querySelector(".cg-q[data-q]:not(.on)") || o.querySelector(".cg-q[data-q]:not(.on)"); if (nx && nx !== q) setTimeout(() => nx.scrollIntoView({ block: "center", behavior: "smooth" }), 120); }));
+      const err = t => { o.querySelector("#cgErr").textContent = t; };
+      const send = async declined => {
+        const b = o.querySelector(declined ? "#cgNo" : "#cgSend");
+        if (!declined) {
+          if (!o.querySelector("#cgCons").checked) { err("علّم على الموافقة على المشاركة في أول الاستطلاع."); o.querySelector(".cg-consent").scrollIntoView({ block: "center", behavior: "smooth" }); return; }
+          const miss = [...o.querySelectorAll(".cg-q[data-q]")].filter(q => ans[q.dataset.q] == null);
+          if (miss.length) { miss.forEach(q => q.classList.add("miss")); err("فاضل " + miss.length + " عبارة من غير إجابة."); miss[0].scrollIntoView({ block: "center", behavior: "smooth" }); return; }
+          ex.forEach(x => { if (x.opts) { const r = o.querySelector(`input[name="cgx_${x.k}"]:checked`); if (r) ans[x.k] = r.value; } else { const v = (o.querySelector(`[data-x="${x.k}"]`).value || "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).trim(); if (v && !isNaN(+v)) ans[x.k] = +v; } });
+          CM.SURVEY.open.forEach(([k]) => { const v = o.querySelector(`[data-o="${k}"]`).value.trim(); if (v) ans[k] = v.slice(0, 600); });
+        }
+        b.disabled = true;
+        try { await api.submit(sv.id, declined ? {} : ans, declined, !declined, Math.round((Date.now() - t0) / 1000)); card.innerHTML = `<div class="cg-thx">${CM.markHtml()}<b>${declined ? "تمام، شكرًا لك." : "شكرًا لمشاركتك!"}</b><span class="small muted">${declined ? "مش هيظهرلك الاستطلاع ده تاني." : "إجاباتك اتسجلت بمعرّف مجهول."}</span></div>`; setTimeout(() => { done(); res(); }, 1400); }
+        catch (e) { b.disabled = false; err(api.err ? api.err(e) : "تعذّر الإرسال. حاول مرة أخرى."); }
+      };
+      o.querySelector("#cgSend").onclick = () => send(false);
+      const no = o.querySelector("#cgNo"); if (no) no.onclick = () => send(true);
+    });
+  }
 })();

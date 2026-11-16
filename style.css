@@ -2559,3 +2559,47 @@ header.top details.dd[open]{ position: relative; z-index: 5; }
 .rs-k > span{ font-size: .82rem; color: var(--muted); }
 .rs-k > b{ font-family: var(--f-display); font-size: 1.6rem; line-height: 1.2; }
 .rs-k > small{ font-size: .76rem; color: var(--muted); }
+
+/* ===================== b119: بوابة السياسة واستطلاع الرأي ===================== */
+html.cg-lock, html.cg-lock body{ overflow: hidden; }
+.cg-ov{ position: fixed; inset: 0; z-index: 400; background: color-mix(in srgb, #000 62%, transparent); display: grid; place-items: center; padding: 16px; overflow: auto; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.cg-card{ width: min(640px, 100%); max-height: calc(100dvh - 32px); overflow: auto; overscroll-behavior: contain; background: var(--surface); color: var(--ink); border-radius: 24px; padding: 22px; display: grid; gap: 14px; box-shadow: 0 30px 80px rgba(0,0,0,.5); border: 1px solid var(--line); animation: dhRise .3s ease-out both; }
+.cg-h{ display: flex; align-items: center; gap: 12px; }
+.cg-h b{ font-family: var(--f-display); font-size: 1.2rem; display: block; }
+.cg-h small{ color: var(--muted); }
+.cg-ic .mark{ width: 46px; height: 46px; border-radius: 14px; background: var(--board); color: var(--board-hot); display: grid; place-items: center; padding: 6px; }
+.cg-ul{ margin: 0; padding-inline-start: 20px; display: grid; gap: 8px; line-height: 1.7; }
+.cg-ok{ display: flex; gap: 10px; align-items: flex-start; font-weight: 600; padding: 12px; border-radius: 14px; background: var(--accent-soft); cursor: pointer; }
+.cg-ok input{ width: 22px; height: 22px; flex: none; margin-top: 2px; accent-color: var(--accent); }
+.cg-consent{ display: grid; gap: 10px; padding: 12px; border: 1px dashed var(--line); border-radius: 16px; }
+.cg-consent p{ margin: 0; line-height: 1.7; font-size: .92rem; }
+.cg-prog{ position: sticky; top: -22px; z-index: 2; display: flex; align-items: center; gap: 10px; background: var(--surface); padding: 8px 0; }
+.cg-prog::before{ content: ""; position: absolute; inset-inline: 0; top: 50%; height: 6px; margin-top: -3px; border-radius: 3px; background: var(--sunk); width: calc(100% - 64px); }
+.cg-prog i{ position: relative; z-index: 1; display: block; height: 6px; border-radius: 3px; background: var(--accent); width: 0; transition: width .3s; max-width: calc(100% - 64px); }
+.cg-prog span{ margin-inline-start: auto; font-size: .82rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cg-sec{ display: grid; gap: 10px; }
+.cg-sec h3{ font-size: 1.02rem; color: var(--accent); margin-top: 6px; }
+.cg-q{ display: grid; gap: 8px; padding: 12px; border-radius: 16px; border: 1px solid var(--line); transition: border-color .2s, background .2s; scroll-margin: 80px; }
+.cg-q p{ margin: 0; font-weight: 600; line-height: 1.6; }
+.cg-q.on{ border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.cg-q.miss{ border-color: var(--bad); background: var(--bad-soft); }
+.cg-l{ display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.cg-l button{ font: inherit; border: 1px solid var(--line); background: var(--sunk); color: var(--ink); border-radius: 12px; padding: 6px 2px; min-height: 56px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; transition: background .15s, border-color .15s, transform .1s; }
+.cg-l button b{ font-size: 1.05rem; }
+.cg-l button small{ font-size: .62rem; line-height: 1.2; color: var(--muted); text-align: center; }
+.cg-l button:hover{ border-color: var(--accent); }
+.cg-l button[aria-checked="true"]{ background: var(--accent); border-color: var(--accent); color: var(--accent-ink); transform: scale(1.03); }
+.cg-l button[aria-checked="true"] small{ color: inherit; }
+.cg-ch{ display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.cg-ch label{ display: flex; gap: 6px; align-items: center; }
+.cg-act{ display: flex; flex-wrap: wrap; gap: 8px; position: sticky; bottom: -22px; background: var(--surface); padding: 10px 0 4px; }
+.cg-act .btn.primary{ flex: 1 1 200px; min-height: 50px; justify-content: center; }
+.cg-thx{ display: grid; justify-items: center; gap: 10px; padding: 30px 10px; text-align: center; }
+.cg-thx .mark{ width: 64px; height: 64px; border-radius: 18px; background: var(--board); color: var(--board-hot); padding: 8px; }
+.cg-thx b{ font-family: var(--f-display); font-size: 1.3rem; }
+@media (max-width: 520px){ .cg-ov{ padding: 0; place-items: stretch; } .cg-card{ border-radius: 0; max-height: 100dvh; min-height: 100dvh; padding: 16px; align-content: start; } .cg-prog{ top: -16px; } .cg-act{ bottom: -16px; } }
+/* إدارة الاستطلاع وعينة التحقق في تبويب البحث العلمي */
+.rs-box{ margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; display: grid; gap: 10px; }
+.rs-box h3{ font-size: 1.05rem; }
+.rs-sv{ display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 12px; background: var(--sunk); }
+.rs-tbl td, .rs-tbl th{ font-size: .86rem; }

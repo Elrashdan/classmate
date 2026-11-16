@@ -6496,3 +6496,197 @@ begin
 end $$;
 revoke all on function public.research_stats(timestamptz, timestamptz, uuid[]) from public, anon;
 grant execute on function public.research_stats(timestamptz, timestamptz, uuid[]) to authenticated;
+
+-- ===================== update-67: سياسة الاستخدام (موافقة إلزامية) + استطلاع الرأي (يطلقه المسؤول) + عينة التحقق الورقية =====================
+create table if not exists public.policy_accepts (
+  who text primary key,                 -- كود الطالب أو staff:البريد
+  version int not null,
+  at timestamptz not null default now()
+);
+alter table public.policy_accepts enable row level security;
+revoke all on public.policy_accepts from anon, authenticated;
+
+create table if not exists public.surveys (
+  id uuid primary key default gen_random_uuid(),
+  kind text not null default 'sus_tam_v1',
+  audience text not null check (audience in ('students', 'staff', 'all')),
+  allow_decline boolean not null default true,
+  active boolean not null default true,
+  created_by text, created_at timestamptz not null default now(), closed_at timestamptz
+);
+create table if not exists public.survey_responses (
+  id bigserial primary key,
+  survey_id uuid not null references public.surveys(id) on delete cascade,
+  who text not null,
+  role text not null,
+  level int,
+  answers jsonb not null default '{}'::jsonb,
+  declined boolean not null default false,
+  consent boolean not null default false,
+  seconds int,
+  created_at timestamptz not null default now(),
+  unique (survey_id, who)
+);
+alter table public.surveys enable row level security;
+alter table public.survey_responses enable row level security;
+revoke all on public.surveys, public.survey_responses from anon, authenticated;
+
+create table if not exists public.research_validation (
+  id bigserial primary key,
+  session_id uuid not null references public.sessions(id) on delete cascade,
+  course_id uuid,
+  both_present int not null, app_only int not null, paper_only int not null, both_absent int not null,
+  kappa numeric, note text not null default '',
+  created_by text, created_at timestamptz not null default now()
+);
+alter table public.research_validation enable row level security;
+revoke all on public.research_validation from anon, authenticated;
+
+-- بوابة الدخول: آخر نسخة وافق عليها + استطلاع مفتوح لم يجب عنه
+create or replace function public.gate_for(p_who text, p_aud text) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'policy', coalesce((select version from policy_accepts where who = p_who), 0),
+    'survey', (select jsonb_build_object('id', s.id, 'kind', s.kind, 'allow_decline', s.allow_decline) from surveys s
+                where s.active and s.audience in (p_aud, 'all') and not exists (select 1 from survey_responses r where r.survey_id = s.id and r.who = p_who)
+                order by s.created_at desc limit 1));
+$$;
+revoke all on function public.gate_for(text, text) from public, anon, authenticated;
+
+create or replace function public.student_gate(p_token text) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare code text := student_from_token(p_token);
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  return gate_for(code, 'students');
+end $$;
+create or replace function public.staff_gate() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if staff_role() is null then raise exception 'not_allowed'; end if;
+  return gate_for('staff:' || my_email(), 'staff');
+end $$;
+
+create or replace function public.policy_accept_for(p_who text, v int) returns void
+language sql security definer set search_path = public as $$
+  insert into policy_accepts(who, version) values (p_who, v) on conflict (who) do update set version = greatest(policy_accepts.version, excluded.version), at = now();
+$$;
+revoke all on function public.policy_accept_for(text, int) from public, anon, authenticated;
+create or replace function public.student_policy_accept(p_token text, v int) returns void
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token);
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  perform policy_accept_for(code, v);
+end $$;
+create or replace function public.staff_policy_accept(v int) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if staff_role() is null then raise exception 'not_allowed'; end if;
+  perform policy_accept_for('staff:' || my_email(), v);
+end $$;
+
+create or replace function public.survey_submit_for(p_who text, p_role text, p_level int, sid uuid, p_answers jsonb, p_declined boolean, p_consent boolean, p_seconds int) returns void
+language plpgsql security definer set search_path = public as $$
+declare s surveys;
+begin
+  select * into s from surveys where id = sid;
+  if s.id is null or not s.active then raise exception 'survey_closed'; end if;
+  if p_declined and not s.allow_decline then raise exception 'survey_required'; end if;
+  if not p_declined and not coalesce(p_consent, false) then raise exception 'survey_consent'; end if;
+  if not p_declined and (jsonb_typeof(p_answers) <> 'object' or length(p_answers::text) > 8000) then raise exception 'bad_answers'; end if;
+  insert into survey_responses(survey_id, who, role, level, answers, declined, consent, seconds)
+    values (sid, p_who, p_role, p_level, case when p_declined then '{}'::jsonb else p_answers end, p_declined, coalesce(p_consent, false) and not p_declined, least(greatest(coalesce(p_seconds, 0), 0), 86400))
+  on conflict (survey_id, who) do nothing;
+end $$;
+revoke all on function public.survey_submit_for(text, text, int, uuid, jsonb, boolean, boolean, int) from public, anon, authenticated;
+create or replace function public.student_survey_submit(p_token text, sid uuid, p_answers jsonb, p_declined boolean, p_consent boolean, p_seconds int) returns void
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token);
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  perform survey_submit_for(code, 'student', (select max(c.level) from enrollments e join courses c on c.id = e.course_id where e.student_code = code and not c.archived), sid, p_answers, p_declined, p_consent, p_seconds);
+end $$;
+create or replace function public.staff_survey_submit(sid uuid, p_answers jsonb, p_declined boolean, p_consent boolean, p_seconds int) returns void
+language plpgsql security definer set search_path = public as $$
+declare r text := staff_role();
+begin
+  if r is null then raise exception 'not_allowed'; end if;
+  perform survey_submit_for('staff:' || my_email(), coalesce((select role from staff where email = my_email()), r), null, sid, p_answers, p_declined, p_consent, p_seconds);
+end $$;
+
+-- المسؤول: إطلاق/إيقاف/نتائج (النتائج بمعرّف مجهّل، من غير كود أو بريد)
+create or replace function public.admin_survey_start(p_audience text, p_allow_decline boolean) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare sid uuid;
+begin
+  if coalesce(staff_role(), '') <> 'admin' then raise exception 'not_allowed'; end if;
+  if p_audience not in ('students', 'staff', 'all') then raise exception 'bad_audience'; end if;
+  update surveys set active = false, closed_at = now() where active;
+  insert into surveys(audience, allow_decline, created_by) values (p_audience, coalesce(p_allow_decline, true), my_email()) returning id into sid;
+  return sid;
+end $$;
+create or replace function public.admin_survey_close(sid uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if coalesce(staff_role(), '') <> 'admin' then raise exception 'not_allowed'; end if;
+  update surveys set active = false, closed_at = now() where id = sid and active;
+end $$;
+create or replace function public.admin_surveys() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if coalesce(staff_role(), '') <> 'admin' then raise exception 'not_allowed'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('id', s.id, 'kind', s.kind, 'audience', s.audience, 'allow_decline', s.allow_decline, 'active', s.active, 'created_at', s.created_at, 'closed_at', s.closed_at,
+      'n', (select count(*) from survey_responses r where r.survey_id = s.id and not r.declined), 'declined', (select count(*) from survey_responses r where r.survey_id = s.id and r.declined),
+      'students', (select count(distinct student_code) from enrollments e join courses c on c.id = e.course_id where not c.archived),
+      'staff', (select count(*) from staff where status = 'active')) order by s.created_at desc) from surveys s), '[]'::jsonb);
+end $$;
+create or replace function public.admin_survey_responses(sid uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if coalesce(staff_role(), '') <> 'admin' then raise exception 'not_allowed'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('rid', substr(md5(r.who || r.survey_id::text), 1, 10), 'role', r.role, 'level', r.level, 'answers', r.answers,
+      'declined', r.declined, 'seconds', r.seconds, 'at', r.created_at) order by r.created_at) from survey_responses r where r.survey_id = sid), '[]'::jsonb);
+end $$;
+
+-- عينة التحقق: حضور المنصة لكشف المحاضرة، والمقارنة بكشف ورقي في نفس المحاضرة
+create or replace function public.research_session_roster(sid uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare s sessions;
+begin
+  if coalesce(staff_role(), '') <> 'admin' then raise exception 'not_allowed'; end if;
+  select * into s from sessions where id = sid; if s.id is null then raise exception 'not_found'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('code', e.student_code, 'app', exists (select 1 from attendance a where a.session_id = sid and a.student_code = e.student_code and a.status <> 'pending')))
+    from enrollments e where e.course_id = s.course_id and (coalesce(s.grp, '') = '' or e.grp = s.grp)), '[]'::jsonb);
+end $$;
+create or replace function public.research_sessions(cid uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if coalesce(staff_role(), '') <> 'admin' then raise exception 'not_allowed'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('id', s.id, 'n', s.n, 'grp', s.grp, 'at', s.started_at,
+      'checked', exists (select 1 from research_validation v where v.session_id = s.id)) order by s.started_at desc) from sessions s where s.course_id = cid), '[]'::jsonb);
+end $$;
+create or replace function public.research_validation_save(sid uuid, a int, b int, c int, d int, k numeric, p_note text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if coalesce(staff_role(), '') <> 'admin' then raise exception 'not_allowed'; end if;
+  insert into research_validation(session_id, course_id, both_present, app_only, paper_only, both_absent, kappa, note, created_by)
+    values (sid, (select course_id from sessions where id = sid), a, b, c, d, k, left(coalesce(p_note, ''), 300), my_email());
+end $$;
+create or replace function public.research_validations(p_from timestamptz, p_to timestamptz) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if coalesce(staff_role(), '') <> 'admin' then raise exception 'not_allowed'; end if;
+  return coalesce((select jsonb_agg(jsonb_build_object('a', v.both_present, 'b', v.app_only, 'c', v.paper_only, 'd', v.both_absent, 'k', v.kappa, 'at', s.started_at) order by s.started_at)
+    from research_validation v join sessions s on s.id = v.session_id where s.started_at between p_from and p_to
+      and v.id = (select max(v2.id) from research_validation v2 where v2.session_id = v.session_id)), '[]'::jsonb);
+end $$;
+
+revoke all on function public.student_gate(text), public.student_policy_accept(text, int), public.student_survey_submit(text, uuid, jsonb, boolean, boolean, int) from public;
+grant execute on function public.student_gate(text), public.student_policy_accept(text, int), public.student_survey_submit(text, uuid, jsonb, boolean, boolean, int) to anon, authenticated;
+revoke all on function public.staff_gate(), public.staff_policy_accept(int), public.staff_survey_submit(uuid, jsonb, boolean, boolean, int), public.admin_survey_start(text, boolean), public.admin_survey_close(uuid),
+  public.admin_surveys(), public.admin_survey_responses(uuid), public.research_session_roster(uuid), public.research_sessions(uuid), public.research_validation_save(uuid, int, int, int, int, numeric, text),
+  public.research_validations(timestamptz, timestamptz) from public, anon;
+grant execute on function public.staff_gate(), public.staff_policy_accept(int), public.staff_survey_submit(uuid, jsonb, boolean, boolean, int), public.admin_survey_start(text, boolean), public.admin_survey_close(uuid),
+  public.admin_surveys(), public.admin_survey_responses(uuid), public.research_session_roster(uuid), public.research_sessions(uuid), public.research_validation_save(uuid, int, int, int, int, numeric, text),
+  public.research_validations(timestamptz, timestamptz) to authenticated;
