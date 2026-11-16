@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b110">
+<link rel="stylesheet" href="style.css?v=b111">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,15 +45,15 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b110"></script>
-<script src="vendor/qrcode.js?v=b110"></script>
-<script src="config.js?v=b110"></script>
-<script src="common.js?v=b110"></script>
-<script src="drive.js?v=b110"></script>
-<script src="pack.js?v=b110"></script>
-<script src="catalog.js?v=b110"></script>
-<script src="voice.js?v=b110"></script>
-<script src="timetable.js?v=b110"></script>
+<script src="vendor/supabase.js?v=b111"></script>
+<script src="vendor/qrcode.js?v=b111"></script>
+<script src="config.js?v=b111"></script>
+<script src="common.js?v=b111"></script>
+<script src="drive.js?v=b111"></script>
+<script src="pack.js?v=b111"></script>
+<script src="catalog.js?v=b111"></script>
+<script src="voice.js?v=b111"></script>
+<script src="timetable.js?v=b111"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -726,7 +726,7 @@
       else if (k === "tt") { view = "timetable"; stopLoops(); render(); window.scrollTo({ top: 0 }); }
       else if (k === "bell") bellOpen(); else if (k === "look") CM.appearance(); });
   }
-  const meRefresh = () => { const m = $("#meCard"); if (m && view === "home") { m.outerHTML = meCardHtml(); wireMe(); } };
+  const meRefresh = () => { const m = $("#meCard"); if (m && view === "home") { m.outerHTML = meCardHtml(); wireMe(); } if (view === "home" && $(".dh")) dhRefresh(); };
   function tileWidget(k, c) {
     if (!D || D.cid !== c.id) return "";
     const w = h => h ? `<span class="mw mw-k-${k}" aria-hidden="true">${h}</span>` : "";
@@ -792,9 +792,9 @@
     let n = 0;
     const step = (t, body) => `<div class="cpk-step"><span class="cpk-n">${++n}</span><div class="cpk-sb"><b>${t}</b>${body}</div></div>`;
     return `<div class="cpk ${pk.open ? "open" : ""}" data-where="${where}">
-      <button type="button" class="cpk-cur" data-pk="toggle" aria-expanded="${pk.open}">
+      ${where === "dash" ? `<button type="button" class="dh-chip dh-all" data-pk="toggle" aria-expanded="${pk.open}">${courses.length > 1 ? "كل المواد" : "المادة"} (${courses.length})${CHEV}</button>` : `<button type="button" class="cpk-cur" data-pk="toggle" aria-expanded="${pk.open}">
         <span class="cpk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg></span>
-        <span class="cpk-t"><small>${c ? "المادة المفتوحة" : "اختر المادة"}</small><b>${c ? esc(c.name) : courses.length ? "لم تُختر مادة" : "لا توجد مواد بعد"}</b>${c ? `<span>${esc(clsLabel(c))}</span>` : ""}</span>${CHEV}</button>
+        <span class="cpk-t"><small>${c ? "المادة المفتوحة" : "اختر المادة"}</small><b>${c ? esc(c.name) : courses.length ? "لم تُختر مادة" : "لا توجد مواد بعد"}</b>${c ? `<span>${esc(clsLabel(c))}</span>` : ""}</span>${CHEV}</button>`}
       ${pk.open ? `<div class="cpk-pop">
         ${(() => { const rc = recentCourses().filter(x => !c || x.id !== c.id).slice(0, 4); return rc.length ? `<div class="cpk-rec"><b>فتحتها مؤخرًا</b><div class="cchips">${rc.map(x => `<button type="button" class="cchip" data-pkc="${x.id}">${esc(x.name)}</button>`).join("")}</div></div>` : ""; })()}
         ${step("العام الدراسي", `<div class="cchips">${chip("data-pky", "all", fYear, "كل الأعوام")}${yearList().map(v => chip("data-pky", v, fYear, v + (v === nowYear() ? " · الحالي" : ""))).join("")}</div>`)}
@@ -826,21 +826,183 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
+  /* ======================= b111: الرئيسية «لوحة اليوم» ======================= */
+  let dhGrp = "all", dhOpen = null;
+  const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
+  const dhSpark = vals => {
+    if (!vals || vals.length < 2) return "";
+    const lo = Math.min(...vals), hi = Math.max(...vals), sp = Math.max(1, hi - lo);
+    const d = vals.map((v, i) => (i ? "L" : "M") + (i * 120 / (vals.length - 1)).toFixed(1) + "," + (36 - (v - lo) / sp * 30).toFixed(1)).join(" ");
+    return `<svg class="dh-sp" viewBox="0 0 120 40" aria-hidden="true" preserveAspectRatio="none"><path class="a" d="${d} L120,40 L0,40 Z"/><path class="l" pathLength="1" d="${d}"/></svg>`;
+  };
+  const dhTM = x => { const [h, m] = String(x || "0:0").split(":").map(Number); return h * 60 + m; };
+  const dhToday = () => { if (!myTT || !myTT.slots || !myTT.tt) return null; const d = new Date().getDay(); return myTT.slots.filter(s => s.day === d).sort((a, b) => a.p_from - b.p_from); };
+  const dhPer = n => (myTT && myTT.tt && myTT.tt.periods[n - 1]) || {};
+  function dhAbsUpTo(e, ss) { const miss = ss.filter(s => isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).length, mk = ss.filter(s => !isOwn(s, e) && counted((D.att[s.id] || {})[e.student_code])).length; return Math.max(0, miss - mk); }
+  function dhTodo() { return feed ? bVis(feed.mine).slice().sort((a, b) => ageDays(b.since) - ageDays(a.since)) : null; }
+  function dhHiHtml(c) {
+    const td = dhToday(), todo = dhTodo(), now = new Date();
+    const day = now.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
+    const lec = td == null ? "" : td.length ? `عندك ${td.length === 1 ? "محاضرة واحدة" : td.length === 2 ? "محاضرتين" : td.length + " محاضرات"} النهارده` : "مفيش محاضرات ليك النهارده";
+    const pend = todo == null ? "" : todo.length ? `${todo.length} ${todo.length === 1 ? "حاجة مستنية" : "حاجات مستنية"} ردك` : "مفيش حاجة مستنية ردك";
+    return `<div class="dh-hi-t" id="dhHi"><span class="dh-date">${esc(day)}</span><h1>${new Date().getHours() < 12 ? "صباح الخير" : "مساء الخير"} يا ${dhFirst()}</h1><span class="dh-sub">${[lec, pend].filter(Boolean).join("، ")}${lec || pend ? "." : ""}</span></div>`;
+  }
+  function dhChips(c) {
+    const rc = recentCourses().filter(x => !c || x.id !== c.id).slice(0, 3), list = [c, ...rc].filter(Boolean);
+    const sh = n => { const s = String(n); return s.length > 22 ? s.slice(0, 21) + "…" : s; };
+    return `<div class="dh-chips" role="tablist" aria-label="المادة">${list.map(x => `<button type="button" role="tab" class="dh-chip${c && x.id === c.id ? " on" : ""}" aria-selected="${!!c && x.id === c.id}" data-pkc="${x.id}" title="${esc(x.name)}">${esc(sh(x.name))}</button>`).join("")}${pickerHtml("dash")}</div>`;
+  }
+  function dhKpis(c) {
+    const has = D && D.cid === c.id;
+    if (!has) return `<section class="dh-kpis">${[0, 1, 2, 3].map(() => `<article class="dh-card dh-kpi sk"><span class="sk-l"></span><span class="sk-n"></span></article>`).join("")}</section>`;
+    const st = lectureStats(D.sessions, D.enroll), avg = st.length ? Math.round(st.reduce((s, x) => s + x.pct, 0) / st.length) : null;
+    const lv = [0, 0, 0, 0, 0]; D.enroll.forEach(e => lv[CM.lvl(absences(e))]++);
+    const warnN = lv[1] + lv[2] + lv[3] + lv[4];
+    const done = D.sessions.filter(regDone).sort((a, b) => new Date(a.started_at) - new Date(b.started_at)), wS = [];
+    if (done.length > 1) { const k = Math.max(1, Math.ceil(done.length / 8)); for (let i = k; i < done.length + k; i += k) { const ss = done.slice(0, Math.min(i, done.length)); wS.push(D.enroll.filter(e => CM.lvl(dhAbsUpTo(e, ss)) > 0).length); } }
+    const aps = (D.appeals || []).filter(a => a.status === "pending"), oldA = aps.reduce((m, a) => Math.max(m, ageDays(a.created_at)), 0);
+    const wk = n => { const a = Array(n).fill(0); (D.appeals || []).forEach(x => { const w = Math.floor(ageDays(x.created_at) / 7); if (w < n) a[n - 1 - w]++; }); return a; };
+    const ung = D.tasks.filter(t => t.mode === "submit" && !collectOnly(t)).map(t => [t, Object.values(D.subs[t.id] || {}).filter(x => x.submitted_at && x.grade == null).length]).filter(x => x[1]);
+    const ungN = ung.reduce((s, x) => s + x[1], 0), top = ung.sort((a, b) => b[1] - a[1])[0];
+    const daily = n => { const a = Array(n).fill(0); D.tasks.forEach(t => Object.values(D.subs[t.id] || {}).forEach(x => { if (x.submitted_at) { const d = Math.floor(ageDays(x.submitted_at)); if (d < n) a[n - 1 - d]++; } })); return a; };
+    const K = [
+      { t: "report", k: "att", ia: "ia-check", ic: '<path d="M4 12l5 5L20 6"/>', l: "نسبة الحضور", v: avg == null ? "—" : avg, u: avg == null ? "" : "%", s: st.length ? "متوسط " + (st.length === 1 ? "محاضرة واحدة" : st.length === 2 ? "محاضرتين" : st.length + " محاضرات") : "لسه مفيش محاضرات اتقفلت", sp: dhSpark(st.slice(-12).map(x => x.pct)) },
+      { t: "report", k: "warn", ia: "ia-warn", ic: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>', l: "طلبة عليهم إنذار", v: warnN, s: lv[3] + lv[4] ? (lv[3] + lv[4]) + " منهم في الإنذار النهائي أو الانسحاب" : warnN ? "مفيش حد في الإنذار النهائي" : "كل الطلبة منتظمين", sp: dhSpark(wS) },
+      { t: "tasks", k: "ap", ia: "ia-scale", ic: FK.appeal.ic, l: "تظلمات مستنية رد", v: aps.length, s: aps.length ? "أقدمها " + ago(new Date(Date.now() - oldA * 864e5).toISOString()) : "مفيش تظلمات مفتوحة", sp: dhSpark(wk(6)) },
+      { t: "tasks", k: "gr", ia: "ia-pen", ic: FK.grade.ic, l: "تسليمات للتصحيح", v: ungN, s: top ? (ung.length > 1 ? "أكترها في «" : "في «") + esc(top[0].title) + "»" : "كل التسليمات اتصححت", sp: dhSpark(daily(14)) }
+    ];
+    return `<section class="dh-kpis">${K.map((k, i) => `<button type="button" class="dh-card dh-kpi k-${k.k}" data-tile="${k.t}" style="--i:${i}"><span class="dh-kh"><span class="dh-ki ${k.ia}">${ICO(k.ic)}</span><span>${k.l}</span></span><span class="dh-kb"><b data-count="${typeof k.v === "number" ? k.v : ""}">${k.v}</b>${k.u ? `<em>${k.u}</em>` : ""}${k.sp}</span><small>${k.s}</small></button>`).join("")}</section>`;
+  }
+  function dhChart(c) {
+    if (!D || D.cid !== c.id) return `<article class="dh-card dh-chart"><div class="dh-h"><h2>الحضور في كل محاضرة</h2></div><p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p></article>`;
+    const gs = groupsOf(); if (dhGrp !== "all" && !gs.includes(dhGrp)) dhGrp = "all";
+    const rows = dhGrp === "all" ? D.enroll : D.enroll.filter(e => e.grp === dhGrp);
+    const st = lectureStats(D.sessions, rows).filter(x => x.own).slice(-12), avg = st.length ? Math.round(st.reduce((s, x) => s + x.pct, 0) / st.length) : 0;
+    return `<article class="dh-card dh-chart" id="dhChart"><div class="dh-h"><div><h2>الحضور في كل محاضرة</h2><span class="dh-sub">${esc(c.name)}${st.length ? " · مرّر على العمود لتفاصيله" : ""}</span></div>
+      ${gs.length ? `<div class="dh-chips sm">${["all", ...gs].map(g => `<button type="button" class="dh-chip${dhGrp === g ? " on" : ""}" data-dhg="${esc(g)}">${g === "all" ? "كل المجموعات" : "مجموعة " + esc(g)}</button>`).join("")}</div>` : ""}</div>
+      ${st.length ? `<div class="dh-plot" style="--a:${(avg / 100).toFixed(3)}"><div class="dh-tip" id="dhTip" hidden></div><div class="dh-avg"><span>المتوسط ${avg}%</span></div><div class="dh-g75"></div>
+        <div class="dh-bars" id="dhBars">${st.map((x, i) => `<button type="button" class="dh-bar${x.pct < 75 ? " low" : ""}" style="--h:${Math.max(3, x.pct)}%;--i:${i}" data-tile="reg" data-tip="${esc(`المحاضرة ${x.s.n}|${x.pct}%|${x.pres} من ${x.own} حضروا${x.mk ? " · " + x.mk + " تعويضي" : ""}|${CM.fmtD(x.s.started_at)}`)}" aria-label="المحاضرة ${x.s.n}: ${x.pct}%"><i></i></button>`).join("")}</div>
+        <div class="dh-xs">${st.map(x => `<span>${x.s.n}</span>`).join("")}</div></div>` : `<div class="dh-empty">أول ما تقفل أول محاضرة هتلاقي هنا نسبة الحضور في كل محاضرة.</div>`}</article>`;
+  }
+  function dhDayHtml() {
+    const td = dhToday();
+    const head = `<div class="dh-h"><h2>يومي</h2><span class="dh-sub" dir="ltr">${new Date().toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" })}</span></div>`;
+    if (td == null) return `<article class="dh-card dh-day" id="dhDay">${head}<p class="muted small">${myTT === false ? "مفيش جدول دراسي منشور ليك لسه." : `<span class="spinner"></span> جارٍ تحميل الجدول…`}</p></article>`;
+    const now = new Date(), hm = now.getHours() * 60 + now.getMinutes();
+    const body = td.length ? td.map((s, i) => { const a = dhTM(dhPer(s.p_from).from), b = dhTM(dhPer(s.p_to).to), st = hm >= b ? "done" : hm >= a ? "live" : "next";
+      const key = s.day + ":" + s.p_from + ":" + i, open = dhOpen === key || (dhOpen == null && st === "live");
+      const team = []; (s.team || []).forEach(t => (t.staff || []).forEach(p => { if (p && p.n && !team.includes(p.n)) team.push(p.n); }));
+      const meta = [s.myRoom || s.room, st === "live" ? "جارية الآن" : st === "done" ? "خلصت" : (a - hm < 60 ? "بعد " + (a - hm) + " دقيقة" : "")].filter(Boolean).join(" · ");
+      return `<button type="button" class="dh-slot s-${st}${open ? " open" : ""}" data-dhs="${key}" aria-expanded="${open}"><span class="dh-tm" dir="ltr"><b>${TT.t12(dhPer(s.p_from).from)}</b>${TT.t12(dhPer(s.p_to).to)}</span>
+        <span class="dh-sb"><span class="dh-st"><i class="dh-dot"></i><b>${esc(s.title)}${s.myGroups && s.myGroups.length ? " · مجموعة " + esc(s.myGroups.join("، ")) : ""}</b></span><span class="dh-sub">${esc(meta)}</span>
+        ${st === "live" ? `<span class="dh-prog"><i style="width:${Math.round((hm - a) / Math.max(1, b - a) * 100)}%"></i></span>` : ""}
+        ${open ? `<span class="dh-more">${team.length ? `<span>الفريق: ${esc(team.join("، "))}</span>` : ""}${s.cohort ? `<span>${esc(TT.cohortName ? TT.cohortName(s.cohort) : "")}</span>` : ""}${s.note ? `<span>${esc(s.note)}</span>` : ""}</span>` : ""}</span></button>`; }).join("")
+      : `<div class="dh-empty">مفيش محاضرات ليك النهارده.</div>`;
+    return `<article class="dh-card dh-day" id="dhDay">${head}<div class="dh-slots">${body}</div><button type="button" class="btn sm ghost dh-more-b" data-me="tt">${ICO('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>')} الجدول الدراسي كامل</button></article>`;
+  }
+  function dhTodoHtml() {
+    const l = dhTodo();
+    const head = n => `<div class="dh-h"><h2>مطلوب منك</h2>${n != null ? `<span class="dh-pill ${n ? "warn" : "ok"}">${n ? n + " متبقي" : "خلصت"}</span>` : ""}</div>`;
+    if (l == null) return `<article class="dh-card dh-todo" id="dhTodo">${head(null)}<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p></article>`;
+    const kc = { appeal: "bad", petition: "bad", att: "acc", warn: "warn", grade: "acc" };
+    return `<article class="dh-card dh-todo" id="dhTodo">${head(l.length)}${l.length ? `<div class="dh-tasks">${l.slice(0, 6).map(it => { const k = FK[it.kind] || FK.appeal, d = ageDays(it.since), late = d >= 3;
+      return `<div class="dh-task${late ? " late" : ""}" data-key="${esc(bKey(it))}"><span class="dh-ti c-${kc[it.kind] || "acc"}">${ICO(k.ic)}</span><span class="dh-tt"><b>${esc(it.title)}</b><span class="dh-sub">${esc(it.course || "")}${it.course ? " · " : ""}${it.n} ${k.u} · <em class="${late ? "bad-t" : d >= 1 ? "warn-t" : ""}">${it.kind === "att" && it.live ? "المحاضرة جارية" : esc(ago(it.since))}</em></span></span>
+        <span class="dh-ta"><button type="button" class="btn sm" data-dhgo="${esc(it.course_id + "|" + it.kind + "|" + (it.ref || ""))}">فتح</button><button type="button" class="btn sm ghost icon ia-ok" data-dhok="${esc(bKey(it))}|${it.n}" title="تم: إخفاء لحد ما ييجي جديد" aria-label="تم">${ICO('<path d="M5 12l5 5L20 7"/>')}</button></span></div>`; }).join("")}</div>${l.length > 6 ? `<button type="button" class="btn sm ghost dh-more-b" data-me="bell">كل التنبيهات (${l.length})</button>` : ""}`
+      : `<div class="dh-empty">مفيش حاجة مستنياك. شغل ممتاز.</div>`}</article>`;
+  }
+  function dhStudents(c) {
+    if (!D || D.cid !== c.id || !D.enroll.length) return `<article class="dh-card dh-st"><div class="dh-h"><h2>حالة الطلبة</h2></div><div class="dh-empty">${D && D.cid === c.id ? "مفيش طلبة في المادة لسه." : `<span class="spinner"></span> جارٍ التحميل…`}</div></article>`;
+    const lv = [0, 0, 0, 0, 0]; D.enroll.forEach(e => lv[CM.lvl(absences(e))]++);
+    const L = [["منتظمين", "var(--accent)"], ["إنذار أول", "var(--dh-l1)"], ["إنذار تاني", "var(--dh-l2)"], ["إنذار نهائي", "var(--bad)"], ["انسحاب", "var(--dh-l4)"]];
+    const tot = D.enroll.length, R = 54, C = 2 * Math.PI * R; let acc = 0;
+    const segs = lv.map((n, i) => { const len = n / tot * C, s = n ? `<circle class="dh-seg" data-dhl="${i}" cx="75" cy="75" r="${R}" stroke="${L[i][1]}" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}" style="--i:${i}"/>` : ""; acc += len; return s; }).join("");
+    const pend = warnPending().length;
+    return `<article class="dh-card dh-st" id="dhSt"><div class="dh-h"><h2>حالة الطلبة</h2></div><div class="dh-don"><div class="dh-ring"><svg viewBox="0 0 150 150" role="img" aria-label="توزيع الطلبة على مستويات الإنذار"><circle cx="75" cy="75" r="${R}" class="dh-trk"/><g transform="rotate(-90 75 75)">${segs}</g></svg><span class="dh-rc"><b id="dhRn">${tot}</b><small id="dhRl">طالب في المادة</small></span></div>
+      <div class="dh-leg">${lv.map((n, i) => n || i < 4 ? `<div class="dh-li" data-dhl="${i}" data-n="${n}"><i style="background:${L[i][1]}"></i><span>${L[i][0]}</span><b>${n}</b></div>` : "").join("")}</div></div>
+      ${pend ? `<button type="button" class="btn primary dh-warnb" data-wal="${c.id}">${ICO(BELL_ICO)} إبلاغ ${pend} ${pend === 1 ? "طالب وصل" : "طلبة وصلوا"} لإنذار جديد</button>` : lv[1] + lv[2] + lv[3] + lv[4] ? `<span class="dh-sub ok-t">كل الإنذارات اتبلّغت.</span>` : ""}</article>`;
+  }
+  function dhFeed(c) {
+    const l = D && D.cid === c.id ? (D.audit || []).slice(0, 5) : null;
+    const col = t => /رفض|حذف|ألغى|إلغاء|انسحاب/.test(t) ? "bad" : /تظلم|إنذار|التماس|ذكّر|تذكير/.test(t) ? "warn" : /درجات|أعلن/.test(t) ? "mut" : "acc";
+    return `<article class="dh-card dh-feed"><div class="dh-h"><h2>آخر النشاط</h2>${l && l.length ? `<button type="button" class="btn sm ghost" data-tile="log">السجل كامل</button>` : ""}</div>
+      ${l == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : l.length ? `<div class="dh-tl">${l.map(a => { const t = String(a.action || ""); return `<div class="dh-ev"><i class="c-${col(t)}"></i><span><span>${esc(t.length > 110 ? t.slice(0, 108) + "…" : t)}</span><small>${esc(staffName(a.actor) || a.actor || "")} · ${esc(ago(a.at))}</small></span></div>`; }).join("")}</div>` : `<div class="dh-empty">لسه مفيش نشاط في المادة.</div>`}</article>`;
+  }
+  function dhRefresh() {
+    if (view !== "home") return; const c = course();
+    const r = (id, h) => { const el = $("#" + id); if (el) el.outerHTML = h; };
+    r("dhHi", dhHiHtml(c)); r("dhDay", dhDayHtml()); r("dhTodo", dhTodoHtml()); wireDash();
+  }
+  function wireDash() {
+    const root = $(".dh"); if (!root) return;
+    root.querySelectorAll("[data-tile]").forEach(b => b.onclick = () => { view = "course"; ctab = b.dataset.tile; store.set("cm_tab", ctab); render(); window.scrollTo({ top: 0 }); });
+    root.querySelectorAll("[data-dhg]").forEach(b => b.onclick = () => { dhGrp = b.dataset.dhg; const el = $("#dhChart"); if (el) { el.outerHTML = dhChart(course()); wireDash(); dhAnim($("#dhChart")); } });
+    root.querySelectorAll("[data-dhs]").forEach(b => b.onclick = () => { const k = b.dataset.dhs; dhOpen = b.classList.contains("open") ? "" : k; const el = $("#dhDay"); el.outerHTML = dhDayHtml(); wireDash(); });
+    root.querySelectorAll("[data-dhgo]").forEach(b => b.onclick = () => { const [cid, kind, ref] = b.dataset.dhgo.split("|"); bellGo(cid, kind, ref); });
+    root.querySelectorAll("[data-dhok]").forEach(b => b.onclick = () => { const v = b.dataset.dhok, i = v.lastIndexOf("|"), row = b.closest(".dh-task");
+      bellHideItem(v.slice(0, i), +v.slice(i + 1)); if (row) row.classList.add("gone"); setTimeout(() => { bellBadge(); }, 380); });
+    root.querySelectorAll("[data-me]").forEach(b => b.onclick = () => { const k = b.dataset.me; if (k === "tt") { view = "timetable"; stopLoops(); render(); window.scrollTo({ top: 0 }); } else if (k === "bell") bellOpen(); });
+    // تلميح الأعمدة
+    const tip = $("#dhTip");
+    if (tip) root.querySelectorAll(".dh-bar").forEach(b => { const show = () => { const [t, p, s, d] = b.dataset.tip.split("|"); tip.innerHTML = `<b>${esc(t)}</b> · ${esc(p)}<br><span>${esc(s)}</span><br><span>${esc(d)}</span>`; tip.hidden = false;
+        const pr = b.parentElement.getBoundingClientRect(), br = b.getBoundingClientRect(); tip.style.left = (br.left - pr.left + br.width / 2) + "px"; b.parentElement.classList.add("hov"); b.classList.add("on"); };
+      const hide = () => { tip.hidden = true; b.parentElement.classList.remove("hov"); b.classList.remove("on"); };
+      b.onmouseenter = show; b.onfocus = show; b.onmouseleave = hide; b.onblur = hide; });
+    // الدونت: تمرير على المستوى يبرزه ويغيّر الرقم في النص
+    const st = $("#dhSt");
+    if (st) { const n0 = $("#dhRn").textContent, l0 = $("#dhRl").textContent;
+      st.querySelectorAll("[data-dhl]").forEach(el => { el.onmouseenter = () => { const i = el.dataset.dhl, li = st.querySelector(`.dh-li[data-dhl="${i}"]`); st.classList.add("hov"); st.querySelectorAll(`[data-dhl="${i}"]`).forEach(x => x.classList.add("on")); if (li) { $("#dhRn").textContent = li.dataset.n; $("#dhRl").textContent = li.querySelector("span").textContent; } };
+        el.onmouseleave = () => { st.classList.remove("hov"); st.querySelectorAll(".on").forEach(x => x.classList.remove("on")); $("#dhRn").textContent = n0; $("#dhRl").textContent = l0; }; }); }
+  }
+  // عدّاد الأرقام وظهور الأعمدة والرسوم: مرة واحدة عند فتح الرئيسية
+  function dhAnim(el) {
+    if (!el) return; const red = matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "off";
+    el.classList.add("dh-go"); if (red) { el.classList.add("dh-in"); return; }
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("dh-in")));
+    el.querySelectorAll("[data-count]").forEach(b => { const to = +b.dataset.count; if (!b.dataset.count || !to) return; const t0 = performance.now();
+      const step = t => { const k = Math.min(1, (t - t0) / 750), e = 1 - Math.pow(1 - k, 3); b.textContent = Math.round(to * e); if (k < 1) requestAnimationFrame(step); }; b.textContent = "0"; requestAnimationFrame(step); });
+  }
+  // البحث في الشريط العلوي: مادة أو طالب في المادة المفتوحة أو تكليف
+  function dhSearch(q) {
+    const v = normAr(q.trim()); if (!v) return [];
+    const out = [];
+    courses.filter(x => normAr(x.name).includes(v)).slice(0, 5).forEach(x => out.push({ k: "c", id: x.id, t: x.name, s: clsLabel(x) }));
+    if (D) { D.enroll.filter(e => normAr(e.name).includes(v) || String(e.student_code).includes(q.trim())).slice(0, 6).forEach(e => out.push({ k: "s", id: e.student_code, t: e.name, s: e.student_code + (e.grp ? " · مجموعة " + e.grp : "") }));
+      D.tasks.filter(t => normAr(t.title).includes(v)).slice(0, 4).forEach(t => out.push({ k: "t", id: t.id, t: t.title, s: "تكليف · " + ((course() || {}).name || "") })); }
+    return out;
+  }
+  function wireSearch() {
+    const i = $("#topQ"), box = $("#topQR"); if (!i || !box) return;
+    const KN = { c: "مادة", s: "طالب", t: "تكليف" };
+    const draw = () => { const r = dhSearch(i.value); box.hidden = !i.value.trim();
+      box.innerHTML = r.length ? r.map(x => `<button type="button" class="sq-it" data-sqk="${x.k}" data-sqi="${esc(x.id)}"><em>${KN[x.k]}</em><span><b>${esc(x.t)}</b><small>${esc(x.s || "")}</small></span></button>`).join("") : `<p class="small muted" style="padding:10px 12px">مفيش نتايج${D ? "" : " (افتح مادة عشان تدور في طلبتها)"}.</p>`;
+      box.querySelectorAll("[data-sqk]").forEach(b => b.onclick = () => { const k = b.dataset.sqk, id = b.dataset.sqi; i.value = ""; box.hidden = true;
+        if (k === "c") { curId = id; store.set("cm_course", curId); fYear = "all"; fTerm = "all"; view = "course"; flash = {}; loadCourse().catch(showErr); return; }
+        if (k === "s") { rv = { cid: D.cid, q: id, sort: { col: "code", dir: 1 }, f: { grp: null, acc: null, now: null } }; ctab = "students"; }
+        else { ctab = "tasks"; tkSel = id; }
+        store.set("cm_tab", ctab); view = "course"; render(); window.scrollTo({ top: 0 }); }); };
+    i.oninput = draw; i.onfocus = () => { if (i.value.trim()) draw(); };
+    i.onkeydown = e => { if (e.key === "Escape") { i.value = ""; box.hidden = true; i.blur(); } else if (e.key === "Enter") { const f = box.querySelector("[data-sqk]"); if (f) f.click(); } };
+    if (!wireSearch.on) { wireSearch.on = 1; document.addEventListener("click", e => { const b = $("#topQR"); if (b && (!e.target.closest || !e.target.closest(".top-q"))) b.hidden = true; }); }
+  }
   function homeHtml(c) {
-    const p = myStaff(), list = filtered();
-    return `<section class="home">
-      ${CM.hero({ eyebrow: esc(ROLE[me.role]) + (p.title ? " · " + esc(p.title) : ""), title: "أهلًا " + esc(String(me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").split(" ")[0]), sub: c ? "المادة المفتوحة: " + esc(c.name) : "", extra: pickerHtml("home") })}
-      ${c ? `<h3 class="sec-t">أقسام المادة</h3><div class="tiles">${meCardHtml()}${CTABS.map(([k, t, ic]) => `<button class="tile ${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? "hot" : ""}" data-tile="${k}">${ic}<b>${t}</b><small>${esc(TILE_SUB[k](c))}</small>${tileWidget(k, c)}</button>`).join("")}</div>
-      <nav class="nx-dock" aria-label="أقسام المادة"><button type="button" class="dk-home on" aria-current="page">${ICO(HOME_ICO)}<span class="l">الرئيسية</span></button>${CTABS.map(([k, t, ic]) => `<button type="button" data-tile="${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>` : `<div class="empty">${me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "لا توجد مواد بعد. أنشئ مادة جديدة."}</div>`}
+    return `<section class="home dh">
+      <section class="dh-hi">${dhHiHtml(c)}${courses.length ? dhChips(c) : ""}</section>
+      ${c ? `<nav class="dh-secs" aria-label="أقسام المادة">${CTABS.map(([k, t, ic]) => `<button type="button" class="dh-sec${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? " hot" : ""}" data-tile="${k}" data-ia="${k}">${ic}<span>${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
+      <nav class="nx-dock" aria-label="أقسام المادة"><button type="button" class="dk-home on" aria-current="page">${ICO(HOME_ICO)}<span class="l">الرئيسية</span></button>${CTABS.map(([k, t, ic]) => `<button type="button" data-tile="${k}" data-ia="${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
+      ${dhKpis(c)}
+      <section class="dh-row r1">${dhChart(c)}${dhDayHtml()}</section>
+      <section class="dh-row r2">${dhTodoHtml()}${dhStudents(c)}${dhFeed(c)}</section>`
+      : `<section class="dh-row r1"><article class="dh-card"><div class="dh-empty">${me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "لا توجد مواد بعد. أنشئ مادة جديدة."}</div></article>${dhDayHtml()}</section><section class="dh-row r2">${dhTodoHtml()}</section>`}
       ${homeAlertsHtml()}
-      ${myTTHtml()}
+      <div hidden>${myTTHtml()}</div>
       <h3 class="sec-t">اختصارات</h3>
       <div class="tiles small">
-        <button class="tile" data-go="profile">${ICO('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}<b>ملفي الشخصي</b><small>بياناتك وموادك</small></button>
-        ${canCreate() ? `<button class="tile" data-go="newc">${ICO('<path d="M12 5v14M5 12h14"/>')}<b>مادة جديدة</b><small>أضف مادة من اللائحة</small></button>` : ""}
-        ${isDept() ? `<button class="tile" data-go="dept">${ICO('<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>')}<b>متابعة القسم</b><small>المواد والغياب والإنذارات</small></button>` : ""}
-        ${me.role === "admin" ? `<button class="tile" data-go="admin">${ICO('<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>')}<b>لوحة المسؤول</b><small>المحاضرون والإعدادات</small></button>
-          <a class="tile" href="pg-admin.html">${ICO('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>')}<b>الدراسات العليا</b><small>مواد الترم والتسجيل</small></a>` : ""}
+        <button class="tile" data-go="profile" data-ia="prof">${ICO('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>')}<b>ملفي الشخصي</b><small>بياناتك وموادك</small></button>
+        <button class="tile" data-me="tt" data-ia="tt">${ICO('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>')}<b>الجدول الدراسي</b><small>جدول القسم كامل</small></button>
+        ${canCreate() ? `<button class="tile" data-go="newc" data-ia="plus">${ICO('<path d="M12 5v14M5 12h14"/>')}<b>مادة جديدة</b><small>أضف مادة من اللائحة</small></button>` : ""}
+        ${isDept() ? `<button class="tile" data-go="dept" data-ia="report">${ICO('<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>')}<b>متابعة القسم</b><small>المواد والغياب والإنذارات</small></button>` : ""}
+        ${me.role === "admin" ? `<button class="tile" data-go="admin" data-ia="shield">${ICO('<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>')}<b>لوحة المسؤول</b><small>المحاضرون والإعدادات</small></button>
+          <a class="tile" href="pg-admin.html" data-ia="cap">${ICO('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>')}<b>الدراسات العليا</b><small>مواد الترم والتسجيل</small></a>` : ""}
       </div></section>`;
   }
   let inbox = {};
@@ -963,7 +1125,7 @@
   // «جدولي»: محاضرات عضو هيئة التدريس من الجدول الدراسي
   let myTT = undefined, myTTDay = null;
   function myTTHtml() {
-    if (myTT === undefined) { myTT = null; TT.mine({ rpc: (f, a) => rpc(f, a), me, staff }).then(r => { myTT = r || false; const h = $("#myTT"); if (h && view === "home") { h.outerHTML = myTTHtml(); wireMyTT(); meRefresh(); const lt = document.querySelector('[data-tile="live"]'), c0 = course(); if (lt && c0) { const ow = lt.querySelector(".mw"), nw = tileWidget("live", c0); if (ow) ow.outerHTML = nw; else lt.insertAdjacentHTML("beforeend", nw); } } }).catch(() => { myTT = false; }); }
+    if (myTT === undefined) { myTT = null; TT.mine({ rpc: (f, a) => rpc(f, a), me, staff }).then(r => { myTT = r || false; const h = $("#myTT"); if (h && view === "home") { h.outerHTML = myTTHtml(); wireMyTT(); meRefresh(); const lt = document.querySelector('.tile[data-tile="live"]'), c0 = course(); if (lt && c0) { const ow = lt.querySelector(".mw"), nw = tileWidget("live", c0); if (ow) ow.outerHTML = nw; else lt.insertAdjacentHTML("beforeend", nw); } } }).catch(() => { myTT = false; meRefresh(); }); }
     if (!myTT || !myTT.slots.length) return `<div id="myTT"></div>`;
     return `<div id="myTT"><h3 class="sec-t">جدولي</h3><div class="panel tw-panel">${TT.weekHtml(myTT, { staff: true, day: myTTDay })}<div class="row" style="margin-top:8px"><button class="btn sm ghost" id="myTTAll">الجدول الدراسي كامل ←</button></div></div></div>`;
   }
@@ -1048,6 +1210,7 @@
     app.innerHTML = `
       <header class="top">
         <div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}${owned ? " · " + owned + " مادة" : ""}</p></div></div>
+        <div class="top-q"><label><span class="sr">بحث</span>${ICO('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>')}<input type="search" id="topQ" placeholder="ابحث عن طالب أو مادة أو تكليف" autocomplete="off"></label><div class="sq-pop" id="topQR" hidden></div></div>
         <div class="row">
           ${view !== "home" ? `<button class="btn sm" id="goHome" aria-label="الرئيسية">${ICO(HOME_ICO)}<span class="gh-l">الرئيسية</span></button>` : ""}
           ${view === "admin" ? `<button class="btn sm primary" id="admin">رجوع للمواد</button>` : ""}
@@ -1092,7 +1255,8 @@
     document.body.classList.toggle("has-ctabs", view === "course" && !!$(".ctabs"));
     document.body.classList.toggle("has-dock", view === "home" && !!$(".nx-dock"));
     document.querySelectorAll("[data-dock-home]").forEach(b => b.onclick = () => { view = "home"; render(); window.scrollTo({ top: 0 }); });
-    wireHome(c); wirePicker(); navMark(); wireBell();
+    wireHome(c); wirePicker(); navMark(); wireBell(); wireSearch();
+    if (view === "home") { wireDash(); if (lastRise !== "home" || dhAnim.cid !== (c && c.id) + ":" + !!(D && c && D.cid === c.id)) { dhAnim.cid = (c && c.id) + ":" + !!(D && c && D.cid === c.id); dhAnim($(".dh")); } }
     if (lastRise !== view + (view === "course" ? "" : "")) { lastRise = view; CM.rise(app); }
     document.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => showTab(b.dataset.ct));
     tabBadges();

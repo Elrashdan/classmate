@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b110">
+<link rel="stylesheet" href="style.css?v=b111">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b110"></script>
-<script src="config.js?v=b110"></script>
-<script src="common.js?v=b110"></script>
-<script src="drive.js?v=b110"></script>
-<script src="catalog.js?v=b110"></script>
-<script src="regform.js?v=b110"></script>
+<script src="vendor/qrcode.js?v=b111"></script>
+<script src="config.js?v=b111"></script>
+<script src="common.js?v=b111"></script>
+<script src="drive.js?v=b111"></script>
+<script src="catalog.js?v=b111"></script>
+<script src="regform.js?v=b111"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -113,6 +113,7 @@
   let home = null, authTab = "login", authMsg = "", busy = false, results = {}, drafts = {}, pwOpen = false, pwMsg = "";
 
   function header(extra) {
+    document.body.classList.remove("has-stnav");
     return `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">${esc((window.CLASSMATE || {}).UNIVERSITY_NAME || "")}</p></div></div><div class="row">${CM.themeBtn()}${extra || ""}</div></header>`;
   }
 
@@ -652,8 +653,9 @@
   const TDAY = { 6: "السبت", 0: "الأحد", 1: "الإثنين", 2: "الثلاثاء", 3: "الأربعاء", 4: "الخميس", 5: "الجمعة" };
   const t12 = hm => { if (!hm) return ""; let [h, m] = hm.split(":").map(Number); h = h % 12 || 12; return `${h}:${String(m).padStart(2, "0")}`; };
   const toMin = hm => { const [h, m] = String(hm || "0:0").split(":").map(Number); return h * 60 + m; };
-  function ttHtml() {
+  function ttHtml(full) {
     const T = myTT; if (!T || !T.slots.length) return "";
+    if (full) ttAll = true;
     const now = new Date(), today = now.getDay(), hm = now.getHours() * 60 + now.getMinutes();
     const days = T.days.filter(d => T.slots.some(s => s.day === d));
     const tm = s => [(T.periods[s.p_from - 1] || {}).from, (T.periods[s.p_to - 1] || {}).to];
@@ -668,7 +670,7 @@
         <div class="tw-list">${show.map(s => card(s, left.length ? today : nd)).join("")}</div></section>`;
     }
     const sel = ttDay != null && days.includes(ttDay) ? ttDay : days.includes(today) ? today : days[0];
-    return `<section class="panel tw-panel"><div class="panel-h"><div><div class="eyebrow">جدولي · ${esc(T.year)}</div><h2>جدول الأسبوع</h2></div><button class="btn sm ghost" id="ttAll">إغلاق</button></div>
+    return `<section class="panel tw-panel"><div class="panel-h"><div><div class="eyebrow">جدولي · ${esc(T.year)}</div><h2>جدول الأسبوع</h2></div>${full ? "" : `<button class="btn sm ghost" id="ttAll">إغلاق</button>`}</div>
       <div class="tw"><div class="tw-days" role="tablist">${days.map(d => `<button role="tab" class="${d === sel ? "on" : ""}" aria-selected="${d === sel}" data-twd="${d}">${TDAY[d]}${d === today ? "<i>النهارده</i>" : ""}</button>`).join("")}</div>
       <div class="tw-list">${T.slots.filter(s => s.day === sel).map(s => card(s, sel)).join("")}</div></div></section>`;
   }
@@ -729,42 +731,85 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
+  /* b111: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  let stab = ["home", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
+  const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
+  const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };
+  function stHeader() {
+    const first = esc((home.name || "").split(" ")[0]);
+    return `<header class="top st-top"><div class="brand">${CM.markHtml()}<div><h1 class="st-hi">أهلًا ${first}</h1><p class="small muted"><span class="mono">${esc(home.code)}</span>${home.courses.length ? " · " + home.courses.length + (home.courses.length > 2 && home.courses.length < 11 ? " مواد" : " مادة") : ""}</p></div></div>
+      <div class="row"><button class="btn sm ghost icon bell" id="ntBtn" aria-label="التنبيهات" title="التنبيهات">${BELL}${nt.unread ? `<span class="nt-badge">${nt.unread > 9 ? "9+" : nt.unread}</span>` : ""}</button><button class="btn sm ghost icon help-btn" id="helpBtn" aria-label="المساعدة والتواصل" title="المساعدة والتواصل"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8M12 17.2h.01"/></svg>${hcUnread ? `<i class="hc-dot">${hcUnread}</i>` : ""}</button>${CM.themeBtn()}
+      ${CM.dd(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="dd-hide">حسابي</span>`, [`<button class="dd-i" id="pwBtn">كلمة السر</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي", cls: "st-acc" })}</div></header>`;
+  }
+  function stCourses(sel) {
+    const L = 2 * Math.PI * 26;
+    return `<section class="st-sec"><div class="st-h"><h2>موادي</h2><span class="small muted">المس المادة لتفاصيلها</span></div>
+      <div class="st-cc" role="tablist" aria-label="موادي">${home.courses.map((c, i) => { const p = stPct(c), k = stCol(c);
+        return `<button type="button" role="tab" class="st-card k-${k}${sel && c.id === sel.id ? " on" : ""}" data-stc="${c.id}" aria-selected="${!!sel && c.id === sel.id}" style="--i:${i}">
+          <span class="st-ring"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" class="t"/><circle cx="32" cy="32" r="26" class="v" stroke-dasharray="${L.toFixed(2)}" style="--off:${(L * (1 - (p == null ? 0 : p) / 100)).toFixed(2)};--L:${L.toFixed(2)}" transform="rotate(-90 32 32)"/></svg><b>${p == null ? "—" : p + "%"}</b>${c.session && !limited ? `<i class="st-live" title="محاضرة جارية"></i>` : ""}</span>
+          <b class="st-cn">${esc(c.name)}</b><span class="st-cs">${CM.WARN[CM.lvl(c.absences)].t}${c.absences ? " · غبت " + c.absences : ""}</span></button>`; }).join("")}</div></section>`;
+  }
+  function stMeter(c) {
+    const ab = c.absences || 0, L = ["غياب 1", "إنذار أول", "إنذار تاني", "نهائي", "انسحاب"];
+    return `<section class="st-box" data-course="${c.id}"><div class="st-mh"><b>غيابك في ${esc(c.name)}</b><span class="st-mn k-${stCol(c)}">${ab} من 5</span></div>
+      ${c.label || c.grp ? `<div class="small muted">${[c.label, c.grp ? "مجموعة " + c.grp : ""].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
+      <div class="st-meter">${L.map((l, i) => `<div><span class="m${i}${i < ab ? " on" : ""}" style="--i:${i}"></span><small>${l}</small></div>`).join("")}</div>
+      <p class="small muted">${ab ? "غبت " + CM.times(ab) + missedTxt(c) + ". " + afterTxt(ab) : c.held ? "ماغبتش ولا مرة" + (c.held ? " من " + c.held + (c.held === 1 ? " محاضرة" : c.held === 2 ? "" : " محاضرات") : "") + ". استمر." : "لسه مفيش محاضرات اتحسبت في المادة دي."}</p>
+      ${c.session && !limited ? `<a class="now-link small" href="#now">● محاضرة جارية الآن: سجّل حضورك من فوق ↑</a>` : c.session ? sessionBlock(c) : ""}
+      ${tasksBlock(c)}</section>`;
+  }
+  function stGrades() {
+    const all = (tasks || []).filter(t => home.courses.some(c => c.id === t.course_id));
+    const g = all.filter(t => tkCat(t) === "graded").sort((a, b) => new Date(b.due_at) - new Date(a.due_at)), wait = all.filter(t => tkCat(t) === "done").length;
+    const cn = t => (home.courses.find(c => c.id === t.course_id) || {}).name || "";
+    return `<section class="st-sec"><div class="st-h"><h2>درجاتي</h2>${wait ? `<span class="small muted">${wait} ${wait === 1 ? "تسليم مستني" : "تسليمات مستنية"} التصحيح</span>` : ""}</div>
+      ${tasks == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : g.length ? g.map((t, i) => { const m = t.mine, v = tot(m), w = Math.min(100, v / Math.max(1, Number(t.max)) * 100), win = apWins[t.id];
+        return `<button type="button" class="st-gr" data-task="${t.id}" style="--i:${i}"><span class="st-gh"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}</small></span><b class="st-gv">${gNum(v)}<small> / ${gNum(t.max)}</small></b></span>
+          <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap">التظلم على الدرجة مفتوح${win.until ? " لحد " + esc(new Date(win.until).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })) : ""}</span>` : ""}</button>`; }).join("")
+      : `<div class="empty">لسه مفيش درجات اتعلنت ليك.</div>`}</section>`;
+  }
+  function stNav() {
+    const T = [["home", "الرئيسية", '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>'], ["grades", "درجاتي", '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'], ["tt", "جدولي", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>']];
+    return `<nav class="st-nav" aria-label="التنقل">${T.map(([k, l, d]) => `<button type="button" class="${stab === k ? "on" : ""}" data-stab="${k}" data-ia="${k}" ${stab === k ? `aria-current="page"` : ""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg><span>${l}</span></button>`).join("")}</nav>`;
+  }
   function renderHome() {
     if (rf) return renderForm();
     const active = document.activeElement && document.activeElement.id;
-    app.innerHTML = header(`<div class="row"><button class="btn sm ghost icon bell" id="ntBtn" aria-label="التنبيهات" title="التنبيهات">${BELL}${nt.unread ? `<span class="nt-badge">${nt.unread > 9 ? "9+" : nt.unread}</span>` : ""}</button><button class="btn sm ghost icon help-btn" id="helpBtn" aria-label="المساعدة والتواصل" title="المساعدة والتواصل"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8M12 17.2h.01"/></svg>${hcUnread ? `<i class="hc-dot">${hcUnread}</i>` : ""}</button><button class="btn sm ghost" id="pwBtn">كلمة السر</button><button class="btn sm ghost" id="out">خروج</button></div>`) + `
-      <section class="col">
-        ${nt.open ? ntPanel() : ""}
+    if (stSel && !home.courses.some(c => c.id === stSel)) stSel = null;
+    const sel = home.courses.find(c => c.id === stSel) || home.courses.find(c => c.session) || home.courses.find(c => (c.level || 0) > 0) || home.courses[0];
+    const tab = stab === "grades" ? stGrades() : stab === "tt" ? (myTT && myTT.slots.length ? ttHtml(true) : `<section class="st-sec"><div class="st-h"><h2>جدولي</h2></div><div class="empty">${myTT === null ? "مفيش جدول دراسي منشور لدفعتك لسه." : "مفيش محاضرات ليك في الجدول."}</div></section>`) : `
         ${nowHtml()}
-        ${CM.band({ icon: CM.ICONS.ug, eyebrow: `<span class="mono">${esc(home.code)}</span>`, title: "أهلًا " + esc((home.name || "").split(" ")[0]), sub: home.courses.length ? home.courses.length + (home.courses.length > 2 && home.courses.length < 11 ? " مواد" : " مادة") : "" })}
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
-        ${ttHtml()}
+        ${home.courses.length ? stCourses(sel) + (sel ? stMeter(sel) : "") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. أضف موادك من استمارة التسجيل بالزر بالأسفل، أو تواصل مع المحاضر.</div>`}
+        ${tasksOverview()}
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
         ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : home.courses.length ? qrCta() : ""}
         ${pushCta()}
         ${pushGate()}
         ${!limited && pk.ok && pk.count === 0 && !store.get("cm_pk_skip") ? `<div class="pk-cta"><div><b>فعّل الدخول ببصمة الوجه أو الإصبع</b><span class="small muted">إن مسح المتصفح بياناتك (يحدث كثيرًا في آيفون) أو غيّرت المتصفح، تعود إلى حسابك بلمسة دون كلمة السر ودون مراجعة المحاضر.</span>${pkMsg ? `<span class="small ${pkMsg.startsWith("!") ? "bad-t" : "ok-t"}">${esc(pkMsg.replace(/^!/, ""))}</span>` : ""}</div><div class="row"><button class="btn primary" id="pkOn">تفعيل</button><button class="btn ghost sm" id="pkSkip">لاحقًا</button></div></div>` : pkMsg && !pkMsg.startsWith("!") ? `<div class="msg ok small">${esc(pkMsg)}</div>` : ""}
         ${iosTip()}
+        <div class="rf-cta"><div><b>سجّلت مواد جديدة؟</b><span class="small muted">ارفع استمارة التسجيل من نظام ابن الهيثم، فتُضاف إلى موادك هنا.</span></div><button class="btn" id="rfSync">إضافة موادي من الاستمارة</button></div>`;
+    app.innerHTML = stHeader() + `
+      <section class="col sh t-${stab}">
+        ${nt.open ? ntPanel() : ""}
         ${pwOpen ? `<div class="panel"><h3>تغيير كلمة السر</h3>
           <label class="f"><span>كلمة السر الحالية</span><input type="password" id="pwOld" autocomplete="current-password"></label>
           <label class="f"><span>كلمة السر الجديدة</span><input type="password" id="pwNew" autocomplete="new-password"></label>
           ${pwMsg ? `<div class="msg ${pwMsg.startsWith("!") ? "bad" : "ok"}">${esc(pwMsg.replace(/^!/, ""))}</div>` : ""}
-          <button class="btn primary" id="pwSave">حفظ</button>
+          <div class="row"><button class="btn primary" id="pwSave">حفظ</button><button class="btn ghost" id="pwClose">إغلاق</button></div>
           ${HD.ready && !limited ? `<hr><p class="small muted">اربط حساب Google لتستعيد كلمة السر بنفسك إن نسيتها.${store.get("cm_glink_" + home.code) ? " <b class='ok-t'>مربوط.</b>" : ""}</p><button class="btn sm" id="gLink">ربط حساب Google</button>` : ""}</div>` : ""}
-        ${tasksOverview()}
-        ${home.courses.length ? home.courses.map(c => `
-          <article class="course" data-course="${c.id}">
-            <div class="row between"><div><h2>${esc(c.name)}</h2>${c.label ? `<div class="small muted">${esc(c.label)}</div>` : ""}${c.grp ? `<span class="small muted">مجموعة ${esc(c.grp)}</span>` : ""}</div>${CM.warnChip(c.absences)}</div>
-            ${c.absences ? `<p class="small muted">غبت ${CM.times(c.absences)}${missedTxt(c)}. ${afterTxt(c.absences)}</p>` : ""}
-            ${c.session && !limited ? `<a class="now-link small" href="#now">● محاضرة جارية الآن: سجّل حضورك من أعلى الصفحة ↑</a>` : sessionBlock(c)}
-            ${tasksBlock(c)}
-          </article>`).join("") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. أضف موادك من استمارة التسجيل بالزر بالأسفل، أو تواصل مع المحاضر.</div>`}
-        <div class="rf-cta"><div><b>سجّلت مواد جديدة؟</b><span class="small muted">ارفع استمارة التسجيل من نظام ابن الهيثم، فتُضاف إلى موادك هنا.</span></div><button class="btn" id="rfSync">إضافة موادي من الاستمارة</button></div>
-      </section>`;
+        ${tab}
+      </section>` + stNav();
+    document.body.classList.add("has-stnav");
+    const ak = stab + "|" + (sel ? sel.id : "") + "|" + (tasks ? 1 : 0);
+    if (ak !== stAnimK) { stAnimK = ak; const sh = $(".sh"); if (sh && !matchMedia("(prefers-reduced-motion: reduce)").matches) { sh.classList.add("st-go"); requestAnimationFrame(() => requestAnimationFrame(() => sh.classList.add("st-in"))); } }
+    app.querySelectorAll("[data-stab]").forEach(b => b.onclick = () => { stab = b.dataset.stab; store.set("cm_stab", stab); if (stab === "tt") ttAll = true; renderHome(); window.scrollTo({ top: 0 }); });
+    app.querySelectorAll("[data-stc]").forEach(b => b.onclick = () => { stSel = b.dataset.stc; store.set("cm_stsel", stSel); const x = scrollX, y = scrollY, sc = $(".st-cc"), sl = sc ? sc.scrollLeft : 0; renderHome(); const n = $(".st-cc"); if (n) n.scrollLeft = sl; scrollTo(x, y); });
+    const pc = $("#pwClose"); if (pc) pc.onclick = () => { pwOpen = false; pwMsg = ""; renderHome(); };
     $("#out").onclick = signOut;
     const q2 = $("#qrBtn2"); if (q2) q2.onclick = openQr;
     wireNotifs();
-    $("#rfSync").onclick = () => openForm("sync");
+    const rfs = $("#rfSync"); if (rfs) rfs.onclick = () => openForm("sync");
     if ($("#gLink")) HD.loadGis().catch(() => {});
     const gl = $("#gLink"); if (gl) gl.onclick = () => { const auth = HD.authorize(); auth.then(at => pkCall({ action: "google_link", token, access_token: at })).then(() => { store.set("cm_glink_" + home.code, "1"); pwMsg = "رُبط حساب Google. إن نسيت كلمة السر فاختر «نسيت كلمة السر؟» ثم «تأكيد بحساب Google»."; renderHome(); }).catch(e => { pwMsg = "!" + errText(e); renderHome(); }); };
     const po = $("#pkOn"); if (po) po.onclick = async () => { po.disabled = true; try { await pkRegister(); pkMsg = "فُعّل الدخول بالبصمة. إن ظهر لك يومًا أن الحساب «مرتبط بهاتف آخر» فاضغط «الدخول ببصمة الوجه أو الإصبع»."; } catch (e) { pkMsg = "!" + pkErr(e); } renderHome(); };

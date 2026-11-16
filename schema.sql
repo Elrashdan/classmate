@@ -6202,3 +6202,16 @@ alter policy sessions_read on public.sessions using (course_id in (select public
 alter policy attendance_read on public.attendance using (session_id in (select s.id from public.sessions s where s.course_id in (select public.my_course_ids())));
 alter policy attempts_read on public.attempts using (session_id in (select s.id from public.sessions s where s.course_id in (select public.my_course_ids())));
 alter policy submissions_read on public.submissions using (task_id in (select t.id from public.tasks t where t.course_id in (select public.my_course_ids())));
+
+-- ===================== update-63: عدد المحاضرات المحسوبة لكل مادة في رئيسية الطالب (لنسبة الحضور في كارت المادة) =====================
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.student_home(text)'::regprocedure) into f; o := f;
+  if position('''held''' in f) = 0 then
+    f := replace(f, $a$        'missed', coalesce(($a$, $b$        'held', (select count(*) from sessions s where s.course_id = c.id and (s.ended or s.closed_at is not null or now() >= s.ends_at) and (s.grp is null or s.grp = e.grp)),
+        'missed', coalesce(($b$);
+    if f = o then raise exception 'student_home pattern'; end if;
+    execute f;
+  end if;
+end $do$;
