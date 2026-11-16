@@ -6351,3 +6351,148 @@ begin
   f := replace(f, $a$'k', 'appeal', 'ref', a.tid, 'done', a.status <> 'pending');$a$, $b$'k', 'appeal', 'ref', a.tid, 'code', a.code, 'done', a.status <> 'pending');$b$);
   if f <> o then execute f; end if;
 end $do$;
+
+-- ===================== update-66: تقارير البحث العلمي (للمسؤول): مؤشرات مجمّعة ومجهّلة من سجلات النظام =====================
+--   كل الأرقام محسوبة من سجلات بتتكتب آليًا بتوقيت الخادم (مش من إدخال المستخدم)، ومفيش أي اسم طالب أو بريد في الناتج.
+--   p_from / p_to: فترة الدراسة. p_courses: مواد بعينها (null = كل المواد اللي فيها نشاط في الفترة).
+-- الجلسة «مستوردة» لو أغلب حضورها اتسجّل بالاستيراد من كشوف ورقية/إكسل (الطريقة اليدوية)
+create or replace function public.research_sess(cs uuid[], p_from timestamptz, p_to timestamptz)
+returns table(id uuid, course_id uuid, grp text, started_at timestamptz, closed_at timestamptz, kind text, imported boolean, n_att int, own int)
+language sql stable security definer set search_path = public as $$
+  select s.id, s.course_id, s.grp, s.started_at, coalesce(s.closed_at, s.ends_at), s.kind,
+         coalesce((select count(*) filter (where a.via = 'import') * 2 > count(*) from attendance a where a.session_id = s.id), false),
+         (select count(*) from attendance a where a.session_id = s.id and a.status <> 'pending')::int,
+         (select count(*) from enrollments e where e.course_id = s.course_id and (coalesce(s.grp, '') = '' or e.grp = s.grp))::int
+    from sessions s where s.course_id = any(cs) and s.started_at between p_from and p_to;
+$$;
+revoke all on function public.research_sess(uuid[], timestamptz, timestamptz) from public, anon, authenticated;
+
+create or replace function public.research_stats(p_from timestamptz, p_to timestamptz, p_courses uuid[]) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare r jsonb := '{}'::jsonb; cs uuid[];
+begin
+  if coalesce(staff_role(), '') <> 'admin' then raise exception 'not_allowed'; end if;
+  if p_from is null or p_to is null or p_to <= p_from then raise exception 'bad_range'; end if;
+  cs := coalesce(p_courses, array(
+    select distinct c.id from courses c where exists (select 1 from sessions s where s.course_id = c.id and s.started_at between p_from and p_to)
+       or exists (select 1 from tasks t where t.course_id = c.id and (t.due_at between p_from and p_to or t.created_at between p_from and p_to))));
+
+  r := r || jsonb_build_object('meta', jsonb_build_object(
+    'from', p_from, 'to', p_to, 'generated_at', now(), 'courses', cardinality(cs),
+    'levels', (select coalesce(jsonb_agg(distinct level), '[]') from courses where id = any(cs) and level is not null),
+    'students', (select count(distinct student_code) from enrollments where course_id = any(cs)),
+    'enrollments', (select count(*) from enrollments where course_id = any(cs)),
+    'staff_active', (select count(distinct x) from (select started_by x from sessions where course_id = any(cs) and started_at between p_from and p_to
+                       union select graded_by from submissions s join tasks t on t.id = s.task_id where t.course_id = any(cs) and s.graded_at between p_from and p_to) z where x is not null),
+    'staff_roles', (select coalesce(jsonb_object_agg(role, n), '{}') from (select st.role, count(*) n from staff st where st.status = 'active' and (
+                       exists (select 1 from courses c where c.id = any(cs) and c.owner_email = st.email) or exists (select 1 from course_tas t where t.course_id = any(cs) and t.email = st.email)) group by 1) q)));
+
+  -- ١) الحضور: كفاءة التسجيل
+  r := r || jsonb_build_object('attendance', (select jsonb_build_object(
+    'sessions_app', count(*) filter (where not imported), 'sessions_imported', count(*) filter (where imported),
+    'sessions_outdoor', count(*) filter (where kind = 'outdoor' and not imported),
+    'checkins', (select count(*) from attendance a join research_sess(cs, p_from, p_to) s on s.id = a.session_id where not s.imported and a.status <> 'pending'),
+    'by_method', (select coalesce(jsonb_object_agg(m, n), '{}') from (select case when a.via = 'qr' then 'qr' when a.via = 'scan' then 'scan' when a.status = 'manual' or a.via = 'manual' then 'manual' when a.via = 'import' then 'import' else 'code' end m, count(*) n
+                    from attendance a join research_sess(cs, p_from, p_to) s on s.id = a.session_id where a.status <> 'pending' group by 1) q),
+    'makeup', (select count(*) from attendance a join research_sess(cs, p_from, p_to) s on s.id = a.session_id where not s.imported and a.makeup),
+    'per_session', (select coalesce(jsonb_agg(jsonb_build_object('n', n_att, 'p50', p50, 'p90', p90, 'span', span) order by st), '[]') from (
+        select s.started_at st, s.n_att,
+          percentile_cont(.5) within group (order by extract(epoch from a.at - s.started_at)) / 60 p50,
+          percentile_cont(.9) within group (order by extract(epoch from a.at - s.started_at)) / 60 p90,
+          extract(epoch from max(a.at) - s.started_at) / 60 span
+        from research_sess(cs, p_from, p_to) s join attendance a on a.session_id = s.id and a.status <> 'pending' and coalesce(a.via, '') not in ('import', 'manual') and a.at between s.started_at and s.closed_at + interval '2 hours'
+        where not s.imported group by s.id, s.started_at, s.n_att having count(*) >= 5) q),
+    'dist_m', (select jsonb_build_object('p50', percentile_cont(.5) within group (order by a.dist), 'p90', percentile_cont(.9) within group (order by a.dist), 'n', count(*))
+                 from attendance a join research_sess(cs, p_from, p_to) s on s.id = a.session_id where not s.imported and a.dist is not null),
+    'acc_m', (select jsonb_build_object('p50', percentile_cont(.5) within group (order by a.acc), 'p90', percentile_cont(.9) within group (order by a.acc), 'n', count(*))
+                 from attendance a join research_sess(cs, p_from, p_to) s on s.id = a.session_id where not s.imported and a.acc is not null),
+    'rate', jsonb_build_object('present', coalesce(sum(n_att) filter (where not imported), 0), 'expected', coalesce(sum(own) filter (where not imported), 0),
+                               'present_imp', coalesce(sum(n_att) filter (where imported), 0), 'expected_imp', coalesce(sum(own) filter (where imported), 0))
+    ) from research_sess(cs, p_from, p_to)));
+
+  -- ٢) موثوقية الحضور: محاولات اترفضت
+  r := r || jsonb_build_object('integrity', (select jsonb_build_object(
+    'attempts_total', count(*),
+    'by_reason', (select coalesce(jsonb_object_agg(k, n), '{}') from (select case when t.reason in ('old_qr', 'old_qr_code') then 'replayed_qr' when t.reason like 'too_far%' then 'out_of_range'
+                    when t.reason = 'expired_code' then 'expired_code' when t.reason = 'wrong_code' then 'wrong_code' else 'other' end k, count(*) n
+                    from attempts t join research_sess(cs, p_from, p_to) s on s.id = t.session_id where not s.imported group by 1) q),
+    'students_with_rejections', count(distinct t.student_code),
+    'too_far_m', (select coalesce(jsonb_agg(substring(reason from 'too_far:(\d+)')::int), '[]') from attempts t2 join research_sess(cs, p_from, p_to) s2 on s2.id = t2.session_id where t2.reason like 'too_far:%' and not s2.imported)
+    ) from attempts t join research_sess(cs, p_from, p_to) s on s.id = t.session_id where not s.imported));
+
+  -- ٣) الإنذارات والتواصل
+  r := r || jsonb_build_object('warnings', jsonb_build_object(
+    'reached', (select coalesce(jsonb_object_agg(level, n), '{}') from (select level, count(*) n from warning_notices where course_id = any(cs) group by 1) q),
+    'seen', (select count(*) from warning_notices where course_id = any(cs) and seen_at is not null),
+    'announced', (select count(*) from warning_announced where course_id = any(cs) and announced_at between p_from and p_to),
+    'notifications', (select jsonb_build_object('sent', count(*), 'read', count(*) filter (where read_at is not null),
+                        'read_p50_h', extract(epoch from percentile_cont(.5) within group (order by read_at - created_at)) / 3600)
+                      from notifications n where n.created_at between p_from and p_to and n.student_code not like 'staff:%'
+                        and exists (select 1 from enrollments e where e.student_code = n.student_code and e.course_id = any(cs))),
+    'push_students', (select count(distinct p.student_code) from push_subs p where exists (select 1 from enrollments e where e.student_code = p.student_code and e.course_id = any(cs)))));
+
+  -- ٤) التسليم وسلامة الملفات
+  r := r || jsonb_build_object('submissions', (select jsonb_build_object(
+    'tasks', (select count(*) from tasks t where t.course_id = any(cs) and t.mode = 'submit' and t.due_at between p_from and p_to),
+    'tasks_manual', (select count(*) from tasks t where t.course_id = any(cs) and t.mode <> 'submit' and coalesce(t.due_at, t.created_at) between p_from and p_to),
+    'expected', (select count(*) from tasks t join enrollments e on e.course_id = t.course_id and (coalesce(t.grp, '') = '' or e.grp = t.grp) where t.course_id = any(cs) and t.mode = 'submit' and t.due_at between p_from and p_to),
+    'submitted', count(*), 'late', count(*) filter (where s.late), 'resubmitted', count(*) filter (where s.version > 1),
+    'kind', jsonb_build_object('drive', count(*) filter (where s.kind = 'drive'), 'link', count(*) filter (where s.kind <> 'drive')),
+    'lead_h', jsonb_build_object('p50', extract(epoch from percentile_cont(.5) within group (order by t.due_at - s.submitted_at)) / 3600,
+                                  'p25', extract(epoch from percentile_cont(.25) within group (order by t.due_at - s.submitted_at)) / 3600,
+                                  'p75', extract(epoch from percentile_cont(.75) within group (order by t.due_at - s.submitted_at)) / 3600),
+    'hour_of_day', (select coalesce(jsonb_object_agg(h, n), '{}') from (select extract(hour from s2.submitted_at at time zone 'Africa/Cairo')::int h, count(*) n from submissions s2 join tasks t2 on t2.id = s2.task_id
+                     where t2.course_id = any(cs) and t2.mode = 'submit' and s2.submitted_at between p_from and p_to group by 1) q),
+    'checks', jsonb_build_object('checked', count(*) filter (where s.check_state is not null), 'ok', count(*) filter (where s.check_state = 'ok'),
+                                 'changed', count(*) filter (where s.check_state in ('changed', 'modified')), 'missing', count(*) filter (where s.check_state = 'missing'),
+                                 'with_md5', count(*) filter (where s.md5 is not null)),
+    'fix', jsonb_build_object('requested', count(*) filter (where s.fix_at is not null), 'done', count(*) filter (where s.fix_done_at is not null),
+                              'match', count(*) filter (where s.fix_match), 'p50_h', extract(epoch from percentile_cont(.5) within group (order by s.fix_done_at - s.fix_at)) / 3600),
+    'extensions', (select count(*) from task_extensions x join tasks t3 on t3.id = x.task_id where t3.course_id = any(cs) and x.at between p_from and p_to),
+    'petitions', (select coalesce(jsonb_object_agg(k, n), '{}') from (select p.kind || '/' || p.status k, count(*) n from submit_petitions p join tasks t4 on t4.id = p.task_id where t4.course_id = any(cs) and p.created_at between p_from and p_to group by 1) q)
+    ) from submissions s join tasks t on t.id = s.task_id where t.course_id = any(cs) and t.mode = 'submit' and s.submitted_at between p_from and p_to));
+
+  -- ٥) التصحيح والتغذية الراجعة
+  r := r || jsonb_build_object('grading', (with g as (
+      select s.graded_by, s.graded_at, s.feedback, s.submitted_at, t.due_at, t.mode, t.released,
+             lag(s.graded_at) over (partition by s.graded_by order by s.graded_at) prev
+        from submissions s join tasks t on t.id = s.task_id where t.course_id = any(cs) and s.graded_at between p_from and p_to and s.grade is not null)
+    select jsonb_build_object(
+      'graded', count(*), 'graded_submit', count(*) filter (where mode = 'submit'), 'graded_manual', count(*) filter (where mode <> 'submit'),
+      'with_feedback', count(*) filter (where length(trim(coalesce(feedback, ''))) > 0),
+      'graders', count(distinct graded_by),
+      'turnaround_h', (select jsonb_build_object('p25', extract(epoch from percentile_cont(.25) within group (order by d)) / 3600, 'p50', extract(epoch from percentile_cont(.5) within group (order by d)) / 3600,
+                         'p75', extract(epoch from percentile_cont(.75) within group (order by d)) / 3600, 'n', count(*))
+                       from (select graded_at - greatest(submitted_at, due_at) d from g where mode = 'submit' and submitted_at is not null and graded_at > greatest(submitted_at, due_at)) q),
+      'sec_per_grade', (select jsonb_build_object('p25', percentile_cont(.25) within group (order by x), 'p50', percentile_cont(.5) within group (order by x), 'p75', percentile_cont(.75) within group (order by x), 'n', count(*))
+                        from (select extract(epoch from graded_at - prev) x from g where prev is not null) q where x between 2 and 600),
+      'bulk', (select count(*) from (select graded_by, graded_at from g group by 1, 2 having count(*) >= 5) q),
+      'bulk_rows', (select coalesce(sum(n), 0) from (select count(*) n from g group by graded_by, graded_at having count(*) >= 5) q)
+    ) from g));
+
+  -- ٦) التظلمات والعدالة
+  r := r || jsonb_build_object('appeals', (select jsonb_build_object(
+      'total', count(*), 'by', (select coalesce(jsonb_object_agg(k, n), '{}') from (select a2.reason || '/' || a2.status k, count(*) n from grade_appeals a2 join tasks t2 on t2.id = a2.task_id where t2.course_id = any(cs) and a2.created_at between p_from and p_to group by 1) q),
+      'decide_p50_h', extract(epoch from percentile_cont(.5) within group (order by a.decided_at - a.created_at) filter (where a.decided_at is not null and a.status in ('accepted', 'rejected'))) / 3600,
+      'delta', (select jsonb_build_object('n', count(*), 'mean', avg(new_grade - coalesce(old_grade, 0))) from grade_appeals a3 join tasks t3 on t3.id = a3.task_id where t3.course_id = any(cs) and a3.created_at between p_from and p_to and a3.status = 'accepted' and a3.new_grade is not null)
+    ) from grade_appeals a join tasks t on t.id = a.task_id where t.course_id = any(cs) and a.created_at between p_from and p_to));
+
+  -- ٧) عبء العمل وتوقيته (من سجل التعديلات + بدء المحاضرات + الرصد)
+  r := r || jsonb_build_object('workload', (with ev as (
+      select at from audit where course_id = any(cs) and at between p_from and p_to
+      union all select started_at from sessions where course_id = any(cs) and started_at between p_from and p_to
+      union all select s.graded_at from submissions s join tasks t on t.id = s.task_id where t.course_id = any(cs) and s.graded_at between p_from and p_to)
+    select jsonb_build_object('events', count(*),
+      'after_hours', count(*) filter (where extract(hour from at at time zone 'Africa/Cairo') not between 8 and 16 or extract(dow from at at time zone 'Africa/Cairo') = 5),
+      'weekday', (select coalesce(jsonb_object_agg(d, n), '{}') from (select extract(dow from at at time zone 'Africa/Cairo')::int d, count(*) n from ev group by 1) q),
+      'audit_by_role', (select coalesce(jsonb_object_agg(k, n), '{}') from (select coalesce(st.role, 'system') k, count(*) n from audit a left join staff st on st.email = a.actor where a.course_id = any(cs) and a.at between p_from and p_to group by 1) q)
+    ) from ev));
+
+  -- ٨) الدعم والمساعدة
+  r := r || jsonb_build_object('support', jsonb_build_object(
+    'tickets', (select coalesce(jsonb_object_agg(k, n), '{}') from (select sender_kind || '/' || category k, count(*) n from tickets where created_at between p_from and p_to group by 1) q),
+    'faq', (select jsonb_build_object('asked', count(*), 'answered', count(*) filter (where hits > 0), 'escalated', count(*) filter (where escalated)) from faq_log where at between p_from and p_to)));
+  return r;
+end $$;
+revoke all on function public.research_stats(timestamptz, timestamptz, uuid[]) from public, anon;
+grant execute on function public.research_stats(timestamptz, timestamptz, uuid[]) to authenticated;

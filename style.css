@@ -2546,3 +2546,16 @@ header.top details.dd[open]{ position: relative; z-index: 5; }
   .dh-chips .cpk-pop, html[data-skin="nx"] .dh-chips .cpk-pop{ position: absolute !important; top: calc(100% + 8px) !important; bottom: auto !important; inset-inline: 0 !important; width: auto !important; max-height: 60vh; overflow: auto; z-index: 70 !important; border-radius: 20px; }
   .dh-chips .cpk-pop .cchips{ flex-wrap: wrap; }
 }
+
+/* ===================== b118: تقارير البحث العلمي ===================== */
+.rs-form{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 14px; margin: 12px 0; }
+.rs-form .f > span small{ font-weight: 400; }
+.rs-cs{ margin-bottom: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; }
+.rs-cs summary{ cursor: pointer; font-weight: 600; }
+.rs-cl{ display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 14px; margin: 10px 0; max-height: 280px; overflow: auto; }
+.rs-cl label{ display: flex; gap: 6px; align-items: baseline; font-size: .9rem; }
+.rs-ks{ display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 14px 0 8px; }
+.rs-k{ display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); }
+.rs-k > span{ font-size: .82rem; color: var(--muted); }
+.rs-k > b{ font-family: var(--f-display); font-size: 1.6rem; line-height: 1.2; }
+.rs-k > small{ font-size: .76rem; color: var(--muted); }

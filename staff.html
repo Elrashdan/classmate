@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b117">
+<link rel="stylesheet" href="style.css?v=b118">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,15 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b117"></script>
-<script src="vendor/qrcode.js?v=b117"></script>
-<script src="config.js?v=b117"></script>
-<script src="common.js?v=b117"></script>
-<script src="drive.js?v=b117"></script>
-<script src="pack.js?v=b117"></script>
-<script src="catalog.js?v=b117"></script>
-<script src="voice.js?v=b117"></script>
-<script src="timetable.js?v=b117"></script>
+<script src="vendor/supabase.js?v=b118"></script>
+<script src="vendor/qrcode.js?v=b118"></script>
+<script src="config.js?v=b118"></script>
+<script src="common.js?v=b118"></script>
+<script src="drive.js?v=b118"></script>
+<script src="pack.js?v=b118"></script>
+<script src="catalog.js?v=b118"></script>
+<script src="voice.js?v=b118"></script>
+<script src="timetable.js?v=b118"></script>
+<script src="research.js?v=b118"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -826,7 +827,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b117: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b118: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -4370,7 +4371,7 @@
   }
 
   /* ======================= admin ======================= */
-  let atab = ["requests", "inbox", "staff", "courses", "report", "log"].includes(store.get("cm_atab")) ? store.get("cm_atab") : "staff";
+  let atab = ["requests", "inbox", "staff", "courses", "report", "log", "research"].includes(store.get("cm_atab")) ? store.get("cm_atab") : "staff";
   let deptOv = null, deptOvAt = 0;
   // «المواد»: مين بياخد الغياب في كل مادة، آخر محاضرة، متوسط الحضور، والتكليفات اللي اترصد فيها درجات (للمسؤول ورئيس القسم)
   function deptCoursesHtml() {
@@ -4392,6 +4393,7 @@
   let adminReqs = [], adminTks = [], inboxF = "open", inboxOpen = null, rqRole = {}, faqStats = null, faqDays = 30;
   let tmpPw = null;
   async function renderAdmin() { ldOn(); try { return await renderAdmin0(); } finally { ldOff(); } }
+  function openResearch() { const a = $("#rsArea"); if (a && window.RS && !a.childElementCount) RS.open(a, { rpc: (f, x) => rpc(f, x), courses, clsLabel, errText, loadExcelJS, saveWb }); }
   async function renderAdmin0() {
     const el = $("#adminArea");
     const au = await sb.from("audit").select("*").order("at", { ascending: false }).limit(40);
@@ -4402,7 +4404,7 @@
     if (view !== "admin" || !el || !el.isConnected) return;   // المستخدم خرج من اللوحة قبل ما التحميل يخلص
     adminReqs = rqR || []; adminTks = tkR || []; faqStats = fq;
     const nReq = adminReqs.filter(r => r.status === "pending").length, nTk = adminTks.filter(t => t.admin_unread || t.unread).length;
-    const AT = [["requests", "طلبات التسجيل" + (nReq ? ` <b class="tb">${nReq}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M18 8v6M15 11h6"/></svg>`], ["inbox", "الرسائل" + (nTk ? ` <b class="tb">${nTk}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>`], ["staff", "الحسابات", CTABS[4][2]], ["courses", "المواد", CTABS[2][2]], ["report", "تقرير الإنذارات", CTABS[3][2]], ["log", "السجل", CTABS[5][2]]].filter(x => !H || ["courses", "report", "log"].includes(x[0]));
+    const AT = [["requests", "طلبات التسجيل" + (nReq ? ` <b class="tb">${nReq}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M18 8v6M15 11h6"/></svg>`], ["inbox", "الرسائل" + (nTk ? ` <b class="tb">${nTk}</b>` : ""), `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>`], ["staff", "الحسابات", CTABS[4][2]], ["courses", "المواد", CTABS[2][2]], ["report", "تقرير الإنذارات", CTABS[3][2]], ["log", "السجل", CTABS[5][2]], ["research", "البحث العلمي", `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6A2 2 0 0 0 19 18l-5-9V3"/><path d="M7.5 14h9"/></svg>`]].filter(x => (!H || ["courses", "report", "log"].includes(x[0])) && (x[0] !== "research" || me.role === "admin"));
     el.innerHTML = `<nav class="ctabs admin" role="tablist" aria-label="${H ? "متابعة القسم" : "لوحة المسؤول"}">${AT.map(([k, t, ic]) => `<button role="tab" data-at="${k}" aria-selected="${atab === k}">${ic}<span class="l">${t}</span></button>`).join("")}</nav>
       ${(() => { const need = courses.filter(c => c.auto_created && !c.archived && !tasAll.some(x => x.course_id === c.id)); return need.length ? `<section class="panel" data-apane="courses" ${atab === "courses" ? "" : "hidden"}>
         <div class="panel-h"><div><div class="eyebrow">أنشأها النظام من استمارات تسجيل الطلبة</div><h2>مواد تحتاج إلى فريق (${need.length})</h2></div></div>
@@ -4442,11 +4444,13 @@
           ${report.map(x => `<tr><td class="nm">${esc(x.e.name)}<div class="mono muted small">${esc(x.e.student_code)}</div></td><td>${esc(x.c.name)}<div class="muted small">${esc(clsLabel(x.c))}</div></td><td>${esc(staffName(x.c.owner_email))}</td><td class="c mono">${x.ab}</td><td>${CM.warnChip(x.ab)}</td></tr>`).join("")}
           </tbody></table></div>` : `<div class="empty">لا يوجد طلبة لديهم إنذار ثالث أو انسحاب.</div>`) : `<p class="muted small">يشمل التقرير جميع المواد، لذا يُحسب عند الطلب.</p>`}
       </section>
+      ${me.role === "admin" ? `<section class="panel" data-apane="research" ${atab === "research" ? "" : "hidden"}><div id="rsArea"></div></section>` : ""}
       <section class="panel" data-apane="log" ${atab === "log" ? "" : "hidden"}><div class="panel-h"><div><div class="eyebrow">آخر التعديلات في كل المواد</div><h2>سجل التعديلات</h2></div></div>${auditList(au.data || [], true)}</section>`;
     document.body.classList.add("has-ctabs");
     wireAdminReq(el); wireAdminInbox(el);
     el.querySelectorAll("[data-autoc]").forEach(b => b.onclick = () => { curId = b.dataset.autoc; store.set("cm_course", curId); fYear = "all"; fTerm = "all"; ctab = "team"; store.set("cm_tab", ctab); view = "course"; flash = {}; loadCourse().catch(showErr); });
-    el.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { atab = b.dataset.at; store.set("cm_atab", atab); el.querySelectorAll("[data-at]").forEach(x => x.setAttribute("aria-selected", x.dataset.at === atab)); el.querySelectorAll("[data-apane]").forEach(p => p.hidden = p.dataset.apane !== atab); if ((atab === "inbox" && !faqStats) || (atab === "courses" && !deptOv)) renderAdmin(); });
+    el.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { atab = b.dataset.at; store.set("cm_atab", atab); el.querySelectorAll("[data-at]").forEach(x => x.setAttribute("aria-selected", x.dataset.at === atab)); el.querySelectorAll("[data-apane]").forEach(p => p.hidden = p.dataset.apane !== atab); if (atab === "research") openResearch(); if ((atab === "inbox" && !faqStats) || (atab === "courses" && !deptOv)) renderAdmin(); });
+    if (atab === "research") openResearch();
     el.querySelectorAll("[data-sus]").forEach(b => b.onclick = () => act(async () => { await rpc("admin_set_status", { p_email: b.dataset.sus, p_status: b.dataset.to }); say("admin", (b.dataset.to === "suspended" ? "أُوقف حساب " : "فُعِّل حساب ") + staffName(b.dataset.sus) + "."); }, async () => { await loadBase(); renderAdmin(); }));
     el.querySelectorAll("[data-tpw]").forEach(b => b.onclick = () => act(async () => {
       if (!confirm("إعطاء " + staffName(b.dataset.tpw) + " كلمة سر مؤقتة؟ ستتوقف كلمة سره الحالية إن كانت له واحدة.")) return;

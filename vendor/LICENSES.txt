@@ -242,3 +242,6 @@ SOFTWARE.
    See the License for the specific language governing permissions and
    limitations under the License.
 
+
+
+--- docx (vendor/docx.js) v8.5.0 — MIT License — Copyright (c) 2016 Dolan Miu — https://github.com/dolanmiu/docx
