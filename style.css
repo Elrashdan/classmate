@@ -2489,3 +2489,23 @@ html[data-skin="nx"] :is(.dh-card, .st-card, .st-gr)::before{ background: radial
 /* b113: كارت التظلم اللي اتفتح من الإشعار */
 .ap-c.ap-hit{ animation: apHit 2.4s ease-out; }
 @keyframes apHit{ 0%,30%{ box-shadow: 0 0 0 3px var(--accent), 0 0 0 9px var(--accent-soft); } 100%{ box-shadow: 0 0 0 0 transparent; } }
+/* b114: الشريط اللي فوق ثابت في كل الصفحات (حتى جوه المادة والتكليفات) */
+body.has-ctabs header.top, body header.top{ position: sticky; top: 8px; z-index: 45; }
+@media (max-width: 760px){ body header.top{ top: 6px; } }
+@media (max-width: 760px){
+  header.top{ transition: padding .2s; }
+  html.hd-sc header.top .brand p, html.hd-sc header.top .brand .muted{ display: none; }
+  html.hd-sc header.top .top-q:not(:focus-within){ display: none; }
+  html.hd-sc header.top .brand .wm, html.hd-sc header.top .st-hi{ font-size: 1.05rem; }
+  html.hd-sc header.top .brand .mark, html.hd-sc header.top .brand > svg:first-child{ transform: scale(.85); }
+}
+@media (max-width: 760px){
+  html.hd-sc header.top{ flex-wrap: nowrap; padding-block: 6px; }
+  html.hd-sc header.top > .row{ flex-wrap: nowrap; gap: 4px; min-width: 0; }
+  html.hd-sc header.top > .row .btn, html.hd-sc header.top > .row summary.btn{ min-height: 38px; height: 38px; padding-inline: 8px; }
+  html.hd-sc header.top .brand .wm{ display: none; }
+  html.hd-sc header.top .st-hi{ max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+/* b114: خانة البحث: إطار واحد بس لما تدوس عليها (من غير إطار جوه إطار) */
+html header.top .top-q input[type="search"], html header.top .top-q input[type="search"]:focus, html[data-skin="nx"] header.top .top-q input[type="search"]:focus{ border: 0 !important; box-shadow: none !important; outline: none !important; background: transparent !important; border-radius: 0 !important; }
+html[data-skin="nx"] .top-q label:focus-within{ border-color: var(--ink); box-shadow: 0 0 0 3px var(--tint); }
