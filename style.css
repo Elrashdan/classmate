@@ -2625,3 +2625,11 @@ html.cg-lock, html.cg-lock body{ overflow: hidden; }
 .fix-l .btn small{ opacity: .75; font-weight: 500; }
 .fix-l .btn > span{ display: flex; flex-direction: column; gap: 2px; }
 .fix-l .btn em{ font-style: normal; font-weight: 700; flex: none; }
+
+/* طالب جديد: خطوات التسجيل بالاستمارة */
+.rf-steps{list-style:none;display:flex;gap:6px;padding:0;margin:4px 0 12px;counter-reset:rfs;flex-wrap:wrap}
+.rf-steps li{counter-increment:rfs;flex:1 1 0;min-width:96px;display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);padding:6px 8px;border-radius:10px;border:1px solid var(--line)}
+.rf-steps li::before{content:counter(rfs);display:grid;place-items:center;flex:none;width:20px;height:20px;border-radius:50%;background:var(--line);color:var(--ink,inherit);font-weight:700;font-size:11px}
+.rf-steps li.on{color:var(--ink,inherit);font-weight:600;border-color:var(--accent)}
+.rf-steps li.on::before{background:var(--accent);color:var(--accent-ink,#fff)}
+.rf-steps li.ok::before{content:"✓";background:var(--ok,#2f855a);color:#fff}
