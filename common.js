@@ -654,7 +654,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b122)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b123)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
@@ -699,9 +699,24 @@
 
 // b114: الشريط اللي فوق ثابت؛ على الموبايل بيصغر لما تنزل بالصفحة (بيخبّي خانة البحث والسطر الصغير تحت الاسم)
 (function () {
-  let t = false; const R = document.documentElement;
-  const f = () => { t = false; R.classList.toggle("hd-sc", scrollY > 40); };
+  // b123: كان بيرعش: لما الشريط يصغر الصفحة كلها بتطلع لفوق، فالسكرول يرجع تحت الحد فيكبر تاني… وهكذا.
+  // الحل: (1) الفرق في الطول بيتعوّض بمسافة تحت الشريط، فمحتوى الصفحة مابيتحركش خالص لما يصغر أو يكبر
+  //        (2) حد للتصغير وحد تاني أقل بكتير للتكبير، فمفيش تذبذب عند نقطة واحدة.
+  let t = false, on = false; const R = document.documentElement, ON = 72, OFF = 12;
+  const hd = () => document.querySelector("header.top");
+  const set = v => {
+    const h = hd(); on = v;
+    if (!h || !matchMedia("(max-width: 760px)").matches) { R.classList.toggle("hd-sc", v); if (h) h.style.marginBottom = ""; return; }
+    const tr = h.style.transition; h.style.transition = "none"; h.style.marginBottom = "";
+    const h0 = h.offsetHeight; R.classList.toggle("hd-sc", v); const h1 = h.offsetHeight;
+    h.style.marginBottom = v && h0 > h1 ? (parseFloat(getComputedStyle(h).marginBottom) || 0) + (h0 - h1) + "px" : "";
+    h.dataset.sc = v ? "1" : ""; void h.offsetHeight; h.style.transition = tr;
+  };
+  // الشريط بيتبني من جديد مع كل تحديث للصفحة، فلو اتبنى وهو صغير نعوّض المسافة تاني
+  const f = () => { t = false; const y = scrollY, h = hd(); if (!on && y > ON) set(true); else if (on && y < OFF) set(false); else if (on && h && !h.dataset.sc) { R.classList.remove("hd-sc"); set(true); } };
+  new MutationObserver(() => { const h = hd(); if (on && h && !h.dataset.sc) { R.classList.remove("hd-sc"); set(true); } }).observe(document.body || R, { childList: true, subtree: true });
   addEventListener("scroll", () => { if (!t) { t = true; requestAnimationFrame(f); } }, { passive: true });
+  addEventListener("resize", () => { if (on) { set(false); set(scrollY > ON); } }, { passive: true });
 })();
 
 /* ===================== b119: سياسة الاستخدام (موافقة إلزامية) + استطلاع الرأي ===================== */
