@@ -2603,3 +2603,11 @@ html.cg-lock, html.cg-lock body{ overflow: hidden; }
 .rs-box h3{ font-size: 1.05rem; }
 .rs-sv{ display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 12px; background: var(--sunk); }
 .rs-tbl td, .rs-tbl th{ font-size: .86rem; }
+/* b120: تنبيه الملفات المطلوب إعادة رفعها في رئيسية الطالب */
+.fix-alert{ display: grid; gap: 8px; }
+.fix-alert b{ font-size: 1.02rem; }
+.fix-l{ display: grid; gap: 6px; }
+.fix-l .btn{ justify-content: space-between; text-align: start; min-height: 46px; white-space: normal; }
+.fix-l .btn small{ opacity: .75; font-weight: 500; }
+.fix-l .btn > span{ display: flex; flex-direction: column; gap: 2px; }
+.fix-l .btn em{ font-style: normal; font-weight: 700; flex: none; }

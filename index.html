@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b119">
+<link rel="stylesheet" href="style.css?v=b120">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b119"></script>
-<script src="config.js?v=b119"></script>
-<script src="common.js?v=b119"></script>
-<script src="drive.js?v=b119"></script>
-<script src="catalog.js?v=b119"></script>
-<script src="regform.js?v=b119"></script>
+<script src="vendor/qrcode.js?v=b120"></script>
+<script src="config.js?v=b120"></script>
+<script src="common.js?v=b120"></script>
+<script src="drive.js?v=b120"></script>
+<script src="catalog.js?v=b120"></script>
+<script src="regform.js?v=b120"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -733,7 +733,7 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b119: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  /* b120: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
   let stab = ["home", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };
@@ -770,6 +770,14 @@
           <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap">التظلم على الدرجة مفتوح${win.until ? " لحد " + esc(new Date(win.until).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })) : ""}</span>` : ""}</button>`; }).join("")
       : `<div class="empty">لسه مفيش درجات اتعلنت ليك.</div>`}</section>`;
   }
+  // ملفات طلب الفريق إعادة رفعها: تنبيه واضح فوق في الرئيسية لحد ما الطالب يرفعها
+  function fixAlert() {
+    const l = (tasks || []).filter(t => t.mine && t.mine.fix && home.courses.some(c => c.id === t.course_id)); if (!l.length) return "";
+    const cn = t => (home.courses.find(c => c.id === t.course_id) || {}).name || "";
+    return `<section class="msg bad fix-alert"><b>${l.length === 1 ? "في ملف محتاج تعيد رفعه" : "في " + l.length + " ملفات محتاجة تعيد رفعها"}</b>
+      <span class="small">فريق المادة طلب منك تعيد رفع ${l.length === 1 ? "الملف ده" : "الملفات دي"}. افتح التكليف وارفع صورة المشروع تاني، والتسليم مفتوح لك لحد ما ترفعه.</span>
+      <div class="fix-l">${l.map(t => `<button class="btn sm" data-task="${t.id}"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}${t.mine.fix_reason ? " · " + esc(t.mine.fix_reason) : ""}</small></span><em>رفع ←</em></button>`).join("")}</div></section>`;
+  }
   function stNav() {
     const T = [["home", "الرئيسية", '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>'], ["grades", "درجاتي", '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'], ["tt", "جدولي", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>']];
     return `<nav class="st-nav" aria-label="التنقل">${T.map(([k, l, d]) => `<button type="button" class="${stab === k ? "on" : ""}" data-stab="${k}" data-ia="${k}" ${stab === k ? `aria-current="page"` : ""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg><span>${l}</span></button>`).join("")}</nav>`;
@@ -782,6 +790,7 @@
     const tab = stab === "grades" ? stGrades() : stab === "tt" ? (myTT && myTT.slots.length ? ttHtml(true) : `<section class="st-sec"><div class="st-h"><h2>جدولي</h2></div><div class="empty">${myTT === null ? "مفيش جدول دراسي منشور لدفعتك لسه." : "مفيش محاضرات ليك في الجدول."}</div></section>`) : `
         ${nowHtml()}
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
+        ${fixAlert()}
         ${home.courses.length ? stCourses(sel) + (sel ? stMeter(sel) : "") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. أضف موادك من استمارة التسجيل بالزر بالأسفل، أو تواصل مع المحاضر.</div>`}
         ${tasksOverview()}
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
@@ -865,6 +874,7 @@
   const presTxt = t => new Date(t.present_day + "T12:00:00").toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
   function tkState(t) {
     const m = t.mine || {}, past = new Date(t.due_at).getTime() < nowS();
+    if (m.fix) return ["bad", "مشكلة في ملفك · أعد رفعه"];
     if (m.rejected) return ["bad", "مرفوض · توجّه لأستاذ المادة"];
     if (m.grade != null) return ["ok", "الدرجة " + gNum(tot(m)) + " من " + gNum(t.max)];
     if (t.mode === "manual") return ["none", "رصد يدوي"];
@@ -879,7 +889,7 @@
   // تصنيف التكليف عند الطالب: todo مطلوب منه · done سلّمه ومستني التصحيح · graded ليه درجة · wait هيترصد من المحاضر · missed فات
   function tkCat(t) {
     const m = t.mine || {}, past = new Date(t.due_at).getTime() < nowS();
-    if (m.rejected) return "todo";
+    if (m.fix || m.rejected) return "todo";
     if (m.grade != null) return "graded";
     if (t.mode === "manual") return "wait";
     if (m.graded || m.submitted_at) return "done";
