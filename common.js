@@ -654,7 +654,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b123)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b124)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
@@ -704,19 +704,33 @@
   //        (2) حد للتصغير وحد تاني أقل بكتير للتكبير، فمفيش تذبذب عند نقطة واحدة.
   let t = false, on = false; const R = document.documentElement, ON = 72, OFF = 12;
   const hd = () => document.querySelector("header.top");
-  const set = v => {
+  // b124: التصغير والتكبير بأنيميشن ناعم: طول الشريط بيتحرك تدريجيًا، والمسافة اللي تحته بتتحرك بنفس السرعة بالعكس،
+  //        فمجموعهم ثابت في كل لحظة والصفحة مابتتحركش خالص؛ ومحتوى الشريط بيظهر بـ fade خفيف.
+  let full = 0, anim = null;
+  const set = (v, quick) => {
     const h = hd(); on = v;
     if (!h || !matchMedia("(max-width: 760px)").matches) { R.classList.toggle("hd-sc", v); if (h) h.style.marginBottom = ""; return; }
-    const tr = h.style.transition; h.style.transition = "none"; h.style.marginBottom = "";
-    const h0 = h.offsetHeight; R.classList.toggle("hd-sc", v); const h1 = h.offsetHeight;
-    h.style.marginBottom = v && h0 > h1 ? (parseFloat(getComputedStyle(h).marginBottom) || 0) + (h0 - h1) + "px" : "";
+    if (anim) { anim.cancel(); anim = null; }
+    const tr = h.style.transition; h.style.transition = "none";
+    const h0 = h.offsetHeight, mi = h.style.marginBottom ? parseFloat(h.style.marginBottom) : null;
+    h.style.marginBottom = ""; const base = parseFloat(getComputedStyle(h).marginBottom) || 0, m0 = mi == null ? 0 : mi - base;
+    if (!v) { R.classList.remove("hd-sc"); full = h.offsetHeight; }
+    else { if (!R.classList.contains("hd-sc")) full = h.offsetHeight; R.classList.add("hd-sc"); }
+    const h1 = h.offsetHeight, m1 = v ? Math.max(0, full - h1) : 0;
+    h.style.marginBottom = m1 ? base + m1 + "px" : "";
     h.dataset.sc = v ? "1" : ""; void h.offsetHeight; h.style.transition = tr;
+    const red = matchMedia("(prefers-reduced-motion: reduce)").matches || R.dataset.motion === "off";
+    if (quick || red || !h.animate || Math.abs(h0 - h1) < 2) return;
+    const ease = "cubic-bezier(.22,.8,.24,1)", dur = 320;
+    anim = h.animate([{ height: h0 + "px", marginBottom: base + m0 + "px", overflow: "hidden" }, { height: h1 + "px", marginBottom: base + m1 + "px", overflow: "hidden" }], { duration: dur, easing: ease });
+    anim.onfinish = () => { anim = null; };
+    [...h.children].forEach(c => c.animate && c.animate([{ opacity: 0, transform: `translateY(${v ? 6 : -6}px)` }, { opacity: 1, transform: "none" }], { duration: 260, delay: 40, easing: ease, fill: "backwards" }));
   };
   // الشريط بيتبني من جديد مع كل تحديث للصفحة، فلو اتبنى وهو صغير نعوّض المسافة تاني
-  const f = () => { t = false; const y = scrollY, h = hd(); if (!on && y > ON) set(true); else if (on && y < OFF) set(false); else if (on && h && !h.dataset.sc) { R.classList.remove("hd-sc"); set(true); } };
-  new MutationObserver(() => { const h = hd(); if (on && h && !h.dataset.sc) { R.classList.remove("hd-sc"); set(true); } }).observe(document.body || R, { childList: true, subtree: true });
+  const f = () => { t = false; const y = scrollY, h = hd(); if (!on && y > ON) set(true); else if (on && y < OFF) set(false); else if (on && h && !h.dataset.sc) { R.classList.remove("hd-sc"); set(true, true); } };
+  new MutationObserver(() => { const h = hd(); if (on && h && !h.dataset.sc) { R.classList.remove("hd-sc"); set(true, true); } }).observe(document.body || R, { childList: true, subtree: true });
   addEventListener("scroll", () => { if (!t) { t = true; requestAnimationFrame(f); } }, { passive: true });
-  addEventListener("resize", () => { if (on) { set(false); set(scrollY > ON); } }, { passive: true });
+  addEventListener("resize", () => { if (on) { set(false, true); set(scrollY > ON, true); } }, { passive: true });
 })();
 
 /* ===================== b119: سياسة الاستخدام (موافقة إلزامية) + استطلاع الرأي ===================== */
