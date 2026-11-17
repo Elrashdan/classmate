@@ -6690,3 +6690,80 @@ revoke all on function public.staff_gate(), public.staff_policy_accept(int), pub
 grant execute on function public.staff_gate(), public.staff_policy_accept(int), public.staff_survey_submit(uuid, jsonb, boolean, boolean, int), public.admin_survey_start(text, boolean), public.admin_survey_close(uuid),
   public.admin_surveys(), public.admin_survey_responses(uuid), public.research_session_roster(uuid), public.research_sessions(uuid), public.research_validation_save(uuid, int, int, int, int, numeric, text),
   public.research_validations(timestamptz, timestamptz) to authenticated;
+
+-- ===================== update-68: تعديل تاريخ المحاضرة من الكشف + محاضرة «إجازة / اتلغت» مابتتحسبش في الغياب =====================
+alter table public.sessions add column if not exists cancelled text;   -- null = محاضرة عادية، غير كده = سبب الإلغاء (إجازة رسمية…)
+
+-- كل حساب للغياب يتجاهل المحاضرات الملغية
+do $do$
+declare r record; f text; o text;
+begin
+  for r in select p.oid from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('absent_on_due', 'course_absences', 'student_home', 'dept_overview', 'research_sess') loop
+    f := pg_get_functiondef(r.oid); o := f;
+    if position('cancelled is null' in f) > 0 then continue; end if;
+    f := regexp_replace(f, '\((\w+)\.ended or \1\.closed_at is not null or now\(\) >= \1\.ends_at\)', '(\1.cancelled is null and (\1.ended or \1.closed_at is not null or now() >= \1.ends_at))', 'g');
+    f := replace(f, 's.grp is not null and s.grp <> e.grp', 's.grp is not null and s.grp <> e.grp and s.cancelled is null');
+    f := replace(f, 's.course_id = c.id and s.ended)', 's.course_id = c.id and s.ended and s.cancelled is null)');
+    f := replace(f, 'from sessions s where s.course_id = any(cs) and s.started_at between p_from and p_to', 'from sessions s where s.course_id = any(cs) and s.cancelled is null and s.started_at between p_from and p_to');
+    if f = o then raise exception 'no pattern in %', r.oid::regprocedure; end if;
+    execute f;
+  end loop;
+end $do$;
+
+create or replace function public.renumber_sessions(cid uuid) returns void
+language sql security definer set search_path = public as $$
+  update sessions x set n = r.rn
+    from (select id, row_number() over (order by started_at, id) as rn from sessions where course_id = cid) r
+    where x.id = r.id and x.n is distinct from r.rn;
+$$;
+revoke all on function public.renumber_sessions(uuid) from public, anon, authenticated;
+
+-- تعديل تاريخ المحاضرة (بنفس الساعة) و/أو تعليمها كإجازة أو ملغية
+create or replace function public.session_edit(sid uuid, p_date date, p_cancel text) returns json
+language plpgsql security definer set search_path = public as $$
+declare s sessions; d int; c text := nullif(trim(coalesce(p_cancel, '')), ''); n2 int;
+begin
+  select * into s from sessions where id = sid for update;
+  if s.id is null then raise exception 'not_found'; end if;
+  if course_role(s.course_id) is distinct from 'owner' then raise exception 'not_allowed'; end if;
+  if p_date is not null then
+    d := p_date - (s.started_at at time zone 'Africa/Cairo')::date;
+    if d <> 0 then
+      if not s.ended and s.closed_at is null and now() < s.ends_at then raise exception 'session_running'; end if;
+      if p_date > (now() at time zone 'Africa/Cairo')::date and c is null then raise exception 'bad_date'; end if;
+      update sessions set started_at = started_at + make_interval(days => d), ends_at = ends_at + make_interval(days => d),
+                          closed_at = closed_at + make_interval(days => d) where id = sid;
+      perform renumber_sessions(s.course_id);
+    end if;
+  end if;
+  if c is distinct from s.cancelled then
+    if c is not null and not s.ended and s.closed_at is null and now() < s.ends_at then
+      update sessions set ended = true, closed_at = now() where id = sid;   -- محاضرة شغالة اتلغت: نقفلها
+    end if;
+    update sessions set cancelled = left(c, 120) where id = sid;
+  end if;
+  select n into n2 from sessions where id = sid;
+  perform log_audit(s.course_id, 'عدّل المحاضرة ' || s.n || coalesce(' (مجموعة ' || s.grp || ')', '')
+    || case when coalesce(d, 0) <> 0 then ': التاريخ من ' || to_char(s.started_at at time zone 'Africa/Cairo', 'YYYY-MM-DD') || ' إلى ' || to_char(p_date, 'YYYY-MM-DD') else '' end
+    || case when c is distinct from s.cancelled then case when c is null then ' · رجّعها محاضرة عادية' else ' · علّمها «' || c || '» ومش بتتحسب في الغياب' end else '' end);
+  return json_build_object('n', n2);
+end $$;
+
+-- إضافة يوم إجازة / محاضرة اتلغت لتاريخ مافيهوش محاضرة (بيظهر في الكشف ومابيتحسبش في الغياب)
+create or replace function public.session_add_off(cid uuid, p_date date, p_grp text, p_reason text) returns json
+language plpgsql security definer set search_path = public as $$
+declare g text := nullif(trim(coalesce(p_grp, '')), ''); c text := coalesce(nullif(trim(coalesce(p_reason, '')), ''), 'إجازة'); t timestamptz; sid uuid; n2 int;
+begin
+  if course_role(cid) is distinct from 'owner' then raise exception 'not_allowed'; end if;
+  if p_date is null then raise exception 'bad_date'; end if;
+  if exists (select 1 from sessions where course_id = cid and grp is not distinct from g and (started_at at time zone 'Africa/Cairo')::date = p_date) then raise exception 'session_exists'; end if;
+  t := (p_date + time '09:00') at time zone 'Africa/Cairo';
+  insert into sessions(course_id, n, grp, allow_makeup, radius, started_at, ends_at, closed_at, ended, started_by, kind, cancelled)
+    values (cid, 0, g, false, 80, t, t + interval '10 min', t + interval '10 min', true, my_email(), 'hall', left(c, 120)) returning id into sid;
+  perform renumber_sessions(cid);
+  select n into n2 from sessions where id = sid;
+  perform log_audit(cid, 'أضاف «' || c || '» يوم ' || to_char(p_date, 'YYYY-MM-DD') || coalesce(' لمجموعة ' || g, ' للدفعة كاملة') || ' (المحاضرة ' || n2 || ')');
+  return json_build_object('n', n2);
+end $$;
+revoke all on function public.session_edit(uuid, date, text), public.session_add_off(uuid, date, text, text) from public, anon;
+grant execute on function public.session_edit(uuid, date, text), public.session_add_off(uuid, date, text, text) to authenticated;

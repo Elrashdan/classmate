@@ -180,6 +180,20 @@ tr.withdrawn td{background:var(--bad-soft)}
 /* register: lecture header buttons + delete confirm */
 .th-del{display:inline-flex;align-items:center;gap:3px;margin-top:4px;border:1px solid var(--line);background:var(--surface);color:var(--bad);border-radius:6px;padding:1px 7px;font:inherit;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap}
 .th-del:hover,.th-del:focus-visible{background:var(--bad-soft);border-color:var(--bad);outline:none}
+/* تعديل تاريخ المحاضرة / الإجازات */
+.th-date{display:inline-flex;align-items:center;gap:3px;margin-top:3px;border:1px dashed var(--line);background:transparent;color:var(--muted);border-radius:6px;padding:1px 6px;font:inherit;font-size:11.5px;font-weight:400;cursor:pointer;white-space:nowrap}
+.th-date svg{opacity:.55}
+.th-date:hover,.th-date:focus-visible{border-style:solid;border-color:var(--accent);color:var(--accent);outline:none}
+.th-date:hover svg{opacity:1}
+th.th-off{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--muted) 10%,transparent) 6px 12px)}
+.off-t{display:inline-block;margin-top:3px;font-size:11px;font-weight:600;color:var(--warn,#b7791f);background:color-mix(in srgb,var(--warn,#b7791f) 14%,transparent);border-radius:99px;padding:0 7px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+.off-c{color:var(--muted);font-weight:600;opacity:.75}
+td:has(>.off-c){background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--muted) 8%,transparent) 6px 12px)}
+.se-box{display:flex;flex-direction:column;gap:10px}
+.se-box .f{max-width:220px}
+.se-r{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.se-r label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;font-size:14px}
+.se-r input[type=text]{flex:1 1 180px;min-width:160px}
 th.th-on{background:var(--bad-soft)!important}
 .note-box{border-radius:10px;padding:12px 14px;display:grid;gap:6px;margin:8px 0}
 .note-box.bad{background:var(--bad-soft)} .note-box.bad>b{color:var(--bad)}

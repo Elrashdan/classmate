@@ -63,6 +63,7 @@
     not_allowed: "غير مسموح لك بهذا الإجراء.",
     not_found: "تعذّر العثور على هذه البيانات، وربما تغيّرت. حدّث الصفحة.",
     session_running: "توجد محاضرة جارية في هذه المادة. أنهِها أولًا.",
+    session_exists: "فيه محاضرة مسجّلة في التاريخ ده لنفس المجموعة. دوس على تاريخها في الكشف وعلّمها إجازة من هناك.",
     session_ended: "انتهت هذه المحاضرة. تعديلها متاح لصاحب المادة فقط.",
     wrong_domain: "يجب أن يكون البريد على نطاق الجامعة.",
     bad_email: "البريد الإلكتروني غير صحيح.",
@@ -653,7 +654,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b120)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b121)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

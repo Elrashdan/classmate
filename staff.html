@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b120">
+<link rel="stylesheet" href="style.css?v=b121">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b120"></script>
-<script src="vendor/qrcode.js?v=b120"></script>
-<script src="config.js?v=b120"></script>
-<script src="common.js?v=b120"></script>
-<script src="drive.js?v=b120"></script>
-<script src="pack.js?v=b120"></script>
-<script src="catalog.js?v=b120"></script>
-<script src="voice.js?v=b120"></script>
-<script src="timetable.js?v=b120"></script>
-<script src="research.js?v=b120"></script>
+<script src="vendor/supabase.js?v=b121"></script>
+<script src="vendor/qrcode.js?v=b121"></script>
+<script src="config.js?v=b121"></script>
+<script src="common.js?v=b121"></script>
+<script src="drive.js?v=b121"></script>
+<script src="pack.js?v=b121"></script>
+<script src="catalog.js?v=b121"></script>
+<script src="voice.js?v=b121"></script>
+<script src="timetable.js?v=b121"></script>
+<script src="research.js?v=b121"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -404,14 +404,14 @@
   const isOpen = s => s && !s.ended && !s.closed_at && new Date(s.ends_at) > new Date();
   const nameOf = code => (D.enroll.find(e => e.student_code === code) || {}).name || code;
   // المحاضرة بتتحسب في الغياب أول ما التسجيل فيها يتقفل (أو تنتهي)
-  const regDone = s => !!(s.ended || s.closed_at || Date.now() >= new Date(s.ends_at).getTime());
+  const regDone = s => !s.cancelled && !!(s.ended || s.closed_at || Date.now() >= new Date(s.ends_at).getTime());
   function absences(e) {
     const missed = D.sessions.filter(s => regDone(s) && isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).length;
-    const made = D.sessions.filter(s => !isOwn(s, e) && counted((D.att[s.id] || {})[e.student_code])).length;
+    const made = D.sessions.filter(s => !s.cancelled && !isOwn(s, e) && counted((D.att[s.id] || {})[e.student_code])).length;
     return Math.max(0, missed - made);
   }
   function attendance(e) {
-    const own = D.sessions.filter(s => isOwn(s, e)).length, att = D.sessions.filter(s => counted((D.att[s.id] || {})[e.student_code])).length;
+    const own = D.sessions.filter(s => !s.cancelled && isOwn(s, e)).length, att = D.sessions.filter(s => !s.cancelled && counted((D.att[s.id] || {})[e.student_code])).length;
     return { own, att, pct: own ? Math.min(100, Math.round(att / own * 100)) : 0 };
   }
   const say = (k, text) => { flash[k] = text; };
@@ -829,7 +829,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b120: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b121: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -1598,9 +1598,49 @@
   /* ---------- register ---------- */
   function cell(s, e) {
     const r = (D.att[s.id] || {})[e.student_code];
+    if (s.cancelled) return `<span class="off-c" title="${esc(s.cancelled)}">إ</span>`;
     if (!isOwn(s, e)) return r && r.status !== "pending" ? `<span class="chip man">ت</span>` : r ? `<span class="chip warn">م</span>` : `<span class="muted">·</span>`;
     if (!r) return regDone(s) ? (canManage(course()) ? `<button class="chip none pm-cell" data-pc="${esc(e.student_code)}" data-ps="${s.id}" title="تحضير ${esc(e.name)} في المحاضرة ${s.n}">غ</button>` : `<span class="chip none">غ</span>`) : `<span class="muted">…</span>`;
     return r.status === "present" ? `<span class="chip ok">ح</span>` : r.status === "manual" ? `<span class="chip man">ي</span>` : `<span class="chip warn">م</span>`;
+  }
+  // تعديل تاريخ المحاضرة أو تعليمها «إجازة / اتلغت» (مابتتحسبش في الغياب)
+  let editSess = null, offOpen = false;
+  const OFF_R = ["إجازة رسمية", "المحاضرة اتلغت"];
+  const offPick = (pre, cur) => { const other = cur && !OFF_R.includes(cur);
+    return `<div class="se-r">${OFF_R.map(r => `<label><input type="radio" name="${pre}R" value="${r}" ${cur === r ? "checked" : ""}> ${r}</label>`).join("")}<label><input type="radio" name="${pre}R" value="*" ${other ? "checked" : ""}> سبب آخر</label><input type="text" id="${pre}T" maxlength="120" placeholder="اكتب السبب" value="${other ? esc(cur) : ""}" ${other ? "" : "hidden"}></div>`; };
+  const offRead = pre => { const r = document.querySelector(`[name="${pre}R"]:checked`); if (!r) return ""; return r.value === "*" ? ($("#" + pre + "T").value || "").trim() : r.value; };
+  function seBox() {
+    const s = editSess && D.sessions.find(x => x.id === editSess); if (!s) return "";
+    return `<div class="note-box se-box" id="seBox"><b>المحاضرة ${s.n}${s.grp ? " · مجموعة " + esc(s.grp) : ""}</b>
+      <label class="f"><span>تاريخ المحاضرة</span><input type="date" id="seD" value="${cairoDay(s.started_at)}"></label>
+      <div class="se-r"><label><input type="radio" name="seM" value="0" ${s.cancelled ? "" : "checked"}> محاضرة عادية (بتتحسب في الغياب)</label><label><input type="radio" name="seM" value="1" ${s.cancelled ? "checked" : ""}> إجازة أو المحاضرة اتلغت (مابتتحسبش في الغياب)</label></div>
+      <div id="seOff" ${s.cancelled ? "" : "hidden"}>${offPick("se", s.cancelled || OFF_R[0])}</div>
+      <span class="small muted">تغيير التاريخ بيحرّك المحاضرة بنفس ساعتها، وبيتعاد ترقيم المحاضرات حسب التاريخ. والإجازة بتفضل عمود في الكشف بس مابتحسبش غياب على حد. كل تعديل بيتسجّل في السجل.</span>
+      <div class="row"><button class="btn sm primary" id="seGo">حفظ</button><button class="btn sm ghost" id="seNo">إلغاء</button></div></div>`;
+  }
+  function offBox() {
+    if (!offOpen) return ""; const gs = groupsOf();
+    return `<div class="note-box se-box" id="offBox"><b>إضافة يوم إجازة أو محاضرة اتلغت</b>
+      <span class="small muted">بيتضاف عمود في الكشف بالتاريخ ده مكتوب عليه السبب، ومابيتحسبش غياب على حد. لو المحاضرة موجودة في الكشف أصلًا، دوس على تاريخها فوق بدل كده.</span>
+      <div class="row" style="gap:10px;flex-wrap:wrap"><label class="f" style="margin:0"><span>التاريخ</span><input type="date" id="offD" value="${cairoDay(Date.now())}"></label>
+      ${gs.length > 1 ? `<label class="f" style="margin:0"><span>المجموعة</span><select id="offG"><option value="">الدفعة كاملة</option>${gs.map(g => `<option value="${esc(g)}" ${regGroup === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}</div>
+      ${offPick("off", OFF_R[0])}
+      <div class="row"><button class="btn sm primary" id="offGo">إضافة</button><button class="btn sm ghost" id="offNo">إلغاء</button></div></div>`;
+  }
+  function wireSe(el) {
+    el.querySelectorAll("[data-se]").forEach(b => b.onclick = () => { editSess = editSess === b.dataset.se ? null : b.dataset.se; offOpen = false; delSess = null; renderRegister(); const x = $("#seBox"); if (x) x.scrollIntoView({ block: "nearest" }); });
+    const oa = $("#offAdd"); if (oa) oa.onclick = () => { offOpen = !offOpen; editSess = null; renderRegister(); const x = $("#offBox"); if (x) x.scrollIntoView({ block: "nearest" }); };
+    el.querySelectorAll('[name="seM"]').forEach(r => r.onchange = () => { $("#seOff").hidden = r.value !== "1" || !r.checked; });
+    ["se", "off"].forEach(pre => el.querySelectorAll(`[name="${pre}R"]`).forEach(r => r.onchange = () => { const t = $("#" + pre + "T"); if (t) { t.hidden = r.value !== "*"; if (!t.hidden) t.focus(); } }));
+    const sn = $("#seNo"); if (sn) sn.onclick = () => { editSess = null; renderRegister(); };
+    const on = $("#offNo"); if (on) on.onclick = () => { offOpen = false; renderRegister(); };
+    const sg = $("#seGo"); if (sg) sg.onclick = () => { const s = D.sessions.find(x => x.id === editSess); if (!s) return;
+      const off = (document.querySelector('[name="seM"]:checked') || {}).value === "1", why = off ? offRead("se") : "";
+      if (off && !why) return toast("اكتب سبب الإلغاء.");
+      const d = $("#seD").value; if (!d) return toast("اختار التاريخ.");
+      sg.disabled = true; act(() => rpc("session_edit", { sid: s.id, p_date: d, p_cancel: why }), () => { editSess = null; return loadCourse(); }); };
+    const og = $("#offGo"); if (og) og.onclick = () => { const why = offRead("off"), d = $("#offD").value; if (!d) return toast("اختار التاريخ."); if (!why) return toast("اكتب السبب.");
+      og.disabled = true; act(() => rpc("session_add_off", { cid: D.cid, p_date: d, p_grp: ($("#offG") || {}).value || "", p_reason: why }), () => { offOpen = false; return loadCourse(); }); };
   }
   function dsBox() {
     const s = delSess && D.sessions.find(x => x.id === delSess); if (!s) return "";
@@ -1656,8 +1696,8 @@
   function renderRegister() { keepScroll("#regPanel", _renderRegister); }
   /* register table: search + Excel-style sort & filter on every column (including each lecture) */
   let rg = { cid: null, q: "", sort: null, f: {} }, rgRows = [];
-  const SYM = { "ح": "حاضر", "ي": "يدوي", "ت": "تعويض", "م": "معلّق", "غ": "غائب", "…": "لم يُحتسب بعد", "—": "ليست لمجموعته" }, SYMORD = ["غ", "م", "…", "ي", "ت", "ح", "—"];
-  const symOf = (s, e) => { const r = (D.att[s.id] || {})[e.student_code]; if (!isOwn(s, e)) return r && r.status !== "pending" ? "ت" : r ? "م" : "—"; if (!r) return regDone(s) ? "غ" : "…"; return r.status === "present" ? "ح" : r.status === "manual" ? "ي" : "م"; };
+  const SYM = { "إ": "إجازة أو ملغية", "ح": "حاضر", "ي": "يدوي", "ت": "تعويض", "م": "معلّق", "غ": "غائب", "…": "لم يُحتسب بعد", "—": "ليست لمجموعته" }, SYMORD = ["غ", "م", "…", "ي", "ت", "ح", "—", "إ"];
+  const symOf = (s, e) => { const r = (D.att[s.id] || {})[e.student_code]; if (s.cancelled) return "إ"; if (!isOwn(s, e)) return r && r.status !== "pending" ? "ت" : r ? "م" : "—"; if (!r) return regDone(s) ? "غ" : "…"; return r.status === "present" ? "ح" : r.status === "manual" ? "ي" : "م"; };
   const RGBASE = {
     code: { t: "الكود", v: e => e.student_code, num: true, up: "من الأصغر للأكبر", down: "من الأكبر للأصغر" },
     name: { t: "الاسم", v: e => e.name, up: "أ ← ي", down: "ي ← أ" },
@@ -1684,20 +1724,22 @@
     const rh = (k, extra) => { const C = RGC[k], srt = sort.col === k, flt = !!rg.f[k];
       return `<button class="fh ${(srt && rg.sort) || flt ? "on" : ""}" data-rcol="${k}" aria-haspopup="true" title="ترتيب وتصفية">${extra || C.t}<span class="fh-i">${srt ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button>`; };
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[CM.lvl(absences(e))]++);
-    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.length} محاضرة · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.filter(s => !s.cancelled).length} محاضرة${D.sessions.some(s => s.cancelled) ? ` · ${D.sessions.filter(s => s.cancelled).length} إجازة` : ""} · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
       <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}${D.enroll.length ? CM.dd("تصدير الكشف", [`<button class="dd-i" id="exp">إكسل</button>`, `<button class="dd-i" id="expPdf">PDF للطباعة</button>`], { end: true }) : ""}</div></div>
       ${msgHtml("reg")}
-      ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات سبقت البرنامج؟</span><button class="btn sm ghost" id="tplBtn">تنزيل ملف التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات سابقة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden></div>` : ""}
+      ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات سبقت البرنامج؟</span><button class="btn sm ghost" id="tplBtn">تنزيل ملف التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات سابقة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden><button class="btn sm ghost" id="offAdd">إضافة يوم إجازة</button></div>` : ""}
       ${impBoxHtml()}
       ${dsBox()}
+      ${seBox()}
+      ${offBox()}
       ${pmBox()}
       ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.lvlChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">لا توجد إنذارات حتى الآن.</span>`}</div>
       <div class="rs-bar"><input type="search" id="rgQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rg.q)}" autocomplete="off"><span class="small muted">${rows.length === base.length ? base.length + " طالب" : "عرض " + rows.length + " من " + base.length}</span>${busy ? `<button class="btn sm ghost" id="rgClear">إلغاء الترتيب والتصفية</button>` : ""}</div>
-      <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => { const lab = rh("s" + s.n, `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`); return `<th class="c ${delSess === s.id ? "th-on" : ""}">${lab}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="حذف المحاضرة ${s.n}" aria-label="حذف المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
+      <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => { const lab = rh("s" + s.n, `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}${mng ? "" : `<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`}`); return `<th class="c ${delSess === s.id || editSess === s.id ? "th-on" : ""}${s.cancelled ? " th-off" : ""}">${lab}${mng ? `<br><button class="th-date" data-se="${s.id}" title="تعديل تاريخ المحاضرة ${s.n} أو تعليمها إجازة">${CM.fmtD(s.started_at)} <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>` : ""}${s.cancelled ? `<br><span class="off-t" title="${esc(s.cancelled)}">${esc(s.cancelled.length > 14 ? s.cancelled.slice(0, 13) + "…" : s.cancelled)}</span>` : ""}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="حذف المحاضرة ${s.n}" aria-label="حذف المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
       ${rows.length ? "" : `<tr><td colspan="${ss.length + 6}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
       ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${CM.lvl(ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm"><div class="nm-c"><span class="nm-t" title="${esc(e.name)}">${esc(e.name)}</span>${mng && missedSess(e).length ? `<span class="nm-tags"><button class="btn xs ghost pm-btn ${pastMark && pastMark.code === e.student_code ? "on" : ""}" data-pm="${esc(e.student_code)}" title="تحضيره في محاضرات سابقة غاب عنها">تحضير</button></span>` : ""}</div></td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
       </tbody></table></div>
-      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة أخرى · م معلّق · غ غائب · النقطة تعني أن المحاضرة ليست لمجموعته.${mng ? " إذا أنشأت محاضرة بالخطأ، فاضغط «حذف» أسفل رقمها. ولتحضير طالب في محاضرة سابقة غاب عنها، اضغط «غ» في خانتها أو زر «تحضير» بجوار اسمه." : ""} يُحتسب الغياب فور إغلاق التسجيل في المحاضرة، وإذا سُجِّل الطالب بعد ذلك يدويًّا أو بمسح بطاقته أُلغي الغياب. ويُلغي كل حضور تعويضي غيابًا واحدًا. الغياب مرتين إنذار أول، و3 مرات إنذار ثانٍ، و4 مرات إنذار ثالث ونهائي، و5 مرات انسحاب إجباري.</p>`
+      <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة أخرى · م معلّق · غ غائب · إ إجازة أو محاضرة اتلغت (مابتتحسبش في الغياب) · النقطة تعني أن المحاضرة ليست لمجموعته.${mng ? " لتعديل تاريخ محاضرة أو تعليمها إجازة، دوس على تاريخها فوق." : ""}${mng ? " إذا أنشأت محاضرة بالخطأ، فاضغط «حذف» أسفل رقمها. ولتحضير طالب في محاضرة سابقة غاب عنها، اضغط «غ» في خانتها أو زر «تحضير» بجوار اسمه." : ""} يُحتسب الغياب فور إغلاق التسجيل في المحاضرة، وإذا سُجِّل الطالب بعد ذلك يدويًّا أو بمسح بطاقته أُلغي الغياب. ويُلغي كل حضور تعويضي غيابًا واحدًا. الغياب مرتين إنذار أول، و3 مرات إنذار ثانٍ، و4 مرات إنذار ثالث ونهائي، و5 مرات انسحاب إجباري.</p>`
       : `<div class="empty">سيمتلئ الكشف بمجرد بدء المحاضرات.</div>`}`;
     el.querySelectorAll("[data-rg]").forEach(b => b.onclick = () => { regGroup = b.dataset.rg; renderRegister(); });
     el.querySelectorAll("[data-rcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === "r:" + b.dataset.rcol ? closeFpop() : openFpop(b, RGG, "r:"); });
@@ -1716,6 +1758,7 @@
     const px = $("#pastX"); if (px) px.onchange = ev => { importPast(ev.target.files[0]); ev.target.value = ""; };
     wireImp(el);
     wirePast(el);
+    wireSe(el);
   }
   /* ---------- Excel: professional export, template for past lectures, import of ح / غ ---------- */
   const loadExcelJS = () => window.ExcelJS ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"; sc.onload = ok; sc.onerror = () => bad({ message: "تعذّر تحميل أداة إكسل. تأكّد من الاتصال بالإنترنت وأعد المحاولة." }); document.head.appendChild(sc); });
@@ -1729,6 +1772,7 @@
   const thin = { style: "thin", color: { argb: XC.line } }, box = { top: thin, left: thin, bottom: thin, right: thin };
   function xlCell(s, e) {
     const r = (D.att[s.id] || {})[e.student_code];
+    if (s.cancelled) return ["إ", "x"];
     if (!isOwn(s, e)) return r && r.status !== "pending" ? ["ت", "t"] : r ? ["م", "w"] : ["—", "x"];
     if (!r) return regDone(s) ? ["غ", "a"] : ["…", "x"];
     return r.status === "manual" ? ["ي", "m"] : r.status === "pending" ? ["م", "w"] : ["ح", "p"];
@@ -1757,7 +1801,7 @@
     sheetTitle(ws, N, "كشف حضور " + c.name, courseSub(c));
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[CM.lvl(absences(e))]++);
     ws.mergeCells(3, 1, 3, N);
-    ws.getCell(3, 1).value = rows.length + " طالب · " + ss.length + " محاضرة · " + [1, 2, 3, 4].map(i => CM.WARN[i].t + ": " + cnt[i]).join(" · ") + "   |   ح حاضر · ي يدوي · ت تعويض · م معلّق · غ غائب · — ليست لمجموعته";
+    ws.getCell(3, 1).value = rows.length + " طالب · " + ss.length + " محاضرة · " + [1, 2, 3, 4].map(i => CM.WARN[i].t + ": " + cnt[i]).join(" · ") + "   |   ح حاضر · ي يدوي · ت تعويض · م معلّق · غ غائب · إ إجازة أو ملغية · — ليست لمجموعته";
     ws.getCell(3, 1).font = { name: "Arial", size: 9, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
     headRow(ws, 5, ["الكود", "الاسم", "المجموعة", ...ss.map(s => "م" + s.n + (s.grp ? "\nمج " + s.grp : "") + "\n" + new Date(s.started_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Africa/Cairo" })), "حضر", "غاب", "النسبة", "الحالة", "ملاحظة"], true);
     rows.forEach((e, i) => {
