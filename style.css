@@ -2638,9 +2638,19 @@ html.cg-lock, html.cg-lock body{ overflow: hidden; }
 html[data-skin="nx"] header.top{ background: color-mix(in srgb, var(--surface) 92%, var(--ink) 8%) !important;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 13%, transparent), 0 14px 34px -16px rgba(0,0,0,.55) !important; }
 html[data-skin="nx"][data-theme="light"] header.top, html[data-skin="nx"]:not([data-theme="dark"]) header.top{ background: color-mix(in srgb, var(--surface) 96%, #fff) !important; }
-html[data-skin="nx"].hd-sc header.top{ background: color-mix(in srgb, color-mix(in srgb, var(--surface) 86%, var(--ink) 14%) 90%, transparent) !important;
-  -webkit-backdrop-filter: saturate(1.5) blur(16px); backdrop-filter: saturate(1.5) blur(16px);
+html[data-skin="nx"].hd-sc header.top{ background: color-mix(in srgb, var(--surface) 86%, var(--ink) 14%) !important;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent), 0 18px 40px -14px rgba(0,0,0,.7) !important; }
-html[data-skin="nx"][data-theme="light"].hd-sc header.top{ background: color-mix(in srgb, #fff 90%, transparent) !important;
+html[data-skin="nx"][data-theme="light"].hd-sc header.top{ background: #fff !important;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent), 0 16px 34px -16px rgba(0,0,0,.35) !important; }
-@media (max-width: 760px){ header.top{ transition: padding .3s cubic-bezier(.22,.8,.24,1), box-shadow .3s, background-color .3s; } }
+
+/* b125: على الموبايل الشريط الكبير بيتحرك مع الصفحة، والصغير ثابت فوق (position: fixed) وبيدخل بحركة transform بس */
+@media (max-width: 760px){
+  html body header.top, html body:not(.has-ctabs) header.top{ position: relative !important; top: auto !important; transition: none !important; }
+  html.hd-sc body header.top{ position: fixed !important; top: 6px !important; z-index: 60; margin: 0; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  header.top.hd-in{ animation: hdIn .34s cubic-bezier(.2,.85,.25,1) both; }
+  header.top.hd-back{ animation: hdBack .28s cubic-bezier(.2,.85,.25,1) both; }
+  header.top.hd-in, header.top.hd-back{ will-change: transform, opacity; }
+}
+@keyframes hdIn{ from{ transform: translate3d(0,-115%,0); opacity: .2; } to{ transform: none; opacity: 1; } }
+@keyframes hdBack{ from{ transform: translate3d(0,-10px,0); opacity: 0; } to{ transform: none; opacity: 1; } }
+.hd-sp{ pointer-events: none; }

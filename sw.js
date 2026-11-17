@@ -3,8 +3,8 @@
  */
 // Hadro offline cache: the student page (and its QR) must open with no internet.
 // Network first (so updates arrive), cache as fallback. Never touches Supabase API calls.
-const VER = "b124";
-const CACHE = "hadro-v124";
+const VER = "b125";
+const CACHE = "hadro-v125";
 const CDN = [];
 // ملفات الـJS والـCSS بتتطلب برقم النسخة (?v=bNN)، فينفع تتاخد من الذاكرة على طول من غير ما نستنى الشبكة
 const V = u => u + "?v=" + VER;
