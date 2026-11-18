@@ -6767,3 +6767,99 @@ begin
 end $$;
 revoke all on function public.session_edit(uuid, date, text), public.session_add_off(uuid, date, text, text) from public, anon;
 grant execute on function public.session_edit(uuid, date, text), public.session_add_off(uuid, date, text, text) to authenticated;
+
+-- ===================== update-69: ملف الطالب في التكليفات — سجل كل رفعة + تعديل «متأخر / في الميعاد» يدويًا =====================
+alter table public.submissions add column if not exists late_by text;      -- مين عدّل حالة التأخير يدويًا (null = محسوبة تلقائيًا)
+alter table public.submissions add column if not exists late_at timestamptz;
+alter table public.submissions add column if not exists late_note text;
+
+create table if not exists public.submission_log (
+  id bigserial primary key,
+  task_id uuid not null,   -- من غير FK: السجل بيفضل حتى لو التكليف اتشال (والقراءة مربوطة بصلاحية المادة)
+  student_code text not null,
+  at timestamptz not null default now(),
+  ev text not null check (ev in ('upload', 'fix', 'prev', 'backfill', 'late_set')),
+  kind text, url text, file_id text, file_name text, mime text, size bigint, md5 text, file_modified timestamptz,
+  late boolean, version int, by_email text, note text
+);
+create index if not exists submission_log_stu on public.submission_log(task_id, student_code, at);
+alter table public.submission_log enable row level security;
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename = 'submission_log' and policyname = 'submission_log_read') then
+    create policy submission_log_read on public.submission_log for select to authenticated using (course_role(task_course(task_id)) is not null);
+  end if;
+end $$;
+revoke all on public.submission_log from anon, authenticated;
+grant select on public.submission_log to authenticated;
+
+-- رفعة جديدة (مش إصلاح) بتلغي أي تعديل يدوي سابق للتأخير، وتتحسب من جديد
+create or replace function public.submissions_late_reset() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if new.version > coalesce(old.version, 0) and new.fix_done_at is not distinct from old.fix_done_at then
+    new.late_by := null; new.late_at := null; new.late_note := null;
+  end if;
+  return new;
+end $$;
+create or replace trigger submissions_late_reset before update on public.submissions
+  for each row execute function public.submissions_late_reset();
+
+-- كل رفعة بتتسجل (اسم الملف، حجمه، بصمته، وقته، وكانت متأخرة ولا لأ)
+create or replace function public.submissions_log_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.submitted_at is null or new.kind is null then return new; end if;
+  if tg_op = 'UPDATE' and new.version is not distinct from old.version and new.file_id is not distinct from old.file_id and new.url is not distinct from old.url then return new; end if;
+  insert into submission_log(task_id, student_code, at, ev, kind, url, file_id, file_name, mime, size, md5, file_modified, late, version)
+  values (new.task_id, new.student_code, now(),
+          case when tg_op = 'UPDATE' and new.fix_done_at is distinct from old.fix_done_at then 'fix' else 'upload' end,
+          new.kind, new.url, new.file_id, new.file_name, new.mime, new.size, new.md5, new.file_modified, new.late, new.version);
+  return new;
+end $$;
+create or replace trigger submissions_log after insert or update on public.submissions
+  for each row execute function public.submissions_log_trg();
+
+-- السجل اللي قبل كده: آخر نسخة لكل طالب، والملف الأصلي للي اتطلب منه إصلاح
+insert into public.submission_log(task_id, student_code, at, ev, kind, url, file_id, file_name, size, md5, late, version, note)
+select s.task_id, s.student_code, s.submitted_at, 'prev', case when s.fix_prev->>'file_id' is not null then 'drive' else 'link' end, s.fix_prev->>'url', s.fix_prev->>'file_id', s.fix_prev->>'file_name',
+       nullif(s.fix_prev->>'size', '')::bigint, s.fix_prev->>'md5', s.late, null, 'الملف الأصلي قبل طلب الإصلاح'
+  from public.submissions s
+ where s.fix_prev is not null and s.fix_done_at is not null and s.submitted_at is not null
+   and not exists (select 1 from public.submission_log l where l.task_id = s.task_id and l.student_code = s.student_code);
+insert into public.submission_log(task_id, student_code, at, ev, kind, url, file_id, file_name, mime, size, md5, file_modified, late, version, note)
+select s.task_id, s.student_code, coalesce(case when s.fix_prev is not null then s.fix_done_at end, s.submitted_at), 'backfill',
+       s.kind, s.url, s.file_id, s.file_name, s.mime, s.size, s.md5, s.file_modified, s.late, s.version,
+       case when s.fix_prev is not null and s.fix_done_at is not null then 'الملف بعد الإصلاح' else 'آخر نسخة قبل بداية السجل' end
+  from public.submissions s
+ where s.submitted_at is not null and s.kind is not null
+   and not exists (select 1 from public.submission_log l where l.task_id = s.task_id and l.student_code = s.student_code and l.ev <> 'prev');
+
+-- تعديل حالة التسليم: late = متأخر، ontime = في الميعاد، auto = يرجع للحساب التلقائي
+create or replace function public.submission_set_late(tid uuid, code text, p_mode text, p_note text) returns json
+language plpgsql security definer set search_path = public as $$
+declare t tasks; s submissions; v boolean; nm text; nt text := nullif(left(trim(coalesce(p_note, '')), 300), '');
+begin
+  select * into t from tasks where id = tid;
+  if t.id is null or coalesce(course_role(t.course_id), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  select * into s from submissions where task_id = tid and student_code = code for update;
+  if s.task_id is null or s.submitted_at is null then raise exception 'not_found'; end if;
+  if p_mode = 'late' then v := true;
+  elsif p_mode = 'ontime' then v := false;
+  elsif p_mode = 'auto' then
+    v := s.submitted_at > t.due_at and not exists (select 1 from task_extensions x where x.task_id = tid and x.student_code = code and x.active and x.until >= s.submitted_at);
+  else raise exception 'bad_input'; end if;
+  update submissions set late = v,
+    late_by = case when p_mode = 'auto' then null else my_email() end,
+    late_at = case when p_mode = 'auto' then null else now() end,
+    late_note = case when p_mode = 'auto' then null else nt end
+   where task_id = tid and student_code = code;
+  insert into submission_log(task_id, student_code, ev, late, by_email, note)
+    values (tid, code, 'late_set', v, my_email(), case when p_mode = 'auto' then 'رجّعها للحساب التلقائي' else nt end);
+  select coalesce(name, code) into nm from enrollments where course_id = t.course_id and student_code = code;
+  perform log_audit(t.course_id, 'عدّل حالة تسليم ' || coalesce(nm, code) || ' في «' || t.title || '» إلى '
+    || case when p_mode = 'auto' then 'الحساب التلقائي (' || case when v then 'متأخر' else 'في الميعاد' end || ')' when v then 'متأخر' else 'في الميعاد' end
+    || coalesce(' · ' || nt, ''));
+  return json_build_object('late', v);
+end $$;
+revoke all on function public.submission_set_late(uuid, text, text, text) from public, anon;
+grant execute on function public.submission_set_late(uuid, text, text, text) to authenticated;
