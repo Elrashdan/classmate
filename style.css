@@ -2698,3 +2698,8 @@ html[data-skin="nx"][data-theme="light"] .nm-lnk:hover{color:inherit;background:
 @media (max-width:560px){.stu-log li{grid-template-columns:1fr;gap:0}}
 .stu-id{flex:1 1 200px;min-width:0}
 @media (max-width:760px){.stu-head .stu-pick{flex-basis:100%;max-width:none}.stu-av{width:44px;height:44px;font-size:20px;border-radius:14px}}
+/* b127: خانة «ملف طالب» — إطار واحد بس وقت الكتابة (زي بحث الشريط اللي فوق) */
+html .stu-q input[type="search"], html .stu-q input[type="search"]:focus, html .stu-q input[type="search"]:focus-visible,
+html[data-skin="nx"] .stu-q input[type="search"], html[data-skin="nx"] .stu-q input[type="search"]:focus, html[data-skin="nx"] .stu-q input[type="search"]:focus-visible{ border: 0 !important; box-shadow: none !important; outline: none !important; background: transparent !important; border-radius: 0 !important; }
+html[data-skin="nx"] .stu-q:focus-within{ border-color: var(--ink); box-shadow: 0 0 0 3px var(--tint); }
+.stu-q:focus-within > svg{ color: var(--accent); opacity: 1; }
