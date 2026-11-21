@@ -7474,3 +7474,77 @@ language sql stable security definer set search_path = public as $$
     group by t.id, t.title, t.due_at, g.last
 $$;
 revoke all on function public.feed_course_items(uuid) from public, anon, authenticated;
+
+-- ===================== update-78: تحديث الجدول الدراسي المنشور من آخر نسخة Excel (2026/2027 ف1) =====================
+-- ١) أثناء التحديث الجماعي: مفيش مزامنة لكل خانة لوحدها (عشان محدش يتشال ويتضاف تاني في النص)، وبعد ما نخلص بنزامن مرة واحدة
+create or replace function public.tt_sync_slot_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare x uuid;
+begin
+  if coalesce(current_setting('hadro.tt_bulk', true), '') = '1' then return null; end if;
+  if tg_op = 'INSERT' and new.course_id is null and coalesce(trim(new.title), '') <> ''
+     and exists (select 1 from timetables t where t.id = new.tt_id and t.published) then
+    perform tt_make_courses(new.tt_id);
+    perform tt_autolink(new.tt_id, null);
+    return null;
+  end if;
+  if tg_op <> 'INSERT' then
+    foreach x in array (array[old.course_id] || old.more_courses) loop
+      if x is not null and (tg_op = 'DELETE' or not (x = new.course_id or x = any(new.more_courses))) then perform tt_sync_team(x); end if;
+    end loop;
+  end if;
+  if tg_op <> 'DELETE' then
+    foreach x in array (array[new.course_id] || new.more_courses) loop
+      if x is not null then perform tt_sync_team(x); end if;
+    end loop;
+  end if;
+  return null;
+end $$;
+create or replace function public.courses_tt_link_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if coalesce(current_setting('hadro.tt_bulk', true), '') = '1' then return null; end if;
+  if exists (select 1 from timetables t where t.published and t.academic_year = new.academic_year and t.term = new.term) then
+    perform tt_autolink(null, new.id);
+    perform tt_sync_team(new.id);
+  end if;
+  return null;
+end $$;
+
+-- ٢) أسماء الخانات: «ع د» من غير نقطة = عمارة داخلية، و«سج» = سينوغرافيا (الشعبة بتتطابق لوحدها)، واختصارات زي «تك» = تكنولوجيا
+create or replace function public.tt_tokens(s text) returns text[]
+language sql immutable set search_path = public as $$
+  select coalesce(array_agg(w) filter (where w <> '' and w not in ('في', 'من', 'على', 'علي', 'مقرر', 'اختياري', 'و', 'لل', 'ل', 'س', 'سج', 'م')), '{}')
+    from (select case when w ~ '^[0-9]+$' then ltrim(w, '0')
+                      when length(w) >= 5 and w like 'وال%' then substr(w, 4)
+                      when length(w) >= 4 and w like 'ال%' then substr(w, 3)
+                      when length(w) >= 4 and w like 'و%' then substr(w, 2)
+                      else w end w
+            from regexp_split_to_table(trim(regexp_replace(regexp_replace(regexp_replace(regexp_replace(
+                   translate(lower(coalesce(s, '')), 'أإآٱىةغ٠١٢٣٤٥٦٧٨٩ًٌٍَُِّْـ', 'اااايهج0123456789'),
+                   'ع\s*\.\s*د', ' عماره داخليه ', 'g'), '(^|\s)ع\s+د(\s|$|[0-9])', '\1عماره داخليه \2', 'g'), '([0-9]+)', ' \1 ', 'g'), '[^0-9a-zء-ي]+', ' ', 'g')), '\s+') w) x;
+$$;
+create or replace function public.tt_course_alt(p_title text, p_course text) returns int
+language plpgsql immutable set search_path = public as $$
+declare alts text[]; a text; i int := 0; st text[]; ct text[] := tt_tokens(p_course); sn text[]; cn text[]; w text; ok boolean;
+begin
+  if p_title ~ '\(.*\)' then alts := string_to_array(substring(p_title from '\((.*)\)'), '/'); else alts := string_to_array(p_title, '/'); end if;
+  cn := array(select x from unnest(ct) x where x ~ '^[0-9]+$' order by 1);
+  foreach a in array alts loop
+    i := i + 1; st := tt_tokens(a);
+    sn := array(select x from unnest(st) x where x ~ '^[0-9]+$' order by 1);
+    if (cardinality(sn) > 0 and sn is distinct from cn) or not exists (select 1 from unnest(st) x where x !~ '^[0-9]+$') then continue; end if;
+    ok := true;
+    foreach w in array st loop
+      if w ~ '^[0-9]+$' then continue; end if;
+      if not exists (select 1 from unnest(ct) c where c !~ '^[0-9]+$' and (c = w or (least(length(c), length(w)) >= 2 and (c like w || '%' or w like c || '%')))) then
+        -- اسم الشعبة في الخانة (ع.د / سينوجرافيا) مش لازم يكون في اسم المادة: الشعبة نفسها بتتطابق لوحدها
+        if w in ('عماره', 'داخليه', 'سينوجرافيا') then continue; end if;
+        ok := false; exit;
+      end if;
+    end loop;
+    if ok then return i; end if;
+  end loop;
+  return 0;
+end $$;
+

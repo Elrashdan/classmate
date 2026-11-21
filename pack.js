@@ -207,7 +207,7 @@
         ctx.font = (f.bold ? "600 " : "400 ") + px + "px " + FONT;
         const w = (m ? X[m.c2] - X[m.c1 - 1] : W[c]) - 10;
         const lines = txt ? (cell.alignment && cell.alignment.wrapText) || /\n/.test(txt) || (m && m.c2 - m.c1 > 2) ? wrap(ctx, txt, w) : [txt] : [];
-        cells[r + ":" + c] = { cell, m, txt, lines, px, bold: !!f.bold, color: argb(f.color, "#16231f"), u: !!f.underline };
+        cells[r + ":" + c] = { cell, m, txt, lines, px, bold: !!f.bold, color: argb(f.color, "#16231f"), u: !!f.underline, st: !!f.strike };
         if (!m || m.r1 === m.r2) h = Math.max(h, lines.length * px * 1.35 + 10);
       }
       H[r] = h;
@@ -238,7 +238,7 @@
       k.lines.forEach((ln, i) => { ctx.textAlign = al === "center" ? "center" : al === "left" ? "left" : "right";
         const tx = al === "center" ? x + w / 2 : al === "left" ? x + 5 : x + w - 5, ty = top + i * lh;
         ctx.fillText(ln, tx, ty);
-        if (k.u) { const mw = ctx.measureText(ln).width, sx = al === "center" ? tx - mw / 2 : al === "left" ? tx : tx - mw; ctx.fillRect(sx, ty + k.px * .5, mw, 1); } });
+        if (k.u || k.st) { const mw = ctx.measureText(ln).width, sx = al === "center" ? tx - mw / 2 : al === "left" ? tx : tx - mw; ctx.fillRect(sx, ty + (k.st ? 0 : k.px * .5), mw, k.st ? 1.5 : 1); } });
       ctx.restore();
     });
     return y;
@@ -248,7 +248,9 @@
     const PW = land ? A4[1] : A4[0], PH = land ? A4[0] : A4[1];
     const probe = document.createElement("canvas").getContext("2d");
     const L = layoutSheet(ws, probe);
-    const scale = Math.min(1.7, (PW - 2 * MARGIN) / L.tableW), avail = (PH - 2 * MARGIN - FOOT) / scale;
+    // ws.hadroPage = { head: [سطور أعلى اليمين], sign: [[نص، اسم تحته]…] }: ترويسة وتوقيعات في كل صفحة (من اليمين للشمال)
+    const deco = ws.hadroPage || null, HEADH = deco && deco.head ? deco.head.length * 26 + 22 : 0, SIGNH = deco && deco.sign ? 86 : 0;
+    const scale = Math.min(1.7, (PW - 2 * MARGIN) / L.tableW), avail = (PH - 2 * MARGIN - FOOT - HEADH - SIGNH) / scale;
     const head = L.h1 ? Array.from({ length: L.h2 - L.h1 + 1 }, (_, i) => L.h1 + i) : [];
     const pre = Array.from({ length: Math.max(0, (L.h1 || 1) - 1) }, (_, i) => i + 1);
     const body = Array.from({ length: L.R - (L.h2 || 0) }, (_, i) => (L.h2 || 0) + i + 1);
@@ -259,7 +261,16 @@
     return pages.map((rows, i) => {
       const cv = document.createElement("canvas"); cv.width = PW; cv.height = PH;
       const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, PW, PH);
-      ctx.save(); ctx.translate(PW - MARGIN - L.tableW * scale, MARGIN); ctx.scale(scale, scale); drawRows(ctx, L, rows, 0); ctx.restore();
+      ctx.save(); ctx.translate(PW - MARGIN - L.tableW * scale, MARGIN + HEADH); ctx.scale(scale, scale); drawRows(ctx, L, rows, 0); ctx.restore();
+      if (HEADH) { ctx.direction = "rtl"; ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillStyle = "#16231f";
+        deco.head.forEach((t, j) => { ctx.font = (j ? "600 " : "700 ") + (j ? 19 : 21) + "px " + FONT; ctx.fillText(t, PW - MARGIN, MARGIN - 18 + j * 26); }); }
+      if (SIGNH) { const n = deco.sign.length, y = PH - MARGIN - FOOT - 44; ctx.direction = "rtl"; ctx.textBaseline = "middle"; ctx.fillStyle = "#16231f";
+        deco.sign.forEach(([t, nm], j) => {
+          const al = n === 1 ? "right" : j === 0 ? "right" : j === n - 1 ? "left" : "center";
+          const x = al === "right" ? PW - MARGIN : al === "left" ? MARGIN : PW / 2;
+          ctx.textAlign = al === "right" ? "right" : al === "left" ? "left" : "center";
+          ctx.font = "700 21px " + FONT; ctx.fillText(t, x, y);
+          if (nm) { ctx.font = "400 17px " + FONT; ctx.fillStyle = "#43524e"; ctx.fillText("(" + nm + ")", x, y + 28); ctx.fillStyle = "#16231f"; } }); }
       ctx.font = "400 17px " + FONT; ctx.fillStyle = "#5a6a66"; ctx.textBaseline = "alphabetic"; ctx.direction = "rtl"; ctx.textAlign = "center";
       ctx.fillText((ws.name || "") + " · صفحة " + (i + 1) + " من " + pages.length + " · Hadro", PW / 2, PH - MARGIN / 2);
       return { cv, land };
