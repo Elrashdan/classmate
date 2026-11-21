@@ -2703,3 +2703,6 @@ html .stu-q input[type="search"], html .stu-q input[type="search"]:focus, html .
 html[data-skin="nx"] .stu-q input[type="search"], html[data-skin="nx"] .stu-q input[type="search"]:focus, html[data-skin="nx"] .stu-q input[type="search"]:focus-visible{ border: 0 !important; box-shadow: none !important; outline: none !important; background: transparent !important; border-radius: 0 !important; }
 html[data-skin="nx"] .stu-q:focus-within{ border-color: var(--ink); box-shadow: 0 0 0 3px var(--tint); }
 .stu-q:focus-within > svg{ color: var(--accent); opacity: 1; }
+/* b135: سبب التنبيه تحت عنوانه */
+.bl-why, .dh-why{display:block;color:var(--accent-ink-soft, var(--muted));font-weight:600;font-size:12.5px;margin-top:2px}
+html[data-skin="nx"] .bl-why, html[data-skin="nx"] .dh-why{color:color-mix(in srgb, var(--ink) 72%, transparent)}

@@ -7422,3 +7422,55 @@ begin
   if f = o then raise exception 'form_enroll code pattern not found'; end if;
   execute f;
 end $do$;
+
+-- ===================== update-77: تنبيه «تسليمات لم تُصحَّح» أذكى =====================
+--   • مابيحسبش التسليم اللي مستني الطالب يعيد رفعه (طلب إصلاح مفتوح)، ولا المرفوض، ولا اللي مايتقبلش لغيابه يوم التسليم.
+--   • بيقول السبب: «صلّح ملفه ومحتاج تصحيح تاني» / «وصل بعد ما صحّحت» / «لسه ماتصححش».
+--   • «منذ» بقت من وقت ما التسليم بقى مستني فعلًا (الرفع أو الإصلاح)، مش من ميعاد التكليف.
+--   • بيرجّع أكواد الطلبة عشان «فتح» يفتح عرض الأعمال على أول طالب مستني على طول.
+--   والعنصر بيختفي لوحده أول ما آخر تسليم فيه يتصحح (القائمة بتتحسب من الجداول كل مرة).
+create or replace function public.feed_course_items(cid uuid) returns setof jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('kind', 'appeal', 'course_id', cid, 'ref', t.id::text, 'title', 'تظلمات بانتظار الرد · «' || t.title || '»', 'n', count(*), 'since', min(a.created_at),
+           'codes', (array_agg(a.student_code order by a.created_at))[1:5])
+    from grade_appeals a join tasks t on t.id = a.task_id
+    where t.course_id = cid and a.status = 'pending' group by t.id, t.title
+  union all
+  select jsonb_build_object('kind', 'att', 'course_id', cid, 'ref', s.id::text, 'title', 'طلبات حضور معلّقة · المحاضرة ' || s.n || coalesce(' · مجموعة ' || nullif(s.grp, ''), ''), 'n', count(*), 'since', min(a.at), 'live', not s.ended)
+    from attendance a join sessions s on s.id = a.session_id
+    where s.course_id = cid and a.status = 'pending' group by s.id, s.n, s.grp, s.ended
+  union all
+  select jsonb_build_object('kind', 'warn', 'course_id', cid, 'ref', '', 'title', 'طلبة وصلوا إلى إنذار غياب جديد ولم يُبلَّغوا', 'n', count(*), 'since',
+           (select max(coalesce(s.closed_at, s.ends_at)) from sessions s where s.course_id = cid and s.ended))
+    from (select e.student_code, warn_level(course_absences(cid, e.student_code)) l from enrollments e where e.course_id = cid) x
+    where x.l > 0
+      and not exists (select 1 from warning_notices w where w.course_id = cid and w.student_code = x.student_code and w.level = x.l)
+      and not exists (select 1 from warning_announced a where a.course_id = cid and a.student_code = x.student_code and a.level = x.l)
+    having count(*) > 0
+  union all
+  select jsonb_build_object('kind', 'grade', 'course_id', cid, 'ref', t.id::text, 'title', 'تسليمات لم تُصحَّح · «' || t.title || '»', 'n', count(*),
+           'since', min(greatest(coalesce(s.fix_done_at, s.submitted_at), t.due_at)),
+           'detail', concat_ws(' · ',
+              case when count(*) filter (where s.fix_done_at is not null) > 0
+                   then count(*) filter (where s.fix_done_at is not null) || ' صلّح ملفه ومحتاج تصحيح تاني' end,
+              case when count(*) filter (where s.fix_done_at is null and g.last is not null and s.submitted_at > g.last) > 0
+                   then count(*) filter (where s.fix_done_at is null and g.last is not null and s.submitted_at > g.last) || ' وصل بعد ما صحّحت' end,
+              case when count(*) filter (where s.fix_done_at is null and (g.last is null or s.submitted_at <= g.last)) > 0
+                   then count(*) filter (where s.fix_done_at is null and (g.last is null or s.submitted_at <= g.last))
+                        || case when g.last is null then ' لسه ماتصححش' else ' اتفوّت في التصحيح' end end),
+           'codes', (array_agg(s.student_code order by s.fix_done_at nulls last, s.submitted_at))[1:5])
+    from tasks t join submissions s on s.task_id = t.id
+    left join lateral (select max(x.graded_at) last from submissions x where x.task_id = t.id and x.grade is not null) g on true
+    where t.course_id = cid and t.mode = 'submit' and t.due_at < now() - interval '1 day' and s.submitted_at is not null and s.grade is null
+      and not (s.fix_at is not null and s.fix_done_at is null)
+      and s.rejected_at is null
+      and not (t.absent_rule = 'refuse' and absent_on_due(t, s.student_code)
+               and not exists (select 1 from task_excuses x where x.task_id = t.id and x.student_code = s.student_code and x.active)
+               and not exists (select 1 from task_extensions x where x.task_id = t.id and x.student_code = s.student_code and x.active))
+      and not (
+        not exists (select 1 from submissions g2 where g2.task_id = t.id and g2.grade is not null)
+        and exists (select 1 from tasks m where m.course_id = cid and m.id <> t.id and m.mode <> 'submit' and m.due_at >= t.due_at
+                      and exists (select 1 from submissions g3 where g3.task_id = m.id and g3.grade is not null)))
+    group by t.id, t.title, t.due_at, g.last
+$$;
+revoke all on function public.feed_course_items(uuid) from public, anon, authenticated;

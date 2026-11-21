@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b134">
+<link rel="stylesheet" href="style.css?v=b135">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b134"></script>
-<script src="vendor/qrcode.js?v=b134"></script>
-<script src="config.js?v=b134"></script>
-<script src="common.js?v=b134"></script>
-<script src="drive.js?v=b134"></script>
-<script src="pack.js?v=b134"></script>
-<script src="catalog.js?v=b134"></script>
-<script src="voice.js?v=b134"></script>
-<script src="timetable.js?v=b134"></script>
-<script src="research.js?v=b134"></script>
+<script src="vendor/supabase.js?v=b135"></script>
+<script src="vendor/qrcode.js?v=b135"></script>
+<script src="config.js?v=b135"></script>
+<script src="common.js?v=b135"></script>
+<script src="drive.js?v=b135"></script>
+<script src="pack.js?v=b135"></script>
+<script src="catalog.js?v=b135"></script>
+<script src="voice.js?v=b135"></script>
+<script src="timetable.js?v=b135"></script>
+<script src="research.js?v=b135"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -833,7 +833,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b134: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b135: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -913,8 +913,8 @@
     if (l == null) return `<article class="dh-card dh-todo" id="dhTodo">${head(null)}<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p></article>`;
     const kc = { appeal: "bad", petition: "bad", att: "acc", warn: "warn", grade: "acc" };
     return `<article class="dh-card dh-todo" id="dhTodo">${head(l.length)}${l.length ? `<div class="dh-tasks">${l.slice(0, 6).map(it => { const k = FK[it.kind] || FK.appeal, d = ageDays(it.since), late = d >= 3;
-      return `<div class="dh-task${late ? " late" : ""}" data-key="${esc(bKey(it))}"><span class="dh-ti c-${kc[it.kind] || "acc"}">${ICO(k.ic)}</span><span class="dh-tt"><b>${esc(it.title)}</b><span class="dh-sub">${esc(it.course || "")}${it.course ? " · " : ""}${it.n} ${k.u} · <em class="${late ? "bad-t" : d >= 1 ? "warn-t" : ""}">${it.kind === "att" && it.live ? "المحاضرة جارية" : esc(ago(it.since))}</em></span></span>
-        <span class="dh-ta"><button type="button" class="btn sm" data-dhgo="${esc(it.course_id + "|" + it.kind + "|" + (it.ref || ""))}">فتح</button><button type="button" class="btn sm ghost icon ia-ok" data-dhok="${esc(bKey(it))}|${it.n}" title="تم: إخفاء لحد ما ييجي جديد" aria-label="تم">${ICO('<path d="M5 12l5 5L20 7"/>')}</button></span></div>`; }).join("")}</div>${l.length > 6 ? `<button type="button" class="btn sm ghost dh-more-b" data-me="bell">كل التنبيهات (${l.length})</button>` : ""}`
+      return `<div class="dh-task${late ? " late" : ""}" data-key="${esc(bKey(it))}"><span class="dh-ti c-${kc[it.kind] || "acc"}">${ICO(k.ic)}</span><span class="dh-tt"><b>${esc(it.title)}</b>${it.detail ? `<span class="dh-sub dh-why">${esc(it.detail)}</span>` : ""}<span class="dh-sub">${esc(it.course || "")}${it.course ? " · " : ""}${it.n} ${k.u} · <em class="${late ? "bad-t" : d >= 1 ? "warn-t" : ""}">${it.kind === "att" && it.live ? "المحاضرة جارية" : esc(ago(it.since))}</em></span></span>
+        <span class="dh-ta"><button type="button" class="btn sm" data-dhgo="${esc(it.course_id + "|" + it.kind + "|" + (it.ref || "") + "|" + ((it.codes || [])[0] || ""))}">فتح</button><button type="button" class="btn sm ghost icon ia-ok" data-dhok="${esc(bKey(it))}|${it.n}" title="تم: إخفاء لحد ما ييجي جديد" aria-label="تم">${ICO('<path d="M5 12l5 5L20 7"/>')}</button></span></div>`; }).join("")}</div>${l.length > 6 ? `<button type="button" class="btn sm ghost dh-more-b" data-me="bell">كل التنبيهات (${l.length})</button>` : ""}`
       : `<div class="dh-empty">مفيش حاجة مستنياك. شغل ممتاز.</div>`}</article>`;
   }
   function dhStudents(c) {
@@ -944,7 +944,7 @@
     root.querySelectorAll("[data-tile]").forEach(b => b.onclick = () => { view = "course"; ctab = b.dataset.tile; store.set("cm_tab", ctab); render(); window.scrollTo({ top: 0 }); });
     root.querySelectorAll("[data-dhg]").forEach(b => b.onclick = () => { dhGrp = b.dataset.dhg; const el = $("#dhChart"); if (el) { el.outerHTML = dhChart(course()); wireDash(); dhAnim($("#dhChart")); } });
     root.querySelectorAll("[data-dhs]").forEach(b => b.onclick = () => { const k = b.dataset.dhs; dhOpen = b.classList.contains("open") ? "" : k; const el = $("#dhDay"); el.outerHTML = dhDayHtml(); wireDash(); });
-    root.querySelectorAll("[data-dhgo]").forEach(b => b.onclick = () => { const [cid, kind, ref] = b.dataset.dhgo.split("|"); bellGo(cid, kind, ref); });
+    root.querySelectorAll("[data-dhgo]").forEach(b => b.onclick = () => { const [cid, kind, ref, code] = b.dataset.dhgo.split("|"); bellGo(cid, kind, ref, code); });
     root.querySelectorAll("[data-dhok]").forEach(b => b.onclick = () => { const v = b.dataset.dhok, i = v.lastIndexOf("|"), row = b.closest(".dh-task");
       bellHideItem(v.slice(0, i), +v.slice(i + 1)); if (row) row.classList.add("gone"); setTimeout(() => { bellBadge(); }, 380); });
     root.querySelectorAll("[data-me]").forEach(b => b.onclick = () => { const k = b.dataset.me; if (k === "tt") { view = "timetable"; stopLoops(); render(); window.scrollTo({ top: 0 }); } else if (k === "bell") bellOpen(); });
@@ -1047,9 +1047,9 @@
   function bellItem(it, dept) {
     const k = FK[it.kind] || FK.appeal;
     const ak = bjGet("cm_bell_ack");
-    return `<article class="bl-it${lateCls(it)}${ak[bKey(it)] >= it.n ? " seen" : " new"}" data-sw="it:${esc(bKey(it))}:${it.n}"><span class="bl-ic k-${it.kind}">${ICO(k.ic)}</span><div class="bl-tx"><b>${esc(it.title)}</b>
-      <small>${it.n} ${k.u}${it.kind === "att" && it.live ? " · المحاضرة جارية الآن" : it.since ? " · " + ago(it.since) : ""}${lateCls(it) === " late" ? ` · <em class="bad-t">متأخر</em>` : ""}${dept && it.reminded ? ` · ذُكّر الفريق ${ago(it.reminded)}` : ""}</small></div>
-      <div class="bl-act">${dept ? `<button class="btn xs ghost" data-blrem="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}" title="إشعار لفريق المادة بأن هذا ينتظر الرد">تذكير الفريق</button>` : ""}<button class="btn xs" data-blgo="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}">فتح</button><button class="btn xs ghost bl-del" data-bldel="it:${esc(bKey(it))}:${it.n}" title="إخفاء" aria-label="إخفاء">${ICO(TRASH)}</button></div></article>`;
+    return `<article class="bl-it${lateCls(it)}${ak[bKey(it)] >= it.n ? " seen" : " new"}" data-sw="it:${esc(bKey(it))}:${it.n}"><span class="bl-ic k-${it.kind}">${ICO(k.ic)}</span><div class="bl-tx"><b>${esc(it.title)}</b>${it.detail ? `<small class="bl-why">${esc(it.detail)}</small>` : ""}
+      <small>${it.n} ${k.u}${it.kind === "att" && it.live ? " · المحاضرة جارية الآن" : it.since ? " · " + ago(it.since) : ""}${lateCls(it) === " late" ? ` · <em class="bad-t">مستني من ${Math.floor(ageDays(it.since))} يوم</em>` : ""}${dept && it.reminded ? ` · ذُكّر الفريق ${ago(it.reminded)}` : ""}</small></div>
+      <div class="bl-act">${dept ? `<button class="btn xs ghost" data-blrem="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}" title="إشعار لفريق المادة بأن هذا ينتظر الرد">تذكير الفريق</button>` : ""}<button class="btn xs" data-blgo="${esc(it.course_id + "|" + it.kind + "|" + it.ref + "|" + ((it.codes || [])[0] || ""))}">فتح</button><button class="btn xs ghost bl-del" data-bldel="it:${esc(bKey(it))}:${it.n}" title="إخفاء" aria-label="إخفاء">${ICO(TRASH)}</button></div></article>`;
   }
   function bellGroups(list, dept) {
     const by = {}; list.forEach(it => (by[it.course_id] = by[it.course_id] || { name: it.course, team: it.team, items: [] }).items.push(it));
@@ -1094,7 +1094,7 @@
     p.querySelectorAll("[data-blt]").forEach(b => b.onclick = () => { bellTab = b.dataset.blt; bellF = "all"; bellRender(); });
     p.querySelectorAll("[data-blf]").forEach(b => b.onclick = () => { bellF = b.dataset.blf; bellRender(); });
     p.querySelectorAll("[data-goat]").forEach(b => b.onclick = () => { bellClose(); atab = b.dataset.goat; store.set("cm_atab", atab); view = "admin"; stopLoops(); render(); });
-    p.querySelectorAll("[data-blgo]").forEach(b => b.onclick = () => { const [cid, kind, ref] = b.dataset.blgo.split("|"); bellGo(cid, kind, ref); });
+    p.querySelectorAll("[data-blgo]").forEach(b => b.onclick = () => { const [cid, kind, ref, code] = b.dataset.blgo.split("|"); bellGo(cid, kind, ref, code); });
     p.querySelectorAll("[data-blrem]").forEach(b => b.onclick = async () => { const [cid, kind, ref] = b.dataset.blrem.split("|"); b.disabled = true;
       try { const n = await rpc("staff_remind", { cid, p_kind: kind, p_ref: ref }); toast(n ? "وصل التذكير لفريق المادة (" + n + ")." : "لا يوجد في فريق المادة غيرك."); await loadFeed(); } catch (e) { b.disabled = false; toast(errText(e)); } });
   }
