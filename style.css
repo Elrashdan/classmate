@@ -2708,3 +2708,9 @@ html[data-skin="nx"] .stu-q:focus-within{ border-color: var(--ink); box-shadow: 
 /* b135: سبب التنبيه تحت عنوانه */
 .bl-why, .dh-why{display:block;color:var(--accent-ink-soft, var(--muted));font-weight:600;font-size:12.5px;margin-top:2px}
 html[data-skin="nx"] .bl-why, html[data-skin="nx"] .dh-why{color:color-mix(in srgb, var(--ink) 72%, transparent)}
+/* b139: تنبيه استمارة التسجيل الإجبارية */
+.rf-due{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;border-inline-start:4px solid #c98a00}
+.rf-due>div{flex:1 1 240px;display:flex;flex-direction:column;gap:4px}
+.rf-due b{font-size:1rem}
+.rf-due .btn{flex:0 0 auto}
+@media (max-width:560px){.rf-due .btn{width:100%}}

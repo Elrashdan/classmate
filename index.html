@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b138">
+<link rel="stylesheet" href="style.css?v=b139">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b138"></script>
-<script src="config.js?v=b138"></script>
-<script src="common.js?v=b138"></script>
-<script src="drive.js?v=b138"></script>
-<script src="catalog.js?v=b138"></script>
-<script src="regform.js?v=b138"></script>
+<script src="vendor/qrcode.js?v=b139"></script>
+<script src="config.js?v=b139"></script>
+<script src="common.js?v=b139"></script>
+<script src="drive.js?v=b139"></script>
+<script src="catalog.js?v=b139"></script>
+<script src="regform.js?v=b139"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -461,6 +461,7 @@
     if (!silent && !home && !rf) CM.loader(app, "جارٍ تجهيز صفحتك…");
     try {
       home = await rpc("student_home", { p_token: token });
+      rpc("student_form_due", { p_token: token }).then(r => { const d = !!(r && r.due); if (d !== formDue) { formDue = d; if (home && !rf && !tkId) renderHome(); } }).catch(() => {});
       if (!limited && pk.ok && pk.count == null) rpc("student_passkey_count", { p_token: token }).then(n => { pk.count = Number(n) || 0; if (home && !rf && !tkId) renderHome(); }).catch(() => {});
       const q = qrGet();
       if (limited) {} else if (!silent || !q || q.code !== home.code) await refreshQrKey();
@@ -754,7 +755,7 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b138: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  /* b139: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
   let stab = ["home", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };
@@ -792,6 +793,14 @@
       : `<div class="empty">لسه مفيش درجات اتعلنت ليك.</div>`}</section>`;
   }
   // ملفات طلب الفريق إعادة رفعها: تنبيه واضح فوق في الرئيسية لحد ما الطالب يرفعها
+  // استمارة التسجيل إجبارية كل ترم: تنبيه ثابت لحد ما الطالب يرفعها
+  let formDue = false;
+  function formAlert() {
+    if (!formDue) return "";
+    return `<section class="msg warn rf-due" role="alert"><div><b>برجاء رفع استمارة التسجيل لتسجيل باقي المواد الخاصة بك</b>
+      <span class="small">ارفع استمارة التسجيل (الإرشاد الأكاديمي) بتاعة الترم ده من نظام ابن الهيثم، وهتتسجل في كل موادك تلقائيًا. التنبيه ده هيفضل ظاهر لحد ما ترفعها.</span></div>
+      <button class="btn primary" data-rf-due>رفع استمارة التسجيل</button></section>`;
+  }
   function fixAlert() {
     const l = (tasks || []).filter(t => t.mine && t.mine.fix && home.courses.some(c => c.id === t.course_id)); if (!l.length) return "";
     const cn = t => (home.courses.find(c => c.id === t.course_id) || {}).name || "";
@@ -809,6 +818,7 @@
     if (stSel && !home.courses.some(c => c.id === stSel)) stSel = null;
     const sel = home.courses.find(c => c.id === stSel) || home.courses.find(c => c.session) || home.courses.find(c => (c.level || 0) > 0) || home.courses[0];
     const tab = stab === "grades" ? stGrades() : stab === "tt" ? (myTT && myTT.slots.length ? ttHtml(true) : `<section class="st-sec"><div class="st-h"><h2>جدولي</h2></div><div class="empty">${myTT === null ? "مفيش جدول دراسي منشور لدفعتك لسه." : "مفيش محاضرات ليك في الجدول."}</div></section>`) : `
+        ${formAlert()}
         ${nowHtml()}
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
         ${fixAlert()}
@@ -842,6 +852,7 @@
     const q2 = $("#qrBtn2"); if (q2) q2.onclick = openQr;
     wireNotifs();
     const rfs = $("#rfSync"); if (rfs) rfs.onclick = () => openForm("sync");
+    app.querySelectorAll("[data-rf-due]").forEach(b => b.onclick = () => openForm("sync"));
     if ($("#gLink")) HD.loadGis().catch(() => {});
     const gl = $("#gLink"); if (gl) gl.onclick = () => { const auth = HD.authorize(); auth.then(at => pkCall({ action: "google_link", token, access_token: at })).then(() => { store.set("cm_glink_" + home.code, "1"); pwMsg = "رُبط حساب Google. إن نسيت كلمة السر فاختر «نسيت كلمة السر؟» ثم «تأكيد بحساب Google»."; renderHome(); }).catch(e => { pwMsg = "!" + errText(e); renderHome(); }); };
     const po = $("#pkOn"); if (po) po.onclick = async () => { po.disabled = true; try { await pkRegister(); pkMsg = "فُعّل الدخول بالبصمة. إن ظهر لك يومًا أن الحساب «مرتبط بهاتف آخر» فاضغط «الدخول ببصمة الوجه أو الإصبع»."; } catch (e) { pkMsg = "!" + pkErr(e); } renderHome(); };

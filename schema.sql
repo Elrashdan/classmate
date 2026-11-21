@@ -7548,3 +7548,28 @@ begin
   return 0;
 end $$;
 
+
+-- ===================== update-79: استمارة التسجيل إجبارية كل ترم =====================
+--   الطالب اللي مارفعش استمارة التسجيل (الإرشاد الأكاديمي) في الترم الحالي بيظهرله تنبيه ثابت في أول صفحته لحد ما يرفعها،
+--   عشان يتسجل في باقي مواده تلقائيًا. «الترم الحالي» بيبدأ من ١٥ أغسطس (الأول) و١٥ يناير (التاني) و١٥ يونيو (الصيفي).
+create or replace function public.term_start() returns timestamptz
+language sql stable set search_path = public as $$
+  select (case (a->>'term')::int
+            when 1 then make_date(split_part(a->>'year', '/', 1)::int, 8, 15)
+            when 2 then make_date(split_part(a->>'year', '/', 2)::int, 1, 15)
+            else make_date(split_part(a->>'year', '/', 2)::int, 6, 15) end)::timestamp at time zone 'Africa/Cairo'
+    from (select academic_term() a) x
+$$;
+revoke all on function public.term_start() from public, anon, authenticated;
+
+create or replace function public.student_form_due(p_token text) returns json
+language plpgsql security definer set search_path = public as $$
+declare code text := student_from_token(p_token); a json := academic_term(); last timestamptz;
+begin
+  if code is null then raise exception 'not_signed_in'; end if;
+  select max(at) into last from form_regs where student_code = code and items > 0;
+  return json_build_object('due', (a->>'term')::int in (1, 2) and (last is null or last < term_start()),
+                           'last', last, 'year', a->>'year', 'term', (a->>'term')::int);
+end $$;
+revoke all on function public.student_form_due(text) from public;
+grant execute on function public.student_form_due(text) to anon, authenticated;
