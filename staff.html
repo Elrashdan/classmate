@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b127">
+<link rel="stylesheet" href="style.css?v=b128">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b127"></script>
-<script src="vendor/qrcode.js?v=b127"></script>
-<script src="config.js?v=b127"></script>
-<script src="common.js?v=b127"></script>
-<script src="drive.js?v=b127"></script>
-<script src="pack.js?v=b127"></script>
-<script src="catalog.js?v=b127"></script>
-<script src="voice.js?v=b127"></script>
-<script src="timetable.js?v=b127"></script>
-<script src="research.js?v=b127"></script>
+<script src="vendor/supabase.js?v=b128"></script>
+<script src="vendor/qrcode.js?v=b128"></script>
+<script src="config.js?v=b128"></script>
+<script src="common.js?v=b128"></script>
+<script src="drive.js?v=b128"></script>
+<script src="pack.js?v=b128"></script>
+<script src="catalog.js?v=b128"></script>
+<script src="voice.js?v=b128"></script>
+<script src="timetable.js?v=b128"></script>
+<script src="research.js?v=b128"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -311,6 +311,7 @@
 
   /* ======================= permissions & helpers ======================= */
   const staffName = e => (staff.find(s => s.email === e) || {}).name || e;
+  const ownerName = c => c && c.no_owner ? ((profs[c.id] || {}).name ? profs[c.id].name + " (لسه ماعملش حساب)" : "لسه مالهاش محاضر") : staffName(c && c.owner_email);
 
   /* ---------- course classification: academic year, term, level, track ---------- */
   const LEVELS = ["", "المستوى الأول", "المستوى الثاني", "المستوى الثالث", "المستوى الرابع", "المستوى الخامس"];
@@ -388,7 +389,7 @@
   }
   function role(c) {
     if (!c || !me) return null;
-    if (c.owner_email === me.email) return "owner";
+    if (c.owner_email === me.email && !c.no_owner) return "owner";   // no_owner: المسؤول صاحبها مؤقتًا لحد ما الجدول يحدد محاضرها
     const t = tasAll.find(t => t.course_id === c.id && t.email === me.email);
     if (t) return t.kind === "co" ? "co" : "ta";
     return isDept() ? "admin" : null;   // المسؤول ورئيس القسم: صلاحيات صاحب المادة في كل المواد
@@ -792,7 +793,7 @@
     if (pk.tr !== "all" && !trs.includes(pk.tr)) pk.tr = "all";
     const shown = atLvl.filter(x => pk.tr === "all" || x.track === pk.tr);
     const chip = (attr, v, cur, label) => `<button type="button" class="cchip" ${attr}="${esc(v)}" aria-pressed="${v === cur}">${label}</button>`;
-    const rl = x => { const r = role(x); return r === "ta" ? "معيد" : r === "co" ? "محاضر مشارك" : r === "viewer" || r === "admin" ? staffName(x.owner_email) : ""; };
+    const rl = x => { const r = role(x); return r === "ta" ? "معيد" : r === "co" ? "محاضر مشارك" : r === "viewer" || r === "admin" ? ownerName(x) : ""; };
     let n = 0;
     const step = (t, body) => `<div class="cpk-step"><span class="cpk-n">${++n}</span><div class="cpk-sb"><b>${t}</b>${body}</div></div>`;
     return `<div class="cpk ${pk.open ? "open" : ""}" data-where="${where}">
@@ -830,7 +831,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b127: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b128: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -1250,8 +1251,8 @@
       <div id="courseWrap" ${view === "home" || view === "profile" || view === "timetable" ? "hidden" : ""}>
       ${view === "admin" ? CM.band(me.role === "head" ? { icon: CM.ICONS.admin, eyebrow: "رئيس القسم", title: "متابعة القسم", sub: "المواد والغياب والإنذارات وسجل التعديلات" } : { icon: CM.ICONS.admin, eyebrow: "لوحة المسؤول", title: "إدارة القسم", sub: "المحاضرون والمعيدون والإعدادات وتقارير القسم" }) + `<div class="col" id="adminArea"></div>` : !c ? `<div class="panel"><h2>${courses.length ? "لا توجد مواد في هذه الفترة" : "لا توجد مواد بعد"}</h2><div class="empty">${courses.length ? "غيّر العام الدراسي أو الفصل من الأعلى، أو أنشئ مادة جديدة." : me.role === "ta" ? "عندما يضيفك محاضر معيدًا في مادة، ستظهر هنا." : "اضغط «مادة جديدة» في الأعلى، ثم ارفع ملف الطلبة."}</div></div>` : `
       ${courseBand(c)}
-      ${c.auto_created && !tasAll.some(x => x.course_id === c.id) && isOwner(c) ? `<div class="msg warn" style="margin-bottom:16px"><b>أنشأ النظام هذه المادة تلقائيًّا</b> لأن طلبة سجّلوها في استمارات التسجيل، ولا يوجد لها فريق بعد. أضف المحاضر أو المعيد المسؤول عنها من تبويب «الفريق» (محاضر مشارك أو معيد).</div>` : ""}
-      ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `أنت محاضر مشارك في هذه المادة مع ${esc(staffName(c.owner_email))}. يمكنك القيام بكل ما يتعلق بالمحاضرات والطلبة والكشف، أما حذف المادة وتعديل بياناتها وإدارة الفريق فهي لصاحب المادة.` : role(c) === "ta" ? `أنت معيد في هذه المادة. يمكنك بدء المحاضرات والموافقة على الطلبات والتسجيل اليدوي وإضافة طالب، أما رفع ملف الطلبة وإدارة الفريق فهما للمحاضر ${esc(staffName(c.owner_email))}.` : role(c) === "admin" ? `هذه مادة ${esc(staffName(c.owner_email))}. لك فيها صلاحيات صاحب المادة كاملة بصفتك ${me.role === "head" ? "رئيس القسم" : "مسؤولًا"}، وكل ما تفعله يُكتب في سجل المادة باسمك.` : `هذه مادة ${esc(staffName(c.owner_email))}. تطّلع عليها بصفتك مسؤولًا، للقراءة والتصدير فقط.`}</div>` : ""}
+      ${c.no_owner && isOwner(c) ? `<div class="msg warn" style="margin-bottom:16px"><b>المادة دي لسه مالهاش محاضر.</b> النظام عملها لأن طلبة سجّلوها في استمارات التسجيل. محاضرها ومعيدينها بيتعيّنوا تلقائيًا من الجدول الدراسي أول ما يكونوا مكتوبين عليها في الجدول المنشور ويعملوا حساب، ولو مش لاقيها في الجدول اربطها بخانتها من «الجدول الدراسي».</div>` : ""}
+      ${role(c) !== "owner" ? `<div class="msg warn" style="margin-bottom:16px">${role(c) === "co" ? `أنت محاضر مشارك في هذه المادة${c.no_owner ? "" : " مع " + esc(staffName(c.owner_email))}. يمكنك القيام بكل ما يتعلق بالمحاضرات والطلبة والكشف، أما حذف المادة وتعديل بياناتها وإدارة الفريق فهي لصاحب المادة.` : role(c) === "ta" ? `أنت معيد في هذه المادة. يمكنك بدء المحاضرات والموافقة على الطلبات والتسجيل اليدوي وإضافة طالب، أما رفع ملف الطلبة وإدارة الفريق فهما للمحاضر ${esc(staffName(c.owner_email))}.` : role(c) === "admin" ? `هذه مادة ${esc(staffName(c.owner_email))}. لك فيها صلاحيات صاحب المادة كاملة بصفتك ${me.role === "head" ? "رئيس القسم" : "مسؤولًا"}، وكل ما تفعله يُكتب في سجل المادة باسمك.` : `هذه مادة ${esc(staffName(c.owner_email))}. تطّلع عليها بصفتك مسؤولًا، للقراءة والتصدير فقط.`}</div>` : ""}
       <div id="rsReqs" hidden></div>
       <nav class="ctabs" role="tablist" aria-label="أقسام المادة"><button type="button" class="dk-home nx-only" data-dock-home aria-label="الرئيسية">${ICO(HOME_ICO)}<span class="l">الرئيسية</span></button>${CTABS.map(([k, t, ic]) => `<button role="tab" data-ct="${k}" aria-selected="${ctab === k}" aria-controls="pane-${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
       <div class="tabpane" id="pane-live" role="tabpanel" ${ctab === "live" ? "" : "hidden"}><div id="sessionArea"></div><section class="panel" id="livePanel"></section></div>
@@ -2274,8 +2275,8 @@
   const minusOfSub = s => s ? minusOf(D && D.tasks.find(t => t.id === s.task_id), s.student_code) : 0;
   const minusChip = (t, code) => minusOf(t, code) ? ` <span class="chip bad small" title="${esc(t.minus_note || "خصم محدّد لهذا الطالب في التكليف")}">خصم ${gN(minusOf(t, code))}</span>` : "";
   // أستاذ المادة: {name, src: manual مكتوب يدويًا | tt من الجدول الدراسي | owner صاحب المادة}
-  const profOf = c => (c && profs[c.id]) || { name: c ? staffName(c.owner_email) : "", src: "owner" };
-  const PROF_SRC = { manual: "مكتوب يدويًا", tt: "من الجدول الدراسي", owner: "صاحب المادة (المادة مش في جدول منشور)" };
+  const profOf = c => (c && profs[c.id]) || (c && c.no_owner ? { name: "", src: "none" } : { name: c ? staffName(c.owner_email) : "", src: "owner" });
+  const PROF_SRC = { manual: "مكتوب يدويًا", tt: "من الجدول الدراسي", owner: "صاحب المادة (المادة مش في جدول منشور)", none: "لسه مالهاش محاضر في الجدول الدراسي" };
   const totalOf = s => s && s.grade != null ? Math.max(0, Number(s.grade) + Number(s.bonus || 0) - minusOfSub(s)) : null;
   const isManual = t => t.mode === "manual";
   const canEditTask = (c, t) => canManage(c) || (role(c) === "ta" && t.created_by === me.email);
@@ -4476,8 +4477,9 @@
         ${(() => { const pf = profOf(c); return `<div class="li man prof-li"><span class="chip ok">أستاذ المادة</span>${profEdit && mng
           ? `<div class="who"><input type="text" id="profIn" maxlength="160" value="${esc(pf.src === "manual" ? pf.name : "")}" placeholder="${esc(pf.name || "اكتب الاسم كما يظهر على الختم")}"><small>سيبه فاضي عشان البرنامج ياخد الاسم من الجدول الدراسي.</small></div><div class="acts"><button class="btn sm primary" id="profSave">حفظ</button><button class="btn sm ghost" id="profCancel">إلغاء</button></div>`
           : `<div class="who"><b>${esc(pf.name || "—")}</b><small>${PROF_SRC[pf.src] || ""} · يظهر اسمه مع الدرجة على ختم أعمال الطلبة</small></div><div class="acts">${mng ? `<button class="btn sm ghost" id="profEditB">تعديل</button>` : ""}</div>`}</div>`; })()}
-        <div class="li man"><span class="chip man">صاحب المادة</span><div class="who"><b>${esc(staffName(c.owner_email))}</b><small class="mono">${esc(c.owner_email)}</small></div><span></span></div>
-        ${team.map(t => `<div class="li ${t.kind === "co" ? "man" : ""}"><span class="chip ${t.kind === "co" ? "man" : "none"}">${t.kind === "co" ? "محاضر مشارك" : "معيد"}</span><div class="who"><b>${esc(staffName(t.email))}${t.src === "tt" ? ` <span class="chip ok small" title="اتضاف تلقائيًا لأنه مكتوب في الجدول الدراسي على المادة دي. لو اتشال من الجدول بيتشال من هنا، ولو شلته انت مش هيرجع تاني.">من الجدول الدراسي</span>` : ""}</b><small class="mono">${esc(t.email)}</small></div><div class="acts">${mng ? `<button class="btn sm ghost" data-kind="${esc(t.email)}" data-to="${t.kind === "co" ? "ta" : "co"}">${t.kind === "co" ? "تحويله إلى معيد" : "تحويله إلى محاضر مشارك"}</button><button class="btn sm ghost danger" data-rmta="${esc(t.email)}">إزالة</button>` : ""}</div></div>`).join("")}
+        ${c.no_owner ? `<div class="li man"><span class="chip warn">المحاضر المسؤول</span><div class="who"><b>لسه ماتحددش</b><small>المادة اتعملت من استمارات الطلبة. أول ما محاضرها في الجدول الدراسي يعمل حساب، أو المسؤول يكتبه على المادة في الجدول، هتنتقل له تلقائيًا.</small></div><span></span></div>`
+          : `<div class="li man"><span class="chip man">صاحب المادة</span><div class="who"><b>${esc(staffName(c.owner_email))}${c.owner_auto ? ` <span class="chip ok small" title="المحاضر المسؤول اتحدد تلقائيًا من الجدول الدراسي، ولو اتغير في الجدول بيتغير هنا">من الجدول الدراسي</span>` : ""}</b><small class="mono">${esc(c.owner_email)}</small></div><span></span></div>`}
+        ${team.map(t => `<div class="li ${t.kind === "co" ? "man" : ""}"><span class="chip ${t.kind === "co" ? "man" : "none"}">${t.kind === "co" ? "محاضر مشارك" : "معيد"}</span><div class="who"><b>${esc(staffName(t.email))}${t.src === "tt" ? ` <span class="chip ok small" title="اتضاف تلقائيًا لأنه مكتوب في الجدول الدراسي على المادة دي. لو اتشال أو اتنقل لمادة تانية في الجدول بيتشال من هنا تلقائيًا، ولو شلته انت مش هيرجع تاني.">من الجدول الدراسي</span>` : ""}</b><small class="mono">${esc(t.email)}</small></div><div class="acts">${mng ? `<button class="btn sm ghost" data-kind="${esc(t.email)}" data-to="${t.kind === "co" ? "ta" : "co"}">${t.kind === "co" ? "تحويله إلى معيد" : "تحويله إلى محاضر مشارك"}</button><button class="btn sm ghost danger" data-rmta="${esc(t.email)}">إزالة</button>` : ""}</div></div>`).join("")}
       </div>
       ${mng ? (cands.length ? `<div class="settings"><label class="f"><span>إضافة إلى الفريق</span><select id="taPick">${cands.map(u => `<option value="${esc(u.email)}">${esc(u.name)} (${ROLE[u.role]})</option>`).join("")}</select></label><label class="f"><span>بصفته</span><select id="taKind"><option value="co">محاضر مشارك</option><option value="ta" selected>معيد</option></select></label><button class="btn" id="taAdd">أضف</button></div>` : `<p class="muted small">لا توجد حسابات أخرى لإضافتها. إن لم يكن المحاضر أو المعيد موجودًا، فاطلب من مسؤول القسم إضافته.</p>`)
         + `<p class="muted small"><b>المحاضر المشارك</b> يقوم بكل ما تقوم به في المحاضرات والطلبة والكشف (ومنه تعديل المحاضرات المنتهية)، باستثناء حذف المادة وتعديل بياناتها وإدارة الفريق. <b>المعيد</b> يبدأ المحاضرات، ويوافق على الطلبات، ويسجّل يدويًّا، ويضيف طالبًا، لكنه لا يرفع ملف الطلبة ولا يعدّل المحاضرات بعد انتهائها.</p>` : ""}
@@ -4567,7 +4569,7 @@
     const n = k => rows.filter(r => r.s[0] === k).length;
     return `<div class="cchips" style="margin-bottom:10px"><span class="chip ok">${n("ok")} بياخدوا الغياب</span><span class="chip warn">${n("warn")} متوقفة من أكتر من 8 أيام</span><span class="chip bad">${n("bad")} ما بدأتش</span></div>
       <div class="tbl-wrap"><table><thead><tr><th>المادة</th><th>المحاضر</th><th class="c">الطلبة</th><th class="c">المحاضرات</th><th>آخر محاضرة</th><th class="c">متوسط الحضور</th><th class="c">تكليفات اترصدت</th><th>الحالة</th><th></th></tr></thead><tbody>
-      ${rows.map(({ c, o, s }) => `<tr><td class="nm">${esc(c.name)}<div class="muted small">${esc(clsLabel(c))}</div></td><td class="small">${esc(staffName(c.owner_email))}</td><td class="c mono">${+o.students || 0}</td><td class="c mono">${+o.lectures || 0}</td>
+      ${rows.map(({ c, o, s }) => `<tr><td class="nm">${esc(c.name)}<div class="muted small">${esc(clsLabel(c))}</div></td><td class="small${c.no_owner ? " muted" : ""}">${esc(ownerName(c))}</td><td class="c mono">${+o.students || 0}</td><td class="c mono">${+o.lectures || 0}</td>
         <td class="small">${o.last_at ? esc(ago(o.last_at)) : "—"}</td><td class="c mono">${o.avg_pct == null ? "—" : o.avg_pct + "%"}</td><td class="c mono">${+o.tasks ? (+o.graded_tasks || 0) + " / " + o.tasks : "—"}</td>
         <td><span class="chip ${s[0]}">${s[1]}</span></td><td><button class="btn xs" data-dopen="${c.id}">فتح</button></td></tr>`).join("") || `<tr><td colspan="9" class="muted">مفيش مواد في الفلتر ده.</td></tr>`}
       </tbody></table></div>

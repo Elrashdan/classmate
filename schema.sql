@@ -6863,3 +6863,292 @@ begin
 end $$;
 revoke all on function public.submission_set_late(uuid, text, text, text) from public, anon;
 grant execute on function public.submission_set_late(uuid, text, text, text) to authenticated;
+
+-- ===================== update-70: المواد بتتربط بالجدول الدراسي بالكامل: المحاضر المسؤول + الفريق + النقل والشيل =====================
+--   • المواد اللي اتعملت تلقائيًا من استمارات الطلبة (owner_auto) صاحبها بيبقى «المحاضر» اللي في الجدول.
+--     لو لسه مفيش محاضر ليه حساب، المادة بتفضل «من غير محاضر» (no_owner) ومابتظهرش في مواد المسؤول كأنها بتاعته.
+--   • أي حد في الجدول (محاضر أو معيد) ليه حساب بيتضاف للفريق تلقائيًا، ولو اتشال أو اتنقل لمادة تانية في الجدول بيتشال من القديمة.
+--     الأعضاء اللي صاحب المادة ضافهم بإيده (src = 'manual') مابيتشالوش أبدًا تلقائيًا.
+--   • الشيل والنقل بيحصلوا بس لو فيه جدول منشور لنفس السنة والفصل بتوع المادة (عشان إلغاء النشر للتعديل مايفضّيش المواد).
+--   • خانة الجدول ممكن تغطي أكتر من مادة (المقرر الاختياري): more_courses.
+--   • المواد الجديدة بتتربط تلقائيًا بخانات الجدول اللي من غير مادة لو الاسم والمستوى والشعبة متطابقين.
+alter table public.tt_slots add column if not exists more_courses uuid[] not null default '{}';
+alter table public.courses add column if not exists owner_auto boolean not null default false;
+alter table public.courses add column if not exists no_owner boolean not null default false;
+update public.courses c set owner_auto = true, no_owner = true
+ where c.auto_created and not c.owner_auto
+   and c.owner_email = (select email from public.staff where role = 'admin' and status <> 'suspended' order by created_at limit 1);
+
+-- الكلمات بعد التوحيد: أرقام عربي ← إنجليزي، ع.د ← عماره داخليه، س ← سينوجرافيا، شيل «ال» و«و» والكلمات الصغيرة
+create or replace function public.tt_tokens(s text) returns text[]
+language sql immutable set search_path = public as $$
+  select coalesce(array_agg(w) filter (where w <> '' and w not in ('في', 'من', 'على', 'علي', 'مقرر', 'اختياري', 'و', 'لل', 'ل')), '{}')
+    from (select case when w = 'س' then 'سينوجرافيا'
+                      when w ~ '^[0-9]+$' then ltrim(w, '0')
+                      when length(w) >= 5 and w like 'وال%' then substr(w, 4)
+                      when length(w) >= 4 and w like 'ال%' then substr(w, 3)
+                      when length(w) >= 4 and w like 'و%' then substr(w, 2)
+                      else w end w
+            from regexp_split_to_table(trim(regexp_replace(regexp_replace(regexp_replace(
+                   translate(lower(coalesce(s, '')), 'أإآٱىةغ٠١٢٣٤٥٦٧٨٩ًٌٍَُِّْـ', 'اااايهج0123456789'),
+                   'ع\s*\.\s*د', ' عماره داخليه ', 'g'), '([0-9]+)', ' \1 ', 'g'), '[^0-9a-zء-ي]+', ' ', 'g')), '\s+') w) x;
+$$;
+-- هل اسم الخانة في الجدول (ممكن يكون فيه بدائل بين قوسين مفصولة بـ /) بيوصف اسم المادة؟ بيرجّع رقم البديل اللي طابق أو 0
+create or replace function public.tt_course_alt(p_title text, p_course text) returns int
+language plpgsql immutable set search_path = public as $$
+declare alts text[]; a text; i int := 0; st text[]; ct text[] := tt_tokens(p_course); sn text[]; cn text[]; w text; ok boolean;
+begin
+  if p_title ~ '\(.*\)' then alts := string_to_array(substring(p_title from '\((.*)\)'), '/'); else alts := string_to_array(p_title, '/'); end if;
+  cn := array(select x from unnest(ct) x where x ~ '^[0-9]+$' order by 1);
+  foreach a in array alts loop
+    i := i + 1; st := tt_tokens(a);
+    sn := array(select x from unnest(st) x where x ~ '^[0-9]+$' order by 1);
+    if sn is distinct from cn or not exists (select 1 from unnest(st) x where x !~ '^[0-9]+$') then continue; end if;
+    ok := true;
+    foreach w in array st loop
+      if w ~ '^[0-9]+$' then continue; end if;
+      if not exists (select 1 from unnest(ct) c where c !~ '^[0-9]+$' and (c = w or (least(length(c), length(w)) >= 3 and (c like w || '%' or w like c || '%')))) then ok := false; exit; end if;
+    end loop;
+    if ok then return i; end if;
+  end loop;
+  return 0;
+end $$;
+create or replace function public.tt_track_ok(p_cohort text, p_course text) returns boolean
+language sql immutable as $$
+  select coalesce(p_cohort, '') = '' or coalesce(p_course, '') = '' or translate(p_cohort, 'غ', 'ج') = translate(p_course, 'غ', 'ج');
+$$;
+-- ربط خانات الجدول المنشور اللي من غير مادة بالمواد المطابقة (مادة واحدة بس لكل بديل، وإلا بنسيبها للمسؤول)
+create or replace function public.tt_autolink(p_tt uuid, p_course uuid) returns int
+language plpgsql security definer set search_path = public as $$
+declare s record; m uuid[]; a int; n int := 0; cand uuid[];
+begin
+  for s in select sl.id, sl.title, sl.course_id, sl.more_courses, co.level, co.track, t.academic_year, t.term
+             from tt_slots sl join timetables t on t.id = sl.tt_id and t.published join tt_cohorts co on co.id = sl.cohort_id
+            where (p_tt is null or sl.tt_id = p_tt) and sl.course_id is null and coalesce(trim(sl.title), '') <> '' loop
+    m := '{}';
+    for a in 1..greatest(1, coalesce(array_length(string_to_array(coalesce(substring(s.title from '\((.*)\)'), s.title), '/'), 1), 1)) loop
+      cand := array(select c.id from courses c
+                     where not c.archived and c.academic_year = s.academic_year and c.term = s.term and c.level = s.level
+                       and tt_track_ok(s.track, c.track) and tt_course_alt(s.title, c.name) = a);
+      if cardinality(cand) = 1 then m := m || cand; end if;
+    end loop;
+    if cardinality(m) = 0 or (p_course is not null and not p_course = any(m)) then continue; end if;
+    update tt_slots set course_id = m[1], more_courses = m[2:] where id = s.id;
+    insert into audit(actor, course_id, action) select 'الجدول الدراسي', x, 'اتربطت المادة تلقائيًا بخانة «' || s.title || '» في الجدول الدراسي' from unnest(m) x;
+    n := n + 1;
+  end loop;
+  return n;
+end $$;
+
+create or replace function public.tt_team_want(cid uuid) returns table(email text, kind text)
+language sql stable security definer set search_path = public as $$
+  select lower(p->>'e'), case when bool_or(p->>'k' = 'lec') then 'co' else 'ta' end
+    from tt_slots s join timetables tt on tt.id = s.tt_id and tt.published
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(s.team) = 'array' then s.team else '[]'::jsonb end) g
+    cross join lateral jsonb_array_elements(case when jsonb_typeof(g->'staff') = 'array' then g->'staff' else '[]'::jsonb end) p
+   where (s.course_id = cid or cid = any(s.more_courses)) and coalesce(p->>'e', '') <> ''
+   group by 1;
+$$;
+
+-- لما الجدول هو اللي بيشيل حد، مانسجلوش «استبعاد يدوي»
+create or replace function public.tt_team_skip_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if old.src = 'tt' and coalesce(current_setting('hadro.tt_sync', true), '') <> '1' then
+    begin
+      insert into tt_team_skip(course_id, email, active) values (old.course_id, old.email, true)
+        on conflict (course_id, email) do update set active = true, at = now();
+    exception when foreign_key_violation then null;
+    end;
+  end if;
+  return old;
+end $$;
+
+create or replace function public.tt_note(p_email text, p_title text, p_body text) returns void
+language sql security definer set search_path = public as $$
+  insert into notifications(student_code, kind, title, body, url)
+  values ('staff:' || p_email, 'team', p_title, p_body, 'https://elrashdan.github.io/classmate/staff.html');
+$$;
+
+create or replace function public.tt_sync_team(cid uuid) returns int
+language plpgsql security definer set search_path = public as $$
+declare c courses; r record; n int := 0; kn text; lead text; ph text; old text; live boolean;
+begin
+  select * into c from courses where id = cid;
+  if c.id is null or c.archived then return 0; end if;
+  perform set_config('hadro.tt_sync', '1', true);
+  live := exists (select 1 from timetables t where t.published and t.academic_year = c.academic_year and t.term = c.term);
+  -- ١) المحاضر المسؤول (للمواد اللي اتعملت تلقائيًا بس)
+  if c.owner_auto and live then
+    select w.email into lead from tt_team_want(cid) w join staff st on st.email = w.email and st.status <> 'suspended'
+     where w.kind = 'co' order by (w.email = c.owner_email and not c.no_owner) desc, st.name, w.email limit 1;
+    if lead is not null and (lead <> c.owner_email or c.no_owner) then
+      old := case when c.no_owner then null else c.owner_email end;
+      update courses set owner_email = lead, no_owner = false where id = cid;
+      delete from course_tas where course_id = cid and email = lead;
+      insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, staff_name(lead) || ' بقى المحاضر المسؤول عن المادة (من الجدول الدراسي)'
+        || coalesce(' بدل ' || staff_name(old), ''));
+      perform tt_note(lead, 'مادة «' || c.name || '» بقت في موادك', 'حسب الجدول الدراسي إنت المحاضر المسؤول عن المادة دي. تقدر تبدأ المحاضرات وتعمل التكليفات على طول.');
+      if old is not null and not exists (select 1 from tt_team_want(cid) w where w.email = old) then
+        perform tt_note(old, 'اتشلت من مادة «' || c.name || '»', 'حسب الجدول الدراسي المادة دي بقت مع ' || staff_name(lead) || '.');
+      end if;
+      c.owner_email := lead; c.no_owner := false;
+    elsif lead is null and not c.no_owner then
+      select email into ph from staff where role = 'admin' and status <> 'suspended' order by created_at limit 1;
+      if ph is not null then
+        old := c.owner_email;
+        update courses set owner_email = ph, no_owner = true where id = cid;
+        if old <> ph then
+          insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, staff_name(old) || ' مابقاش محاضر المادة في الجدول الدراسي، والمادة مستنية محاضر');
+          if not exists (select 1 from tt_team_want(cid) w where w.email = old) then
+            perform tt_note(old, 'اتشلت من مادة «' || c.name || '»', 'المادة دي مابقتش معاك في الجدول الدراسي.');
+          end if;
+        end if;
+        c.owner_email := ph; c.no_owner := true;
+      end if;
+    end if;
+  end if;
+  -- ٢) الإضافة والتعديل
+  for r in select w.email, w.kind from tt_team_want(cid) w join staff st on st.email = w.email and st.status <> 'suspended'
+            where (c.no_owner or w.email <> c.owner_email)
+              and not exists (select 1 from tt_team_skip k where k.course_id = cid and k.email = w.email and k.active) loop
+    kn := case when r.kind = 'co' then 'محاضرًا مشاركًا' else 'معيدًا' end;
+    if not exists (select 1 from course_tas t where t.course_id = cid and t.email = r.email) then
+      insert into course_tas(course_id, email, kind, src) values (cid, r.email, r.kind, 'tt');
+      insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, 'أضاف ' || staff_name(r.email) || ' ' || kn || ' في المادة (من الجدول الدراسي)');
+      perform tt_note(r.email, 'اتضفت لفريق مادة «' || c.name || '»', 'حسب الجدول الدراسي، ' || kn || '. المادة ظهرت في موادك.');
+      n := n + 1;
+    elsif exists (select 1 from course_tas t where t.course_id = cid and t.email = r.email and t.src = 'tt' and t.kind <> r.kind) then
+      update course_tas set kind = r.kind where course_id = cid and email = r.email;
+      insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, 'غيّر ' || staff_name(r.email) || ' إلى ' || kn || ' (من الجدول الدراسي)');
+    end if;
+  end loop;
+  -- ٣) الشيل: اللي جه من الجدول ومابقاش فيه (أو بقى هو المحاضر المسؤول)
+  if live then
+    for r in select t.email from course_tas t
+              where t.course_id = cid and t.src = 'tt'
+                and ((t.email = c.owner_email and not c.no_owner)
+                     or not exists (select 1 from tt_team_want(cid) w join staff st on st.email = w.email and st.status <> 'suspended' where w.email = t.email)) loop
+      delete from course_tas where course_id = cid and email = r.email;
+      if r.email <> c.owner_email or c.no_owner then
+        insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, 'شال ' || staff_name(r.email) || ' من فريق المادة (اتشال منها في الجدول الدراسي)');
+        perform tt_note(r.email, 'اتشلت من فريق مادة «' || c.name || '»', 'حسب آخر تعديل في الجدول الدراسي، المادة دي مابقتش معاك.');
+      end if;
+    end loop;
+  end if;
+  perform set_config('hadro.tt_sync', '', true);
+  return n;
+end $$;
+
+create or replace function public.tt_sync_slot_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare x uuid;
+begin
+  if tg_op = 'INSERT' and new.course_id is null and coalesce(trim(new.title), '') <> ''
+     and exists (select 1 from timetables t where t.id = new.tt_id and t.published) then
+    perform tt_autolink(new.tt_id, null);
+    return null;
+  end if;
+  if tg_op <> 'INSERT' then
+    foreach x in array (array[old.course_id] || old.more_courses) loop
+      if x is not null and (tg_op = 'DELETE' or not (x = new.course_id or x = any(new.more_courses))) then perform tt_sync_team(x); end if;
+    end loop;
+  end if;
+  if tg_op <> 'DELETE' then
+    foreach x in array (array[new.course_id] || new.more_courses) loop
+      if x is not null then perform tt_sync_team(x); end if;
+    end loop;
+  end if;
+  return null;
+end $$;
+create or replace trigger tt_slots_sync_team after insert or update of course_id, more_courses, team or delete on public.tt_slots
+  for each row execute function public.tt_sync_slot_trg();
+
+create or replace function public.tt_sync_pub_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r record;
+begin
+  if new.published then perform tt_autolink(new.id, null); end if;
+  for r in select distinct x from tt_slots s, unnest(array[s.course_id] || s.more_courses) x where s.tt_id = new.id and x is not null loop
+    perform tt_sync_team(r.x);
+  end loop;
+  -- المواد اللي اتعملت تلقائيًا لنفس الفصل ومش في الجدول خالص
+  for r in select c.id x from courses c where c.owner_auto and not c.no_owner and c.academic_year = new.academic_year and c.term = new.term loop
+    perform tt_sync_team(r.x);
+  end loop;
+  return null;
+end $$;
+
+-- حساب جديد أو اتفعّل أو اتغير اسمه: نربطه في الجدول ونزامن كل مواده
+create or replace function public.tt_staff_link_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r record;
+begin
+  perform tt_link_staff(new.email);
+  for r in select distinct x from tt_slots s
+             cross join lateral jsonb_array_elements(case when jsonb_typeof(s.team) = 'array' then s.team else '[]'::jsonb end) g
+             cross join lateral jsonb_array_elements(case when jsonb_typeof(g->'staff') = 'array' then g->'staff' else '[]'::jsonb end) p
+             cross join lateral unnest(array[s.course_id] || s.more_courses) x
+            where x is not null and lower(p->>'e') = new.email loop
+    perform tt_sync_team(r.x);
+  end loop;
+  return new;
+end $$;
+
+-- مادة جديدة (من الاستمارة أو بإيد محاضر): نحاول نربطها بالجدول المنشور على طول
+create or replace function public.courses_tt_link_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from timetables t where t.published and t.academic_year = new.academic_year and t.term = new.term) then
+    perform tt_autolink(null, new.id);
+    perform tt_sync_team(new.id);
+  end if;
+  return null;
+end $$;
+create or replace trigger courses_tt_link after insert on public.courses
+  for each row execute function public.courses_tt_link_trg();
+
+-- المواد اللي بتتعمل من استمارات الطلبة: صاحبها من الجدول، ولحد ما يتحدد هي «من غير محاضر»
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef(p.oid) into f from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'form_enroll' limit 1; o := f;
+  if position('owner_auto' in f) > 0 then return; end if;
+  f := replace(f, 'cw_max, exam_max, credits, auto_created)', 'cw_max, exam_max, credits, auto_created, owner_auto, no_owner)');
+  f := replace(f, 'b.cw, b.ex, b.credits, true)', 'b.cw, b.ex, b.credits, true, true, true)');
+  f := replace(f, 'عيّن لها محاضرًا أو معيدًا من تبويب «الفريق».', 'المحاضر والمعيدين بيتعيّنوا تلقائيًا من الجدول الدراسي.');
+  if f = o then raise exception 'form_enroll pattern not found'; end if;
+  execute f;
+end $do$;
+
+-- اسم أستاذ المادة من الجدول: يشمل الخانات اللي بتغطي كذا مادة
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.course_prof_info(uuid)'::regprocedure) into f; o := f;
+  f := replace(f, 's.course_id = cid', '(s.course_id = cid or cid = any(s.more_courses))');
+  if f <> o then execute f; end if;
+end $do$;
+
+revoke all on function public.tt_tokens(text), public.tt_course_alt(text, text), public.tt_track_ok(text, text), public.tt_autolink(uuid, uuid),
+  public.tt_note(text, text, text), public.tt_sync_team(uuid), public.tt_team_want(uuid), public.courses_tt_link_trg() from public, anon, authenticated;
+
+-- تعديل خانة في محرر الجدول وتغيير مادتها بيلغي ربط المواد الإضافية القديم
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.tt_slot_save(uuid, jsonb)'::regprocedure) into f; o := f;
+  if position('more_courses' in f) > 0 then return; end if;
+  f := replace(f, 'p_to = b, course_id = crs, title = ttl', 'p_to = b, more_courses = case when tt_slots.course_id is distinct from crs then ''{}''::uuid[] else tt_slots.more_courses end, course_id = crs, title = ttl');
+  if f = o then raise exception 'tt_slot_save pattern not found'; end if;
+  execute f;
+end $do$;
+
+-- أول تشغيل: نربط الخانات المطابقة، وبعدين نزامن كل المواد
+do $$ declare r record; begin
+  perform public.tt_autolink(null, null);
+  for r in select c.id from public.courses c where not c.archived
+             and (c.owner_auto or exists (select 1 from public.tt_slots s join public.timetables t on t.id = s.tt_id and t.published where s.course_id = c.id or c.id = any(s.more_courses))) loop
+    perform public.tt_sync_team(r.id);
+  end loop;
+end $$;
