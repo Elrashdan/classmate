@@ -88,11 +88,17 @@
     return items.map(it => {
       const priv = it.code.length === 3;                  // أكواد البرنامج الخاص من ثلاثة أرقام
       const cands = C.map((e, i) => ({ e, i })).filter(({ e }) => e.c === it.code && ((e.pr === "خاص") === priv));
-      if (!cands.length) return { ...it, bid: null };
       const sc = cands.map(({ e, i }) => ({ i, e, s: sim(it.name, e.n) + (it.prefix && e.p === it.prefix ? .3 : 0) + (e.l && level ? -Math.abs(e.l - level) * .05 : 0) }))
         .sort((a, b) => b.s - a.s);
       const best = sc[0];
-      return { ...it, bid: best.s > .25 ? best.i : null, cat: best.s > .25 ? best.e : null };
+      // استمارة ابن الهيثم هي المرجع للأكواد: لو الكود مختلف عن نسختنا من اللائحة (زي الاختياريات المساندة للسينوغرافيا)
+      // ندوّر بالاسم في نفس البرنامج، والخادم بيتأكد إن الاسم مطابق قبل ما يقبله
+      const byName = C.map((e, i) => ({ e, i, s: sim(it.name, e.n) })).filter(x => (x.e.pr === "خاص") === priv && x.s >= .8).sort((a, b) => b.s - a.s);
+      const nameHit = byName.length && (byName.length === 1 || byName[0].s - byName[1].s > .05) ? byName[0] : null;
+      if (best && best.s > .25 && (sim(it.name, best.e.n) >= .6 || !nameHit || nameHit.i === best.i)) return { ...it, bid: best.i, cat: best.e };
+      if (nameHit) return { ...it, bid: nameHit.i, cat: nameHit.e, alt_code: true };
+      if (best && best.s > .25) return { ...it, bid: best.i, cat: best.e };
+      return { ...it, bid: null };
     });
   };
 })();

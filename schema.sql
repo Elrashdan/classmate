@@ -7395,3 +7395,30 @@ insert into public.bylaw_courses(id, prog, code, prefix, name, level, sem, track
 (198,'عام','4013','','تذوق الموسيقى',null,null,'','سينوغرافيا',2,60,40)
 on conflict (id) do nothing;
 do $$ begin perform public.tt_make_courses(null); perform public.tt_autolink(null, null); end $$;
+
+-- ===================== update-76: استمارة ابن الهيثم هي المرجع للأكواد =====================
+--   لو كود المقرر في الاستمارة مختلف عن نسختنا من اللائحة بس الاسم مطابق (في الاتجاهين)، بنقبله ونسجّل الكود اللي ظهر،
+--   والمادة بتتطابق بالكود المعتمد عندنا عشان الطالب ينضم لنفس المادة. سجل الأكواد اللي ظهرت في bylaw_code_seen.
+create table if not exists public.bylaw_code_seen (
+  bylaw_id int not null,
+  code text not null,
+  student_code text not null,
+  at timestamptz not null default now(),
+  primary key (bylaw_id, code, student_code)
+);
+alter table public.bylaw_code_seen enable row level security;
+revoke all on public.bylaw_code_seen from anon, authenticated;
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef(p.oid) into f from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'form_enroll' limit 1; o := f;
+  if position('bylaw_code_seen' in f) > 0 then return; end if;
+  f := replace(f, $a$    if b.id is null or regexp_replace(b.code, '\D', '', 'g') <> dg then$a$, $b$    if b.id is not null and regexp_replace(b.code, '\D', '', 'g') <> dg and dg ~ '^\d{3,5}$'
+       and tt_course_alt(coalesce(it->>'name', ''), b.name) > 0 and tt_course_alt(b.name, coalesce(it->>'name', '')) > 0 then
+      insert into bylaw_code_seen(bylaw_id, code, student_code) values (b.id, trim(coalesce(it->>'prefix', '') || ' ' || dg), code) on conflict do nothing;
+      dg := regexp_replace(b.code, '\D', '', 'g');
+    end if;
+    if b.id is null or regexp_replace(b.code, '\D', '', 'g') <> dg then$b$);
+  if f = o then raise exception 'form_enroll code pattern not found'; end if;
+  execute f;
+end $do$;
