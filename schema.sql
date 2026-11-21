@@ -7188,3 +7188,17 @@ begin
   if f = o then raise exception 'form_enroll level pattern not found'; end if;
   execute f;
 end $do$;
+
+-- ===================== update-72: المادة اللي لسه مالهاش محاضر مابتاخدش اسم المسؤول كأستاذ ليها =====================
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.course_prof_info(uuid)'::regprocedure) into f; o := f;
+  if position('''none''' in f) > 0 then return; end if;
+  f := replace(f, $a$  select name into nm from staff where email = c.owner_email;
+  return jsonb_build_object('name', coalesce(nm, ''), 'src', 'owner');$a$, $b$  if c.no_owner then return jsonb_build_object('name', '', 'src', 'none'); end if;
+  select name into nm from staff where email = c.owner_email;
+  return jsonb_build_object('name', coalesce(nm, ''), 'src', 'owner');$b$);
+  if f = o then raise exception 'course_prof_info pattern not found'; end if;
+  execute f;
+end $do$;
