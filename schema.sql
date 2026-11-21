@@ -7152,3 +7152,39 @@ do $$ declare r record; begin
     perform public.tt_sync_team(r.id);
   end loop;
 end $$;
+
+-- ===================== update-71: المقرر الاختياري بياخد مستواه من الجدول الدراسي =====================
+--   المقرر الاختياري (مالوش مستوى في اللائحة) بيتسجل في المستوى اللي هو فيه في الجدول الدراسي المنشور.
+--   طالب المستوى الأعلى يقدر يسجّل اختياري مستوى أقل منه، لكن مش العكس.
+--   مستوى الطالب = المستوى اللي فيه أغلب مواده الإجبارية في نفس الاستمارة (أدق من الرقم اللي بيتقري من الاستمارة).
+--   لو الاختياري مش مكتوب باسمه في الجدول، بيتسجل في مستوى الطالب.
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef(p.oid) into f from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'form_enroll' limit 1; o := f;
+  if position('stl int' in f) > 0 then return; end if;
+  f := replace(f, 'declare it jsonb; b bylaw_courses;', 'declare stl int; it jsonb; b bylaw_courses;');
+  f := replace(f, $a$    lvl := coalesce(b.level, case when p_level between 1 and 5 then p_level end);$a$, $b$    lvl := b.level;
+    if lvl is null then
+      if stl is null then
+        select mode() within group (order by x.level) into stl
+          from jsonb_array_elements(p_items) j
+          join bylaw_courses x on x.id = case when coalesce(j->>'bid', '') ~ '^\d{1,4}$' then (j->>'bid')::int end
+         where x.level is not null;
+        stl := coalesce(stl, case when p_level between 1 and 5 then p_level end);
+      end if;
+      select max(co.level) into lvl
+        from tt_slots s join timetables t on t.id = s.tt_id and t.published and t.academic_year = y and t.term = tm
+        join tt_cohorts co on co.id = s.cohort_id
+       where tt_course_alt(s.title, b.name) > 0 and (stl is null or co.level <= stl)
+         and (b.elective not in ('عمارة داخلية', 'سينوغرافيا', 'سينوجرافيا') or tt_track_ok(co.track, b.elective));
+      if lvl is null and exists (select 1 from tt_slots s join timetables t on t.id = s.tt_id and t.published and t.academic_year = y and t.term = tm
+                                   join tt_cohorts co on co.id = s.cohort_id
+                                  where tt_course_alt(s.title, b.name) > 0 and co.level > stl) then
+        outj := outj || jsonb_build_object('code', case when b.prefix <> '' then b.prefix || ' ' else '' end || b.code, 'name', b.name, 'status', 'level'); continue;
+      end if;
+      lvl := coalesce(lvl, stl);
+    end if;$b$);
+  if f = o then raise exception 'form_enroll level pattern not found'; end if;
+  execute f;
+end $do$;
