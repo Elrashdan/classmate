@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b139">
+<link rel="stylesheet" href="style.css?v=b140">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b139"></script>
-<script src="config.js?v=b139"></script>
-<script src="common.js?v=b139"></script>
-<script src="drive.js?v=b139"></script>
-<script src="catalog.js?v=b139"></script>
-<script src="regform.js?v=b139"></script>
+<script src="vendor/qrcode.js?v=b140"></script>
+<script src="config.js?v=b140"></script>
+<script src="common.js?v=b140"></script>
+<script src="drive.js?v=b140"></script>
+<script src="catalog.js?v=b140"></script>
+<script src="regform.js?v=b140"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -139,8 +139,8 @@
   function renderForm() {
     const d = rf.data || {}, reg = rf.mode === "reg";
     let body = "";
-    if (rf.stage === "pick") body = `${rf.pre ? `<div class="msg warn rf-pre"><b>الكود ${esc(rf.pre.code)} مش موجود في كشوف أي مادة لسه.</b><br>ده طبيعي لو إنت طالب جديد أو اتسجلت متأخر. ارفع استمارة التسجيل بتاعتك، وبعدها هنعمل لك حسابك بكلمة السر اللي اخترتها ونضيفك لموادك على طول.</div>
-      <ol class="rf-steps"><li class="on">ارفع استمارة التسجيل</li><li>راجع بياناتك وموادك</li><li>حسابك يتعمل وتدخل</li></ol>` : ""}
+    if (rf.stage === "pick") body = `${rf.pre ? `<div class="msg warn rf-pre"><b>مالكش حساب بالكود ${esc(rf.pre.code)} لسه.</b><br>أول تسجيل بيكون باستمارة الإرشاد الأكاديمي: ارفعها، وبعدها تختار كلمة السر بتاعتك ونضيفك لموادك على طول.</div>` : ""}
+      ${reg ? `<ol class="rf-steps"><li class="on">ارفع استمارة التسجيل</li><li>راجع بياناتك وموادك</li><li>اختار كلمة السر وادخل</li></ol>` : ""}
       <p>نزّل «استمارة التسجيل» من نظام ابن الهيثم لشئون الطلاب (ملف PDF أو صورة لها)، ثم اخترها هنا. يقرأ التطبيق منها كودك واسمك ومستواك والمقررات المسجلة، ويضيفك إلى موادها.</p>
       <p class="small muted">تُقرأ الاستمارة على هاتفك فقط ولا تُرفع إلى أي مكان. ويظهر للمحاضر أنك سجّلت بالاستمارة ليراجعها.</p>
       ${rf.msg ? `<div class="msg bad">${esc(rf.msg)}</div>` : ""}
@@ -149,7 +149,7 @@
       <div class="qbar"><i id="rfBar" style="width:${Math.round(rf.pct * 100)}%"></i></div><p class="small muted" id="rfNote">${esc(rf.note || "")}</p>`;
     else if (rf.stage === "review") {
       const n = rf.items.filter(x => x.on).length;
-      body = `${rf.pre ? `<ol class="rf-steps"><li class="ok">ارفع استمارة التسجيل</li><li class="on">راجع بياناتك وموادك</li><li>حسابك يتعمل وتدخل</li></ol>` : ""}<p class="small muted">راجِع البيانات وصحّح أي خطأ في القراءة. يجب أن تطابق استمارتك.</p>
+      body = `${reg ? `<ol class="rf-steps"><li class="ok">ارفع استمارة التسجيل</li><li class="on">راجع بياناتك واختار كلمة السر</li><li>ادخل</li></ol>` : ""}<p class="small muted">راجِع البيانات وصحّح أي خطأ في القراءة. يجب أن تطابق استمارتك.</p>
         <div class="settings">
           <label class="f"><span>كود الطالب</span><input type="text" id="rfCode" inputmode="numeric" class="mono" style="text-align:start" value="${esc(d.code || "")}" ${!reg ? "readonly" : ""}></label>
           <label class="f"><span>المستوى</span><select id="rfLevel">${[1, 2, 3, 4, 5].map(l => `<option value="${l}" ${d.level === l ? "selected" : ""}>${LVN[l]}</option>`).join("")}</select></label>
@@ -160,7 +160,7 @@
           <span><b>${esc(x.cat ? x.cat.n.replace(/\*$/, "") : x.name)}</b><small class="muted mono">${esc((x.prefix ? x.prefix + " " : "") + x.code)}</small>${x.bid == null ? `<small class="bad-t">ليس في لائحة القسم؛ اطلب من المحاضر إضافتك</small>` : ""}</span></label>`).join("")}</div>
         ${reg && rf.pre && d.code && d.code !== rf.pre.code ? `<div class="msg warn">الكود في الاستمارة (${esc(d.code)}) مختلف عن اللي كتبته (${esc(rf.pre.code)}). الحساب هيتعمل بكود الاستمارة، فاتأكد إنه صح.</div>` : ""}
         ${reg && rf.pre && rf.pre.pass ? `<p class="small muted">هيتعمل حسابك بكلمة السر اللي كتبتها في صفحة الدخول، ويرتبط بالهاتف ده. <button type="button" class="linkish" id="rfNewPass">اختار كلمة سر تانية</button></p>
-          <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا)</span><input type="text" id="rfPin" inputmode="numeric" class="mono" style="text-align:start"></label>` : reg ? `<label class="f"><span>كلمة سر لحسابك (6 أحرف على الأقل)</span><input type="password" id="rfPass" autocomplete="new-password"></label>
+          <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا)</span><input type="text" id="rfPin" inputmode="numeric" class="mono" style="text-align:start"></label>` : reg ? `<h3 style="margin-top:6px">اختار كلمة السر اللي هتدخل بيها</h3><label class="f"><span>كلمة السر (6 أحرف على الأقل)</span><input type="password" id="rfPass" autocomplete="new-password"></label>
           <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="rfPass2" autocomplete="new-password"></label>
           <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا)</span><input type="text" id="rfPin" inputmode="numeric" class="mono" style="text-align:start"></label>
           <p class="small muted">سيرتبط الحساب بهذا الهاتف وهذا المتصفح.</p>` : ""}
@@ -382,20 +382,17 @@
           <label class="f"><span>كود الطالب</span><input type="text" id="code" inputmode="numeric" autocomplete="username" class="mono" style="text-align:start" value="${esc(store.get("cm_last_code") || "")}"></label>
           <label class="f"><span>كلمة السر</span><input type="password" id="pass" autocomplete="current-password"></label>
         ` : `
-          <h2>أنشئ حسابك</h2>
+          <h2>أنشئ حسابك باستمارة التسجيل</h2>
+          <p>أول تسجيل على Hadro بيكون <b>باستمارة الإرشاد الأكاديمي</b> اللي بتنزّلها من نظام ابن الهيثم. البرنامج بيقرأ منها كودك واسمك ومستواك ومقرراتك، ويسجلك في موادك تلقائيًا، وبعدها تختار كلمة السر اللي هتدخل بيها.</p>
+          <ol class="rf-steps"><li class="on">ارفع استمارة التسجيل</li><li>راجع بياناتك وموادك</li><li>اختار كلمة السر وادخل</li></ol>
           <p class="muted small">سيرتبط الحساب بهذا الهاتف، ولن تتمكن من تسجيل الحضور من هاتف آخر. لا تستخدم وضع التصفح الخفي.</p>
-          <label class="f"><span>كود الطالب</span><input type="text" id="code" inputmode="numeric" autocomplete="username" class="mono" style="text-align:start"></label>
-          <label class="f"><span>كلمة السر (6 أحرف على الأقل)</span><input type="password" id="pass" autocomplete="new-password"></label>
-          <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="pass2" autocomplete="new-password"></label>
-          <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا، مثل آخر 4 أرقام من الرقم القومي)</span><input type="text" id="pin" inputmode="numeric" class="mono" style="text-align:start"></label>
         `}
-        ${authTab === "reg" ? `<div class="msg"><b>اسمك غير موجود في كشوف المحاضرين؟</b> سجّل باستمارة التسجيل التي نزّلتها من نظام ابن الهيثم، فتُضاف تلقائيًّا إلى موادك.<div style="margin-top:8px"><button class="btn sm" id="rfOpen">التسجيل باستمارة التسجيل</button></div></div>` : ""}
         ${sstore.get("cm_pending_qr") ? `<div class="msg">سجّل الدخول أولًا، وبعدها يُسجَّل حضورك بالرمز الذي مسحته. وإن انتهت صلاحيته فامسحه من الشاشة مرة أخرى.</div>` : ""}
         ${inAppWarn()}
         ${authNote ? `<div class="msg warn">${authNote}</div>` : ""}
         ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
         ${!device ? `<div class="msg warn">هذا المتصفح لا يحفظ البيانات (غالبًا بسبب وضع التصفح الخفي). افتح الموقع في متصفح عادي.</div>` : ""}
-        <button class="btn primary block" id="go" ${busy || !device ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : authTab === "login" ? "دخول" : "إنشاء الحساب"}</button>
+        ${authTab === "login" ? `<button class="btn primary block" id="go" ${busy || !device ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : "دخول"}</button>` : `<button class="btn primary block" id="rfOpen" ${!device ? "disabled" : ""}>ارفع استمارة التسجيل</button>`}
         ${authTab === "login" && device ? pkBtn("pkIn") : ""}
         ${iosTip()}
       </section>
@@ -408,7 +405,7 @@
     $("#chBack").onclick = () => { chosen = false; authMsg = ""; authNote = ""; renderChoose(); };
     $("#tLogin").onclick = () => { authTab = "login"; authMsg = ""; authNote = ""; renderAuth(); };
     $("#tReg").onclick = () => { authTab = "reg"; authMsg = ""; authNote = ""; renderAuth(); };
-    $("#go").onclick = submitAuth;
+    const go = $("#go"); if (go) go.onclick = submitAuth;
     const ro = $("#rfOpen"); if (ro) ro.onclick = () => openForm("reg");
     const pi = $("#pkIn"); if (pi) pi.onclick = pkLoginUI;
     const ho = $("#helpOut"); if (ho) ho.onclick = () => openHelp("ask");
@@ -437,9 +434,7 @@
       const em = String(e.message || "");
       // طالب جديد: مالوش حساب ← ننقله لإنشاء الحساب بنفس الكود وكلمة السر
       if (authTab === "login" && em.includes("not_registered")) {
-        busy = false; authTab = "reg"; authKeep = { code, pass };
-        authNote = "<b>مالكش حساب بالكود ده لسه.</b> أكّد كلمة السر اللي كتبتها عشان نعمل لك حساب جديد.";
-        return renderAuth();
+        busy = false; openForm("reg", { code }); return;
       }
       // الكود مش موجود في ولا مادة ← يرفع استمارة التسجيل، وبعدها يكمّل الحساب بنفس كلمة السر
       if (authTab === "reg" && em.includes("not_enrolled")) {
@@ -755,7 +750,7 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b139: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  /* b140: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
   let stab = ["home", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };

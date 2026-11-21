@@ -87,6 +87,7 @@
     already_owner: "هذا هو صاحب المادة بالفعل.",
     confirm_mismatch: "الاسم المكتوب لا يطابق اسم المادة.",
     not_enrolled: "هذا الكود غير موجود في ملف أي مادة. سجّل بزر «التسجيل باستمارة التسجيل» بالأعلى، أو تواصل مع المحاضر.",
+    form_required: "أول تسجيل على Hadro بيكون باستمارة التسجيل (الإرشاد الأكاديمي). اختار «إنشاء حساب» وارفع الاستمارة.",
     no_courses: "اختر مقررًا واحدًا على الأقل.",
     already_registered: "يوجد حساب بهذا الكود من قبل. ادخل من «دخول». إذا لم تكن أنت من أنشأه، فاطلب من المحاضر حذف الحساب.",
     weak_password: "يجب ألا تقل كلمة السر عن 6 أحرف.",
@@ -654,7 +655,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b139)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b140)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";

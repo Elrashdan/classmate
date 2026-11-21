@@ -7573,3 +7573,26 @@ begin
 end $$;
 revoke all on function public.student_form_due(text) from public;
 grant execute on function public.student_form_due(text) to anon, authenticated;
+
+-- ===================== update-80: أول تسجيل للطالب بيكون باستمارة التسجيل بس =====================
+--   إنشاء حساب طالب جديد بقى من خلال student_form_register بس (يرفع الاستمارة ← يتسجل في مواده ← يختار كلمة السر).
+--   student_register بترفض أي حساب جديد مايجيش من الاستمارة (form_required)، والنسخة القديمة بـ 4 مدخلات بقت داخلية.
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef('public.student_register(text,text,text,text)'::regprocedure) into f; o := f;
+  if position('form_required' in f) > 0 then return; end if;
+  f := replace(f, $a$if exists (select 1 from students where student_code = code) then raise exception 'already_registered'; end if;$a$,
+    $b$if exists (select 1 from students where student_code = code) then raise exception 'already_registered'; end if;
+  if current_setting('hadro.form_reg', true) is distinct from code then raise exception 'form_required'; end if;$b$);
+  if f = o then raise exception 'student_register pattern not found'; end if;
+  execute f;
+  select pg_get_functiondef('public.student_form_register(text,text,integer,jsonb,text,text,text,text)'::regprocedure) into f; o := f;
+  f := replace(f, $a$  r := student_register(code, p_password, p_pin, p_device, p_label);$a$,
+    $b$  perform set_config('hadro.form_reg', code, true);
+  r := student_register(code, p_password, p_pin, p_device, p_label);
+  perform set_config('hadro.form_reg', '', true);$b$);
+  if f = o then raise exception 'student_form_register pattern not found'; end if;
+  execute f;
+end $do$;
+revoke execute on function public.student_register(text, text, text, text) from public, anon, authenticated;
