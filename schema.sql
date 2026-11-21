@@ -7202,3 +7202,26 @@ begin
   if f = o then raise exception 'course_prof_info pattern not found'; end if;
   execute f;
 end $do$;
+
+-- ===================== update-73: مطابقة الاسم في الجدول مع الحساب حتى لو الجدول شايل اسم الأب =====================
+--   «م.مريم الساعي» في الجدول = «مريم محمد الساعى» في الحساب: الاسم الأول لازم يطابق، وباقي كلمات الجدول تيجي بنفس الترتيب في الحساب.
+--   (الربط بيحصل بس لو مفيش حساب تاني بيطابق نفس الاسم، زي ما كان.)
+create or replace function public.tt_name_match(tbl text, acct text) returns boolean
+language plpgsql immutable set search_path = public as $$
+declare tw text[] := tt_words(tt_strip(tbl)); aw text[] := tt_words(acct); i int; j int := 2;
+begin
+  if coalesce(array_length(tw, 1), 0) = 0 or coalesce(array_length(aw, 1), 0) < array_length(tw, 1) then return false; end if;
+  if tt_norm(tw[1]) <> tt_norm(aw[1]) then return false; end if;
+  for i in 2 .. array_length(tw, 1) loop
+    while j <= array_length(aw, 1) and tt_norm(aw[j]) <> tt_norm(tw[i]) loop j := j + 1; end loop;
+    if j > array_length(aw, 1) then return false; end if;
+    j := j + 1;
+  end loop;
+  return true;
+end $$;
+-- نعيد الربط لكل الحسابات (وده بيزامن موادهم تلقائيًا)
+do $$ declare r record; begin
+  for r in select email from public.staff where coalesce(status, '') not in ('disabled', 'removed', 'rejected', 'suspended') loop
+    update public.staff set name = name where email = r.email;
+  end loop;
+end $$;
