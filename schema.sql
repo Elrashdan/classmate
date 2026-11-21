@@ -7387,3 +7387,11 @@ end $do$;
 
 -- أول تشغيل على الجدول المنشور
 do $$ begin perform public.tt_make_courses(null); perform public.tt_autolink(null, null); end $$;
+
+-- ===================== update-75: مقررين اختياريين مساندين للسينوغرافيا كانوا ناقصين من اللائحة =====================
+--   (لائحة الساعات المعتمدة يناير 2021 — «مقررات إختياريه مساندة لتخصص السينوجرافيا»، تُطرح من المستوى الثالث، نظري، 2 ساعة)
+insert into public.bylaw_courses(id, prog, code, prefix, name, level, sem, track, elective, credits, cw, ex) values
+(197,'عام','4012','سج','مناهج النقد والتحليل فى مجالات السينوجرافيا',null,null,'','سينوغرافيا',2,60,40),
+(198,'عام','4013','','تذوق الموسيقى',null,null,'','سينوغرافيا',2,60,40)
+on conflict (id) do nothing;
+do $$ begin perform public.tt_make_courses(null); perform public.tt_autolink(null, null); end $$;
