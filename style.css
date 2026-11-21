@@ -1106,6 +1106,8 @@ header.top:has(details.dd[open]){z-index:90}
 .dd-i:hover::before,.dd-i:hover::after{display:none}
 .dd-sel{display:grid;gap:4px;padding:4px 12px 8px;font-size:.8rem;color:var(--muted)}
 .dd-sel select{width:100%;font:inherit;font-size:.9rem;color:var(--ink);background-color:var(--sunk);background-repeat:no-repeat;border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:38px}
+.dd-sel input{width:100%;font:inherit;font-size:.95rem;color:var(--ink);background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:38px;text-align:center}
+.dd-sel input:focus{outline:2px solid var(--accent,#2c5a4e);outline-offset:1px}
 #homeAlerts .sec-t{margin:14px 0 10px}
 .walerts{gap:10px}
 /* قائمة المواد: بحث، ومجموعات حسب المستوى، وصفوف مختصرة، وارتفاع محدود */

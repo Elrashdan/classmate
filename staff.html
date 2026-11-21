@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b137">
+<link rel="stylesheet" href="style.css?v=b138">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b137"></script>
-<script src="vendor/qrcode.js?v=b137"></script>
-<script src="config.js?v=b137"></script>
-<script src="common.js?v=b137"></script>
-<script src="drive.js?v=b137"></script>
-<script src="pack.js?v=b137"></script>
-<script src="catalog.js?v=b137"></script>
-<script src="voice.js?v=b137"></script>
-<script src="timetable.js?v=b137"></script>
-<script src="research.js?v=b137"></script>
+<script src="vendor/supabase.js?v=b138"></script>
+<script src="vendor/qrcode.js?v=b138"></script>
+<script src="config.js?v=b138"></script>
+<script src="common.js?v=b138"></script>
+<script src="drive.js?v=b138"></script>
+<script src="pack.js?v=b138"></script>
+<script src="catalog.js?v=b138"></script>
+<script src="voice.js?v=b138"></script>
+<script src="timetable.js?v=b138"></script>
+<script src="research.js?v=b138"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -833,7 +833,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b137: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b138: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -2665,7 +2665,7 @@
     const totalMax = D.tasks.reduce((a, x) => a + Number(x.max_grade), 0);
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
       <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${(() => { if (!HD.canCheck) return ""; const all = D.tasks.filter(x => x.mode === "submit").flatMap(x => Object.values(D.subs[x.id] || {}).filter(z => z.kind === "drive" && z.file_id)); if (!all.length) return ""; const un = all.filter(z => !z.check_state).length;
-        return `<button class="btn sm" id="tkCheckAll" title="يتأكد إن ملف كل طالب في كل التكليفات لسه موجود على Drive وماتغيرش، واللي ملفه اتمسح بيتبعتله تلقائيًا يعيد الرفع">${ICO('<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>')} فحص ملفات كل التكليفات${un ? ` <span class="chip warn small" title="${un} ملف لم يُفحص">${un}</span>` : ""}</button>`; })()}${CM.dd(D.tasks.length ? "تصدير واستيراد" : "استيراد", [D.tasks.length ? `<div class="dd-h">كشف الكنترول وكشف المراجعة</div>${courseGroups().length > 1 ? `<label class="dd-sel" data-keep><span>المجموعة</span><select id="tkXg" aria-label="المجموعة التي يُصدَّر كشفها"><option value="all">كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}${tkMaxN() > 1 ? `<label class="dd-sel" data-keep><span>متوسط الكنترول يتحسب على</span><select id="tkBest" aria-label="عدد التكليفات اللي بيتحسب عليها المتوسط"><option value="0">كل التكليفات</option>${Array.from({ length: tkMaxN() - 1 }, (_, i) => tkMaxN() - 1 - i).map(n => `<option value="${n}" ${tkBestN() === n ? "selected" : ""}>${bestTxt(n)} لكل طالب</option>`).join("")}</select></label>` : ""}` : "", D.tasks.length ? `<button class="dd-i" id="tkXls" title="ملف واحد فيه كشف الكنترول (المتوسط) وكشف المراجعة (درجات كل التكليفات)">تنزيل الكنترول + المراجعة (إكسل)</button>` : "", D.tasks.length ? `<button class="dd-i" id="tkPdf" title="ملف واحد فيه كشف الكنترول وكشف المراجعة">تنزيل الكنترول + المراجعة (PDF)</button>` : "", canRun(c) ? `${D.tasks.length ? "<hr>" : ""}<button class="dd-i" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات ودرجاتها من إكسل</button>` : ""], { end: true })}</div></div>
+        return `<button class="btn sm" id="tkCheckAll" title="يتأكد إن ملف كل طالب في كل التكليفات لسه موجود على Drive وماتغيرش، واللي ملفه اتمسح بيتبعتله تلقائيًا يعيد الرفع">${ICO('<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>')} فحص ملفات كل التكليفات${un ? ` <span class="chip warn small" title="${un} ملف لم يُفحص">${un}</span>` : ""}</button>`; })()}${CM.dd(D.tasks.length ? "تصدير واستيراد" : "استيراد", [D.tasks.length ? `<div class="dd-h">كشف الكنترول وكشف المراجعة</div>${courseGroups().length > 1 ? `<label class="dd-sel" data-keep><span>المجموعة</span><select id="tkXg" aria-label="المجموعة التي يُصدَّر كشفها"><option value="all">كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}${tkMaxN() > 1 ? `<label class="dd-sel" data-keep><span>المتوسط يتحسب على أعلى كام تكليف؟</span><input id="tkBest" type="number" inputmode="numeric" min="1" max="${tkMaxN() - 1}" step="1" placeholder="فاضية = كل التكليفات" value="${tkBestN() || ""}" aria-label="عدد التكليفات اللي بيتحسب عليها المتوسط"></label>` : ""}` : "", D.tasks.length ? `<button class="dd-i" id="tkXls" title="ملف واحد فيه كشف الكنترول (المتوسط) وكشف المراجعة (درجات كل التكليفات)">تنزيل الكنترول + المراجعة (إكسل)</button>` : "", D.tasks.length ? `<button class="dd-i" id="tkPdf" title="ملف واحد فيه كشف الكنترول وكشف المراجعة">تنزيل الكنترول + المراجعة (PDF)</button>` : "", canRun(c) ? `${D.tasks.length ? "<hr>" : ""}<button class="dd-i" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات ودرجاتها من إكسل</button>` : ""], { end: true })}</div></div>
       ${D.tasks.length ? stuPickHtml() : ""}
       ${msgHtml("tasks")}
       ${petitionsHtml(c)}
@@ -2688,7 +2688,7 @@
     const mb = $("#tkMulti"); if (mb) mb.onclick = () => { const f = document.createElement("input"); f.type = "file"; f.accept = ".xlsx,.xls"; f.onchange = () => { if (f.files[0]) importMulti(f.files[0]); }; f.click(); };
     wireMimp(); wireAppeals(el); wirePetitions(el); wireStuPick(el);
     const xg = $("#tkXg"); if (xg) xg.onchange = () => { tkXg = xg.value; store.set("cm_tkxg", tkXg); };
-    const xbn = $("#tkBest"); if (xbn) xbn.onchange = () => { store.set("cm_tkbest_" + course().id, xbn.value); };
+    const xbn = $("#tkBest"); if (xbn) xbn.oninput = () => { const n = parseInt(xbn.value, 10); store.set("cm_tkbest_" + course().id, n > 0 ? String(n) : "0"); };
     el.querySelectorAll("[data-tklay]").forEach(b => b.onclick = () => { tkLay = b.dataset.tklay; store.set("cm_tklay", tkLay); renderTasks(); });
     wireGb(el);
     el.querySelectorAll("[data-tksort]").forEach(b => b.onclick = () => { tkSort = b.dataset.tksort; store.set("cm_tksort", tkSort); renderTasks(); });
