@@ -7225,3 +7225,165 @@ do $$ declare r record; begin
     update public.staff set name = name where email = r.email;
   end loop;
 end $$;
+
+-- ===================== update-74: كل مادة في الجدول المنشور بتتعمل على Hadro حتى لو لسه محدش سجّلها =====================
+--   عشان المحاضرين والمعيدين المكتوبين في الجدول يلاقوا موادهم أول ما يعملوا حساب، والطلبة لما يرفعوا استماراتهم ينضموا لنفس المادة.
+--   المادة بتتعمل من اللائحة (اسمها وكودها ودرجاتها) لما اسم الخانة يطابق مقرر واحد بس في نفس المستوى والشعبة والفصل.
+--   المواد اللي اتعملت بإيد حد مابتتلمسش.
+-- «س» في اسم الخانة (تصميم س ١) معناها شعبة السينوغرافيا، والشعبة بتتطابق لوحدها، فمانعتبرهاش كلمة
+create or replace function public.tt_tokens(s text) returns text[]
+language sql immutable set search_path = public as $$
+  select coalesce(array_agg(w) filter (where w <> '' and w not in ('في', 'من', 'على', 'علي', 'مقرر', 'اختياري', 'و', 'لل', 'ل', 'س')), '{}')
+    from (select case when w ~ '^[0-9]+$' then ltrim(w, '0')
+                      when length(w) >= 5 and w like 'وال%' then substr(w, 4)
+                      when length(w) >= 4 and w like 'ال%' then substr(w, 3)
+                      when length(w) >= 4 and w like 'و%' then substr(w, 2)
+                      else w end w
+            from regexp_split_to_table(trim(regexp_replace(regexp_replace(regexp_replace(
+                   translate(lower(coalesce(s, '')), 'أإآٱىةغ٠١٢٣٤٥٦٧٨٩ًٌٍَُِّْـ', 'اااايهج0123456789'),
+                   'ع\s*\.\s*د', ' عماره داخليه ', 'g'), '([0-9]+)', ' \1 ', 'g'), '[^0-9a-zء-ي]+', ' ', 'g')), '\s+') w) x;
+$$;
+-- خانة من غير رقم (تطبيقات الحاسب الآلي) ممكن تطابق مقرر برقم (تطبيقات الحاسب الآلي 1) — والتطابق لازم يكون مقرر واحد بس في نفس المستوى
+create or replace function public.tt_course_alt(p_title text, p_course text) returns int
+language plpgsql immutable set search_path = public as $$
+declare alts text[]; a text; i int := 0; st text[]; ct text[] := tt_tokens(p_course); sn text[]; cn text[]; w text; ok boolean;
+begin
+  if p_title ~ '\(.*\)' then alts := string_to_array(substring(p_title from '\((.*)\)'), '/'); else alts := string_to_array(p_title, '/'); end if;
+  cn := array(select x from unnest(ct) x where x ~ '^[0-9]+$' order by 1);
+  foreach a in array alts loop
+    i := i + 1; st := tt_tokens(a);
+    sn := array(select x from unnest(st) x where x ~ '^[0-9]+$' order by 1);
+    if (cardinality(sn) > 0 and sn is distinct from cn) or not exists (select 1 from unnest(st) x where x !~ '^[0-9]+$') then continue; end if;
+    ok := true;
+    foreach w in array st loop
+      if w ~ '^[0-9]+$' then continue; end if;
+      if not exists (select 1 from unnest(ct) c where c !~ '^[0-9]+$' and (c = w or (least(length(c), length(w)) >= 3 and (c like w || '%' or w like c || '%')))) then ok := false; exit; end if;
+    end loop;
+    if ok then return i; end if;
+  end loop;
+  return 0;
+end $$;
+
+-- الربط التلقائي: الخانة اللي فيها بدائل (مقرر اختياري) بتتربط بكل بدائلها حتى لو واحد منهم اتعمل بعد التاني
+create or replace function public.tt_autolink(p_tt uuid, p_course uuid) returns int
+language plpgsql security definer set search_path = public as $$
+declare s record; m uuid[]; a int; n int := 0; cand uuid[]; more uuid[];
+begin
+  for s in select sl.id, sl.title, sl.course_id, sl.more_courses, co.level, co.track, t.academic_year, t.term
+             from tt_slots sl join timetables t on t.id = sl.tt_id and t.published join tt_cohorts co on co.id = sl.cohort_id
+            where (p_tt is null or sl.tt_id = p_tt) and coalesce(trim(sl.title), '') <> ''
+              and (sl.course_id is null or sl.title ~ '\(.*/.*\)') loop
+    m := '{}';
+    for a in 1..greatest(1, coalesce(array_length(string_to_array(coalesce(substring(s.title from '\((.*)\)'), s.title), '/'), 1), 1)) loop
+      cand := array(select c.id from courses c
+                     where not c.archived and c.academic_year = s.academic_year and c.term = s.term and c.level = s.level
+                       and tt_track_ok(s.track, c.track) and tt_course_alt(s.title, c.name) = a);
+      if cardinality(cand) = 1 then m := m || cand; end if;
+    end loop;
+    if cardinality(m) = 0 or (p_course is not null and not p_course = any(m)) then continue; end if;
+    if s.course_id is not null then
+      if not s.course_id = any(m) then continue; end if;
+      more := array(select distinct x from unnest(s.more_courses || array(select y from unnest(m) y where y <> s.course_id)) x);
+      if (select count(*) from unnest(more)) = cardinality(s.more_courses) then continue; end if;
+      update tt_slots set more_courses = more where id = s.id;
+      insert into audit(actor, course_id, action) select 'الجدول الدراسي', x, 'اتربطت المادة تلقائيًا بخانة «' || s.title || '» في الجدول الدراسي' from unnest(more) x where not x = any(s.more_courses);
+    else
+      update tt_slots set course_id = m[1], more_courses = m[2:] where id = s.id;
+      insert into audit(actor, course_id, action) select 'الجدول الدراسي', x, 'اتربطت المادة تلقائيًا بخانة «' || s.title || '» في الجدول الدراسي' from unnest(m) x;
+    end if;
+    n := n + 1;
+  end loop;
+  return n;
+end $$;
+
+create or replace function public.tt_make_courses(p_tt uuid) returns int
+language plpgsql security definer set search_path = public as $$
+declare s record; a int; b bylaw_courses; nb int; ph text; n int := 0; tr text; cid uuid;
+begin
+  select email into ph from staff where role = 'admin' and status <> 'suspended' order by created_at limit 1;
+  if ph is null then return 0; end if;
+  for s in select sl.id, sl.title, co.level, co.track, t.academic_year, t.term
+             from tt_slots sl join timetables t on t.id = sl.tt_id and t.published join tt_cohorts co on co.id = sl.cohort_id
+            where (p_tt is null or sl.tt_id = p_tt) and sl.course_id is null and coalesce(trim(sl.title), '') <> '' and co.level between 1 and 5 loop
+    for a in 1..greatest(1, coalesce(array_length(string_to_array(coalesce(substring(s.title from '\((.*)\)'), s.title), '/'), 1), 1)) loop
+      select count(distinct regexp_replace(x.code, '\D', '', 'g') || '|' || norm_ar(x.name)) into nb
+        from bylaw_courses x
+       where x.prog = 'عام' and tt_course_alt(s.title, x.name) = a
+         and (x.level = s.level or x.level is null)
+         and (x.sem is null or x.sem % 2 = case when s.term = 1 then 1 when s.term = 2 then 0 else x.sem % 2 end)
+         and (coalesce(x.track, '') = '' or tt_track_ok(s.track, x.track))
+         and (x.level is not null or x.elective not in ('عمارة داخلية', 'سينوغرافيا', 'سينوجرافيا') or tt_track_ok(s.track, x.elective));
+      if nb <> 1 then continue; end if;
+      select x.* into b from bylaw_courses x
+       where x.prog = 'عام' and tt_course_alt(s.title, x.name) = a
+         and (x.level = s.level or x.level is null)
+         and (x.sem is null or x.sem % 2 = case when s.term = 1 then 1 when s.term = 2 then 0 else x.sem % 2 end)
+         and (coalesce(x.track, '') = '' or tt_track_ok(s.track, x.track))
+         and (x.level is not null or x.elective not in ('عمارة داخلية', 'سينوغرافيا', 'سينوجرافيا') or tt_track_ok(s.track, x.elective))
+       order by (x.prefix <> '') desc, x.id limit 1;
+      tr := case when s.level <= 2 then '' when translate(coalesce(s.track, ''), 'غ', 'ج') = 'سينوجرافيا' then 'سينوغرافيا' else coalesce(nullif(s.track, ''), 'عمارة داخلية') end;
+      -- موجودة أصلًا (نفس الكود، أو نفس الاسم في نفس الشعبة، والمستوى والفصل)؟ يبقى الربط بيحصل لوحده
+      if exists (select 1 from courses c where not c.archived and c.academic_year = s.academic_year and c.term = s.term and c.level = s.level and c.program = 'عام'
+                   and tt_track_ok(tr, c.track) and (regexp_replace(c.bylaw_code, '\D', '', 'g') = regexp_replace(b.code, '\D', '', 'g') or norm_ar(c.name) = norm_ar(b.name))) then continue; end if;
+      insert into courses(name, owner_email, academic_year, term, level, track, program, dept, bylaw_code, cw_max, exam_max, credits, auto_created, owner_auto, no_owner)
+        values (b.name, ph, s.academic_year, s.term, s.level, tr, 'عام', 'الديكور', trim(case when b.prefix <> '' then b.prefix || ' ' else '' end || b.code),
+                b.cw, b.ex, b.credits, true, true, true) returning id into cid;
+      insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid,
+        'اتعملت المادة تلقائيًا من الجدول الدراسي (خانة «' || s.title || '») عشان المحاضرين والمعيدين المكتوبين فيها يلاقوها، والطلبة ينضموا لها من استماراتهم.');
+      n := n + 1;
+    end loop;
+  end loop;
+  return n;
+end $$;
+revoke all on function public.tt_make_courses(uuid) from public, anon, authenticated;
+
+-- النشر وإضافة خانة: نعمل المواد الناقصة قبل الربط والمزامنة
+create or replace function public.tt_sync_pub_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r record;
+begin
+  if new.published then perform tt_make_courses(new.id); perform tt_autolink(new.id, null); end if;
+  for r in select distinct x from tt_slots s, unnest(array[s.course_id] || s.more_courses) x where s.tt_id = new.id and x is not null loop
+    perform tt_sync_team(r.x);
+  end loop;
+  for r in select c.id x from courses c where c.owner_auto and not c.no_owner and c.academic_year = new.academic_year and c.term = new.term loop
+    perform tt_sync_team(r.x);
+  end loop;
+  return null;
+end $$;
+create or replace function public.tt_sync_slot_trg() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare x uuid;
+begin
+  if tg_op = 'INSERT' and new.course_id is null and coalesce(trim(new.title), '') <> ''
+     and exists (select 1 from timetables t where t.id = new.tt_id and t.published) then
+    perform tt_make_courses(new.tt_id);
+    perform tt_autolink(new.tt_id, null);
+    return null;
+  end if;
+  if tg_op <> 'INSERT' then
+    foreach x in array (array[old.course_id] || old.more_courses) loop
+      if x is not null and (tg_op = 'DELETE' or not (x = new.course_id or x = any(new.more_courses))) then perform tt_sync_team(x); end if;
+    end loop;
+  end if;
+  if tg_op <> 'DELETE' then
+    foreach x in array (array[new.course_id] || new.more_courses) loop
+      if x is not null then perform tt_sync_team(x); end if;
+    end loop;
+  end if;
+  return null;
+end $$;
+
+-- الاستمارة: «سج 40402» (سينوغرافيا) و«عد 40402» (عمارة داخلية) نفس الأرقام، فلازم الشعبة كمان تطابق
+do $do$
+declare f text; o text;
+begin
+  select pg_get_functiondef(p.oid) into f from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'form_enroll' limit 1; o := f;
+  if position('tt_track_ok(c.track, tr)' in f) > 0 then return; end if;
+  f := replace(f, 'and c.program = b.prog and c.level = lvl', 'and c.program = b.prog and c.level = lvl and tt_track_ok(c.track, tr)');
+  if f = o then raise exception 'form_enroll track pattern not found'; end if;
+  execute f;
+end $do$;
+
+-- أول تشغيل على الجدول المنشور
+do $$ begin perform public.tt_make_courses(null); perform public.tt_autolink(null, null); end $$;
