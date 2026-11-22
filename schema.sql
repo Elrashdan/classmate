@@ -7596,3 +7596,97 @@ begin
   execute f;
 end $do$;
 revoke execute on function public.student_register(text, text, text, text) from public, anon, authenticated;
+
+-- ===================== update-81: حماية حسابات الطلبة (مراجعة أمنية) =====================
+--   (1) طلب «نسيت كلمة السر» مابقاش بيرجّع اسم الطالب لأي حد يكتب كوده.
+--   (2) الطلب الجديد مابقاش بيلغي الطلب اللي مستني (كان أي حد يقدر يلغي طلب طالب تاني باستمرار).
+--       رقم التحقق بقى 6 حروف، ومابيتكررش بين طلبات نفس الطالب. الحد اليومي 8 طلبات، والطلب اللي المحاضر رفضه مابيتحسبش منه.
+--   (3) عدّ المحاولات الغلط بقى بالدور لكل طالب (قفل لحد ما العملية تخلص)، فالمحاولات المتزامنة ماتعدّيش الحد.
+--   (4) المحاولات الغلط بتتحسب لكل جهاز: هاتف الطالب المربوط ليه 10 محاولات لوحده، وكل الأجهزة التانية مع بعض 10.
+--       فمحدش يقدر يقفل حساب طالب من هاتف تاني. والمحاضر يقدر «يفك القفل».
+alter table public.login_failures add column if not exists device text;
+alter table public.login_failures add column if not exists cleared boolean not null default false;
+create index if not exists login_failures_code_at on public.login_failures(student_code, at);
+
+create or replace function public.student_auth_locked(code text, p_device text) returns boolean
+language plpgsql volatile security definer set search_path = public as $$
+declare b text;
+begin
+  perform pg_advisory_xact_lock(207331, hashtext(coalesce(code, '')));
+  select device_id into b from students where student_code = code;
+  if b is not null and p_device is not null and p_device = b then
+    return (select count(*) >= 10 from login_failures where student_code = code and not cleared and at > now() - interval '15 minutes' and device = b);
+  end if;
+  return (select count(*) >= 10 from login_failures where student_code = code and not cleared and at > now() - interval '15 minutes' and device is distinct from b);
+end $$;
+revoke all on function public.student_auth_locked(text, text) from public, anon, authenticated;
+
+-- النسخة القديمة (من غير جهاز) = الأجهزة الغريبة
+create or replace function public.student_locked(code text) returns boolean
+language plpgsql volatile security definer set search_path = public as $$
+begin
+  return student_auth_locked(code, null);
+end $$;
+
+do $do$
+declare r record; f text; o text;
+begin
+  for r in select * from (values
+      ('public.student_login(text,text,text)', 'p_device'),
+      ('public.student_reset_on_device(text,text,text)', 'p_device'),
+      ('public.student_move_device(text,text,text,text,boolean)', 'p_device'),
+      ('public.student_form_register(text,text,integer,jsonb,text,text,text,text)', 'p_device'),
+      ('public.student_register(text,text,text,text)', 'p_device'),
+      ('public.google_reset(text,text,text,text,text)', 'p_device'),
+      ('public.student_login_web(text,text,text)', 'null')) v(sig, dev) loop
+    f := pg_get_functiondef(r.sig::regprocedure); o := f;
+    if position('student_auth_locked' in f) > 0 then continue; end if;
+    f := replace(f, 'student_locked(code)', 'student_auth_locked(code, ' || r.dev || ')');
+    f := replace(f, 'insert into login_failures(student_code) values (code);', 'insert into login_failures(student_code, device) values (code, ' || r.dev || ');');
+    if f = o then raise exception 'pattern not found in %', r.sig; end if;
+    execute f;
+  end loop;
+end $do$;
+
+create or replace function public.student_reset_request(p_code text, p_device text, p_label text) returns json
+language plpgsql security definer set search_path = public, extensions as $$
+declare code text := trim(coalesce(p_code, '')); sec text := encode(gen_random_bytes(24), 'hex'); rid uuid; n int := 0;
+begin
+  if not exists (select 1 from students where student_code = code) then raise exception 'not_registered'; end if;
+  perform pg_advisory_xact_lock(207332, hashtext(code));
+  if (select count(*) from password_resets where student_code = code and created_at > now() - interval '1 day' and status <> 'rejected') >= 8 then
+    raise exception 'too_many_tries';
+  end if;
+  loop   -- رقم التحقق (أول 6 حروف) مايتكررش بين طلبات نفس الطالب المفتوحة
+    n := n + 1; rid := gen_random_uuid();
+    exit when not exists (select 1 from password_resets r where r.student_code = code and r.status in ('pending', 'approved')
+                            and r.created_at > now() - interval '1 day' and left(replace(r.id::text, '-', ''), 6) = left(replace(rid::text, '-', ''), 6));
+    if n >= 20 then raise exception 'too_many_tries'; end if;
+  end loop;
+  insert into password_resets(id, student_code, secret_hash, device_label) values (rid, code, encode(digest(sec, 'sha256'), 'hex'), clean_label(p_label));
+  return json_build_object('id', rid, 'secret', sec);
+end $$;
+
+-- المحاضر: مين مقفول من طلبة المادة، وفك القفل
+create or replace function public.course_locked_students(cid uuid) returns setof text
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if coalesce(course_role(cid), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  return query select e.student_code from enrollments e
+    where e.course_id = cid
+      and (select count(*) from login_failures f where f.student_code = e.student_code and not f.cleared and f.at > now() - interval '15 minutes') >= 10;
+end $$;
+create or replace function public.student_unlock(cid uuid, code text) returns int
+language plpgsql security definer set search_path = public as $$
+declare n int; nm text;
+begin
+  if coalesce(course_role(cid), '') not in ('owner', 'ta') then raise exception 'not_allowed'; end if;
+  select coalesce(name, code) into nm from enrollments where course_id = cid and student_code = code;
+  if nm is null then raise exception 'not_found'; end if;
+  update login_failures set cleared = true where student_code = code and not cleared;
+  get diagnostics n = row_count;
+  perform log_audit(cid, 'فك قفل محاولات الدخول للطالب ' || nm);
+  return n;
+end $$;
+revoke all on function public.course_locked_students(uuid), public.student_unlock(uuid, text) from public, anon;
+grant execute on function public.course_locked_students(uuid), public.student_unlock(uuid, text) to authenticated;

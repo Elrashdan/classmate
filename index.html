@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b143">
+<link rel="stylesheet" href="style.css?v=b144">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b143"></script>
-<script src="config.js?v=b143"></script>
-<script src="common.js?v=b143"></script>
-<script src="drive.js?v=b143"></script>
-<script src="catalog.js?v=b143"></script>
-<script src="regform.js?v=b143"></script>
+<script src="vendor/qrcode.js?v=b144"></script>
+<script src="config.js?v=b144"></script>
+<script src="common.js?v=b144"></script>
+<script src="drive.js?v=b144"></script>
+<script src="catalog.js?v=b144"></script>
+<script src="regform.js?v=b144"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -258,7 +258,7 @@
   let rs = null;   // {stage: "form"|"wait"|"finish", msg, req: {id, secret, code, name}}
   try { const p = JSON.parse(store.get("cm_reset") || "null"); if (p && p.id) rs = { stage: "wait", msg: "", req: p }; } catch (e) {}
   let rsTimer = null;
-  const rsCheck = id => String(id || "").replace(/-/g, "").slice(0, 4).toUpperCase();
+  const rsCheck = id => String(id || "").replace(/-/g, "").slice(0, 6).toUpperCase();
   function rsVals() {
     const code = CM.normDigits(($("#rsCode") || {}).value), p1 = ($("#rsPass") || {}).value || "", p2 = ($("#rsPass2") || {}).value || "";
     if (!code || !code.trim()) throw "اكتب كود الطالب.";
@@ -286,7 +286,7 @@
       <button class="btn block" id="rsReq" ${busy ? "disabled" : ""}>اطلب موافقة المحاضر أو المعيد</button>
       <p class="small muted">يظهر طلبك لفريق المادة في صفحتهم، فيوافق عليه بلمسة بعد أن يتأكد منك، ثم تكمل من هاتفك.</p>`;
     else if (st === "wait") body = `
-      <div class="rs-wait"><span class="small muted">رقم التحقق</span><b class="mono">${esc(rsCheck(rs.req.id))}</b><span>${esc(rs.req.name || "")} · <span class="mono">${esc(rs.req.code)}</span></span></div>
+      <div class="rs-wait"><span class="small muted">رقم التحقق</span><b class="mono">${esc(rsCheck(rs.req.id))}</b><span>كود الطالب · <span class="mono">${esc(rs.req.code)}</span></span></div>
       <p>اعرض هذه الشاشة على المحاضر أو المعيد، ليوافق على طلبك من صفحة المادة عنده. وحين يوافق تنتقل هذه الصفحة وحدها لتكتب كلمة السر الجديدة.</p>
       <div class="live"><span class="dot"></span><span>في انتظار الموافقة…</span></div>
       ${rs.msg ? `<div class="msg bad">${esc(rs.msg)}</div>` : ""}`;
@@ -307,7 +307,7 @@
       const at = await auth; const r = await pkCall({ action: "google_reset", access_token: at, code: v.code, password: v.pass, device, label: devLabel }); await rsDone(r); }); };
     const bq = $("#rsReq"); if (bq) bq.onclick = () => { const code = CM.normDigits(($("#rsCode") || {}).value); if (!code) { rs.msg = "اكتب كود الطالب."; return renderReset(); }
       busy = true; renderReset();
-      rpc("student_reset_request", { p_code: code, p_device: device || "", p_label: devLabel }).then(r => { busy = false; rs = { stage: "wait", msg: "", req: { id: r.id, secret: r.secret, code, name: r.name } }; store.set("cm_reset", JSON.stringify(rs.req)); renderReset(); rsPoll(); })
+      rpc("student_reset_request", { p_code: code, p_device: device || "", p_label: devLabel }).then(r => { busy = false; rs = { stage: "wait", msg: "", req: { id: r.id, secret: r.secret, code } }; store.set("cm_reset", JSON.stringify(rs.req)); renderReset(); rsPoll(); })
         .catch(e => { busy = false; rs.msg = errText(e); renderReset(); }); };
     const bf = $("#rsFin"); if (bf) bf.onclick = async () => { if (busy) return; let v; try { v = rsVals(); } catch (m) { rs.msg = m; return renderReset(); }
       if (!device) { rs.msg = "هذا المتصفح لا يحفظ البيانات. افتح الموقع في متصفح عادي."; return renderReset(); }
@@ -750,7 +750,7 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b143: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  /* b144: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
   let stab = ["home", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };

@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b143">
+<link rel="stylesheet" href="style.css?v=b144">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b143"></script>
-<script src="vendor/qrcode.js?v=b143"></script>
-<script src="config.js?v=b143"></script>
-<script src="common.js?v=b143"></script>
-<script src="drive.js?v=b143"></script>
-<script src="pack.js?v=b143"></script>
-<script src="catalog.js?v=b143"></script>
-<script src="voice.js?v=b143"></script>
-<script src="timetable.js?v=b143"></script>
-<script src="research.js?v=b143"></script>
+<script src="vendor/supabase.js?v=b144"></script>
+<script src="vendor/qrcode.js?v=b144"></script>
+<script src="config.js?v=b144"></script>
+<script src="common.js?v=b144"></script>
+<script src="drive.js?v=b144"></script>
+<script src="pack.js?v=b144"></script>
+<script src="catalog.js?v=b144"></script>
+<script src="voice.js?v=b144"></script>
+<script src="timetable.js?v=b144"></script>
+<script src="research.js?v=b144"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -450,7 +450,7 @@
     if (focus) { const r = await sb.from("attempts").select("*").eq("session_id", focus.id).order("at", { ascending: false }).limit(300); if (r.error) throw r.error; attempts = r.data; }
     // الطلبات الثانوية تُرسل معًا بالتوازي (أسرع بكثير على شبكات الهاتف)
     const safe = p => p.then(r => r, () => null);
-    const [bnd, nr, tk, rsq, apq, anq, psq, ptq] = await Promise.all([
+    const [bnd, nr, tk, rsq, apq, anq, psq, ptq, lkq] = await Promise.all([
       safe(rpc("course_bindings2", { cid: c.id }).catch(() => rpc("course_bindings", { cid: c.id }))),
       safe(sb.from("warning_notices").select("student_code,level,seen_at").eq("course_id", c.id)),
       sb.from("tasks").select("*").eq("course_id", c.id).order("due_at"),
@@ -458,7 +458,8 @@
       safe(rpc("course_appeals", { cid: c.id })),
       safe(sb.from("warning_announced").select("student_code,level,announced_at").eq("course_id", c.id)),
       safe(rpc("course_push_status", { cid: c.id })),
-      safe(rpc("course_petitions", { cid: c.id }))
+      safe(rpc("course_petitions", { cid: c.id })),
+      canRun(c) ? safe(rpc("course_locked_students", { cid: c.id })) : null
     ]);
     const announced = {}; if (anq && !anq.error) anq.data.forEach(n => { (announced[n.student_code] = announced[n.student_code] || {})[n.level] = n.announced_at; });
     const bindings = {}; (bnd || []).forEach(b => bindings[b.student_code] = b);
@@ -477,7 +478,7 @@
     if (tkSel && !tasks.some(t => t.id === tkSel)) tkSel = null;
     const resets = rsq || [], appeals = apq || [];
     pushRecent(c.id);
-    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, announced, push: new Set(psq || []), tasks, subs, excuses, resets, exts, appeals, petitions: ptq || [] };
+    D = { cid: c.id, enroll: en, sessions, tas: ta.data, audit: au.data, att, attempts, bindings, notices, announced, push: new Set(psq || []), tasks, subs, excuses, resets, exts, appeals, petitions: ptq || [], locked: new Set((lkq || []).map(x => typeof x === "string" ? x : x.course_locked_students)) };
     clearInterval(rsPollT); if (canRun(c)) rsPollT = setInterval(pollResets, 10000);
     if (scan && !sessions.some(x => x.id === scan.sid && !x.ended)) closeScanner();
     render();
@@ -498,7 +499,7 @@
     el.hidden = !L.length;
     el.innerHTML = L.length ? `<div class="msg warn rs-reqs"><b>طلبات استعادة كلمة السر (${L.length})</b>
       <span class="small">تأكّد أن الطالب أمامك وأن «رقم التحقق» على شاشته هو نفسه، ثم وافق، فيكتب كلمة سر جديدة من هاتفه.</span>
-      ${L.map(r => `<div class="rs-req"><b class="mono">${esc(String(r.id).replace(/-/g, "").slice(0, 4).toUpperCase())}</b><span>${esc(r.name)} <span class="mono muted small">${esc(r.student_code)}</span><small class="muted">${esc(r.device_label || "")} · ${CM.fmtT(r.created_at)}</small></span>
+      ${L.map(r => `<div class="rs-req"><b class="mono">${esc(String(r.id).replace(/-/g, "").slice(0, 6).toUpperCase())}</b><span>${esc(r.name)} <span class="mono muted small">${esc(r.student_code)}</span><small class="muted">${esc(r.device_label || "")} · ${CM.fmtT(r.created_at)}</small></span>
         <button class="btn sm primary" data-rsok="${r.id}">موافقة</button><button class="btn sm ghost" data-rsno="${r.id}">رفض</button></div>`).join("")}</div>` : "";
     el.querySelectorAll("[data-rsok],[data-rsno]").forEach(b => b.onclick = async () => {
       const id = b.dataset.rsok || b.dataset.rsno, ok = !!b.dataset.rsok; b.disabled = true;
@@ -833,7 +834,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b143: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b144: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -4381,7 +4382,7 @@
       ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td class="nm"><div class="nm-c"><span class="nm-t" title="${esc(e.name)}">${esc(e.name)}</span>${e.source === "form" ? `<span class="nm-tags"><span class="chip warn small" title="أضاف نفسه من استمارة التسجيل الأكاديمي${e.added_at ? " يوم " + esc(CM.fmtD(e.added_at)) : ""}، ولم يرد في ملف الطلبة الذي رفعته. راجِعه، وأزِله إن لم يكن من طلبة المادة.">بالاستمارة</span></span>` : ""}</div></td>${ms ? `<td style="white-space:nowrap">${nowCell(e)}</td>` : ""}
         <td>${mng ? `<select data-grp="${esc(e.student_code)}" style="width:auto;padding:3px 6px">${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${esc(g) || "—"}</option>`).join("")}</select>` : esc(e.grp || "—")}</td>
         <td>${b.device_bound ? `<span class="chip ok"${b.device_label ? ` title="${esc(b.device_label)}"` : ""}>مرتبط بهاتف</span>${b.moved_at && Date.now() - new Date(b.moved_at) < 30 * 864e5 ? `<div class="small muted">نقل حسابه بنفسه ${esc(CM.fmtD(b.moved_at))}</div>` : ""}` : b.registered ? `<span class="chip warn">بانتظار ربط هاتف</span>` : `<span class="chip none">لم ينشئ حسابًا</span>`}</td>
-        ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الهاتف"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "حذف الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "إزالة من المادة"}</button></div></td>` : ""}</tr>
+        ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${D.locked && D.locked.has(e.student_code) ? `<button class="btn sm" data-unl="${esc(e.student_code)}" title="الحساب مقفول بسبب محاولات دخول غلط كتير">فك القفل</button>` : ""}${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الهاتف"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "حذف الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "إزالة من المادة"}</button></div></td>` : ""}</tr>
         ${ms && rosterMan === e.student_code ? `<tr class="manrow"><td colspan="${ncol}">${manBoxHtml([e.student_code], "rsm")}<span class="small muted">اضغط أحد الأسباب ليُسجَّل الحضور مباشرة، أو اكتب سببًا واضغط «تسجيله حاضرًا».</span></td></tr>` : ""}`; }).join("")
         : `<tr><td colspan="${ncol}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
       </tbody>`;
@@ -4402,6 +4403,7 @@
     }
     tb.querySelectorAll("[data-rmst]").forEach(b => b.onclick = () => { const k = "rmst:" + b.dataset.rmst; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; const nm = nameOf(b.dataset.rmst); act(async () => { await rpc("remove_student", { cid: c.id, code: b.dataset.rmst }); say("roster", "أُزيل " + nm + " من المادة."); }, loadCourse); });
     tb.querySelectorAll("[data-grp]").forEach(sel => sel.onchange = () => act(() => rpc("set_group", { cid: c.id, code: sel.dataset.grp, p_grp: sel.value }), loadCourse));
+    tb.querySelectorAll("[data-unl]").forEach(b => b.onclick = () => act(async () => { await rpc("student_unlock", { cid: c.id, code: b.dataset.unl }); say("roster", "اتفك قفل حساب " + nameOf(b.dataset.unl) + "، ويقدر يدخل دلوقتي."); }, loadCourse));
     tb.querySelectorAll("[data-dev]").forEach(b => b.onclick = () => { const k = "dev:" + b.dataset.dev; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_device", { cid: c.id, code: b.dataset.dev }); say("roster", "فُكّ ربط هاتف " + nameOf(b.dataset.dev) + ". سيرتبط الحساب بالهاتف الجديد عند أول تسجيل دخول."); }, loadCourse); });
     tb.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => { const k = "acc:" + b.dataset.acc; if (confirmKey !== k) { confirmKey = k; return again(); } confirmKey = null; act(async () => { await rpc("reset_account", { cid: c.id, code: b.dataset.acc }); say("roster", "حُذف حساب " + nameOf(b.dataset.acc) + ". يمكنه إنشاء حساب جديد من «إنشاء حساب»."); }, loadCourse); });
   }
