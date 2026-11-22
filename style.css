@@ -2752,8 +2752,8 @@ html[data-skin="nx"] .codein{ border-radius: 16px !important; }
 html[data-skin="nx"] .btn.block{ min-height: 52px; font-size: 1.02rem; }
 @media (max-width: 700px){
   /* صف فيه أزرار بس: شبكة منتظمة بنفس العرض */
-  html[data-skin="nx"] #app .row:not(.past):has(> .btn):not(:has(> :not(.btn, input[type=file], label.btn))){ display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
-  html[data-skin="nx"] #app .row:not(.past):has(> .btn):not(:has(> :not(.btn, input[type=file], label.btn))) > .btn{ justify-content: center; padding-inline: 10px; font-size: .86rem; overflow: hidden; text-overflow: ellipsis; }
+  html[data-skin="nx"] #app .row:not(.past):not(header .row):has(> .btn, > details.dd):not(:has(> :not(.btn, input[type=file], label.btn, details.dd))){ display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  html[data-skin="nx"] #app .row:not(.past):not(header .row):has(> .btn):not(:has(> :not(.btn, input[type=file], label.btn, details.dd))) > .btn{ justify-content: center; padding-inline: 10px; font-size: .86rem; overflow: hidden; text-overflow: ellipsis; }
 }
 @media (max-width: 1099px){
   html[data-skin="nx"] :is(.ctabs, .nx-dock){ border-radius: 999px !important; }
@@ -2761,3 +2761,17 @@ html[data-skin="nx"] .btn.block{ min-height: 52px; font-size: 1.02rem; }
   html[data-skin="nx"] :is(.nx-dock, .ctabs) .tb{ border-radius: 999px !important; }
 }
 html[data-skin="nx"] .st-nav{ border-radius: 999px !important; }
+@media (max-width: 700px){
+  /* الرئيسية: اختيار المادة شبكة منتظمة، وأقسام المادة موجودة في الشريط اللي تحت فمش محتاجين نكررها */
+  html[data-skin="nx"] .dh-chips{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  html[data-skin="nx"] .dh-chips > *{ min-width: 0; width: 100%; }
+  html[data-skin="nx"] .dh-chips > :last-child:nth-child(odd){ grid-column: 1 / -1; }
+  html[data-skin="nx"] .dh-chip{ justify-content: center; min-height: var(--b-h); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; text-align: center; line-height: calc(var(--b-h) - 16px); }
+  html[data-skin="nx"] .dh-chips > details > summary, html[data-skin="nx"] .dh-chips > .dd > summary{ width: 100%; justify-content: center; min-height: var(--b-h); }
+  html[data-skin="nx"] body.has-dock .dh-secs{ display: none; }
+  html[data-skin="nx"] .dh-chips > .cpk .dh-all{ width: 100%; display: flex; justify-content: center; }
+  html[data-skin="nx"] #app .row:not(header .row) > details.dd > summary{ width: 100%; justify-content: center; }
+  /* مفتاح الألوان في التقرير */
+  html[data-skin="nx"] .legend{ display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+  html[data-skin="nx"] .legend > *{ justify-content: center; border-radius: 999px; }
+}
