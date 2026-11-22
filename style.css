@@ -2714,3 +2714,50 @@ html[data-skin="nx"] .bl-why, html[data-skin="nx"] .dh-why{color:color-mix(in sr
 .rf-due b{font-size:1rem}
 .rf-due .btn{flex:0 0 auto}
 @media (max-width:560px){.rf-due .btn{width:100%}}
+
+/* ===== b141: شكل موحّد للأزرار (nx): كل الأزرار كبسولات، وأزرار الأيقونات دواير، بنفس الارتفاعات ===== */
+html[data-skin="nx"]{ --b-h: 44px; --b-hs: 40px; }
+html[data-skin="nx"] :is(.btn, summary.btn, label.btn, a.btn, .tabs > button, .cchip, .dd-i, .th-date, .th-del, .rf-it, .seg > button){ border-radius: 999px !important; }
+html[data-skin="nx"] .btn{ min-height: var(--b-h); padding-inline: 20px; gap: 8px; line-height: 1.2; }
+html[data-skin="nx"] .btn.sm, html[data-skin="nx"] summary.btn.sm{ min-height: var(--b-hs); padding-inline: 16px; font-size: .92rem; }
+html[data-skin="nx"] .btn.icon, html[data-skin="nx"] .btn.mic-s, html[data-skin="nx"] .bell-btn{ border-radius: 50% !important; width: var(--b-hs); height: var(--b-hs); min-width: var(--b-hs); min-height: var(--b-hs); padding: 0 !important; display: inline-grid; place-items: center; flex: none; }
+html[data-skin="nx"] .tabs{ border-radius: 999px !important; gap: 6px; }
+html[data-skin="nx"] .tabs > button{ min-height: var(--b-hs); padding-inline: 18px; }
+html[data-skin="nx"] .dd-m{ border-radius: 24px !important; padding: 8px !important; }
+html[data-skin="nx"] .dd-i{ min-height: 42px; padding-inline: 16px; }
+/* الخانات: سطر واحد = كبسولة، والبحث والمايك بنفس الارتفاع */
+html[data-skin="nx"] :is(input[type=text], input[type=email], input[type=password], input[type=number], input[type=tel], input[type=search], input[type=date], input[type=datetime-local], input[type=time], select):not(.codein){ border-radius: 999px !important; padding-inline: 18px; min-height: var(--b-h); }
+html[data-skin="nx"] textarea{ border-radius: 20px !important; }
+html[data-skin="nx"] .rs-bar{ align-items: center; gap: 8px; }
+html[data-skin="nx"] .rs-bar input{ min-height: var(--b-h); }
+html[data-skin="nx"] .rs-bar .mic-s, html[data-skin="nx"] .rs-bar .btn.icon{ width: var(--b-h); height: var(--b-h); min-width: var(--b-h); }
+/* الشريط اللي فوق: دواير جوه كبسولة */
+html[data-skin="nx"] header.top{ border-radius: 30px !important; }
+html.hd-sc[data-skin="nx"] header.top, html[data-skin="nx"].hd-sc header.top{ border-radius: 999px !important; }
+html[data-skin="nx"] header.top .mark{ border-radius: 50% !important; }
+/* شريط التبويبات تحت: كبسولة، والتبويب المختار كبسولة */
+html[data-skin="nx"] .ctabs{ border-radius: 999px !important; }
+html[data-skin="nx"] .ctabs button{ border-radius: 999px !important; }
+html[data-skin="nx"] .tile > svg{ border-radius: 50% !important; }
+/* صفوف الأزرار الثانوية: نفس الحجم ومتوزعة بالتساوي على الموبايل */
+@media (max-width: 700px){
+  html[data-skin="nx"] .row.past{ display: flex; flex-wrap: wrap; gap: 8px; }
+  html[data-skin="nx"] .row.past > span, html[data-skin="nx"] .row.past > .muted{ flex: 1 1 100%; }
+  html[data-skin="nx"] .row.past > .btn{ flex: 1 1 auto; justify-content: center; }
+}
+html[data-skin="nx"] .btn{ white-space: nowrap; }
+html[data-skin="nx"] :is(.dh-sec, .nx-dock button, .st-nav button, .tk-tabs > button, .top-q label){ border-radius: 999px !important; }
+html[data-skin="nx"] :is(.dh-ki, .sb-ic){ border-radius: 50% !important; }
+html[data-skin="nx"] .codein{ border-radius: 16px !important; }
+html[data-skin="nx"] .btn.block{ min-height: 52px; font-size: 1.02rem; }
+@media (max-width: 700px){
+  /* صف فيه أزرار بس: شبكة منتظمة بنفس العرض */
+  html[data-skin="nx"] #app .row:not(.past):has(> .btn):not(:has(> :not(.btn, input[type=file], label.btn))){ display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  html[data-skin="nx"] #app .row:not(.past):has(> .btn):not(:has(> :not(.btn, input[type=file], label.btn))) > .btn{ justify-content: center; padding-inline: 10px; font-size: .86rem; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (max-width: 1099px){
+  html[data-skin="nx"] :is(.ctabs, .nx-dock){ border-radius: 999px !important; }
+  html[data-skin="nx"] .dk-pill{ border-radius: 999px !important; }
+  html[data-skin="nx"] :is(.nx-dock, .ctabs) .tb{ border-radius: 999px !important; }
+}
+html[data-skin="nx"] .st-nav{ border-radius: 999px !important; }
