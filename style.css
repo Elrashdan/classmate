@@ -3149,3 +3149,67 @@ html[data-skin="nx"] .n2-live{background:color-mix(in srgb,var(--nx-hi) 18%,tran
 .rf-due .small{font-size:.8rem}
 .rf-due .btn{width:auto!important;min-height:38px!important;height:38px;padding-inline:16px!important;border-radius:999px!important;font-size:.9rem}
 html[data-skin="nx"] .n2 .btn.primary{background:var(--nx-hi)!important;color:var(--nx-on-hi)!important;border-color:transparent!important}
+
+/* ===================== b159: الألوان الهادئة والواجهة الأخف ===================== */
+html[data-skin="nx"]{
+  --bg: var(--nx-base);
+  --surface: color-mix(in srgb, var(--nx-base) 18%, #fff);
+  --sunk: color-mix(in srgb, var(--nx-base) 94%, var(--nx-dark) 6%);
+  --line: color-mix(in srgb, var(--nx-dark) 10%, var(--nx-base));
+  --muted: color-mix(in srgb, var(--nx-dark) 60%, var(--nx-base));
+  --tint: color-mix(in srgb, var(--nx-hi) 22%, transparent);
+  --accent-soft: color-mix(in srgb, var(--nx-hi) 30%, var(--surface));
+  --ok:#1e7f55; --ok-soft:#e2f3ea; --warn:#9a6700; --warn-soft:#fff1d2; --bad:#c8423a; --bad-soft:#fbe6e4;
+}
+html[data-skin="nx"][data-theme="dark"]{
+  --bg: color-mix(in srgb, var(--nx-dark) 94%, #000); --surface: color-mix(in srgb, var(--nx-dark) 93%, var(--nx-base) 7%);
+  --sunk: color-mix(in srgb, var(--nx-dark) 90%, var(--nx-base) 10%); --line: color-mix(in srgb, var(--nx-base) 12%, var(--nx-dark));
+  --muted: color-mix(in srgb, var(--nx-base) 60%, var(--nx-dark));
+  --ok:#6cc59a; --ok-soft:#173026; --warn:#e0b04a; --warn-soft:#33280f; --bad:#ef8a80; --bad-soft:#3a1c19;
+}
+@media (prefers-color-scheme: dark){ html[data-skin="nx"]:not([data-theme="light"]){
+  --bg: color-mix(in srgb, var(--nx-dark) 94%, #000); --surface: color-mix(in srgb, var(--nx-dark) 93%, var(--nx-base) 7%);
+  --sunk: color-mix(in srgb, var(--nx-dark) 90%, var(--nx-base) 10%); --line: color-mix(in srgb, var(--nx-base) 12%, var(--nx-dark));
+  --muted: color-mix(in srgb, var(--nx-base) 60%, var(--nx-dark));
+  --ok:#6cc59a; --ok-soft:#173026; --warn:#e0b04a; --warn-soft:#33280f; --bad:#ef8a80; --bad-soft:#3a1c19; } }
+html[data-skin="nx"] body{ background: var(--bg) !important; }
+/* بلا ظلال ثقيلة ولا زجاج: كروت بيضاء بحد رفيع */
+html[data-skin="nx"] :is(.panel, .st-box, .st-card, .tk-over, .notice, .pk-cta, .rf-cta, .qrcta, .push-must, .tk-link, .hc2-c, .card, .tile){ box-shadow: none !important; }
+html[data-skin="nx"] :is(.panel, .st-box, .tk-over, .rf-cta, .qrcta, .pk-cta){ background: var(--surface) !important; border: 1px solid var(--line) !important; }
+/* الرأس: مسطح بلا كبسولة (إلا وهو مصغّر أثناء التمرير) */
+html[data-skin="nx"]:not(.hd-sc) header.top{ background: transparent !important; box-shadow: none !important; border: 0 !important; padding-inline: 2px !important; }
+html[data-skin="nx"]:not(.hd-sc) header.top::before{ display: none !important; }
+html[data-skin="nx"].hd-sc header.top{ background: var(--surface) !important; box-shadow: 0 1px 0 var(--line) !important; }
+/* كارت المحاضرة الجارية: على خلفية الصفحة نفسها كما في التصميم */
+html[data-skin="nx"] .now-c.n2{ background: transparent !important; color: var(--ink) !important; border: 0 !important; box-shadow: none !important; }
+html[data-skin="nx"] .now-c.n2 :is(.muted, .small, .n2-m, .n2-note){ color: var(--muted) !important; opacity: 1; }
+html[data-skin="nx"] .n2-live{ background: var(--ok-soft); color: var(--ok); }
+html[data-skin="nx"] .now-c.n2 .linkish{ color: var(--ink) !important; }
+/* الشريط السفلي: أبيض بعرض الشاشة، والقسم الحالي في كبسولة ليمونية خلف الأيقونة */
+@media (max-width: 760px){
+  html[data-skin="nx"] .st-nav{ border-radius: 0 !important; background: var(--surface) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; border-top: 1px solid var(--line) !important; box-shadow: none !important; padding: 8px 6px calc(8px + env(safe-area-inset-bottom,0px)) !important; inset-inline: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; transform: none !important; }
+}
+html[data-skin="nx"] .st-nav button{ background: transparent !important; color: var(--muted) !important; min-width: 64px; border-radius: 0 !important; font-weight: 500; }
+html[data-skin="nx"] .st-nav button svg{ width: 52px; height: 30px; padding: 4px 15px; border-radius: 999px; box-sizing: border-box; transition: background .2s; }
+html[data-skin="nx"] .st-nav button.on{ color: var(--ink) !important; font-weight: 600; }
+html[data-skin="nx"] .st-nav button.on svg{ background: var(--nx-hi); color: var(--nx-on-hi); }
+.st-nb{ top: 0 !important; inset-inline-start: calc(50% + 10px) !important; }
+/* كارتا الرئيسية */
+.hc2{ display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hc2-c{ display: grid; justify-items: start; gap: 4px; text-align: start; padding: 14px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; min-width: 0; }
+.hc2-c > span{ font-size: 13px; color: var(--muted); }
+.hc2-c > b{ font: 700 28px/1.1 var(--f-display); }
+.hc2-c > b small{ font: 500 13px var(--f-body); color: var(--muted); }
+.hc2-c > i.chip{ font-style: normal; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+/* مفتاح التكليفات/الدرجات */
+.seg2{ display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--sunk); margin: 2px 0 12px; }
+.seg2 button{ flex: 1; min-height: 40px; border: 0; border-radius: 999px; background: transparent; font: 600 14px var(--f-display); color: var(--muted); cursor: pointer; }
+.seg2 button[aria-selected="true"]{ background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+/* إشعار الإنذار: أهدأ (خلفية بيضاء وخط جانبي ملوّن) */
+html[data-skin="nx"] .notice{ background: var(--surface) !important; border: 1px solid var(--line) !important; border-inline-start: 4px solid var(--warn) !important; }
+html[data-skin="nx"] .notice.lv2, html[data-skin="nx"] .notice.lv3, html[data-skin="nx"] .notice.lv4{ border-inline-start-color: var(--bad) !important; }
+html[data-skin="nx"] .notice h3{ color: var(--ink) !important; }
+.n2{display:grid;gap:8px;padding:8px 4px 4px}
+.n2 .codein{font-size:1.6rem;letter-spacing:.3em;text-align:center;min-height:56px}
+.n2 .btn.block{min-height:52px;font-size:1.05rem;border-radius:999px}
+.n2-alt{color:var(--ink)!important}

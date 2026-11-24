@@ -11,7 +11,7 @@
 <meta name="author" content="أحمد محمد راشد حامد">
 <meta name="copyright" content="© 2026 أحمد محمد راشد حامد. جميع الحقوق محفوظة.">
 <meta name="description" content="Hadro: نظام إدارة الحضور. تصميم وتطوير أحمد محمد راشد حامد.">
-<script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}try{var L=JSON.parse(localStorage.getItem("cm_look")||"{}");if(L&&L.skin==="nx"){var P={lime:["#ececec","#c6f432","#0e0e0e"],hadro:["#eef2f0","#9fe3c8","#122320"],sun:["#efebe6","#ff8a3d","#1b1712"],violet:["#ecebf3","#b9a6ff","#17142a"],sky:["#e8edf3","#7cc8ff","#0f1a2b"],rose:["#f3eaee","#ff9ec4","#1d1418"],sand:["#efe8dc","#e9c46a","#23201a"],mint:["#e9f0ec","#5fe3a1","#0b1d16"]};var c=L.pal==="own"&&L.own&&L.own.length===3?L.own:(P[L.pal]||P.lime),r=document.documentElement;r.dataset.skin="nx";r.style.setProperty("--nx-base",c[0]);r.style.setProperty("--nx-hi",c[1]);r.style.setProperty("--nx-dark",c[2]);if(L.motion===false)r.dataset.motion="off";}}catch(e){}</script>
+<script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}try{var L=JSON.parse(localStorage.getItem("cm_look")||"{}");if(!L||L.skin!=="classic"){var P={lime:["#f5f6f1","#d4f23b","#121614"],hadro:["#eef2f0","#9fe3c8","#122320"],sun:["#efebe6","#ff8a3d","#1b1712"],violet:["#ecebf3","#b9a6ff","#17142a"],sky:["#e8edf3","#7cc8ff","#0f1a2b"],rose:["#f3eaee","#ff9ec4","#1d1418"],sand:["#efe8dc","#e9c46a","#23201a"],mint:["#e9f0ec","#5fe3a1","#0b1d16"]};var c=L.pal==="own"&&L.own&&L.own.length===3?L.own:(P[L.pal]||P.lime),r=document.documentElement;r.dataset.skin="nx";r.style.setProperty("--nx-base",c[0]);r.style.setProperty("--nx-hi",c[1]);r.style.setProperty("--nx-dark",c[2]);if(L.motion===false)r.dataset.motion="off";}}catch(e){}</script>
 <title>Hadro</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b158">
+<link rel="stylesheet" href="style.css?v=b159">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b158"></script>
-<script src="config.js?v=b158"></script>
-<script src="common.js?v=b158"></script>
-<script src="drive.js?v=b158"></script>
-<script src="catalog.js?v=b158"></script>
-<script src="regform.js?v=b158"></script>
+<script src="vendor/qrcode.js?v=b159"></script>
+<script src="config.js?v=b159"></script>
+<script src="common.js?v=b159"></script>
+<script src="drive.js?v=b159"></script>
+<script src="catalog.js?v=b159"></script>
+<script src="regform.js?v=b159"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -560,7 +560,7 @@
   }
 
   // أعلى الصفحة: أي محاضرة جارية الآن مع خانة الرمز وزر المسح مباشرة (لا يحتاج الطالب إلى النزول بحثًا عنها)
-  // b158: الرئيسية الجديدة — زر دائري كبير واحد أثناء المحاضرة، و«حاضر» مع المحاضرة التالية حين لا توجد محاضرة
+  // b159: الرئيسية الجديدة — زر دائري كبير واحد أثناء المحاضرة، و«حاضر» مع المحاضرة التالية حين لا توجد محاضرة
   const codeOpen = {};
   const QRI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>';
   function nextLecture() {
@@ -597,7 +597,7 @@
         : `<button type="button" class="linkish n2-alt" data-codeopen="${c.id}">لا تعمل الكاميرا؟ اكتب الرمز</button>`}
         <p class="n2-note">يتحقق Hadro من موقعك للتأكد من أنك ${s.kind === "outdoor" ? "في مكان المحاضرة" : "في القاعة"}.${s.tries_left < 5 ? ` متبقٍّ لك ${s.tries_left} محاولات.` : ""}</p>`;
     } else body = sessionBlock(c).replace(/^<div class="row between">[\s\S]*?<\/div>/, "");
-    return `<article class="now-c n2 ${done ? "done" : ""}" data-course="${c.id}">
+    return `<article class="n2 ${done ? "done" : ""}" data-course="${c.id}">
       <span class="n2-live">${done ? "" : `<span class="pulse" aria-hidden="true"></span>`}${done ? "حضورك مسجَّل" : "محاضرة جارية الآن"}</span>
       <h2 class="n2-n">${esc(c.name)}</h2><div class="n2-m">${meta}</div>
       ${body}
@@ -639,12 +639,13 @@
     return `<div class="notice lv${l}" role="alert">
       <div class="eyebrow">إشعار بإنذار غياب</div>
       <h3>${w.t} · ${esc(c.name)}</h3>
-      <p>بلغ عدد مرات غيابك في هذه المادة ${CM.times(c.absences)}، ولذلك صدر لك ${w.t}. ${afterTxt(c.absences)}</p>
-      ${(c.missed || []).length ? `<p class="small">المحاضرات التي غبت عنها: ${c.missed.map(m => `${m.n} (${CM.fmtD(m.at)})`).join("، ")}.</p>` : ""}
-      <p class="small">إذا كنت حاضرًا في إحدى هذه المحاضرات وسُجّلت غائبًا، فراجع المحاضر لتصحيح الكشف.</p>
+      <p>غبت ${CM.times(c.absences)} في هذه المادة. ${afterTxt(c.absences)}</p>
+      <details class="more"><summary>التفاصيل</summary>
+        <p>بلغ عدد مرات غيابك في هذه المادة ${CM.times(c.absences)}، ولذلك صدر لك ${w.t}.</p>
+        ${(c.missed || []).length ? `<p class="small">المحاضرات التي غبت عنها: ${c.missed.map(m => `${m.n} (${CM.fmtD(m.at)})`).join("، ")}.</p>` : ""}
+        <p class="small">إذا كنت حاضرًا في إحدى هذه المحاضرات وسُجّلت غائبًا، فراجع المحاضر لتصحيح الكشف. ويُسجَّل اطّلاعك على الإنذار ويظهر لفريق المادة.</p></details>
       ${ackErr[c.id] ? `<div class="msg bad">${esc(ackErr[c.id])}</div>` : ""}
       <button class="btn primary" data-ack="${c.id}">اطّلعت على الإنذار</button>
-      <p class="small muted">يُسجَّل اطّلاعك على الإنذار ويظهر لفريق المادة.</p>
     </div>`;
   }
   const ackErr = {};
@@ -802,15 +803,16 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b158: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
-  let stab = ["home", "tasks", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
+  /* b159: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  let tsub = store.get("cm_stab") === "grades" ? "grades" : "tasks";
+  let stab = ({ grades: "tasks" })[store.get("cm_stab")] || (["home", "abs", "tasks", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home"), stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };
   function stHeader() {
     const first = esc((home.name || "").split(" ")[0]);
     return `<header class="top st-top"><div class="brand">${CM.markHtml()}<div><h1 class="st-hi">أهلًا ${first}</h1><p class="small muted"><span class="mono">${esc(home.code)}</span>${home.courses.length ? " · " + home.courses.length + (home.courses.length > 2 && home.courses.length < 11 ? " مواد" : " مادة") : ""}</p></div></div>
       <div class="row"><button class="btn sm ghost icon bell" id="ntBtn" data-cap="إشعارات" aria-label="التنبيهات" title="التنبيهات">${BELL}${nt.unread ? `<span class="nt-badge">${nt.unread > 9 ? "9+" : nt.unread}</span>` : ""}</button><button class="btn sm ghost icon help-btn" id="helpBtn" data-cap="مساعدة" aria-label="المساعدة والتواصل" title="المساعدة والتواصل"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8M12 17.2h.01"/></svg>${hcUnread ? `<i class="hc-dot">${hcUnread}</i>` : ""}</button>${CM.themeBtn()}
-      ${CM.dd(`<span class="dd-ava" aria-hidden="true">${esc(String(home.name || "؟").trim().charAt(0) || "؟")}</span><span class="dd-hide">حسابي</span>`, [`<div class="dd-h">حسابي<small>${esc(home.name || "")}</small></div><button class="dd-i dd-mob" data-look-btn>المظهر (فاتح / غامق والألوان)</button><button class="dd-i" id="pwBtn">كلمة السر</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي", cls: "st-acc" })}</div></header>`;
+      ${CM.dd(`<span class="dd-ava" aria-hidden="true">${esc(String(home.name || "؟").trim().charAt(0) || "؟")}</span><span class="dd-hide">حسابي</span>`, [`<div class="dd-h">حسابي<small>${esc(home.name || "")}</small></div><button class="dd-i dd-mob" data-look-btn>المظهر (فاتح / غامق والألوان)</button><button class="dd-i" id="pwBtn">كلمة السر</button>${!limited && pk.ok && pk.count === 0 ? `<button class="dd-i" id="pkOn">تفعيل الدخول بالبصمة</button>` : ""}`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي", cls: "st-acc" })}</div></header>`;
   }
   function stCourses(sel) {
     const L = 2 * Math.PI * 26;
@@ -826,7 +828,7 @@
       ${c.label || c.grp ? `<div class="small muted">${[c.label, c.grp ? "مجموعة " + c.grp : ""].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
       <div class="st-meter">${L.map((l, i) => `<div><span class="m${i}${i < ab ? " on" : ""}" style="--i:${i}"></span><small>${l}</small></div>`).join("")}</div>
       <p class="small muted">${ab ? "غبت " + CM.times(ab) + missedTxt(c) + ". " + afterTxt(ab) : c.held ? "لم تغب أي مرة" + (c.held ? " من " + c.held + (c.held === 1 ? " محاضرة" : c.held === 2 ? "" : " محاضرات") : "") + ". استمر." : "لم تُحتسب أي محاضرة في هذه المادة بعد."}</p>
-      ${c.session && !limited ? `<a class="now-link small" href="#now">● محاضرة جارية الآن: سجّل حضورك من الأعلى ↑</a>` : c.session ? sessionBlock(c) : ""}
+      ${c.session && !limited ? `<button type="button" class="linkish now-link small" data-stab="home">● محاضرة جارية الآن: سجّل حضورك من الرئيسية</button>` : c.session ? sessionBlock(c) : ""}
       </section>`;
   }
   function stGrades() {
@@ -871,7 +873,8 @@
   }
   function stNav() {
     const todo = (tasks || []).filter(t => home.courses.some(c => c.id === t.course_id) && tkCat(t) === "todo").length;
-    const T = [["home", "الرئيسية", '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>'], ["tasks", "تكليفاتي", '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h3"/>', todo], ["grades", "درجاتي", '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'], ["tt", "جدولي", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>']];
+    const lv = Math.max(0, ...home.courses.map(c => CM.lvl(c.absences)));
+    const T = [["home", "الرئيسية", '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>'], ["abs", "غيابي", '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', lv ? "!" : 0], ["tasks", "تكليفاتي", '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h3"/>', todo], ["tt", "جدولي", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>']];
     return `<nav class="st-nav" aria-label="التنقل">${T.map(([k, l, d, n]) => `<button type="button" class="${stab === k ? "on" : ""}" data-stab="${k}" data-ia="${k}" ${stab === k ? `aria-current="page"` : ""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg><span>${l}</span>${n ? `<i class="st-nb" aria-label="${n} مطلوب">${n > 9 ? "9+" : n}</i>` : ""}</button>`).join("")}</nav>`;
   }
   function renderHome() {
@@ -879,20 +882,22 @@
     const active = document.activeElement && document.activeElement.id;
     if (stSel && !home.courses.some(c => c.id === stSel)) stSel = null;
     const sel = home.courses.find(c => c.id === stSel) || home.courses.find(c => c.session) || home.courses.find(c => (c.level || 0) > 0) || home.courses[0];
-    const tab = stab === "tasks" ? tasksOverview() : stab === "grades" ? stGrades() : stab === "tt" ? (myTT && myTT.slots.length ? ttHtml(true) : `<section class="st-sec"><div class="st-h"><h2>جدولي</h2></div><div class="empty">${myTT === null ? "لم يُنشر جدول دراسي لدفعتك بعد." : "لا توجد لك محاضرات في الجدول."}</div></section>`) : `
+    const ttTab = () => myTT && myTT.slots.length ? ttHtml(true) : `<section class="st-sec"><div class="st-h"><h2>جدولي</h2></div>${CM.empty(myTT === null ? "لم يُنشر جدول دراسي لدفعتك بعد." : "لا توجد لك محاضرات في الجدول.", "sleep")}</section>`;
+    const tkTab = () => `<div class="seg2" role="tablist"><button type="button" role="tab" data-tsub="tasks" aria-selected="${tsub === "tasks"}">التكليفات</button><button type="button" role="tab" data-tsub="grades" aria-selected="${tsub === "grades"}">الدرجات</button></div>${tsub === "grades" ? stGrades() : tasksOverview()}`;
+    const absTab = () => `${home.courses.length ? stCourses(sel) + (sel ? stMeter(sel) : "") : CM.empty("كودك غير موجود في أي مادة حاليًّا. أضف موادك من استمارة التسجيل، أو تواصل مع المحاضر.", "think")}
+        <div class="rf-cta"><div><b>سجّلت مواد جديدة؟</b><span class="small muted">ارفع استمارة التسجيل من نظام ابن الهيثم، فتُضاف إلى موادك هنا.</span></div><button class="btn" id="rfSync">إضافة موادي من الاستمارة</button></div>`;
+    const tab = stab === "tasks" ? tkTab() : stab === "abs" ? absTab() : stab === "tt" ? ttTab() : `
         ${formAlert()}
+        ${pkMsg ? `<div class="msg ${pkMsg.startsWith("!") ? "bad" : "ok"} small">${esc(pkMsg.replace(/^!/, ""))}</div>` : ""}
         ${nowHtml()}
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
         ${fixAlert()}
-        ${home.courses.length ? stCourses(sel) + (sel ? stMeter(sel) : "") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. أضف موادك من استمارة التسجيل بالزر بالأسفل، أو تواصل مع المحاضر.</div>`}
-        ${tasksLink()}
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
         ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : ""}
+        ${homeCards()}
         ${pushCta()}
         ${pushGate()}
-        ${!limited && pk.ok && pk.count === 0 && !store.get("cm_pk_skip") ? `<div class="pk-cta"><div><b>فعّل الدخول ببصمة الوجه أو الإصبع</b><span class="small muted">إن مسح المتصفح بياناتك (يحدث كثيرًا في آيفون) أو غيّرت المتصفح، تعود إلى حسابك بلمسة دون كلمة السر ودون مراجعة المحاضر.</span>${pkMsg ? `<span class="small ${pkMsg.startsWith("!") ? "bad-t" : "ok-t"}">${esc(pkMsg.replace(/^!/, ""))}</span>` : ""}</div><div class="row"><button class="btn primary" id="pkOn">تفعيل</button><button class="btn ghost sm" id="pkSkip">لاحقًا</button></div></div>` : pkMsg && !pkMsg.startsWith("!") ? `<div class="msg ok small">${esc(pkMsg)}</div>` : ""}
-        ${iosTip()}
-        <div class="rf-cta"><div><b>سجّلت مواد جديدة؟</b><span class="small muted">ارفع استمارة التسجيل من نظام ابن الهيثم، فتُضاف إلى موادك هنا.</span></div><button class="btn" id="rfSync">إضافة موادي من الاستمارة</button></div>`;
+        ${iosTip()}`;
     CM.html(app, stHeader() + `
       <section class="col sh t-${stab}">
         ${nt.open ? ntPanel() : ""}
@@ -907,6 +912,7 @@
     document.body.classList.add("has-stnav");
     const ak = stab + "|" + (sel ? sel.id : "") + "|" + (tasks ? 1 : 0);
     if (ak !== stAnimK) { stAnimK = ak; const sh = $(".sh"); if (sh && !matchMedia("(prefers-reduced-motion: reduce)").matches) { sh.classList.add("st-go"); requestAnimationFrame(() => requestAnimationFrame(() => sh.classList.add("st-in"))); } }
+    app.querySelectorAll("[data-tsub]").forEach(b => b.onclick = () => { tsub = b.dataset.tsub; store.set("cm_stab", tsub === "grades" ? "grades" : "tasks"); renderHome(); });
     app.querySelectorAll("[data-stab]").forEach(b => b.onclick = () => { stab = b.dataset.stab; store.set("cm_stab", stab); if (stab === "tt") ttAll = true; renderHome(); window.scrollTo({ top: 0 }); });
     app.querySelectorAll("[data-stc]").forEach(b => b.onclick = () => { stSel = b.dataset.stc; store.set("cm_stsel", stSel); const x = scrollX, y = scrollY, sc = $(".st-cc"), sl = sc ? sc.scrollLeft : 0; renderHome(); const n = $(".st-cc"); if (n) n.scrollLeft = sl; scrollTo(x, y); });
     const pc = $("#pwClose"); if (pc) pc.onclick = () => { pwOpen = false; pwMsg = ""; renderHome(); };
@@ -1014,6 +1020,15 @@
   }
   // ملخص كل التكليفات فوق: عدّادات بتشتغل كفلتر + قائمة مرتبة بالأقرب موعدًا
   let tkF = "todo";
+  // في الرئيسية: كارتان صغيران فقط (غيابي · تكليفاتي)، والتفاصيل في أقسامها
+  function homeCards() {
+    if (!home.courses.length) return "";
+    const ab = home.courses.reduce((a, c) => a + (c.absences || 0), 0), lv = Math.max(0, ...home.courses.map(c => CM.lvl(c.absences)));
+    const todo = (tasks || []).filter(t => home.courses.some(c => c.id === t.course_id) && tkCat(t) === "todo").sort(tkOrder);
+    return `<div class="hc2">
+      <button type="button" class="hc2-c" data-stab="abs"><span>غيابي هذا الفصل</span><b>${ab}<small> ${ab === 1 ? "مرة" : ab === 2 ? "مرتان" : "مرات"}</small></b><i class="chip ${lv >= 2 ? "bad" : lv === 1 ? "warn" : "ok"}">${lv ? CM.WARN[lv].t : "لا إنذارات"}</i></button>
+      <button type="button" class="hc2-c" data-stab="tasks"><span>تكليفات مطلوبة</span><b>${tasks ? todo.length : "…"}</b><i class="chip ${todo.length ? "warn" : "ok"}">${todo.length ? "الأقرب: " + esc(todo[0].title) : "لا شيء الآن"}</i></button></div>`;
+  }
   // في الرئيسية: سطر واحد يدل على التكليفات المطلوبة، والقائمة كاملة في «تكليفاتي»
   function tasksLink() {
     if (!tasks) return "";

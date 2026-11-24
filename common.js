@@ -247,7 +247,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b158)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b159)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -270,7 +270,7 @@
 
   /* ---------- المظهر: الواجهة الكلاسيكية أو الحديثة + مجموعة ألوان من 3 ألوان + الحركة مع التمرير ---------- */
   CM.PALETTES = [
-    { id: "lime", n: "ليموني", c: ["#ececec", "#c6f432", "#0e0e0e"] },
+    { id: "lime", n: "ليموني", c: ["#f5f6f1", "#d4f23b", "#121614"] },
     { id: "hadro", n: "Hadro", c: ["#eef2f0", "#9fe3c8", "#122320"] },
     { id: "sun", n: "برتقالي", c: ["#efebe6", "#ff8a3d", "#1b1712"] },
     { id: "violet", n: "بنفسجي", c: ["#ecebf3", "#b9a6ff", "#17142a"] },
@@ -279,7 +279,7 @@
     { id: "sand", n: "رملي", c: ["#efe8dc", "#e9c46a", "#23201a"] },
     { id: "mint", n: "نعناعي", c: ["#e9f0ec", "#5fe3a1", "#0b1d16"] }
   ];
-  const lookGet = () => { let o = {}; try { o = JSON.parse(CM.store.get("cm_look") || "{}") || {}; } catch (e) {} return { skin: o.skin === "nx" ? "nx" : "classic", pal: o.pal || "lime", own: Array.isArray(o.own) && o.own.length === 3 ? o.own : null, motion: o.motion !== false }; };
+  const lookGet = () => { let o = {}; try { o = JSON.parse(CM.store.get("cm_look") || "{}") || {}; } catch (e) {} return { skin: o.skin === "classic" ? "classic" : "nx", pal: o.pal || "lime", own: Array.isArray(o.own) && o.own.length === 3 ? o.own : null, motion: o.motion !== false }; };
   const lookSet = o => { CM.store.set("cm_look", JSON.stringify(o)); applyLook(); };
   // أرقام عربي/فارسي → إنجليزي، وشيل علامات الاتجاه المخفية اللي بيحطها كيبورد الموبايل
   CM.normDigits = v => String(v == null ? "" : v).replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "").replace(/[\u0660-\u0669]/g, d => d.charCodeAt(0) - 1632).replace(/[\u06F0-\u06F9]/g, d => d.charCodeAt(0) - 1776).trim();
@@ -926,7 +926,7 @@ document.addEventListener("click", ev => {
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
 })();
 
-/* ===== «حاضر» والرسومات المتحركة (b158) =====
+/* ===== «حاضر» والرسومات المتحركة (b159) =====
    الروبوت: WebM شفاف لكروم وفايرفوكس وإيدج، وWebP متحرك لسفاري وكل متصفحات الآيفون (لأنها تتجاهل شفافية WebM).
    الرسومات: MP4 بخلفية بيضاء داخل كارت أبيض. ومن فعّل «تقليل الحركة» أو «توفير البيانات» يرى صورة ثابتة. */
 (function () {
