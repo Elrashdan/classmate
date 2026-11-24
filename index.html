@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b157">
+<link rel="stylesheet" href="style.css?v=b158">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b157"></script>
-<script src="config.js?v=b157"></script>
-<script src="common.js?v=b157"></script>
-<script src="drive.js?v=b157"></script>
-<script src="catalog.js?v=b157"></script>
-<script src="regform.js?v=b157"></script>
+<script src="vendor/qrcode.js?v=b158"></script>
+<script src="config.js?v=b158"></script>
+<script src="common.js?v=b158"></script>
+<script src="drive.js?v=b158"></script>
+<script src="catalog.js?v=b158"></script>
+<script src="regform.js?v=b158"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -508,7 +508,7 @@
     } catch (e) {}
   }
   const qrCta = () => `<div class="qrcta"><div><b>لا يوجد إنترنت أو إشارة GPS؟</b><span class="small muted">اعرض بطاقة حضورك على المحاضر أو المعيد ليمسحها من هاتفه، وهي تعمل دون إنترنت.</span></div><button class="btn primary" id="qrBtn">بطاقة الحضور</button></div>`;
-  const wireQrCta = () => { const b = $("#qrBtn"); if (b) b.onclick = openQr; };
+  const wireQrCta = () => document.querySelectorAll("#qrBtn, [data-qrcard]").forEach(b => b.onclick = openQr);
   let qrTimer = null, qrStep = null, wake = null;
   function qrMsg(title, body) {
     $("#qrIn").innerHTML = `<h2>${esc(title)}</h2><p class="hint">${esc(body)}</p><button class="btn" id="qrClose">رجوع</button>`;
@@ -560,12 +560,49 @@
   }
 
   // أعلى الصفحة: أي محاضرة جارية الآن مع خانة الرمز وزر المسح مباشرة (لا يحتاج الطالب إلى النزول بحثًا عنها)
+  // b158: الرئيسية الجديدة — زر دائري كبير واحد أثناء المحاضرة، و«حاضر» مع المحاضرة التالية حين لا توجد محاضرة
+  const codeOpen = {};
+  const QRI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>';
+  function nextLecture() {
+    const T = myTT; if (!T || !T.slots || !T.slots.length) return "";
+    const now = new Date(), today = now.getDay(), hm = now.getHours() * 60 + now.getMinutes();
+    const from = s => (T.periods[s.p_from - 1] || {}).from;
+    for (let i = 0; i < 8; i++) {
+      const d = (today + i) % 7, l = T.slots.filter(s => s.day === d && (i > 0 || toMin(from(s)) > hm)).sort((a, b) => toMin(from(a)) - toMin(from(b)));
+      if (l.length) return `التالية: ${esc(l[0].title)} · ${i === 0 ? "اليوم" : i === 1 ? "غدًا" : TDAY[d]} ${t12(from(l[0]))}${l[0].room ? " · " + esc(l[0].room) : ""}`;
+    }
+    return "";
+  }
   function nowHtml() {
     if (!home) return "";
     const live = home.courses.filter(c => c.session && !limited);
-    if (!live.length) return limited ? "" : `<div class="now-idle"><span class="small muted">لا توجد محاضرة جارية الآن. عندما يبدأ المحاضر تظهر خانة الرمز هنا.</span><button class="btn primary block now-qr" id="qrBtn2">بطاقة الحضور<small>من غير إنترنت: اعرضها على المحاضر يمسحها</small></button></div>`;
-    return `<section class="now" id="now">${live.map(c => { const done = c.session.mine && c.session.mine.status !== "pending";
-      return `<article class="now-c ${done ? "done" : ""}" data-course="${c.id}"><div class="now-h">${done ? "" : `<span class="pulse" aria-hidden="true"></span>`}<b>${done ? "سُجِّل حضورك" : "محاضرة جارية الآن"}</b><span class="now-n">${esc(c.name)}</span></div>${sessionBlock(c)}</article>`; }).join("")}</section>`;
+    if (!live.length) { if (limited) return ""; const nx = nextLecture();
+      return `<section class="ni"><div class="ni-art">${CM.mascot("think")}</div><b class="ni-t">لا توجد محاضرة الآن</b><span class="ni-s">${nx || "حين يبدأ المحاضر محاضرته يظهر هنا زر تسجيل الحضور."}</span>
+        <button class="btn ni-qr" id="qrBtn2">${QRI}بطاقة الحضور</button><small class="ni-h">تعمل دون إنترنت: اعرضها على المحاضر ليمسحها</small></section>`; }
+    return `<section class="now" id="now">${live.map(c => nowCard(c)).join("")}</section>`;
+  }
+  function nowCard(c) {
+    const s = c.session, mine = s.mine, res = results[c.id], done = mine && mine.status !== "pending";
+    const can = !mine && s.open && (s.own || s.allow_makeup) && s.tries_left > 0;
+    const meta = `المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كاملة"}${s.open && !done ? " · التسجيل مفتوح" : ""}`;
+    let body;
+    if (done) body = `<div class="n2-big done" role="img" aria-label="سُجِّل حضورك"><span class="n2-ck">✓</span><b>${mine.makeup ? "سُجِّل حضورك التعويضي" : "سُجِّل حضورك"}</b><small>${CM.fmtT(mine.at)}${mine.status === "manual" ? " · سجّلك المحاضر" : ""}</small></div>`;
+    else if (can) {
+      const showCode = codeOpen[c.id] || drafts[c.id] || (res && res.k === "bad");
+      body = `${!s.own ? `<div class="msg small">محاضرة المجموعة ${esc(s.grp)}، وسيُسجَّل حضورك تعويضيًّا.</div>` : ""}
+        ${s.kind === "outdoor" ? `<div class="msg small">محاضرة خارجية: الرمز على هاتف المحاضر أو المعيد.</div>` : ""}
+        <button class="n2-big" data-qrscan="${c.id}" ${busy ? "disabled" : ""}>${busy === c.id ? `<span class="spinner"></span><b>جارٍ التسجيل…</b>` : `${QRI}<b>سجّل حضوري</b><small>امسح الرمز من الشاشة</small>`}</button>
+        ${showCode ? `<div class="n2-code"><label class="f"><span>${s.kind === "outdoor" ? "اكتب الرمز الظاهر على هاتف المحاضر" : "اكتب الرمز الظاهر على الشاشة"}</span><input type="text" class="codein" id="ci-${c.id}" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="000000" value="${esc(drafts[c.id] || "")}"></label>
+          <button class="btn primary block" data-ci="${c.id}" ${busy ? "disabled" : ""}>${busy === c.id ? `<span class="spinner"></span> جارٍ تحديد موقعك…` : "سجّل حضوري بالرمز"}</button></div>`
+        : `<button type="button" class="linkish n2-alt" data-codeopen="${c.id}">لا تعمل الكاميرا؟ اكتب الرمز</button>`}
+        <p class="n2-note">يتحقق Hadro من موقعك للتأكد من أنك ${s.kind === "outdoor" ? "في مكان المحاضرة" : "في القاعة"}.${s.tries_left < 5 ? ` متبقٍّ لك ${s.tries_left} محاولات.` : ""}</p>`;
+    } else body = sessionBlock(c).replace(/^<div class="row between">[\s\S]*?<\/div>/, "");
+    return `<article class="now-c n2 ${done ? "done" : ""}" data-course="${c.id}">
+      <span class="n2-live">${done ? "" : `<span class="pulse" aria-hidden="true"></span>`}${done ? "حضورك مسجَّل" : "محاضرة جارية الآن"}</span>
+      <h2 class="n2-n">${esc(c.name)}</h2><div class="n2-m">${meta}</div>
+      ${body}
+      ${res && can ? `<div class="result ${res.k}"><b>${esc(res.title)}</b>${res.checks.length ? `<ul class="checks">${res.checks.map(ch => `<li class="${ch[0]}">${esc(ch[1])}</li>`).join("")}</ul>` : ""}</div>` : ""}
+      ${!done ? `<button type="button" class="linkish n2-alt" data-qrcard>لا يوجد إنترنت؟ اعرض بطاقة الحضور</button>` : ""}</article>`;
   }
   function sessionBlock(c) {
     const s = c.session, res = results[c.id];
@@ -765,8 +802,8 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b157: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
-  let stab = ["home", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
+  /* b158: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  let stab = ["home", "tasks", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };
   function stHeader() {
@@ -790,7 +827,7 @@
       <div class="st-meter">${L.map((l, i) => `<div><span class="m${i}${i < ab ? " on" : ""}" style="--i:${i}"></span><small>${l}</small></div>`).join("")}</div>
       <p class="small muted">${ab ? "غبت " + CM.times(ab) + missedTxt(c) + ". " + afterTxt(ab) : c.held ? "لم تغب أي مرة" + (c.held ? " من " + c.held + (c.held === 1 ? " محاضرة" : c.held === 2 ? "" : " محاضرات") : "") + ". استمر." : "لم تُحتسب أي محاضرة في هذه المادة بعد."}</p>
       ${c.session && !limited ? `<a class="now-link small" href="#now">● محاضرة جارية الآن: سجّل حضورك من الأعلى ↑</a>` : c.session ? sessionBlock(c) : ""}
-      ${tasksBlock(c)}</section>`;
+      </section>`;
   }
   function stGrades() {
     const all = (tasks || []).filter(t => home.courses.some(c => c.id === t.course_id));
@@ -833,29 +870,30 @@
       <div class="fix-l">${l.map(t => `<button class="btn sm" data-task="${t.id}"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}${t.mine.fix_reason ? " · " + esc(t.mine.fix_reason) : ""}</small></span><em>رفع ←</em></button>`).join("")}</div></section>`;
   }
   function stNav() {
-    const T = [["home", "الرئيسية", '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>'], ["grades", "درجاتي", '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'], ["tt", "جدولي", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>']];
-    return `<nav class="st-nav" aria-label="التنقل">${T.map(([k, l, d]) => `<button type="button" class="${stab === k ? "on" : ""}" data-stab="${k}" data-ia="${k}" ${stab === k ? `aria-current="page"` : ""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg><span>${l}</span></button>`).join("")}</nav>`;
+    const todo = (tasks || []).filter(t => home.courses.some(c => c.id === t.course_id) && tkCat(t) === "todo").length;
+    const T = [["home", "الرئيسية", '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>'], ["tasks", "تكليفاتي", '<rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h3"/>', todo], ["grades", "درجاتي", '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'], ["tt", "جدولي", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>']];
+    return `<nav class="st-nav" aria-label="التنقل">${T.map(([k, l, d, n]) => `<button type="button" class="${stab === k ? "on" : ""}" data-stab="${k}" data-ia="${k}" ${stab === k ? `aria-current="page"` : ""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg><span>${l}</span>${n ? `<i class="st-nb" aria-label="${n} مطلوب">${n > 9 ? "9+" : n}</i>` : ""}</button>`).join("")}</nav>`;
   }
   function renderHome() {
     if (rf) return renderForm();
     const active = document.activeElement && document.activeElement.id;
     if (stSel && !home.courses.some(c => c.id === stSel)) stSel = null;
     const sel = home.courses.find(c => c.id === stSel) || home.courses.find(c => c.session) || home.courses.find(c => (c.level || 0) > 0) || home.courses[0];
-    const tab = stab === "grades" ? stGrades() : stab === "tt" ? (myTT && myTT.slots.length ? ttHtml(true) : `<section class="st-sec"><div class="st-h"><h2>جدولي</h2></div><div class="empty">${myTT === null ? "لم يُنشر جدول دراسي لدفعتك بعد." : "لا توجد لك محاضرات في الجدول."}</div></section>`) : `
+    const tab = stab === "tasks" ? tasksOverview() : stab === "grades" ? stGrades() : stab === "tt" ? (myTT && myTT.slots.length ? ttHtml(true) : `<section class="st-sec"><div class="st-h"><h2>جدولي</h2></div><div class="empty">${myTT === null ? "لم يُنشر جدول دراسي لدفعتك بعد." : "لا توجد لك محاضرات في الجدول."}</div></section>`) : `
         ${formAlert()}
         ${nowHtml()}
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
         ${fixAlert()}
         ${home.courses.length ? stCourses(sel) + (sel ? stMeter(sel) : "") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. أضف موادك من استمارة التسجيل بالزر بالأسفل، أو تواصل مع المحاضر.</div>`}
-        ${tasksOverview()}
+        ${tasksLink()}
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
-        ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : home.courses.some(c => c.session) ? qrCta() : ""}
+        ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : ""}
         ${pushCta()}
         ${pushGate()}
         ${!limited && pk.ok && pk.count === 0 && !store.get("cm_pk_skip") ? `<div class="pk-cta"><div><b>فعّل الدخول ببصمة الوجه أو الإصبع</b><span class="small muted">إن مسح المتصفح بياناتك (يحدث كثيرًا في آيفون) أو غيّرت المتصفح، تعود إلى حسابك بلمسة دون كلمة السر ودون مراجعة المحاضر.</span>${pkMsg ? `<span class="small ${pkMsg.startsWith("!") ? "bad-t" : "ok-t"}">${esc(pkMsg.replace(/^!/, ""))}</span>` : ""}</div><div class="row"><button class="btn primary" id="pkOn">تفعيل</button><button class="btn ghost sm" id="pkSkip">لاحقًا</button></div></div>` : pkMsg && !pkMsg.startsWith("!") ? `<div class="msg ok small">${esc(pkMsg)}</div>` : ""}
         ${iosTip()}
         <div class="rf-cta"><div><b>سجّلت مواد جديدة؟</b><span class="small muted">ارفع استمارة التسجيل من نظام ابن الهيثم، فتُضاف إلى موادك هنا.</span></div><button class="btn" id="rfSync">إضافة موادي من الاستمارة</button></div>`;
-    app.innerHTML = stHeader() + `
+    CM.html(app, stHeader() + `
       <section class="col sh t-${stab}">
         ${nt.open ? ntPanel() : ""}
         ${pwOpen ? `<div class="panel"><h3>تغيير كلمة السر</h3>
@@ -865,7 +903,7 @@
           <div class="row"><button class="btn primary" id="pwSave">حفظ</button><button class="btn ghost" id="pwClose">إغلاق</button></div>
           ${HD.ready && !limited ? `<hr><p class="small muted">اربط حساب Google لتستعيد كلمة السر بنفسك إن نسيتها.${store.get("cm_glink_" + home.code) ? " <b class='ok-t'>مربوط.</b>" : ""}</p><button class="btn sm" id="gLink">ربط حساب Google</button>` : ""}</div>` : ""}
         ${tab}
-      </section>` + stNav();
+      </section>` + stNav());
     document.body.classList.add("has-stnav");
     const ak = stab + "|" + (sel ? sel.id : "") + "|" + (tasks ? 1 : 0);
     if (ak !== stAnimK) { stAnimK = ak; const sh = $(".sh"); if (sh && !matchMedia("(prefers-reduced-motion: reduce)").matches) { sh.classList.add("st-go"); requestAnimationFrame(() => requestAnimationFrame(() => sh.classList.add("st-in"))); } }
@@ -894,6 +932,7 @@
     });
     app.querySelectorAll("[data-ci]").forEach(b => b.onclick = () => checkIn(b.dataset.ci));
     app.querySelectorAll("[data-qrscan]").forEach(b => b.onclick = () => openStScan());
+    app.querySelectorAll("[data-codeopen]").forEach(b => b.onclick = () => { codeOpen[b.dataset.codeopen] = true; renderHome(); const i = $("#ci-" + b.dataset.codeopen); if (i) i.focus(); });
     app.querySelectorAll("[data-ack]").forEach(b => b.onclick = () => ackWarning(b.dataset.ack, b));
     app.querySelectorAll("[data-task]").forEach(b => b.onclick = () => openTask(b.dataset.task));
     app.querySelectorAll("[data-tkf]").forEach(b => b.onclick = () => { tkF = b.dataset.tkf; const y = scrollY; renderHome(); scrollTo(0, y); });
@@ -975,8 +1014,16 @@
   }
   // ملخص كل التكليفات فوق: عدّادات بتشتغل كفلتر + قائمة مرتبة بالأقرب موعدًا
   let tkF = "todo";
+  // في الرئيسية: سطر واحد يدل على التكليفات المطلوبة، والقائمة كاملة في «تكليفاتي»
+  function tasksLink() {
+    if (!tasks) return "";
+    const l = tasks.filter(t => home.courses.some(c => c.id === t.course_id) && tkCat(t) === "todo").sort(tkOrder); if (!l.length) return "";
+    return `<button type="button" class="tk-link" data-stab="tasks"><span class="tk-ln">${l.length}</span><span><b>${l.length === 1 ? "تكليف مطلوب منك" : l.length === 2 ? "تكليفان مطلوبان منك" : "تكليفات مطلوبة منك"}</b><small>الأقرب: ${esc(l[0].title)}</small></span><em aria-hidden="true">←</em></button>`;
+  }
   function tasksOverview() {
-    const all = (tasks || []).filter(t => home.courses.some(c => c.id === t.course_id)); if (all.length < 2) return "";
+    if (tasks == null) return `<section class="st-sec"><div class="st-h"><h2>تكليفاتي</h2></div><p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p></section>`;
+    const all = (tasks || []).filter(t => home.courses.some(c => c.id === t.course_id));
+    if (!all.length) return `<section class="st-sec"><div class="st-h"><h2>تكليفاتي</h2></div>${CM.empty("لا توجد تكليفات في موادك حتى الآن. سنخبرك حين يُنشر تكليف جديد.")}</section>`;
     const n = k => all.filter(t => tkCat(t) === k).length, cats = ["todo", "done", "graded", "missed"].filter(k => k === "todo" || n(k));
     if (!cats.includes(tkF)) tkF = "todo";
     const list = all.filter(t => tkCat(t) === tkF).sort(tkF === "todo" ? tkOrder : (a, b) => tkOrder(b, a));

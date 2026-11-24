@@ -3105,3 +3105,47 @@ html[data-skin="nx"] details.more>summary{color:var(--ink)}
   html[data-skin="nx"] header.top[data-pre] > .row > button:is([data-look-btn], #hdNone) > :not(svg){ display: none !important; }
   html[data-skin="nx"] header.top[data-pre]{ flex-wrap: nowrap !important; }
 }
+/* ===== b158: رئيسية الطالب الجديدة ===== */
+.ni{display:grid;justify-items:center;text-align:center;gap:4px;padding:4px 8px 14px}
+.ni-art{width:min(62vw,240px);margin-bottom:-6px}
+.ni-t{font:700 21px var(--f-display)}
+.ni-s{color:var(--muted);font-size:14.5px;max-width:34ch}
+.ni-qr{margin-top:12px;min-height:48px;border-radius:999px;padding-inline:22px;gap:8px}
+.ni-qr svg{width:20px;height:20px}
+.ni-h{color:var(--muted);font-size:12.5px}
+.n2{text-align:center;justify-items:center;padding:20px 16px 16px!important}
+.n2-live{display:inline-flex;align-items:center;gap:8px;font:600 13px var(--f-display);padding:5px 12px;border-radius:999px;background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+html[data-skin="nx"] .n2-live{background:color-mix(in srgb,var(--nx-hi) 18%,transparent);color:var(--nx-hi)}
+.n2-n{font:700 clamp(19px,5.2vw,23px)/1.35 var(--f-display);margin:8px 0 0}
+.n2-m{font-size:13.5px;opacity:.72}
+.n2-big{width:min(58vw,220px);aspect-ratio:1;border-radius:50%;border:0;margin:22px auto 18px;display:grid;place-content:center;justify-items:center;gap:6px;cursor:pointer;
+  background:var(--nx-hi,var(--accent));color:var(--nx-on-hi,var(--accent-ink));font-family:var(--f-display);
+  box-shadow:0 0 0 12px color-mix(in srgb,var(--nx-hi,var(--accent)) 26%,transparent),0 0 0 24px color-mix(in srgb,var(--nx-hi,var(--accent)) 12%,transparent);transition:transform .15s}
+.n2-big:active{transform:scale(.96)}
+.n2-big svg{width:52px;height:52px}
+.n2-big b{font-size:19px}
+.n2-big small{font-size:12px;opacity:.75}
+.n2-big[disabled]{opacity:.85}
+:root:not([data-motion="off"]) .n2-big:not(.done):not([disabled]){animation:n2pulse 2.4s ease-in-out infinite}
+@keyframes n2pulse{0%,100%{box-shadow:0 0 0 12px color-mix(in srgb,var(--nx-hi,var(--accent)) 26%,transparent),0 0 0 24px color-mix(in srgb,var(--nx-hi,var(--accent)) 12%,transparent)}50%{box-shadow:0 0 0 16px color-mix(in srgb,var(--nx-hi,var(--accent)) 20%,transparent),0 0 0 32px color-mix(in srgb,var(--nx-hi,var(--accent)) 7%,transparent)}}
+.n2-big.done{background:var(--ok);color:#fff;cursor:default;box-shadow:0 0 0 12px color-mix(in srgb,var(--ok) 22%,transparent)}
+.n2-ck{font-size:52px;line-height:1;font-weight:700}
+.n2-alt{font-size:14px;min-height:40px}
+.n2-note{font-size:12.5px;opacity:.65;margin:2px 0 0}
+.n2-code{width:100%;display:grid;gap:10px;text-align:start}
+.n2 .result,.n2 .msg{width:100%;text-align:start}
+.tk-link{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;border:1px solid var(--line);background:var(--surface);color:var(--ink);text-align:start;cursor:pointer;font:inherit}
+.tk-link .tk-ln{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font:700 17px var(--f-display);background:var(--warn-soft);color:var(--warn)}
+.tk-link span:nth-child(2){flex:1;min-width:0;display:grid}
+.tk-link b{font:600 15px var(--f-display)}
+.tk-link small{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk-link em{font-style:normal;color:var(--muted)}
+.st-nav button{position:relative}
+.st-nb{position:absolute;top:2px;inset-inline-start:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font:700 11px/18px var(--f-display);font-style:normal;text-align:center}
+/* b158: شريط الاستمارة سطر واحد مضغوط */
+.rf-due{flex-wrap:nowrap!important;padding:10px 12px!important;border-radius:18px!important;border-inline-start-width:1px!important}
+.rf-due>div{flex:1 1 auto!important}
+.rf-due b{font-size:.95rem}
+.rf-due .small{font-size:.8rem}
+.rf-due .btn{width:auto!important;min-height:38px!important;height:38px;padding-inline:16px!important;border-radius:999px!important;font-size:.9rem}
+html[data-skin="nx"] .n2 .btn.primary{background:var(--nx-hi)!important;color:var(--nx-on-hi)!important;border-color:transparent!important}
