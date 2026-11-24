@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b159">
+<link rel="stylesheet" href="style.css?v=b160">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b159"></script>
-<script src="vendor/qrcode.js?v=b159"></script>
-<script src="config.js?v=b159"></script>
-<script src="common.js?v=b159"></script>
-<script src="drive.js?v=b159"></script>
-<script src="pack.js?v=b159"></script>
-<script src="catalog.js?v=b159"></script>
-<script src="voice.js?v=b159"></script>
-<script src="timetable.js?v=b159"></script>
-<script src="research.js?v=b159"></script>
+<script src="vendor/supabase.js?v=b160"></script>
+<script src="vendor/qrcode.js?v=b160"></script>
+<script src="config.js?v=b160"></script>
+<script src="common.js?v=b160"></script>
+<script src="drive.js?v=b160"></script>
+<script src="pack.js?v=b160"></script>
+<script src="catalog.js?v=b160"></script>
+<script src="voice.js?v=b160"></script>
+<script src="timetable.js?v=b160"></script>
+<script src="research.js?v=b160"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -583,7 +583,7 @@
   }
   function tick() {
     if (!codeState) return;
-    const left = codeState.until - Date.now(), pct = Math.max(0, Math.min(100, left / codeState.step * 100)), code = codeState.code.slice(0, 3) + " " + codeState.code.slice(3);
+    const left = codeState.until - Date.now(), pct = Math.max(0, Math.min(100, left / codeState.step * 100)), cd0 = String(codeState.code || ""), code = cd0.slice(0, 3) + " " + cd0.slice(3);
     const s = running(), c = course(), exp = s ? D.enroll.filter(e => isOwn(s, e)) : [], pres = s ? exp.filter(e => counted((D.att[s.id] || {})[e.student_code])).length : 0;
     const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
     set("#bCode", code); set("#ovCode", code);
@@ -842,7 +842,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b159: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b160: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -918,12 +918,12 @@
   }
   function dhTodoHtml() {
     const l = dhTodo();
-    const head = n => `<div class="dh-h"><h2>مطلوب منك</h2>${n != null ? `<span class="dh-pill ${n ? "warn" : "ok"}">${n ? n + " متبقي" : "خلصت"}</span>` : ""}</div>`;
+    const head = n => `<div class="dh-h"><h2>يحتاج انتباهك</h2>${n != null ? `<span class="dh-pill ${n ? "warn" : "ok"}">${n ? n + " " + (n === 1 ? "أمر" : "أمور") : "لا شيء"}</span>` : ""}</div>`;
     if (l == null) return `<article class="dh-card dh-todo" id="dhTodo">${head(null)}<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p></article>`;
     const kc = { appeal: "bad", petition: "bad", att: "acc", warn: "warn", grade: "acc" };
     return `<article class="dh-card dh-todo" id="dhTodo">${head(l.length)}${l.length ? `<div class="dh-tasks">${l.slice(0, 6).map(it => { const k = FK[it.kind] || FK.appeal, d = ageDays(it.since), late = d >= 3;
       return `<div class="dh-task${late ? " late" : ""}" data-key="${esc(bKey(it))}"><span class="dh-ti c-${kc[it.kind] || "acc"}">${ICO(k.ic)}</span><span class="dh-tt"><b>${esc(it.title)}</b>${it.detail ? `<span class="dh-sub dh-why">${esc(it.detail)}</span>` : ""}<span class="dh-sub">${esc(it.course || "")}${it.course ? " · " : ""}${it.n} ${k.u} · <em class="${late ? "bad-t" : d >= 1 ? "warn-t" : ""}">${it.kind === "att" && it.live ? "المحاضرة جارية" : esc(ago(it.since))}</em></span></span>
-        <span class="dh-ta"><button type="button" class="btn sm" data-dhgo="${esc(it.course_id + "|" + it.kind + "|" + (it.ref || "") + "|" + ((it.codes || [])[0] || ""))}">فتح</button><button type="button" class="btn sm ghost icon ia-ok" data-dhok="${esc(bKey(it))}|${it.n}" title="تم: إخفاء حتى يستجد شيء" aria-label="تم">${ICO('<path d="M5 12l5 5L20 7"/>')}</button></span></div>`; }).join("")}</div>${l.length > 6 ? `<button type="button" class="btn sm ghost dh-more-b" data-me="bell">كل التنبيهات (${l.length})</button>` : ""}`
+        <span class="dh-ta"><button type="button" class="btn sm" data-dhgo="${esc(it.course_id + "|" + it.kind + "|" + (it.ref || "") + "|" + ((it.codes || [])[0] || ""))}">فتح</button><button type="button" class="btn sm ghost icon ia-ok" data-dhok="${esc(bKey(it))}|${it.n}" title="تم: إخفاء حتى يستجد شيء" aria-label="تم">${ICO('<path d="M5 12l5 5L20 7"/>')}</button></span></div>`; }).join("")}</div>${l.length > 3 ? `<button type="button" class="btn sm ghost dh-more-b${l.length > 6 ? "" : " dh-mob"}" data-me="bell">كل التنبيهات (${l.length})</button>` : ""}`
       : `<div class="dh-empty">لا شيء ينتظرك. عمل ممتاز.</div>`}</article>`;
   }
   function dhStudents(c) {
@@ -943,10 +943,26 @@
     return `<article class="dh-card dh-feed"><div class="dh-h"><h2>آخر النشاط</h2>${l && l.length ? `<button type="button" class="btn sm ghost" data-tile="log">السجل كامل</button>` : ""}</div>
       ${l == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : l.length ? `<div class="dh-tl">${l.map(a => { const t = String(a.action || ""); return `<div class="dh-ev"><i class="c-${col(t)}"></i><span><span>${esc(t.length > 110 ? t.slice(0, 108) + "…" : t)}</span><small>${esc(staffName(a.actor) || a.actor || "")} · ${esc(ago(a.at))}</small></span></div>`; }).join("")}</div>` : `<div class="dh-empty">لا يوجد نشاط في المادة بعد.</div>`}</article>`;
   }
+  // b160: كارت «محاضرتك» الأسود: إجراء رئيسي واحد (ابدأ المحاضرة / افتح المحاضرة الجارية)
+  function dhHero(c) {
+    if (!c) return "";
+    const has = D && D.cid === c.id, s = has ? running() : null;
+    let eb, title, sub, btn;
+    if (s) {
+      const exp = D.enroll.filter(e => isOwn(s, e)), pres = exp.filter(e => counted((D.att[s.id] || {})[e.student_code])).length;
+      eb = `<span class="dhx-live"><i></i>محاضرة جارية الآن</span>`; title = `المحاضرة ${s.n}${s.grp ? " · مجموعة " + esc(s.grp) : ""}`;
+      sub = `${pres} من ${exp.length} سجّلوا حضورهم`; btn = `<button type="button" class="btn dhx-b" data-tile="live">${ICO('<path d="M8 5.5v13l11-6.5z"/>')}افتح المحاضرة</button>`;
+    } else {
+      const nx = nextLec(c);
+      eb = nx ? `محاضرتك التالية · ${esc(nx.when)}` : "المحاضرة"; title = esc(c.name); sub = nx ? esc(nx.what) : (has ? `${D.sessions.length ? "أُقيمت " + D.sessions.length + (D.sessions.length > 2 && D.sessions.length < 11 ? " محاضرات" : " محاضرة") : "لم تبدأ أي محاضرة بعد"} · ${D.enroll.length} طالبًا` : "");
+      btn = canRun(c) ? `<button type="button" class="btn dhx-b" data-tile="live">${ICO('<path d="M8 5.5v13l11-6.5z"/>')}ابدأ المحاضرة</button>` : `<button type="button" class="btn dhx-b" data-tile="reg">افتح الكشف</button>`;
+    }
+    return `<section class="dhx" id="dhHero"><div class="dhx-t"><div class="dhx-eb">${eb}</div><h2>${title}</h2>${sub ? `<div class="dhx-s">${sub}</div>` : ""}${btn}</div><div class="dhx-art">${CM.mascot(s ? "tablet" : "point")}</div></section>`;
+  }
   function dhRefresh() {
     if (view !== "home") return; const c = course();
     const r = (id, h) => { const el = $("#" + id); if (el) el.outerHTML = h; };
-    r("dhHi", dhHiHtml(c)); r("dhDay", dhDayHtml()); r("dhTodo", dhTodoHtml()); wireDash();
+    r("dhHi", dhHiHtml(c)); r("dhHero", dhHero(c)); r("dhDay", dhDayHtml()); r("dhTodo", dhTodoHtml()); wireDash();
   }
   function wireDash() {
     const root = $(".dh"); if (!root) return;
@@ -1003,6 +1019,7 @@
   function homeHtml(c) {
     return `<section class="home dh">
       <section class="dh-hi">${dhHiHtml(c)}${courses.length ? dhChips(c) : ""}</section>
+      ${dhHero(c)}
       ${c ? `<nav class="dh-secs" aria-label="أقسام المادة">${CTABS.map(([k, t, ic]) => `<button type="button" class="dh-sec${k === "live" && D && D.cid === c.id && D.sessions.some(x => !x.ended) ? " hot" : ""}" data-tile="${k}" data-ia="${k}">${ic}<span>${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
       <nav class="nx-dock" aria-label="أقسام المادة"><button type="button" class="dk-home on" aria-current="page">${ICO(HOME_ICO)}<span class="l">الرئيسية</span></button>${CTABS.map(([k, t, ic]) => `<button type="button" data-tile="${k}" data-ia="${k}">${ic}<span class="l">${t}</span><i class="tbx" data-tbx="${k}"></i></button>`).join("")}</nav>
       ${dhKpis(c)}

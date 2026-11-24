@@ -3213,3 +3213,42 @@ html[data-skin="nx"] .notice h3{ color: var(--ink) !important; }
 .n2 .codein{font-size:1.6rem;letter-spacing:.3em;text-align:center;min-height:56px}
 .n2 .btn.block{min-height:52px;font-size:1.05rem;border-radius:999px}
 .n2-alt{color:var(--ink)!important}
+
+/* ===================== b160: رئيسية المعيد/المحاضر ===================== */
+.dhx{position:relative;display:flex;align-items:center;gap:10px;background:var(--nx-dark,#121614);color:var(--nx-base,#f5f6f1);border-radius:28px;padding:20px 18px;margin:12px 0 14px;overflow:hidden}
+.dhx-t{flex:1;min-width:0;display:grid;justify-items:start;gap:4px;position:relative;z-index:1}
+.dhx-eb{font-size:13px;opacity:.7}
+.dhx h2{font:700 clamp(19px,5.4vw,24px)/1.3 var(--f-display);margin:2px 0 0;color:inherit}
+.dhx-s{font-size:13.5px;opacity:.7}
+.dhx-b{margin-top:14px;min-height:50px;border-radius:999px!important;padding-inline:22px!important;gap:8px;background:var(--nx-hi,#d4f23b)!important;color:var(--nx-on-hi,#121614)!important;border:0!important;font:600 16px var(--f-display)!important}
+.dhx-b svg{width:18px;height:18px}
+.dhx-art{flex:none;width:min(34vw,150px);margin:-18px -6px -26px 0}
+.dhx-live{display:inline-flex;align-items:center;gap:8px;color:var(--nx-hi,#d4f23b);font-weight:600;opacity:1}
+.dhx-live i{width:8px;height:8px;border-radius:50%;background:currentColor;animation:dhxP 1.6s ease-in-out infinite}
+@keyframes dhxP{50%{opacity:.3}}
+.dhx-eb:has(.dhx-live){opacity:1}
+@media (max-width:760px){
+  .home.dh .dh-secs,.home.dh > .dh-row.r1,.home.dh .dh-st,.home.dh .dh-feed,.home.dh > .sec-t,.home.dh > .tiles.small{display:none!important}
+  .home.dh .dh-kpis{grid-template-columns:1fr 1fr!important}
+  .home.dh .dh-kpis > .dh-kpi:nth-child(n+3){display:none!important}
+  .home.dh .dh-tasks > .dh-task:nth-child(n+4){display:none!important}
+  .home.dh .dh-row.r2{display:block!important}
+}
+@media (min-width:761px){ .dh-mob{display:none!important} .dhx{padding:26px 30px} .dhx-art{width:170px} }
+/* b160: الرأس بلا زجاج، وشريط المعيد السفلي أبيض مثل شريط الطالب */
+html[data-skin="nx"]:not(.hd-sc) header.top{ -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+@media (max-width: 760px){
+  html[data-skin="nx"] :is(.ctabs, .nx-dock){ inset: auto 0 0 0 !important; border-radius: 0 !important; background: var(--surface) !important; box-shadow: none !important; border-top: 1px solid var(--line) !important; padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)) !important; gap: 0 !important; }
+  html[data-skin="nx"] .dk-pill{ display: none !important; }
+  html[data-skin="nx"] :is(.ctabs, .nx-dock) > button{ color: var(--muted) !important; font-weight: 500 !important; }
+  html[data-skin="nx"] :is(.ctabs, .nx-dock) > button svg{ width: 50px !important; height: 30px !important; padding: 5px 15px !important; box-sizing: border-box; border-radius: 999px; transform: none !important; transition: background .2s !important; }
+  html[data-skin="nx"] :is(.ctabs > button[aria-selected=true], .nx-dock > button.on){ color: var(--ink) !important; font-weight: 600 !important; }
+  html[data-skin="nx"] :is(.ctabs > button[aria-selected=true], .nx-dock > button.on) svg{ background: var(--nx-hi); color: var(--nx-on-hi); }
+}
+/* كروت المؤشرات والمهام: بيضاء هادئة */
+html[data-skin="nx"] .dh-kpi{ background: var(--surface) !important; border: 1px solid var(--line) !important; }
+html[data-skin="nx"] .dh-task, html[data-skin="nx"] .dh-task.late{ background: var(--surface) !important; border: 1px solid var(--line) !important; }
+html[data-skin="nx"] .dh-card{ box-shadow: none !important; }
+@media (max-width: 760px){ .home.dh #homeAlerts .walert-c[data-wal], .home.dh #homeAlerts > .sec-t{ display: none !important; } }
+html[data-skin="nx"][data-theme="dark"] .dhx{ background: var(--surface); border: 1px solid var(--line); }
+@media (prefers-color-scheme: dark){ html[data-skin="nx"]:not([data-theme="light"]) .dhx{ background: var(--surface); border: 1px solid var(--line); } }
