@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b151">
+<link rel="stylesheet" href="style.css?v=b152">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b151"></script>
-<script src="vendor/qrcode.js?v=b151"></script>
-<script src="config.js?v=b151"></script>
-<script src="common.js?v=b151"></script>
-<script src="drive.js?v=b151"></script>
-<script src="pack.js?v=b151"></script>
-<script src="catalog.js?v=b151"></script>
-<script src="voice.js?v=b151"></script>
-<script src="timetable.js?v=b151"></script>
-<script src="research.js?v=b151"></script>
+<script src="vendor/supabase.js?v=b152"></script>
+<script src="vendor/qrcode.js?v=b152"></script>
+<script src="config.js?v=b152"></script>
+<script src="common.js?v=b152"></script>
+<script src="drive.js?v=b152"></script>
+<script src="pack.js?v=b152"></script>
+<script src="catalog.js?v=b152"></script>
+<script src="voice.js?v=b152"></script>
+<script src="timetable.js?v=b152"></script>
+<script src="research.js?v=b152"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -160,13 +160,19 @@
     try { reqSt = await rpc("staff_request_status", { p_id: sq.id, p_token: sq.token }); if (!reqSt) { store.del(SREQ); } } catch (e) {}
     if (login.step === "reqst") renderRequest();
   }
+  let introOn = false;
   function renderLogin() {
     stopLoops();
     const st = login.step;
+    if (st === "pass" && !introOn && !CM.seen("staff")) { introOn = true; CM.intro("staff", [
+      { eb: "تعرّف على Hadro · 1 من 3", art: CM.illus("lecturer"), t: "ابدأ المحاضرة بلمسة", p: "اعرض الرمز على شاشة القاعة، ويسجّل الطلبة حضورهم بأنفسهم من هواتفهم." },
+      { eb: "تعرّف على Hadro · 2 من 3", art: CM.mascot("tablet"), t: "الكشف يكتب نفسه", p: "ابحث عن أي طالب، وصحّح الحضور يدويًّا في ثانية، وصدّر الكشف جاهزًا للطباعة." },
+      { eb: "تعرّف على Hadro · 3 من 3", art: CM.illus("warning"), t: "الإنذارات في وقتها", p: "يتابع Hadro الغياب ويجهّز الإنذارات الرسمية لتراجعها وتعتمدها قبل الإرسال." }
+    ], { doneText: "تسجيل الدخول" }).then(() => { const e = $("#lgEmail"); if (e) e.focus(); }); }
     if (st === "req" || st === "reqst") return renderRequest();
-    app.innerHTML = `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول أعضاء هيئة التدريس والمعيدين</p></div></div>${CM.themeBtn()}</header>
-      ${CM.hero({ small: true, eyebrow: "أعضاء هيئة التدريس والمعيدون", title: st === "pass" ? "تسجيل الدخول" : st === "code" ? "تأكيد البريد" : "كلمة السر" })}
-      <section class="panel over" style="max-width:480px;margin-inline:auto">
+    CM.html(app, `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول أعضاء هيئة التدريس والمعيدين</p></div></div>${CM.themeBtn()}</header>
+      <div class="hd-authart">${st === "pass" ? CM.mascot("wave") : st === "code" ? CM.illus("notify") : CM.illus("password")}<h2>${st === "pass" ? "مرحبًا بعودتك" : st === "code" ? "تأكيد البريد" : "كلمة السر"}</h2><p>أعضاء هيئة التدريس والمعيدون</p></div>
+      <section class="panel" style="max-width:480px;margin-inline:auto">
       ${st === "pass" ? `
         <h2>الدخول</h2>
         <label class="f"><span>البريد</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
@@ -201,7 +207,7 @@
         <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="lgNew2" autocomplete="new-password"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
         <button class="btn primary block" id="lgSave" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "حفظ والدخول"}</button>
-      `}</section>`;
+      `}</section>`);
     const bk = $("#lgBack"); if (bk) bk.onclick = () => { login = { step: login.step === "code" ? "setpw" : "pass", email: login.email, err: "", busy: false, first: login.first }; renderLogin(); };
     const pwOk = () => {
       const a = $("#lgNew").value, b2 = $("#lgNew2").value;
@@ -834,7 +840,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b151: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b152: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -2627,7 +2633,7 @@
               <button class="btn sm ghost" data-stut="${t.id}">فتح التكليف</button></span></div>
           ${stuLate && stuLate.tid === t.id ? stuLateBox(t, s) : ""}
           ${open ? `<div class="stu-hist">${stuHistHtml(t, s)}</div>` : ""}
-        </article>`; }).join("") : `<div class="empty">لا توجد تكليفات هنا.</div>`}</div>`;
+        </article>`; }).join("") : CM.empty("لا توجد تكليفات هنا.")}</div>`;
     $("#stuBack").onclick = () => { tkStu = null; stuLate = null; renderTasks(); };
     wireStuPick(el);
     el.querySelectorAll("[data-stuf]").forEach(b => b.onclick = () => { tkStuF = b.dataset.stuf; renderTasks(); });
@@ -2681,7 +2687,7 @@
           ${man ? "" : `<span class="tk-bars"><span><i style="width:${st.n ? st.sub / st.n * 100 : 0}%"></i></span><small>سلّم ${st.sub} من ${st.n}${st.late ? ` · متأخر ${st.late}` : ""}</small></span>`}
           <span class="tk-bars g"><span><i style="width:${st.n ? st.graded / st.n * 100 : 0}%"></i></span><small>رُصدت ${st.graded} من ${st.n}${st.avg != null ? " · المتوسط " + gN(Math.round(st.avg * 10) / 10) : ""}${st.issues ? ` · <b class="bad-t">${st.issues} ملف تغيّر</b>` : ""}</small></span>
         </button>`; }).join("")}</div>`).join(""))
-      : `<div class="empty">${canRun(c) ? "لا توجد تكليفات بعد. اضغط «تكليف أو رصد جديد»: إما تكليف يسلّمه الطلبة من صفحتهم، أو كشف رصد يدوي لدرجات عمل لم يُسلَّم إلكترونيًّا." : "لا توجد تكليفات في هذه المادة بعد."}</div>`}
+      : CM.empty(canRun(c) ? "لا توجد تكليفات بعد. اضغط «تكليف أو رصد جديد»: إما تكليف يسلّمه الطلبة من صفحتهم، أو كشف رصد يدوي لدرجات عمل لم يُسلَّم إلكترونيًّا." : "لا توجد تكليفات في هذه المادة بعد.", "point")}
       ${!HD.ready ? `<p class="small muted">رفع الملفات إلى Google Drive لم يُفعَّل بعد في إعدادات الموقع، لذلك يسلّم الطلبة روابط فقط.</p>` : ""}`;
     wireTaskForm(el, null);
     const cka = $("#tkCheckAll"); if (cka) cka.onclick = () => checkAllFiles();

@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b151">
+<link rel="stylesheet" href="style.css?v=b152">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b151"></script>
-<script src="config.js?v=b151"></script>
-<script src="common.js?v=b151"></script>
-<script src="drive.js?v=b151"></script>
-<script src="catalog.js?v=b151"></script>
-<script src="regform.js?v=b151"></script>
+<script src="vendor/qrcode.js?v=b152"></script>
+<script src="config.js?v=b152"></script>
+<script src="common.js?v=b152"></script>
+<script src="drive.js?v=b152"></script>
+<script src="catalog.js?v=b152"></script>
+<script src="regform.js?v=b152"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -297,7 +297,7 @@
       <label class="f"><span>أعد كتابة كلمة السر الجديدة</span><input type="password" id="rsPass2" autocomplete="new-password"></label>
       ${rs.msg ? `<div class="msg bad">${esc(rs.msg)}</div>` : ""}
       <button class="btn primary block" id="rsFin" ${busy ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : "حفظ كلمة السر والدخول"}</button>`;
-    app.innerHTML = header() + `<section class="panel col"><h2>استعادة كلمة السر</h2>${body}<button class="btn ghost block" id="rsBack">${st === "wait" ? "إلغاء الطلب والرجوع" : "رجوع"}</button></section>`;
+    CM.html(app, header() + `<div class="hd-authart">${CM.illus("padlock")}</div><section class="panel col"><h2>استعادة كلمة السر</h2>${body}<button class="btn ghost block" id="rsBack">${st === "wait" ? "إلغاء الطلب والرجوع" : "رجوع"}</button></section>`);
     $("#rsBack").onclick = () => { if (st === "wait") store.del("cm_reset"); clearInterval(rsTimer); rs = null; busy = false; renderAuth(); };
     const run = async fn => { if (busy) return; let v; try { v = rsVals(); } catch (m) { rs.msg = m; return renderReset(); } rs.msg = ""; busy = true; renderReset();
       try { if (await rsTryDevice(v)) return; await fn(v); } catch (e) { busy = false; rs.msg = typeof e === "string" ? e : pkErr(e); renderReset(); } };
@@ -335,15 +335,26 @@
   };
   function renderChoose() {
     closeQr && closeQr();
-    app.innerHTML = header() + `
-      ${CM.hero({ eyebrow: esc((window.CLASSMATE || {}).UNIVERSITY_NAME || ""), title: "أهلًا بك في Hadro", sub: "الحضور والتكليفات والدرجات والتسجيل الأكاديمي في مكان واحد. اختر طريقة الدخول." })}
-      <div class="choose over">
-        <button type="button" class="tile big" id="chUg">${ICO.ug}<b>طالب مرحلة البكالوريوس</b><span class="muted small">تسجيل الحضور، والتكليفات، والدرجات</span></button>
-        <a class="tile big" href="pg.html" data-role="pg">${ICO.pg}<b>طالب الدراسات العليا</b><span class="muted small">الدبلوم والماجستير والدكتوراه · تسجيل المقررات</span></a>
-        <a class="tile big" href="staff.html" data-role="staff">${ICO.st}<b>عضو هيئة التدريس أو معيد</b><span class="muted small">المحاضرات، والكشوف، والتكليفات</span></a>
-      </div>`;
-    CM.rise(app);
-    $("#chUg").onclick = () => { chosen = true; authMsg = ""; try { history.pushState({ auth: 1 }, ""); } catch (e) {} renderAuth(); };
+    CM.html(app, header() + `
+      <section class="hd-welcome">
+        <div class="hw-art">${CM.mascot("wave")}</div>
+        <div class="hw-eb">${esc((window.CLASSMATE || {}).UNIVERSITY_NAME || "")}</div>
+        <h2>أهلًا بك في Hadro</h2>
+        <p class="hw-sub">الحضور والتكليفات والدرجات في مكان واحد.<br>اختر من أنت لنبدأ.</p>
+        <div class="hw-btns">
+          <button type="button" class="btn primary block" id="chUg">أنا طالب بكالوريوس</button>
+          <a class="btn block" href="staff.html" data-role="staff">أنا عضو هيئة تدريس أو معيد</a>
+          <p class="hw-pg">طالب دراسات عليا؟ <a class="linkish" href="pg.html" data-role="pg">ادخل من هنا</a></p>
+        </div>
+      </section>`);
+    $("#chUg").onclick = async () => {
+      const v = await CM.intro("stu", [
+        { eb: "تعرّف على Hadro · 1 من 3", art: CM.illus("qr"), t: "سجّل حضورك في ثوانٍ", p: "امسح رمز المحاضرة من شاشة القاعة، أو اكتب الرمز بيدك إن تعذّر المسح." },
+        { eb: "تعرّف على Hadro · 2 من 3", art: CM.illus("calendar"), t: "غيابك واضح أمامك", p: "تعرف عدد مرات غيابك في كل مادة، وتصلك الإنذارات قبل أن تفاجئك." },
+        { eb: "تعرّف على Hadro · 3 من 3", art: CM.illus("submit"), t: "سلّم تكليفاتك من مكانك", p: "ارفع ملفك قبل الموعد، وتابع درجتك حين يرصدها أستاذ المادة." }
+      ], { actions: [{ v: "login", t: "تسجيل الدخول" }, { v: "reg", t: "أنا جديد، أنشئ حسابي" }] });
+      if (v === "reg") authTab = "reg"; else if (v === "login") authTab = "login";
+      chosen = true; authMsg = ""; try { history.pushState({ auth: 1 }, ""); } catch (e) {} renderAuth(); };
     // الانتقال بلا ترك الصفحة الموحدة في سجل الرجوع: «رجوع» من صفحة المحاضر لا يعيد إلى هنا
     app.querySelectorAll("[data-role]").forEach(a => a.onclick = ev => { ev.preventDefault(); store.set("cm_role", a.dataset.role); location.replace(a.getAttribute("href")); });
   }
@@ -374,8 +385,8 @@
     if (rf) return renderForm();
     if (rs) return renderReset();
     if (move) return renderMove();
-    app.innerHTML = header() + CM.hero({ small: true, eyebrow: "مرحلة البكالوريوس", title: authTab === "login" ? "دخول الطلبة" : "حساب جديد" }) + `
-      <section class="panel over">
+    CM.html(app, header() + `<div class="hd-authart">${authTab === "login" ? CM.mascot("wave") : CM.illus("password")}<h2>${authTab === "login" ? "مرحبًا بعودتك" : "أنشئ حسابك"}</h2><p>${authTab === "login" ? "ادخل بكود الطالب وكلمة السر" : "باستمارة التسجيل، في ثلاث خطوات"}</p></div>` + `
+      <section class="panel">
         <div class="tabs" role="group"><button id="tLogin" aria-pressed="${authTab === "login"}">دخول</button><button id="tReg" aria-pressed="${authTab === "reg"}">إنشاء حساب</button></div>
         ${authTab === "login" ? `
           <h2>ادخل بكود الطالب</h2>
@@ -401,7 +412,7 @@
       <p class="small" style="margin-top:14px;text-align:center"><button type="button" class="linkish" id="chBack">→ صفحة الدخول الرئيسية</button></p>
       <div class="auth-links">
         <details class="more"><summary>غيّرت هاتفك؟</summary><p class="small muted">ادخل بكودك وكلمة السر من الهاتف الجديد كالمعتاد، وسيظهر لك زر «نقل الحساب».</p></details></div>
-      <p class="small" style="text-align:center;margin-top:10px"><button type="button" class="linkish" id="helpOut">لديك مشكلة؟ اسأل مساعد Hadro</button></p>`;
+      <p class="small" style="text-align:center;margin-top:10px"><button type="button" class="linkish" id="helpOut">لديك مشكلة؟ اسأل مساعد Hadro</button></p>`);
     if (authKeep) { const k = authKeep, c = $("#code"), p = $("#pass"), p2 = $("#pass2"); authKeep = null;
       if (c && k.code) c.value = k.code; if (p && k.pass) p.value = k.pass;
       const f = k.pass && p2 ? p2 : p; if (f) setTimeout(() => f.focus(), 60); }
@@ -479,6 +490,7 @@
       const net = /Failed to fetch|NetworkError|network|Load failed|aborted/i.test(m);
       if (net) { clearTimeout(netRetry); netRetry = setTimeout(() => loadHome(), 5000); }
       app.innerHTML = header() + `<section class="col">
+        <div class="hd-empty" style="padding-bottom:0">${CM.mascot("sorry")}</div>
         <div class="msg ${net ? "warn" : "bad"}">${net ? "تعذّر الاتصال بالخادم الآن. سنحاول مرة أخرى تلقائيًّا خلال ثوانٍ… وإن تكرر ذلك فجرّب شبكة أخرى (واي فاي أو بيانات الهاتف)." : esc(errText(e))}</div>
         ${qrCta()}
         <p><button class="btn" id="retry">أعد المحاولة</button></p></section>`;
@@ -753,7 +765,7 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b151: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  /* b152: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
   let stab = ["home", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };
@@ -788,7 +800,7 @@
       ${tasks == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : g.length ? g.map((t, i) => { const m = t.mine, v = tot(m), w = Math.min(100, v / Math.max(1, Number(t.max)) * 100), win = apWins[t.id];
         return `<button type="button" class="st-gr" data-task="${t.id}" style="--i:${i}"><span class="st-gh"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}</small></span><b class="st-gv">${gNum(v)}<small> من ${gNum(t.max)}</small></b></span>
           <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap">التظلم على الدرجة مفتوح${win.until ? " حتى " + esc(new Date(win.until).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })) : ""}</span>` : ""}</button>`; }).join("")
-      : `<div class="empty">لم تُعلَن لك أي درجات بعد.</div>`}</section>`;
+      : CM.empty("لم تُعلَن لك أي درجات بعد.", "think")}</section>`;
   }
   // ملفات طلب الفريق إعادة رفعها: تنبيه واضح فوق في الرئيسية لحد ما الطالب يرفعها
   // استمارة التسجيل إجبارية كل ترم: تنبيه ثابت لحد ما الطالب يرفعها
@@ -971,7 +983,7 @@
     const SH = { todo: "مطلوب", done: "سلّمته", graded: "درجات", missed: "فات" };
     return `<section class="panel tk-over" id="tkOver"><div class="row between"><h3>تكليفاتي</h3><span class="small muted">${all.length} تكليف في ${new Set(all.map(t => t.course_id)).size} مادة</span></div>
       <div class="tk-tabs" role="tablist">${cats.map(k => `<button type="button" role="tab" class="k-${k}" data-tkf="${k}" aria-selected="${tkF === k}"><b>${n(k)}</b><span>${SH[k]}</span></button>`).join("")}</div>
-      <div class="tk-olist">${list.length ? list.map(t => tkRow(t, true)).join("") : `<div class="empty">${tkF === "todo" ? "لا شيء مطلوب منك الآن. 👌" : "لا يوجد."}</div>`}</div></section>`;
+      <div class="tk-olist">${list.length ? list.map(t => tkRow(t, true)).join("") : (tkF === "todo" ? CM.empty("لا شيء مطلوب منك الآن. استرح قليلًا، وسنخبرك حين يُنشر تكليف جديد.") : `<div class="empty">لا يوجد.</div>`)}</div></section>`;
   }
   function openTask(id) {
     tkId = id; pickFile = null; linkMode = !HD.ready; tkMsg = null;
@@ -1318,6 +1330,7 @@
     try {
       const r = await rpc("student_check_in_qr", { p_token: token, sid, p_qr: tok, p_lat: pos.lat ?? null, p_lng: pos.lng ?? null, p_acc: pos.acc ?? null, p_device: device });
       results[c.id] = describe(r, pos, c.session.kind);
+      if (r.result === "present") CM.celebrate(results[c.id].title + "!", esc(c.name));
     } catch (e) {
       if (String(e.message || "").includes("not_signed_in")) { busy = false; return signOut(); }
       results[c.id] = { k: "bad", title: "تعذّر التسجيل", checks: [["x", errText(e)]] };
@@ -1327,6 +1340,7 @@
   let stStream = null, stTimer = null, stDet = null, stBusy = false;
   const loadJsQR = () => window.jsQR ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "vendor/jsQR.js"; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
   async function openStScan() {
+    if (!CM.seen("scan")) { const v = await CM.intro("scan", [{ eb: "أول مرة · تسجيل الحضور", art: CM.mascot("scan"), t: "امسح الرمز… وانتهى", p: "وجّه الكاميرا إلى الرمز الظاهر على شاشة القاعة. ستظهر علامة ✓ حين يُسجَّل حضورك.", tips: ["اسمح للمتصفح باستخدام الكاميرا والموقع", "إن تعذّر المسح فاكتب الرمز المكوّن من 6 أرقام"] }], { doneText: "افتح الكاميرا" }); if (v !== "done") return; }
     const ov = $("#stScan"), msg = $("#stMsg");
     ov.hidden = false; msg.textContent = "جارٍ فتح الكاميرا…";
     try {
@@ -1378,6 +1392,7 @@
       const r = await rpc("student_check_in", { p_token: token, sid: c.session.id, p_code: code,
         p_lat: pos.lat ?? null, p_lng: pos.lng ?? null, p_acc: pos.acc ?? null, p_device: device });
       results[cid] = describe(r, pos, c.session.kind);
+      if (r.result === "present") CM.celebrate(results[cid].title + "!", esc(c.name));
       if (r.result === "present" || r.result === "pending" || r.result === "already") drafts[cid] = "";
       else if (r.reason === "wrong_code" || r.reason === "expired_code") drafts[cid] = "";
     } catch (e) {

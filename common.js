@@ -247,7 +247,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b151)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b152)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -923,4 +923,81 @@ document.addEventListener("click", ev => {
   const start = () => { run(); new MutationObserver(kick).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-selected", "aria-pressed", "class"] }); };
   addEventListener("resize", kick);
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
+})();
+
+/* ===== «حاضر» والرسومات المتحركة (b152) =====
+   الروبوت: WebM شفاف لكروم وفايرفوكس وإيدج، وWebP متحرك لسفاري وكل متصفحات الآيفون (لأنها تتجاهل شفافية WebM).
+   الرسومات: MP4 بخلفية بيضاء داخل كارت أبيض. ومن فعّل «تقليل الحركة» أو «توفير البيانات» يرى صورة ثابتة. */
+(function () {
+  const CM = window.CM; if (!CM) return;
+  const ua = navigator.userAgent || "";
+  const webkitOnly = /iPhone|iPad|iPod/.test(ua) || (/Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Firefox|FxiOS|Android/.test(ua));
+  const still = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches || !!(navigator.connection && navigator.connection.saveData); } catch (e) { return false; } };
+  const B = "art/";
+  CM.mascot = (n, cls) => {
+    const c = `hd-m${cls ? " " + cls : ""}`, st = `${B}h-${n}.still.webp`;
+    if (still()) return `<img class="${c}" data-art="h-${n}" src="${st}" alt="" aria-hidden="true" decoding="async">`;
+    if (webkitOnly) return `<img class="${c}" data-art="h-${n}" src="${B}h-${n}.webp" alt="" aria-hidden="true" decoding="async">`;
+    return `<video class="${c}" data-art="h-${n}" autoplay muted loop playsinline disablepictureinpicture preload="auto" poster="${st}" aria-hidden="true" tabindex="-1"><source src="${B}h-${n}.webm" type="video/webm"></video>`;
+  };
+  CM.illus = (n, cls) => {
+    const c = `hd-i${cls ? " " + cls : ""}`, st = `${B}i-${n}.webp`;
+    if (still()) return `<span class="${c}" data-art="i-${n}"><img src="${st}" alt="" aria-hidden="true" decoding="async"></span>`;
+    return `<span class="${c}" data-art="i-${n}"><video autoplay muted loop playsinline disablepictureinpicture preload="auto" poster="${st}" aria-hidden="true" tabindex="-1"><source src="${B}i-${n}.mp4" type="video/mp4"></video></span>`;
+  };
+  // بعض المتصفحات لا تبدأ الفيديو المضاف بـ innerHTML: نشغّله بأنفسنا
+  const kick = root => (root || document).querySelectorAll("video.hd-m, .hd-i video").forEach(v => { v.muted = true; if (v.paused) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } });
+  CM.playArt = kick;
+  const start = () => new MutationObserver(ms => { if (ms.some(m => m.addedNodes.length)) kick(); }).observe(document.body, { childList: true, subtree: true });
+  if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
+  // إعادة رسم الصفحة من غير ما الرسمة تبدأ من الأول: نرجّع نفس العنصر لو اتكرر
+  CM.html = (el, html) => {
+    const keep = {}; el.querySelectorAll("[data-art]").forEach(n => { keep[n.dataset.art] = n; });
+    el.innerHTML = html;
+    el.querySelectorAll("[data-art]").forEach(n => { const o = keep[n.dataset.art]; if (o && o !== n) { n.replaceWith(o); delete keep[n.dataset.art]; } });
+    kick(el);
+  };
+  const seen = k => { try { return !!localStorage.getItem("cm_seen_" + k); } catch (e) { return false; } };
+  const mark = k => { try { localStorage.setItem("cm_seen_" + k, "1"); } catch (e) {} };
+  CM.seen = seen;
+  // شاشة شرح بملء الشاشة (تظهر مرة واحدة لكل key): slides = [{art, eb, t, p, tips}]
+  CM.intro = (key, slides, o) => new Promise(res => {
+    o = o || {};
+    if (key && !o.force && seen(key)) return res("seen");
+    const ov = document.createElement("div"); ov.className = "hd-intro"; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true");
+    let i = 0, x0 = null;
+    const prevFocus = document.activeElement;
+    const close = v => { if (key) mark(key); ov.classList.add("out"); document.removeEventListener("keydown", kd); document.documentElement.classList.remove("hd-lock"); setTimeout(() => { ov.remove(); try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch (e) {} }, 220); res(v); };
+    const go = d => { const n = i + d; if (n < 0 || n >= slides.length) return; i = n; draw(); };
+    const draw = () => {
+      const s = slides[i], last = i === slides.length - 1, many = slides.length > 1;
+      const btns = last && o.actions ? o.actions.map((a, k) => `<button type="button" class="btn ${k ? "" : "primary"} block" data-a="${a.v}">${a.t}</button>`).join("")
+        : `<button type="button" class="btn primary block" data-n>${last ? (o.doneText || "فهمت، لنبدأ") : "التالي"}</button>`;
+      CM.html(ov, `<div class="hdi-box">
+        <div class="hdi-top">${s.eb ? `<span class="hdi-eb">${s.eb}</span>` : "<span></span>"}<button type="button" class="hdi-skip" data-x>${many && !last ? "تخطٍّ" : "إغلاق"}</button></div>
+        <div class="hdi-art">${s.art}</div>
+        <div class="hdi-txt" aria-live="polite"><h2 id="hdiT">${s.t}</h2><p>${s.p}</p>${s.tips ? `<ul class="hdi-tips">${s.tips.map(x => `<li>${x}</li>`).join("")}</ul>` : ""}</div>
+        ${many ? `<div class="hdi-dots" aria-hidden="true">${slides.map((_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("")}</div>` : ""}
+        <div class="hdi-btns">${btns}</div></div>`);
+      ov.setAttribute("aria-labelledby", "hdiT");
+      ov.querySelector("[data-x]").onclick = () => close("skip");
+      const n = ov.querySelector("[data-n]"); if (n) { n.onclick = () => last ? close("done") : go(1); setTimeout(() => n.focus(), 30); }
+      ov.querySelectorAll("[data-a]").forEach(b => b.onclick = () => close(b.dataset.a));
+    };
+    const kd = e => { if (e.key === "Escape") close("skip"); else if (e.key === "ArrowLeft") go(1); else if (e.key === "ArrowRight") go(-1); };
+    ov.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, { passive: true });
+    ov.addEventListener("touchend", e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) go(dx > 0 ? 1 : -1); }, { passive: true });
+    document.addEventListener("keydown", kd);
+    document.documentElement.classList.add("hd-lock");
+    draw(); document.body.appendChild(ov);
+  });
+  // احتفال قصير بعد نجاح خطوة مهمة (يُغلق وحده أو باللمس)
+  CM.celebrate = (title, sub, art) => {
+    const ov = document.createElement("div"); ov.className = "hd-cele"; ov.setAttribute("role", "status"); ov.setAttribute("aria-live", "polite");
+    ov.innerHTML = `<div class="hdc-box">${CM.mascot(art || "joy")}<b>${title}</b>${sub ? `<span>${sub}</span>` : ""}</div>`;
+    let t; const close = () => { clearTimeout(t); ov.classList.add("out"); setTimeout(() => ov.remove(), 220); };
+    ov.onclick = close; document.body.appendChild(ov); kick(ov); t = setTimeout(close, 2600);
+  };
+  // حالة فارغة أو خطأ ودّية
+  CM.empty = (text, art, extra) => `<div class="empty hd-empty">${CM.mascot(art || "sleep")}<p>${text}</p>${extra || ""}</div>`;
 })();

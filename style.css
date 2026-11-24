@@ -3023,3 +3023,59 @@ html body :is(.ctabs, .nx-dock) > button.dk-hid, html[data-skin] body :is(.ctabs
   html[data-skin="nx"] header.top > .row > details.dd:not(:last-child) > summary::before{ position: absolute; inset: 0; margin: auto; }
   html[data-skin="nx"] header.top > .row > details.dd:last-child > summary .dd-ava{ position: absolute; inset: 0; display: grid; place-items: center; }
 }
+
+/* ===== b152: «حاضر» والرسومات وشاشات الشرح والترحيب ===== */
+.hd-m{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:contain;background:transparent;pointer-events:none;user-select:none}
+.hd-i{display:block;width:100%;aspect-ratio:1;background:#fff;border-radius:28px;overflow:hidden;box-shadow:0 0 0 1px var(--line)}
+.hd-i video,.hd-i img{display:block;width:100%;height:100%;object-fit:cover;pointer-events:none}
+html.hd-lock,html.hd-lock body{overflow:hidden}
+/* شاشة الشرح بملء الشاشة */
+.hd-intro{position:fixed;inset:0;z-index:300;background:var(--bg);display:flex;justify-content:center;overflow:auto;animation:hdIn .22s ease both;padding:max(14px,env(safe-area-inset-top)) 20px max(18px,env(safe-area-inset-bottom))}
+.hd-intro.out,.hd-cele.out{animation:hdOut .2s ease both}
+@keyframes hdIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes hdOut{to{opacity:0}}
+.hdi-box{width:100%;max-width:440px;min-height:100%;display:flex;flex-direction:column;gap:6px}
+.hdi-top{display:flex;justify-content:space-between;align-items:center;min-height:44px}
+.hdi-eb{font:600 13px var(--f-display);color:var(--muted)}
+.hdi-skip{background:none;border:0;font:600 15px var(--f-display);color:var(--muted);padding:10px 4px;cursor:pointer;min-height:44px}
+.hdi-art{flex:1;display:grid;place-items:center;min-height:220px;padding:6px 0}
+.hdi-art>*{width:min(78vw,330px)}
+.hdi-art .hd-m{width:min(72vw,300px)}
+.hdi-txt{text-align:center}
+.hdi-txt h2{font:700 25px/1.35 var(--f-display);margin:0}
+.hdi-txt p{color:var(--muted);font-size:15.5px;line-height:1.75;margin:8px auto 0;max-width:36ch}
+.hdi-tips{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px;text-align:start}
+.hdi-tips li{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-size:14px}
+.hdi-tips li::before{content:"✓";flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--nx-hi,#c6f432);color:#0e0e0e;font-weight:700;font-size:13px}
+.hdi-dots{display:flex;gap:6px;justify-content:center;margin:18px 0 6px}
+.hdi-dots i{width:7px;height:7px;border-radius:9px;background:var(--line);transition:width .25s}
+.hdi-dots i.on{width:22px;background:var(--ink)}
+.hdi-btns{display:grid;gap:10px;margin-top:12px}
+.hdi-btns .btn{min-height:54px;border-radius:999px;font-size:16px}
+/* احتفال */
+.hd-cele{position:fixed;inset:0;z-index:310;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:hdIn .2s ease both;cursor:pointer}
+.hdc-box{display:grid;justify-items:center;text-align:center;gap:4px;padding:20px}
+.hdc-box .hd-m{width:min(64vw,260px)}
+.hdc-box b{font:700 24px var(--f-display)}
+.hdc-box span{color:var(--muted);font-size:15px}
+/* حالة فارغة */
+.hd-empty{display:grid;justify-items:center;text-align:center;gap:2px;padding:18px 12px}
+.hd-empty .hd-m{width:min(46vw,170px);margin-bottom:-6px}
+.hd-empty p{margin:0;max-width:40ch}
+/* صفحة الترحيب */
+.hd-welcome{max-width:440px;margin:0 auto;text-align:center;display:flex;flex-direction:column;align-items:center;padding:4px 4px 10px}
+.hd-welcome .hw-art{width:min(66vw,260px);margin:2px auto -4px}
+.hd-welcome .hw-eb{font:600 13px var(--f-display);color:var(--muted)}
+.hd-welcome h2{font:700 clamp(25px,6.6vw,32px)/1.3 var(--f-display);margin:6px 0 0}
+.hd-welcome p.hw-sub{color:var(--muted);font-size:15.5px;line-height:1.75;margin:8px 0 0}
+.hd-welcome .hw-btns{width:100%;display:grid;gap:12px;margin-top:22px}
+.hd-welcome .hw-btns .btn{min-height:56px;border-radius:999px;font-size:16px;justify-content:center;text-decoration:none}
+.hd-welcome .hw-pg{margin:6px 0 0;font-size:14px;color:var(--muted)}
+/* رأس صفحة الدخول */
+.hd-authart{text-align:center;max-width:480px;margin:0 auto 4px}
+.hd-authart .hd-m,.hd-authart .hd-i{width:min(40vw,160px);margin:0 auto -2px}
+.hd-authart .hd-i{width:min(48vw,190px);margin-bottom:10px}
+.hd-authart h2{font:700 26px var(--f-display);margin:0}
+.hd-authart p{color:var(--muted);margin:6px 0 0;font-size:14.5px}
+@media (min-width:900px){ .hd-welcome{padding-top:20px} .hd-welcome .hw-art{width:240px} }
+@media print{ .hd-intro,.hd-cele,.hd-m,.hd-i{display:none!important} }

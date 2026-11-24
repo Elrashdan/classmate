@@ -3,8 +3,8 @@
  */
 // Hadro offline cache: the student page (and its QR) must open with no internet.
 // Network first (so updates arrive), cache as fallback. Never touches Supabase API calls.
-const VER = "b151";
-const CACHE = "hadro-v151";
+const VER = "b152";
+const CACHE = "hadro-v152";
 const CDN = [];
 // ملفات الـJS والـCSS بتتطلب برقم النسخة (?v=bNN)، فينفع تتاخد من الذاكرة على طول من غير ما نستنى الشبكة
 const V = u => u + "?v=" + VER;
@@ -32,6 +32,7 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   const mine = url.origin === location.origin;
   if (!mine && !CACHE_HOSTS.includes(url.hostname)) return;
+  if (mine && url.pathname.includes("/art/")) return;   // الرسومات والفيديو: المتصفح يتولاها مباشرة (طلبات Range للفيديو، خصوصًا سفاري)
   const fixed = !mine || url.searchParams.has("v");   // ثابتة: خط/مكتبة خارجية أو ملف برقم نسخته
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
