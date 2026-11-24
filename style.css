@@ -3316,3 +3316,51 @@ html[data-skin="nx"][data-theme="dark"] .dhx{ background: var(--surface); border
 #regWrap{max-height:min(70vh,640px)!important}
 .rgm-t > span{margin-top:3px}
 @media (max-width:760px){ body.has-ctabs header.top .top-q:not(:focus-within){ display:none !important; } }
+
+/* ===================== b162: الكمبيوتر — شريط جانبي أبيض بأسماء الأقسام ===================== */
+@media (min-width: 1100px){
+  html[data-skin="nx"] body.has-ctabs .wrap{ padding-inline-start: 250px !important; max-width: 1440px !important; }
+  html[data-skin="nx"] .ctabs{ top: 0 !important; bottom: 0 !important; inset-inline-start: 0 !important; transform: none !important; width: 226px !important; height: 100vh; border-radius: 0 !important; background: var(--surface) !important; box-shadow: none !important; border-inline-end: 1px solid var(--line) !important; padding: 92px 14px 20px !important; gap: 4px !important; justify-content: flex-start; }
+  html[data-skin="nx"] .ctabs button{ width: 100% !important; height: 46px !important; flex: none !important; flex-direction: row !important; justify-content: flex-start !important; gap: 12px !important; padding: 0 14px !important; border-radius: 14px !important; color: var(--muted) !important; font: 500 15px var(--f-display) !important; }
+  html[data-skin="nx"] .ctabs button:hover{ background: var(--sunk) !important; color: var(--ink) !important; }
+  html[data-skin="nx"] .ctabs button[aria-selected=true]{ background: var(--ink) !important; color: var(--bg) !important; }
+  html[data-skin="nx"] .ctabs button svg{ width: 20px !important; height: 20px !important; }
+  html[data-skin="nx"] .ctabs button .l, html[data-skin="nx"][dir] .ctabs button .l, html[dir][data-skin="nx"] .ctabs button .l{ position: static !important; opacity: 1 !important; transform: none !important; background: none !important; color: inherit !important; padding: 0 !important; font-size: 15px !important; pointer-events: none; }
+  html[data-skin="nx"] .ctabs .tbx{ position: static !important; margin-inline-start: auto; }
+  html[data-skin="nx"] .ctabs .dk-home{ display: flex !important; }
+}
+/* الطالب على الكمبيوتر: شريط جانبي + عمودان في الرئيسية */
+@media (min-width: 1000px){
+  body.has-stnav{ padding-bottom: 0 !important; }
+  body.has-stnav .wrap.narrow{ max-width: 1180px; padding-inline-start: 250px; }
+  html[data-skin="nx"] .st-nav, .st-nav{ position: fixed !important; top: 0 !important; bottom: 0 !important; inset-inline-start: 0 !important; inset-inline-end: auto !important; left: auto; transform: none !important; width: 226px; flex-direction: column !important; justify-content: flex-start !important; gap: 4px !important; padding: 92px 14px 20px !important; border-radius: 0 !important; border: 0 !important; border-inline-end: 1px solid var(--line) !important; background: var(--surface) !important; box-shadow: none !important; }
+  html[data-skin="nx"] .st-nav button, .st-nav button{ flex-direction: row !important; justify-content: flex-start; gap: 12px; min-height: 46px; width: 100%; padding: 0 14px; border-radius: 14px !important; font: 500 15px var(--f-display); }
+  html[data-skin="nx"] .st-nav button svg{ width: 20px !important; height: 20px !important; padding: 0 !important; background: none !important; }
+  html[data-skin="nx"] .st-nav button.on{ background: var(--ink) !important; color: var(--bg) !important; }
+  html[data-skin="nx"] .st-nav button.on svg{ background: none !important; color: inherit !important; }
+  .st-nb{ position: static !important; margin-inline-start: auto; }
+  .sh.t-home{ display: grid !important; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px 20px; align-items: start; grid-auto-flow: row dense; }
+  .sh.t-home > *{ grid-column: 2; margin: 0 !important; }
+  .sh.t-home > :is(.rf-due, .msg, .nt-panel, .panel){ grid-column: 1 / -1; }
+  .sh.t-home > :is(.now, .ni){ grid-column: 1; grid-row: span 6; background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 24px 18px !important; }
+  .sh.t-home > .now{ display: grid; gap: 16px; }
+}
+/* شريط القسم داخل المادة: خفيف وبلا زخارف (وعلى الكمبيوتر يكفي اختيار المادة والشريط الجانبي) */
+html[data-skin="nx"] #cband.sband{ background: transparent !important; color: var(--ink) !important; border: 0 !important; box-shadow: none !important; min-height: 0 !important; padding: 4px 2px 8px !important; margin-bottom: 6px !important; }
+html[data-skin="nx"] #cband.sband :is(.hx-art, .sb-echo){ display: none !important; }
+html[data-skin="nx"] #cband.sband :is(.sb-eb, p){ color: var(--muted) !important; }
+html[data-skin="nx"] #cband.sband h2{ color: var(--ink) !important; font-size: 1.25rem !important; }
+@media (min-width: 1100px){ html[data-skin="nx"] #cband.sband{ display: none !important; } }
+/* b162: شاشة المحاضرة الجارية — أزرار واضحة على اللوح الداكن، ومرشحات وأرقام في سطر واحد */
+html[data-skin="nx"] .board .btn:not(.primary){ background: color-mix(in srgb, var(--nx-base) 12%, transparent) !important; color: var(--nx-base) !important; border: 1px solid color-mix(in srgb, var(--nx-base) 24%, transparent) !important; border-radius: 999px !important; }
+html[data-skin="nx"] .board .btn.danger, html[data-skin="nx"] .board .btn[id*="End"], html[data-skin="nx"] .board .btn[id*="end"]{ color: #ff9a8f !important; border-color: color-mix(in srgb, #ff9a8f 45%, transparent) !important; }
+html[data-skin="nx"] .board .btn.primary{ background: var(--nx-hi) !important; color: var(--nx-on-hi) !important; border-radius: 999px !important; }
+@media (max-width: 760px){
+  html[data-skin] body #app #livePanel .panel-h > .tabs{ display: flex !important; flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; gap: 6px !important; }
+  #livePanel .panel-h .tabs::-webkit-scrollbar{ display: none; }
+  html[data-skin] body #app #livePanel .panel-h > .tabs > button{ flex: none !important; width: auto !important; min-height: 36px !important; padding: 0 14px !important; grid-column: auto !important; }
+  #livePanel .stats{ display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 6px !important; }
+  #livePanel .stats > *{ padding: 8px 4px !important; text-align: center; min-width: 0; }
+  #livePanel .stats b{ font-size: 1.3rem !important; }
+  #livePanel .stats span, #livePanel .stats small{ font-size: .68rem !important; line-height: 1.25; display: block; }
+}
