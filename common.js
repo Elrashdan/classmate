@@ -247,7 +247,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b156)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b157)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -926,14 +926,16 @@ document.addEventListener("click", ev => {
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
 })();
 
-/* ===== «حاضر» والرسومات المتحركة (b156) =====
+/* ===== «حاضر» والرسومات المتحركة (b157) =====
    الروبوت: WebM شفاف لكروم وفايرفوكس وإيدج، وWebP متحرك لسفاري وكل متصفحات الآيفون (لأنها تتجاهل شفافية WebM).
    الرسومات: MP4 بخلفية بيضاء داخل كارت أبيض. ومن فعّل «تقليل الحركة» أو «توفير البيانات» يرى صورة ثابتة. */
 (function () {
   const CM = window.CM; if (!CM) return;
   const ua = navigator.userAgent || "";
   const webkitOnly = /iPhone|iPad|iPod/.test(ua) || (/Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Firefox|FxiOS|Android/.test(ua));
-  const still = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches || !!(navigator.connection && navigator.connection.saveData); } catch (e) { return false; } };
+  // الصورة الثابتة فقط لمن أطفأ «الحركة» من إعدادات المظهر داخل Hadro
+  // (كثير من الهواتف تشغّل «تقليل الحركة» تلقائيًّا مع توفير البطارية، فلا نعتمد عليه هنا)
+  const still = () => document.documentElement.dataset.motion === "off";
   const B = "art/";
   CM.mascot = (n, cls) => {
     const c = `hd-m${cls ? " " + cls : ""}`, st = `${B}h-${n}.still.webp`;
@@ -947,7 +949,20 @@ document.addEventListener("click", ev => {
     return `<span class="${c}" data-art="i-${n}"><video autoplay muted loop playsinline disablepictureinpicture preload="auto" poster="${st}" aria-hidden="true" tabindex="-1"><source src="${B}i-${n}.mp4" type="video/mp4"></video></span>`;
   };
   // بعض المتصفحات لا تبدأ الفيديو المضاف بـ innerHTML: نشغّله بأنفسنا
-  const kick = root => (root || document).querySelectorAll("video.hd-m, .hd-i video").forEach(v => { v.muted = true; if (v.paused) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } });
+  // لو المتصفح منع تشغيل الفيديو تلقائيًّا (توفير البطارية أو البيانات مثلًا) نبدّله بصورة WebP متحركة، فهذه لا تُمنع
+  const fallback = v => {
+    if (!v.isConnected || v.dataset.fb) return; v.dataset.fb = "1";
+    const m = v.classList.contains("hd-m"), art = m ? v.dataset.art : (v.parentElement && v.parentElement.dataset.art); if (!art) return;
+    const img = document.createElement("img"); img.alt = ""; img.setAttribute("aria-hidden", "true"); img.decoding = "async";
+    img.src = B + art + (m ? ".webp" : ".anim.webp");
+    if (m) { img.className = v.className; img.dataset.art = art; }
+    v.replaceWith(img);
+  };
+  const kick = root => (root || document).querySelectorAll("video.hd-m, .hd-i video").forEach(v => {
+    v.muted = true; v.defaultMuted = true; v.playsInline = true;
+    if (v.paused) { const p = v.play(); if (p && p.catch) p.catch(e => { if (e && e.name === "NotAllowedError") fallback(v); }); }
+    if (!v.dataset.watch) { v.dataset.watch = "1"; v.addEventListener("error", () => fallback(v), true); setTimeout(() => { if (v.isConnected && v.paused && !document.hidden) fallback(v); }, 2500); }
+  });
   CM.playArt = kick;
   const start = () => new MutationObserver(ms => { if (ms.some(m => m.addedNodes.length)) kick(); }).observe(document.body, { childList: true, subtree: true });
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
