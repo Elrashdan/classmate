@@ -3093,3 +3093,8 @@ html.hd-lock,html.hd-lock body{overflow:hidden}
 /* b154: روابط «تفاصيل أكثر» و«غيّرت هاتفك؟» واضحة في الوضعين */
 details.more>summary{color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:4px;text-decoration-color:color-mix(in srgb,var(--ink) 35%,transparent)}
 html[data-skin="nx"] details.more>summary{color:var(--ink)}
+/* b155: رأس صفحة الدراسات العليا بعد الدخول */
+.hd-greet{padding:6px 4px 12px}
+.hd-greet .hg-eb{font:600 13px var(--f-display);color:var(--muted)}
+.hd-greet h2{font:700 clamp(22px,5.6vw,28px)/1.3 var(--f-display);margin:4px 0 0}
+.hd-greet p{color:var(--muted);margin:4px 0 0;font-size:13.5px;text-align:start}

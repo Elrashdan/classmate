@@ -16,14 +16,14 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b154">
+<link rel="stylesheet" href="style.css?v=b155">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
-<script src="vendor/supabase.js?v=b154"></script>
+<script src="vendor/supabase.js?v=b155"></script>
 <script>window.HADRO_AUTH_KEY = "hadro-pg-auth";</script>
-<script src="config.js?v=b154"></script>
-<script src="common.js?v=b154"></script>
+<script src="config.js?v=b155"></script>
+<script src="common.js?v=b155"></script>
 <script>
 (function () {
   const { $, esc, rpc, store, sb } = CM;
@@ -47,12 +47,16 @@
     pg_mandatory_first: "سجّل المقررات الإجبارية المفتوحة هذا الترم أولًا: "
   };
   const err = e => { const m = String((e && (e.message || e.msg)) || e || ""); for (const k in PGERR) if (m.includes(k)) { const d = (m.split(k + ":")[1] || "").trim(); return PGERR[k] + (d ? d + (/load_max|elective_full/.test(k) ? " ساعة." : ".") : ""); } return CM.errText(e); };
-  const header = extra => `<header class="top"><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">الدراسات العليا · قسم الديكور</p></div></div><div class="row">${CM.themeBtn()}${extra || ""}</div></header>`;
+  const header = extra => `<header class="top"${D ? "" : " data-pre"}><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">الدراسات العليا · قسم الديكور</p></div></div><div class="row">${CM.themeBtn()}${extra || ""}</div></header>`;
   let st = { step: "pass", email: "", err: "", busy: false, newUser: false }, D = null, msg = null, busy = null;
 
   /* ---------- الدخول: بريد الكلية + كلمة السر، أو رمز على البريد (حساب جديد أو نسيت كلمة السر) ---------- */
+  let introOn = false;
   function renderAuth() {
-    app.innerHTML = header() + CM.hero({ small: true, eyebrow: "قسم الديكور", title: "الدراسات العليا" }) + `<section class="panel col over" style="max-width:520px;margin-inline:auto">
+    if (st.step === "pass" && !introOn && !CM.seen("pg")) { introOn = true; CM.intro("pg", [
+      { eb: "الدراسات العليا", art: CM.illus("college"), t: "سجّل مقرراتك من مكانك", p: "الدبلوم والماجستير والدكتوراه: اختر مقررات الترم، وتابع ساعاتك وحالة تسجيلك، ببريد الكلية فقط." }
+    ], { doneText: "تسجيل الدخول" }).then(() => { const e = $("#aEmail"); if (e) e.focus(); }); }
+    CM.html(app, header() + `<div class="hd-authart">${st.step === "pass" ? CM.mascot("wave") : st.step === "email" ? CM.illus("password") : CM.illus("notify")}<h2>${st.step === "pass" ? "مرحبًا بعودتك" : st.step === "email" ? (st.newUser ? "أنشئ حسابك" : "كلمة سر جديدة") : "تأكيد البريد"}</h2><p>طلبة الدراسات العليا · قسم الديكور</p></div>` + `<section class="panel col" style="max-width:520px;margin-inline:auto">
       ${st.step === "pass" ? `
         <h2>دخول طلبة الدراسات العليا</h2>
         <p class="muted small">ببريد الكلية الجامعي فقط (${esc(DOMAIN)}).</p>
@@ -78,7 +82,7 @@
         ${st.err ? `<div class="msg bad">${esc(st.err)}</div>` : ""}
         <button class="btn primary block" id="aVerify" ${st.busy ? "disabled" : ""}>${st.busy ? `<span class="spinner"></span>` : "تأكيد"}</button>
         <button class="linkish" id="aBack">بريد آخر</button>`}
-      </section>`;
+      </section>`);
     app.querySelectorAll("[data-nofill]").forEach(i => { const on = () => i.removeAttribute("readonly"); i.addEventListener("focus", on); i.addEventListener("pointerdown", on); });
     if (st.step === "pass") app.querySelector(".panel").insertAdjacentHTML("beforeend", `<p class="small" style="margin:0"><a class="linkish" href="./">→ صفحة الدخول الرئيسية</a></p>`);
     const back = $("#aBack"); if (back) back.onclick = () => { st = { ...st, step: st.step === "code" ? "email" : "pass", err: "" }; renderAuth(); };
@@ -192,7 +196,7 @@
     const missMand = courses.filter(c => (c.kind === "mandatory" || (c.kind === "general" && P.stage === "diploma")) && !mine(c.code) && !taken(c.code));
     const pct = Math.min(100, Math.round(hrs / Math.max(1, P.load_max) * 100));
     app.innerHTML = header(`<button class="btn sm ghost" id="hEdit">بياناتي</button><button class="btn sm ghost" id="hPass">كلمة السر</button><button class="btn sm ghost" id="hOut">خروج</button>`) + `
-      ${CM.hero({ small: true, eyebrow: esc(P.name), title: esc(D.profile.full_name), sub: `<span class="mono">${esc(D.email)}</span>` })}
+      <section class="hd-greet"><div class="hg-eb">${esc(P.name)}</div><h2>${esc(D.profile.full_name)}</h2><p class="mono" dir="ltr">${esc(D.email)}</p></section>
       ${msg ? `<div class="msg ${msg.k}">${esc(msg.t)}</div>` : ""}
       <section class="panel col">
         <div class="row between"><h2>${term ? "التسجيل الأكاديمي · " + esc(term.name) : "التسجيل الأكاديمي"}</h2>${term ? `<span class="chip ok">التسجيل مفتوح</span>` : `<span class="chip none">مغلق</span>`}</div>
