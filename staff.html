@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b155">
+<link rel="stylesheet" href="style.css?v=b156">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b155"></script>
-<script src="vendor/qrcode.js?v=b155"></script>
-<script src="config.js?v=b155"></script>
-<script src="common.js?v=b155"></script>
-<script src="drive.js?v=b155"></script>
-<script src="pack.js?v=b155"></script>
-<script src="catalog.js?v=b155"></script>
-<script src="voice.js?v=b155"></script>
-<script src="timetable.js?v=b155"></script>
-<script src="research.js?v=b155"></script>
+<script src="vendor/supabase.js?v=b156"></script>
+<script src="vendor/qrcode.js?v=b156"></script>
+<script src="config.js?v=b156"></script>
+<script src="common.js?v=b156"></script>
+<script src="drive.js?v=b156"></script>
+<script src="pack.js?v=b156"></script>
+<script src="catalog.js?v=b156"></script>
+<script src="voice.js?v=b156"></script>
+<script src="timetable.js?v=b156"></script>
+<script src="research.js?v=b156"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -94,7 +94,7 @@
   function renderRequest() {
     const st = login.step, ps = CM.pushState();
     if (reqTimer && st !== "reqst") { clearInterval(reqTimer); reqTimer = null; }
-    const pushBox = () => req.sub ? `<div class="msg ok small">✓ الإشعارات مفعّلة على هذا الجهاز. هيوصلك إشعار أول ما المسؤول يوافق.</div>`
+    const pushBox = () => req.sub ? `<div class="msg ok small">✓ الإشعارات مفعّلة على هذا الجهاز، وسيصلك إشعار فور موافقة المسؤول.</div>`
       : ps === "ios-install" ? `<div class="push-req"><b>خطوة مطلوبة: أضف Hadro للشاشة الرئيسية</b><span class="small">على الآيفون تعمل الإشعارات من أيقونة الموقع فقط. بعد الإضافة افتح الأيقونة ← «عضو هيئة التدريس» ← «اطلب حسابًا».</span>${CM.IOS_STEPS}</div>`
       : ps === "denied" ? `<div class="push-req"><b>الإشعارات مرفوضة على هذا المتصفح</b><span class="small">افتح إعدادات المتصفح ← إعدادات المواقع ← الإشعارات، واسمح لموقع Hadro، ثم أعد فتح الصفحة.</span></div>`
       : ps === "none" ? `<div class="msg warn small">هذا المتصفح لا يدعم الإشعارات. يمكنك إرسال الطلب ومتابعة حالته من الصفحة نفسها («متابعة طلبك»).</div>`
@@ -103,7 +103,7 @@
     let body;
     if (st === "req") body = `
         <h2>طلب حساب جديد</h2>
-        <p class="muted small">املأ بياناتك وابعت الطلب. المسؤول هيراجعه، وأول ما يوافق هيوصلك إشعار، وبعدها تدخل ببريدك وتختار كلمة السر.</p>
+        <p class="muted small">املأ بياناتك وأرسل الطلب. سيراجعه المسؤول، وفور موافقته يصلك إشعار، ثم تدخل ببريدك وتختار كلمة السر.</p>
         <label class="f"><span>البريد الجامعي</span><input type="email" id="rqEmail" dir="ltr" autocomplete="email" value="${esc(req.email)}" placeholder="name@university.edu.eg"></label>
         <label class="f"><span>الاسم ثلاثي أو رباعي</span><input type="text" id="rqName" autocomplete="name" value="${esc(req.name)}" placeholder="مثال: أحمد محمد علي حسن"></label>
         <div class="f"><span>الصفة</span><div class="cchips">${[["ta", "معيد"], ["lecturer", "محاضر / عضو هيئة تدريس"]].map(([k, l]) => `<button type="button" class="cchip" aria-pressed="${req.role === k}" data-rqr="${k}">${l}</button>`).join("")}</div></div>
@@ -119,15 +119,17 @@
       body = !sq ? `<p class="muted">لا يوجد طلب محفوظ على هذا الجهاز.</p><button class="linkish" id="lgBack">رجوع إلى الدخول</button>`
         : !r ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>`
         : `<div class="eyebrow mono" style="text-align:start">${esc(r.email)}</div>
-        <h2>${r.status === "pending" ? "طلبك قيد المراجعة" : r.status === "approved" ? "تمت الموافقة على حسابك 🎉" : r.status === "rejected" ? "لم تتم الموافقة على طلبك" : "أُلغي هذا الطلب"}</h2>
-        ${r.status === "pending" ? `<p class="muted small">قدّمت الطلب باسم <b>${esc(r.name)}</b> بصفة ${r.role === "ta" ? "معيد" : "محاضر"}. هيوصلك إشعار أول ما المسؤول يراجعه${r.push ? "" : "، أو عُد إلى هذه الصفحة"}.</p>${r.push ? "" : pushBox()}`
-          : r.status === "approved" ? `<p class="small">ادخل الآن ببريدك الجامعي واختر كلمة السر، وهيوصلك رمز تأكيد على البريد مرة واحدة.</p><button class="btn primary block" id="rqGo">اختر كلمة السر وادخل</button>`
+        <h2>${r.status === "pending" ? "طلبك قيد المراجعة" : r.status === "approved" ? "تمت الموافقة على حسابك" : r.status === "rejected" ? "لم تتم الموافقة على طلبك" : "أُلغي هذا الطلب"}</h2>
+        ${r.status === "pending" ? `<p class="muted small">قدّمت الطلب باسم <b>${esc(r.name)}</b> بصفة ${r.role === "ta" ? "معيد" : "محاضر"}. سيصلك إشعار فور مراجعة المسؤول له${r.push ? "" : "، أو عُد إلى هذه الصفحة"}.</p>${r.push ? "" : pushBox()}`
+          : r.status === "approved" ? `<p class="small">ادخل الآن ببريدك الجامعي واختر كلمة السر، وسيصلك رمز تأكيد على البريد مرة واحدة.</p><button class="btn primary block" id="rqGo">اختر كلمة السر وادخل</button>`
           : r.status === "rejected" ? `${r.reply ? `<div class="msg warn">السبب: ${esc(r.reply)}</div>` : ""}<button class="btn block" id="rqNew">تقديم طلب جديد</button>` : `<button class="btn block" id="rqNew">تقديم طلب جديد</button>`}
         <button class="linkish" id="lgBack">رجوع إلى الدخول</button>`;
     }
-    app.innerHTML = `<header class="top" data-pre><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">طلب حساب لأعضاء هيئة التدريس والمعيدين</p></div></div>${CM.themeBtn()}</header>
-      ${CM.hero({ small: true, eyebrow: "أعضاء هيئة التدريس والمعيدون", title: st === "req" ? "طلب حساب" : "حالة طلبك" })}
-      <section class="panel over" style="max-width:480px;margin-inline:auto">${body}</section>`;
+    const rs = st === "req" ? null : (reqSt && reqSt.status) || "pending";
+    const art = st === "req" ? CM.illus("password") : rs === "approved" ? CM.mascot("joy") : rs === "pending" ? CM.mascot("think") : CM.mascot("sorry");
+    CM.html(app, `<header class="top" data-pre><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">طلب حساب جديد</p></div></div><div class="row">${CM.themeBtn()}</div></header>
+      <div class="hd-authart">${art}<h2>${st === "req" ? "اطلب حسابك" : "حالة طلبك"}</h2><p>أعضاء هيئة التدريس والمعيدون</p></div>
+      <section class="panel" style="max-width:480px;margin-inline:auto">${body}</section>`);
     const lb = $("#lgBack"); if (lb) lb.onclick = () => { login = { step: "pass", email: (reqSt && reqSt.email) || req.email || "", err: "", busy: false }; renderLogin(); };
     const keep = () => { const g = id => { const x = $(id); return x ? x.value : ""; }; if ($("#rqEmail")) Object.assign(req, { email: g("#rqEmail").trim().toLowerCase(), name: g("#rqName"), phone: g("#rqPhone"), note: g("#rqNote") }); };
     document.querySelectorAll("[data-rqr]").forEach(b => b.onclick = () => { keep(); req.role = b.dataset.rqr; renderRequest(); });
@@ -170,7 +172,7 @@
       { eb: "تعرّف على Hadro · 3 من 3", art: CM.illus("warning"), t: "الإنذارات في وقتها", p: "يتابع Hadro الغياب ويجهّز الإنذارات الرسمية لتراجعها وتعتمدها قبل الإرسال." }
     ], { doneText: "تسجيل الدخول" }).then(() => { const e = $("#lgEmail"); if (e) e.focus(); }); }
     if (st === "req" || st === "reqst") return renderRequest();
-    CM.html(app, `<header class="top" data-pre><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول أعضاء هيئة التدريس والمعيدين</p></div></div>${CM.themeBtn()}</header>
+    CM.html(app, `<header class="top" data-pre><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول أعضاء هيئة التدريس والمعيدين</p></div></div><div class="row">${CM.themeBtn()}</div></header>
       <div class="hd-authart">${st === "pass" ? CM.mascot("wave") : st === "code" ? CM.illus("notify") : CM.illus("password")}<h2>${st === "pass" ? "مرحبًا بعودتك" : st === "code" ? "تأكيد البريد" : "كلمة السر"}</h2><p>أعضاء هيئة التدريس والمعيدون</p></div>
       <section class="panel" style="max-width:480px;margin-inline:auto">
       ${st === "pass" ? `
@@ -840,7 +842,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b155: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b156: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {

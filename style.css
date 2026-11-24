@@ -3098,3 +3098,10 @@ html[data-skin="nx"] details.more>summary{color:var(--ink)}
 .hd-greet .hg-eb{font:600 13px var(--f-display);color:var(--muted)}
 .hd-greet h2{font:700 clamp(22px,5.6vw,28px)/1.3 var(--f-display);margin:4px 0 0}
 .hd-greet p{color:var(--muted);margin:4px 0 0;font-size:13.5px;text-align:start}
+/* b156: قبل الدخول لا توجد قائمة، فيبقى زر «المظهر» ظاهرًا على الموبايل بنفس شكل الدائرة */
+@media (max-width: 700px){
+  html[data-skin="nx"] header.top[data-pre] > .row > button:is([data-look-btn], #hdNone){ display: grid !important; place-items: center !important; width: 44px !important; height: 44px !important; min-width: 44px !important; min-height: 44px !important; padding: 0 !important; border-radius: 50% !important; border: 1px solid var(--line) !important; background: transparent !important; color: var(--ink) !important; box-shadow: none !important; }
+  html[data-skin="nx"] header.top[data-pre] > .row > button:is([data-look-btn], #hdNone) > svg{ width: 20px !important; height: 20px !important; margin: 0 !important; }
+  html[data-skin="nx"] header.top[data-pre] > .row > button:is([data-look-btn], #hdNone) > :not(svg){ display: none !important; }
+  html[data-skin="nx"] header.top[data-pre]{ flex-wrap: nowrap !important; }
+}
