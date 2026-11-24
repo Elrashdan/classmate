@@ -2752,8 +2752,8 @@ html[data-skin="nx"] .codein{ border-radius: 16px !important; }
 html[data-skin="nx"] .btn.block{ min-height: 52px; font-size: 1.02rem; }
 @media (max-width: 700px){
   /* صف فيه أزرار بس: شبكة منتظمة بنفس العرض */
-  html[data-skin="nx"] #app .row:not(.past):not(header .row):has(> .btn, > details.dd):not(:has(> :not(.btn, input[type=file], label.btn, details.dd))){ display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
-  html[data-skin="nx"] #app .row:not(.past):not(header .row):has(> .btn):not(:has(> :not(.btn, input[type=file], label.btn, details.dd))) > .btn{ justify-content: center; padding-inline: 10px; font-size: .86rem; overflow: hidden; text-overflow: ellipsis; }
+  html[data-skin="nx"] #app div.row:not(.past):not(header .row):has(> .btn, > details.dd):not(:has(> :not(.btn, input[type=file], label.btn, details.dd))){ display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  html[data-skin="nx"] #app div.row:not(.past):not(header .row):has(> .btn):not(:has(> :not(.btn, input[type=file], label.btn, details.dd))) > .btn{ justify-content: center; padding-inline: 10px; font-size: .86rem; overflow: hidden; text-overflow: ellipsis; }
 }
 @media (max-width: 1099px){
   html[data-skin="nx"] :is(.ctabs, .nx-dock){ border-radius: 999px !important; }
@@ -2770,7 +2770,7 @@ html[data-skin="nx"] .st-nav{ border-radius: 999px !important; }
   html[data-skin="nx"] .dh-chips > details > summary, html[data-skin="nx"] .dh-chips > .dd > summary{ width: 100%; justify-content: center; min-height: var(--b-h); }
   html[data-skin="nx"] body.has-dock .dh-secs{ display: none; }
   html[data-skin="nx"] .dh-chips > .cpk .dh-all{ width: 100%; display: flex; justify-content: center; }
-  html[data-skin="nx"] #app .row:not(header .row) > details.dd > summary{ width: 100%; justify-content: center; }
+  html[data-skin="nx"] #app div.row:not(header .row) > details.dd > summary{ width: 100%; justify-content: center; }
   /* مفتاح الألوان في التقرير */
   html[data-skin="nx"] .legend{ display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
   html[data-skin="nx"] .legend > *{ justify-content: center; border-radius: 999px; }
@@ -2784,21 +2784,52 @@ html[data-skin="nx"] .st-nav{ border-radius: 999px !important; }
   html[data-skin="nx"] .dh-chips > *{ min-width: 0 !important; width: 100% !important; max-width: none !important; margin: 0 !important; }
   html[data-skin="nx"] .dh-chips > .cpk > .dh-all{ width: 100% !important; }
   /* صف أزرار: عمودين متساويين، والفردي الأخير بعرض الصف */
-  html[data-skin="nx"] #app .row:not(.past):not(header .row):not(td .row):not(th .row):has(> .btn, > details.dd):not(:has(> :not(.btn, input[type=file], label.btn, details.dd))){ display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: var(--g) !important; width: 100%; }
-  html[data-skin="nx"] #app .row.past{ display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: var(--g) !important; width: 100%; }
-  html[data-skin="nx"] #app .row.past > :not(.btn):not(input):not(details){ grid-column: 1 / -1; }
-  html[data-skin="nx"] #app :is(.row:not(header .row):not(td .row):not(th .row), .dh-chips) > :is(.btn, details.dd, label.btn, .dh-chip, .cpk):last-child:nth-child(odd){ grid-column: 1 / -1; }
-  html[data-skin="nx"] #app .row:not(header .row):not(td .row):not(th .row) > :is(.btn, label.btn){ width: 100%; min-width: 0; margin: 0; justify-content: center; }
-  html[data-skin="nx"] #app .row:not(header .row):not(td .row):not(th .row) > details.dd{ width: 100%; min-width: 0; }
-  html[data-skin="nx"] #app .row:not(header .row):not(td .row):not(th .row) > details.dd > summary{ width: 100%; justify-content: center; }
+  html[data-skin="nx"] #app div.row:not(.past):not(header .row):not(td .row):not(th .row):has(> .btn, > details.dd):not(:has(> :not(.btn, input[type=file], label.btn, details.dd))){ display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: var(--g) !important; width: 100%; }
+  html[data-skin="nx"] #app div.row.past{ display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: var(--g) !important; width: 100%; }
+  html[data-skin="nx"] #app div.row.past > :not(.btn):not(input):not(details){ grid-column: 1 / -1; }
+  html[data-skin="nx"] #app :is(div.row:not(header .row):not(td .row):not(th .row), .dh-chips) > :is(.btn, details.dd, label.btn, .dh-chip, .cpk):last-child:nth-child(odd){ grid-column: 1 / -1; }
+  html[data-skin="nx"] #app div.row:not(header .row):not(td .row):not(th .row) > :is(.btn, label.btn){ width: 100%; min-width: 0; margin: 0; justify-content: center; }
+  html[data-skin="nx"] #app div.row:not(header .row):not(td .row):not(th .row) > details.dd{ width: 100%; min-width: 0; }
+  html[data-skin="nx"] #app div.row:not(header .row):not(td .row):not(th .row) > details.dd > summary{ width: 100%; justify-content: center; }
   /* تبويبات «الكل / مجموعة أ / ب»: كلها بنفس العرض على عرض الصف */
   html[data-skin="nx"] #app .tabs{ display: grid !important; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--g) !important; width: 100%; }
   html[data-skin="nx"] #app .tabs > button{ width: 100%; min-width: 0; justify-content: center; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-inline: 8px; }
   /* زرار نصه طويل مايتقصّش: ياخد الصف كله */
-  html[data-skin="nx"] #app .row:not(header .row):not(td .row):not(th .row) > .btn.wide{ grid-column: 1 / -1; }
+  html[data-skin="nx"] #app div.row:not(header .row):not(td .row):not(th .row) > .btn.wide{ grid-column: 1 / -1; }
   /* أزرار كروت الفريق، وزرار الحفظ في الإعدادات، وزرار التذكير */
   html[data-skin="nx"] #app .acts{ display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--g); width: 100%; }
   html[data-skin="nx"] #app .acts > .btn{ width: 100%; min-width: 0; justify-content: center; padding-inline: 10px; font-size: .86rem; overflow: hidden; text-overflow: ellipsis; }
   html[data-skin="nx"] #app .acts > .btn:last-child:nth-child(odd){ grid-column: 1 / -1; }
   html[data-skin="nx"] #app .settings > .btn, html[data-skin="nx"] #app .push-sum > .btn{ grid-column: 1 / -1; width: 100%; justify-content: center; }
+}
+
+/* ===== b145: الشريط اللي فوق مايطلعش منه زرار، والزرار اللي نصه طويل ياخد الصف كله ===== */
+@media (max-width: 700px){
+  html[data-skin="nx"] header.top > .row{ flex-wrap: nowrap !important; gap: 6px !important; min-width: 0; }
+  html[data-skin="nx"] header.top > .row > *{ flex: 0 0 auto; min-width: 0; }
+  html[data-skin="nx"] header.top > .row :is(.btn.icon, .bell-btn, #goHome, .theme-btn, [data-theme-btn]){ width: 38px !important; height: 38px !important; min-width: 38px !important; min-height: 38px !important; padding: 0 !important; border-radius: 50% !important; }
+  html[data-skin="nx"] header.top > .row #goHome .gh-l{ display: none; }
+  html[data-skin="nx"] header.top > .row #admin{ display: none; }   /* «رجوع للمواد»: الرئيسية والشريط اللي تحت بيعملوا نفس الشغل */
+  html[data-skin="nx"] header.top > .row > details.dd > summary{ min-height: 38px !important; height: 38px; padding-inline: 12px !important; }
+  html[data-skin="nx"] header.top > .row > details.dd:last-child > summary{ width: 38px; padding: 0 !important; justify-content: center; border-radius: 50% !important; }
+  html[data-skin="nx"] header.top > .row > details.dd:last-child > summary > :not(.dd-ava){ display: none !important; }
+  html[data-skin="nx"] header.top .dd-m{ max-width: calc(100vw - 24px); }
+  html[data-skin="nx"] #app div.row > .btn.fit-wide, html[data-skin="nx"] #app .acts > .btn.fit-wide{ grid-column: 1 / -1; }
+  html[data-skin="nx"] #app div.row:has(> .fit-wide), html[data-skin="nx"] #app .acts:has(> .fit-wide){ grid-auto-flow: row dense; }
+}
+@media (max-width: 700px){
+  /* تبويبات كتير (4 وأكتر): صفين منتظمين بدل ما الكلام يتقص */
+  html[data-skin="nx"] #app .tabs:has(> :nth-child(4)){ grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html[data-skin="nx"] #app .tabs:has(> :nth-child(4)) > :last-child:nth-child(odd){ grid-column: 1 / -1; }
+  /* عناوين الأقسام والشرائح: تنزل سطر بدل ما تخرج بره الشاشة */
+  html[data-skin="nx"] #app .panel-h{ flex-wrap: wrap; min-width: 0; }
+  html[data-skin="nx"] #app .panel-h > *{ max-width: 100%; min-width: 0; }
+  html[data-skin="nx"] #app .panel-h > :is(.tabs, select){ flex: 1 1 100%; }
+  html[data-skin="nx"] #app select{ max-width: 100%; }
+  html[data-skin="nx"] #app .cchips{ flex-wrap: wrap; overflow: visible; }
+}
+@media (max-width: 700px){
+  /* أيام الجدول وأي شرائح اختيار متساوية: شبكة 3 أعمدة */
+  html[data-skin="nx"] #app .cchips:has(> [data-ttd]){ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  html[data-skin="nx"] #app .cchips:has(> [data-ttd]) > *{ width: 100%; justify-content: center; text-align: center; }
 }

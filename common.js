@@ -655,7 +655,7 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b144)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b145)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
@@ -836,4 +836,25 @@
       const no = o.querySelector("#cgNo"); if (no) no.onclick = () => send(true);
     });
   }
+})();
+
+// b145: على الموبايل، الزرار اللي نصه مايكفيهوش نص الصف بياخد الصف كله (بدل ما الكلام يتقص)
+(function () {
+  if (!window.matchMedia || !window.MutationObserver) return;
+  let q = 0;
+  const fit = () => {
+    q = 0;
+    if (!matchMedia("(max-width: 700px)").matches) return;
+    document.querySelectorAll("#app div.row > .btn, #app .acts > .btn").forEach(b => {
+      if (getComputedStyle(b.parentElement).display !== "grid") { b.classList.remove("fit-wide"); return; }
+      if (!b.classList.contains("fit-wide") && b.scrollWidth > b.clientWidth + 1) b.classList.add("fit-wide");
+    });
+  };
+  const start = () => {
+    const a = document.getElementById("app"); if (!a) return;
+    new MutationObserver(() => { if (!q) q = requestAnimationFrame(fit); }).observe(a, { childList: true, subtree: true });
+    fit();
+  };
+  if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
+  addEventListener("resize", () => { document.querySelectorAll(".fit-wide").forEach(b => b.classList.remove("fit-wide")); fit(); });
 })();
