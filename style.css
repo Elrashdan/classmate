@@ -2954,3 +2954,32 @@ html body :is(.ctabs, .nx-dock) > button.dk-hid, html[data-skin] body :is(.ctabs
 @media (max-width: 760px){
   html[data-skin="nx"] :is(.ctabs, .nx-dock) > button .l{ white-space: normal !important; overflow: visible !important; text-overflow: clip !important; line-height: 1.15; text-align: center; max-width: 72px; }
 }
+/* ===== b150 ===== */
+/* أسامي الشريط اللي تحت: الاسم القصير على الموبايل، والكامل على الكمبيوتر وفي «المزيد» */
+.l-short{display:none}
+@media (max-width: 760px){
+  html[data-skin="nx"] :is(.ctabs, .nx-dock) .l-long{display:none}
+  html[data-skin="nx"] :is(.ctabs, .nx-dock) .l-short{display:inline}
+  html[data-skin="nx"] :is(.ctabs, .nx-dock) > button .l{ white-space: nowrap !important; max-width: none; }
+}
+@media (max-width: 700px){
+  /* زرار الحساب عند المحاضر والمسؤول كمان: الحرف + «حسابي» */
+  html[data-skin="nx"] header.top > .row > details.dd:last-child > summary{ width: auto !important; padding: 0 12px 0 6px !important; border-radius: 999px !important; gap: 6px; }
+  html[data-skin="nx"] header.top > .row > details.dd:last-child > summary .dd-hide{ display: inline !important; font-size: .9rem; font-weight: 600; }
+  /* اسم كل أيقونة مكتوب تحتها (مفيش «وقوف» على الموبايل) */
+  html[data-skin="nx"] header.top > .row{ padding-bottom: 16px !important; align-items: flex-start; }
+  html[data-skin="nx"] header.top > .row [data-cap]{ position: relative; overflow: visible !important; }
+  html[data-skin="nx"] header.top > .row [data-cap]::after{ content: attr(data-cap); position: absolute; top: calc(100% + 3px); left: 50%; transform: translateX(-50%); font-size: .66rem; font-weight: 600; line-height: 1; white-space: nowrap; color: var(--muted); pointer-events: none; }
+  html.hd-sc[data-skin="nx"] header.top > .row, html[data-skin="nx"].hd-sc header.top > .row{ padding-bottom: 0 !important; }
+  html.hd-sc[data-skin="nx"] header.top > .row [data-cap]::after, html[data-skin="nx"].hd-sc header.top > .row [data-cap]::after{ display: none; }
+}
+@media (max-width: 700px){
+  html[data-skin="nx"] header.top > .row{ gap: 10px !important; }
+  html[data-skin="nx"] header.top > .row [data-cap]::after{ font-size: .6rem; }
+  /* «أدوات» على الموبايل: دايرة بأيقونة واسمها تحتها زي الباقي */
+  html[data-skin="nx"] header.top > .row > details.dd:not(:last-child) > summary{ width: 38px !important; min-width: 38px; height: 38px; padding: 0 !important; border-radius: 50% !important; font-size: 0 !important; justify-content: center; position: relative; overflow: visible !important; }
+  html[data-skin="nx"] header.top > .row > details.dd:not(:last-child) > summary > *{ display: none !important; }
+  html[data-skin="nx"] header.top > .row > details.dd:not(:last-child) > summary::before{ content: "☰"; font-size: 17px; line-height: 1; }
+  html[data-skin="nx"] header.top > .row > details.dd:not(:last-child) > summary::after{ content: "أدوات"; position: absolute; top: calc(100% + 3px); left: 50%; transform: translateX(-50%); font-size: .6rem; font-weight: 600; line-height: 1; white-space: nowrap; color: var(--muted); }
+  html.hd-sc[data-skin="nx"] header.top > .row > details.dd:not(:last-child) > summary::after, html[data-skin="nx"].hd-sc header.top > .row > details.dd:not(:last-child) > summary::after{ display: none; }
+}

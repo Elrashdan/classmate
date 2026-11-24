@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b149">
+<link rel="stylesheet" href="style.css?v=b150">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b149"></script>
-<script src="config.js?v=b149"></script>
-<script src="common.js?v=b149"></script>
-<script src="drive.js?v=b149"></script>
-<script src="catalog.js?v=b149"></script>
-<script src="regform.js?v=b149"></script>
+<script src="vendor/qrcode.js?v=b150"></script>
+<script src="config.js?v=b150"></script>
+<script src="common.js?v=b150"></script>
+<script src="drive.js?v=b150"></script>
+<script src="catalog.js?v=b150"></script>
+<script src="regform.js?v=b150"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -753,14 +753,14 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b149: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  /* b150: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
   let stab = ["home", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };
   function stHeader() {
     const first = esc((home.name || "").split(" ")[0]);
     return `<header class="top st-top"><div class="brand">${CM.markHtml()}<div><h1 class="st-hi">أهلًا ${first}</h1><p class="small muted"><span class="mono">${esc(home.code)}</span>${home.courses.length ? " · " + home.courses.length + (home.courses.length > 2 && home.courses.length < 11 ? " مواد" : " مادة") : ""}</p></div></div>
-      <div class="row"><button class="btn sm ghost icon bell" id="ntBtn" aria-label="التنبيهات" title="التنبيهات">${BELL}${nt.unread ? `<span class="nt-badge">${nt.unread > 9 ? "9+" : nt.unread}</span>` : ""}</button><button class="btn sm ghost icon help-btn" id="helpBtn" aria-label="المساعدة والتواصل" title="المساعدة والتواصل"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8M12 17.2h.01"/></svg>${hcUnread ? `<i class="hc-dot">${hcUnread}</i>` : ""}</button>${CM.themeBtn()}
+      <div class="row"><button class="btn sm ghost icon bell" id="ntBtn" data-cap="إشعارات" aria-label="التنبيهات" title="التنبيهات">${BELL}${nt.unread ? `<span class="nt-badge">${nt.unread > 9 ? "9+" : nt.unread}</span>` : ""}</button><button class="btn sm ghost icon help-btn" id="helpBtn" data-cap="مساعدة" aria-label="المساعدة والتواصل" title="المساعدة والتواصل"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8M12 17.2h.01"/></svg>${hcUnread ? `<i class="hc-dot">${hcUnread}</i>` : ""}</button>${CM.themeBtn()}
       ${CM.dd(`<span class="dd-ava" aria-hidden="true">${esc(String(home.name || "؟").trim().charAt(0) || "؟")}</span><span class="dd-hide">حسابي</span>`, [`<button class="dd-i" id="pwBtn">كلمة السر</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي", cls: "st-acc" })}</div></header>`;
   }
   function stCourses(sel) {

@@ -247,7 +247,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b149)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b150)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -257,7 +257,7 @@
     document.querySelectorAll("[data-theme-btn]").forEach(b => { b.innerHTML = ICONS[t]; b.title = "الثيم: " + THEMES[t] + " (اضغط للتغيير)"; b.setAttribute("aria-label", b.title); });
   };
   const LOOK_ICO = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.7-1.3-.7-2.1 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="10" cy="7" r="1.2" fill="currentColor"/><circle cx="14.5" cy="7" r="1.2" fill="currentColor"/></svg>';
-  CM.themeBtn = () => `<button class="btn sm ghost icon" data-look-btn title="المظهر: فاتح أو غامق، وشكل الواجهة وألوانها" aria-label="المظهر">${LOOK_ICO}</button>`;
+  CM.themeBtn = () => `<button class="btn sm ghost icon" data-look-btn data-cap="المظهر" title="المظهر: فاتح أو غامق، وشكل الواجهة وألوانها" aria-label="المظهر">${LOOK_ICO}</button>`;
   document.addEventListener("click", ev => {
     const b = ev.target.closest && ev.target.closest("[data-theme-btn]"); if (!b) return;
     const next = { auto: "light", light: "dark", dark: "auto" }[CM.theme()];
@@ -887,7 +887,7 @@ document.addEventListener("click", ev => {
   const R = document.documentElement;
   const MORE = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
   const activeOf = n => n.querySelector(':scope > [aria-selected="true"], :scope > [aria-pressed="true"], :scope > .on');
-  const label = b => (b.querySelector(".l") || b).textContent.trim();
+  const label = b => (b.querySelector(".l-long") || b.querySelector(".l") || b).textContent.trim();
   const sheet = n => {
     const hid = [...n.querySelectorAll(":scope > button.dk-hid")]; if (!hid.length) return;
     const d = document.createElement("div"); d.className = "dk-sheet"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-label", "باقي الأقسام");
