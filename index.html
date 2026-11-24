@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b146">
+<link rel="stylesheet" href="style.css?v=b147">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b146"></script>
-<script src="config.js?v=b146"></script>
-<script src="common.js?v=b146"></script>
-<script src="drive.js?v=b146"></script>
-<script src="catalog.js?v=b146"></script>
-<script src="regform.js?v=b146"></script>
+<script src="vendor/qrcode.js?v=b147"></script>
+<script src="config.js?v=b147"></script>
+<script src="common.js?v=b147"></script>
+<script src="drive.js?v=b147"></script>
+<script src="catalog.js?v=b147"></script>
+<script src="regform.js?v=b147"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -378,14 +378,15 @@
       <section class="panel over">
         <div class="tabs" role="group"><button id="tLogin" aria-pressed="${authTab === "login"}">دخول</button><button id="tReg" aria-pressed="${authTab === "reg"}">إنشاء حساب</button></div>
         ${authTab === "login" ? `
-          <h2>الدخول بكود الطالب</h2>
-          <label class="f"><span>كود الطالب</span><input type="text" id="code" inputmode="numeric" autocomplete="username" class="mono" style="text-align:start" value="${esc(store.get("cm_last_code") || "")}"></label>
+          <h2>ادخل بكود الطالب</h2>
+          <label class="f"><span>كود الطالب</span><input type="text" id="code" inputmode="numeric" autocomplete="username" enterkeyhint="next" class="mono" style="text-align:start" value="${esc(store.get("cm_last_code") || "")}"><small class="muted">الكود مكتوب فوق في استمارة التسجيل بتاعتك.</small></label>
           <label class="f"><span>كلمة السر</span><input type="password" id="pass" autocomplete="current-password"></label>
         ` : `
           <h2>أنشئ حسابك باستمارة التسجيل</h2>
-          <p>أول تسجيل على Hadro بيكون <b>باستمارة الإرشاد الأكاديمي</b> اللي بتنزّلها من نظام ابن الهيثم. البرنامج بيقرأ منها كودك واسمك ومستواك ومقرراتك، ويسجلك في موادك تلقائيًا، وبعدها تختار كلمة السر اللي هتدخل بيها.</p>
+          
           <ol class="rf-steps"><li class="on">ارفع استمارة التسجيل</li><li>راجع بياناتك وموادك</li><li>اختار كلمة السر وادخل</li></ol>
-          <p class="muted small">سيرتبط الحساب بهذا الهاتف، ولن تتمكن من تسجيل الحضور من هاتف آخر. لا تستخدم وضع التصفح الخفي.</p>
+          <p class="muted small">الحساب بيترَبط بالموبايل ده، فسجّل منه هو. وماتستخدمش التصفح الخفي.</p>
+          <details class="more"><summary>تفاصيل أكتر</summary><p>أول تسجيل على Hadro بيكون <b>باستمارة الإرشاد الأكاديمي</b> اللي بتنزّلها من نظام ابن الهيثم. البرنامج بيقرأ منها كودك واسمك ومستواك ومقرراتك، ويسجلك في موادك تلقائيًا، وبعدها تختار كلمة السر اللي هتدخل بيها.</p></details>
         `}
         ${sstore.get("cm_pending_qr") ? `<div class="msg">سجّل الدخول أولًا، وبعدها يُسجَّل حضورك بالرمز الذي مسحته. وإن انتهت صلاحيته فامسحه من الشاشة مرة أخرى.</div>` : ""}
         ${inAppWarn()}
@@ -397,7 +398,8 @@
         ${iosTip()}
       </section>
       <p class="small" style="margin-top:14px;text-align:center"><button type="button" class="linkish" id="chBack">→ صفحة الدخول الرئيسية</button></p>
-      <p class="muted small" style="margin-top:6px;text-align:center">غيّرت هاتفك؟ ادخل بكودك وكلمة السر، وسيظهر لك زر لنقل الحساب. <button type="button" class="linkish" id="rsOpen">نسيت كلمة السر؟</button></p>
+      <div class="auth-links"><button type="button" class="linkish" id="rsOpen">نسيت كلمة السر؟</button>
+        <details class="more"><summary>غيّرت موبايلك؟</summary><p class="small muted">ادخل بكودك وكلمة السر عادي من الموبايل الجديد، وهيظهرلك زرار «نقل الحساب».</p></details></div>
       <p class="small" style="text-align:center;margin-top:10px"><button type="button" class="linkish" id="helpOut">عندك مشكلة؟ اسأل مساعد Hadro</button></p>`;
     if (authKeep) { const k = authKeep, c = $("#code"), p = $("#pass"), p2 = $("#pass2"); authKeep = null;
       if (c && k.code) c.value = k.code; if (p && k.pass) p.value = k.pass;
@@ -456,7 +458,7 @@
     if (!silent && !home && !rf) CM.loader(app, "جارٍ تجهيز صفحتك…");
     try {
       home = await rpc("student_home", { p_token: token });
-      rpc("student_form_due", { p_token: token }).then(r => { const d = !!(r && r.due); if (d !== formDue) { formDue = d; if (home && !rf && !tkId) renderHome(); } }).catch(() => {});
+      rpc("student_form_due", { p_token: token }).then(r => { const d = !!(r && r.due); if (d !== formDue) { formDue = d; if (home && !rf && !tkId) renderHome(); } if (d && !tkId) formPopup(); }).catch(() => {});
       if (!limited && pk.ok && pk.count == null) rpc("student_passkey_count", { p_token: token }).then(n => { pk.count = Number(n) || 0; if (home && !rf && !tkId) renderHome(); }).catch(() => {});
       const q = qrGet();
       if (limited) {} else if (!silent || !q || q.code !== home.code) await refreshQrKey();
@@ -548,7 +550,7 @@
   function nowHtml() {
     if (!home) return "";
     const live = home.courses.filter(c => c.session && !limited);
-    if (!live.length) return limited ? "" : `<div class="now-idle"><span class="small muted">لا توجد محاضرة جارية الآن. عندما يبدأ المحاضر تظهر هنا خانة الرمز مباشرة.</span><button class="btn sm" id="qrBtn2">بطاقة الحضور</button></div>`;
+    if (!live.length) return limited ? "" : `<div class="now-idle"><span class="small muted">مفيش محاضرة شغالة دلوقتي. أول ما المحاضر يبدأ هتلاقي خانة الرمز هنا.</span><button class="btn primary block now-qr" id="qrBtn2">بطاقة الحضور<small>من غير إنترنت: اعرضها على المحاضر يمسحها</small></button></div>`;
     return `<section class="now" id="now">${live.map(c => { const done = c.session.mine && c.session.mine.status !== "pending";
       return `<article class="now-c ${done ? "done" : ""}" data-course="${c.id}"><div class="now-h">${done ? "" : `<span class="pulse" aria-hidden="true"></span>`}<b>${done ? "سُجِّل حضورك" : "محاضرة جارية الآن"}</b><span class="now-n">${esc(c.name)}</span></div>${sessionBlock(c)}</article>`; }).join("")}</section>`;
   }
@@ -750,7 +752,7 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b146: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  /* b147: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
   let stab = ["home", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };
@@ -758,7 +760,7 @@
     const first = esc((home.name || "").split(" ")[0]);
     return `<header class="top st-top"><div class="brand">${CM.markHtml()}<div><h1 class="st-hi">أهلًا ${first}</h1><p class="small muted"><span class="mono">${esc(home.code)}</span>${home.courses.length ? " · " + home.courses.length + (home.courses.length > 2 && home.courses.length < 11 ? " مواد" : " مادة") : ""}</p></div></div>
       <div class="row"><button class="btn sm ghost icon bell" id="ntBtn" aria-label="التنبيهات" title="التنبيهات">${BELL}${nt.unread ? `<span class="nt-badge">${nt.unread > 9 ? "9+" : nt.unread}</span>` : ""}</button><button class="btn sm ghost icon help-btn" id="helpBtn" aria-label="المساعدة والتواصل" title="المساعدة والتواصل"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.3-2.5 3.8M12 17.2h.01"/></svg>${hcUnread ? `<i class="hc-dot">${hcUnread}</i>` : ""}</button>${CM.themeBtn()}
-      ${CM.dd(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span class="dd-hide">حسابي</span>`, [`<button class="dd-i" id="pwBtn">كلمة السر</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي", cls: "st-acc" })}</div></header>`;
+      ${CM.dd(`<span class="dd-ava" aria-hidden="true">${esc(String(home.name || "؟").trim().charAt(0) || "؟")}</span><span class="dd-hide">حسابي</span>`, [`<button class="dd-i" id="pwBtn">كلمة السر</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي", cls: "st-acc" })}</div></header>`;
   }
   function stCourses(sel) {
     const L = 2 * Math.PI * 26;
@@ -783,7 +785,7 @@
     const cn = t => (home.courses.find(c => c.id === t.course_id) || {}).name || "";
     return `<section class="st-sec"><div class="st-h"><h2>درجاتي</h2>${wait ? `<span class="small muted">${wait} ${wait === 1 ? "تسليم مستني" : "تسليمات مستنية"} التصحيح</span>` : ""}</div>
       ${tasks == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : g.length ? g.map((t, i) => { const m = t.mine, v = tot(m), w = Math.min(100, v / Math.max(1, Number(t.max)) * 100), win = apWins[t.id];
-        return `<button type="button" class="st-gr" data-task="${t.id}" style="--i:${i}"><span class="st-gh"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}</small></span><b class="st-gv">${gNum(v)}<small> / ${gNum(t.max)}</small></b></span>
+        return `<button type="button" class="st-gr" data-task="${t.id}" style="--i:${i}"><span class="st-gh"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}</small></span><b class="st-gv">${gNum(v)}<small> من ${gNum(t.max)}</small></b></span>
           <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap">التظلم على الدرجة مفتوح${win.until ? " لحد " + esc(new Date(win.until).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })) : ""}</span>` : ""}</button>`; }).join("")
       : `<div class="empty">لسه مفيش درجات اتعلنت ليك.</div>`}</section>`;
   }
@@ -792,9 +794,23 @@
   let formDue = false;
   function formAlert() {
     if (!formDue) return "";
-    return `<section class="msg warn rf-due" role="alert"><div><b>برجاء رفع استمارة التسجيل لتسجيل باقي المواد الخاصة بك</b>
-      <span class="small">ارفع استمارة التسجيل (الإرشاد الأكاديمي) بتاعة الترم ده من نظام ابن الهيثم، وهتتسجل في كل موادك تلقائيًا. التنبيه ده هيفضل ظاهر لحد ما ترفعها.</span></div>
-      <button class="btn primary" data-rf-due>رفع استمارة التسجيل</button></section>`;
+    return `<section class="rf-due" role="alert"><div><b>ارفع استمارة التسجيل</b><span class="small">عشان تتسجل في باقي موادك تلقائيًا.</span></div>
+      <button class="btn primary" data-rf-due>ارفعها</button></section>`;
+  }
+  // نافذة فوق البرنامج: بتظهر كل ما الطالب يفتح البرنامج ومارفعش استمارة الترم. «بعدين» بتأجلها 10 دقايق بس
+  function formPopup() {
+    if (!formDue || rf || document.querySelector(".fd-dlg")) return;
+    if (Date.now() - +(sstore.get("cm_fd_later") || 0) < 10 * 60 * 1000) return;
+    const d = document.createElement("div"); d.className = "fd-dlg"; d.setAttribute("role", "alertdialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-labelledby", "fdT");
+    d.innerHTML = `<div class="fd-box"><div class="fd-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg></div>
+      <h2 id="fdT">برجاء رفع استمارة التسجيل لتسجيل باقي المواد الخاصة بك</h2>
+      <p>نزّل استمارة الإرشاد الأكاديمي بتاعة الترم ده من نظام ابن الهيثم وارفعها هنا، وهتتسجل في كل موادك على طول.</p>
+      <button class="btn primary block" data-fd-go>ارفع استمارة التسجيل دلوقتي</button>
+      <button class="linkish fd-later" data-fd-later>بعدين</button></div>`;
+    const close = () => d.remove();
+    d.querySelector("[data-fd-go]").onclick = () => { close(); openForm("sync"); };
+    d.querySelector("[data-fd-later]").onclick = () => { sstore.set("cm_fd_later", String(Date.now())); close(); };
+    document.body.appendChild(d); d.querySelector("[data-fd-go]").focus();
   }
   function fixAlert() {
     const l = (tasks || []).filter(t => t.mine && t.mine.fix && home.courses.some(c => c.id === t.course_id)); if (!l.length) return "";
@@ -820,7 +836,7 @@
         ${home.courses.length ? stCourses(sel) + (sel ? stMeter(sel) : "") : `<div class="empty">كودك غير موجود في أي مادة حاليًّا. أضف موادك من استمارة التسجيل بالزر بالأسفل، أو تواصل مع المحاضر.</div>`}
         ${tasksOverview()}
         ${qrFlash ? `<div class="msg ${qrFlash.k}">${esc(qrFlash.t)}</div>` : ""}
-        ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : home.courses.length ? qrCta() : ""}
+        ${limited ? `<div class="msg warn"><b>دخلت من هذا الجهاز لتسليم التكليفات ومتابعة الدرجات فقط.</b> تسجيل الحضور وبطاقة الحضور من هاتفك المرتبط${limited.label ? " (" + esc(limited.label) + ")" : ""}.</div>` : home.courses.some(c => c.session) ? qrCta() : ""}
         ${pushCta()}
         ${pushGate()}
         ${!limited && pk.ok && pk.count === 0 && !store.get("cm_pk_skip") ? `<div class="pk-cta"><div><b>فعّل الدخول ببصمة الوجه أو الإصبع</b><span class="small muted">إن مسح المتصفح بياناتك (يحدث كثيرًا في آيفون) أو غيّرت المتصفح، تعود إلى حسابك بلمسة دون كلمة السر ودون مراجعة المحاضر.</span>${pkMsg ? `<span class="small ${pkMsg.startsWith("!") ? "bad-t" : "ok-t"}">${esc(pkMsg.replace(/^!/, ""))}</span>` : ""}</div><div class="row"><button class="btn primary" id="pkOn">تفعيل</button><button class="btn ghost sm" id="pkSkip">لاحقًا</button></div></div>` : pkMsg && !pkMsg.startsWith("!") ? `<div class="msg ok small">${esc(pkMsg)}</div>` : ""}

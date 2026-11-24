@@ -2853,3 +2853,38 @@ html[data-skin="nx"] .st-nav{ border-radius: 999px !important; }
   .staff-tbl td:nth-child(6) > :last-child:nth-child(odd){ grid-column: 1 / -1; }
   .staff-tbl td:nth-child(6):empty{ display: none !important; }
 }
+/* b147: اختيار فاتح/غامق جوه «المظهر» */
+.ap-th{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.ap-thb{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border-radius:18px;border:1px solid var(--line);background:var(--surface,transparent);color:inherit;font:inherit;cursor:pointer;min-height:64px}
+.ap-thb[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:700}
+.ap-thb svg{width:20px;height:20px}
+/* ===== b147: الدفعة الأولى من ملاحظات تجربة الاستخدام ===== */
+/* تنبيه الاستمارة على الصفحة: كارت صغير بسطرين وزرار */
+.rf-due{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:22px;background:var(--warn-soft,#fff4d6);border:1px solid var(--warn,#e9b949);margin-bottom:12px}
+.rf-due>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.rf-due .btn{flex:none}
+
+/* النافذة اللي فوق البرنامج */
+.fd-dlg{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(8,12,10,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);animation:fdIn .2s ease}
+.fd-box{width:min(420px,100%);background:var(--surface,#fff);color:var(--ink);border-radius:28px;padding:24px 20px 14px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:10px}
+.fd-box h2{font-size:1.15rem;line-height:1.5;margin:0}
+.fd-box p{margin:0;color:var(--muted);line-height:1.7}
+.fd-ic{width:64px;height:64px;margin:0 auto 4px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink,var(--accent))}
+.fd-ic svg{width:30px;height:30px}
+.fd-later{min-height:44px;color:var(--muted)}
+@keyframes fdIn{from{opacity:0}to{opacity:1}}
+/* زرار الحضور الكبير لما مفيش محاضرة شغالة */
+.now-idle{display:flex;flex-direction:column;gap:10px}
+.now-qr{flex-direction:column;gap:2px;min-height:60px}
+.now-qr small{font-weight:400;opacity:.85;font-size:.8rem}
+/* لينكات صفحة الدخول: كل واحد في سطر لوحده */
+.auth-links{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:10px;text-align:center}
+.auth-links .linkish{min-height:44px;padding:0 12px;font-size:.95rem}
+details.more{margin-top:4px}
+details.more>summary{cursor:pointer;color:var(--accent-ink,var(--accent));min-height:44px;display:inline-flex;align-items:center;gap:6px;font-size:.92rem;list-style:none}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::after{content:"⌄";font-size:.9em}
+details.more[open]>summary::after{content:"⌃"}
+/* قايمة الحساب: مسافة وخط قبل «خروج» */
+.dd-m .dd-i.danger{margin-top:8px;position:relative}
+.dd-m .dd-i.danger::before{content:"";position:absolute;inset-inline:10px;top:-5px;height:1px;background:var(--line)}

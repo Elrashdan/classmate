@@ -247,6 +247,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
+  CM.BUILD = "(b147)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -256,7 +257,7 @@
     document.querySelectorAll("[data-theme-btn]").forEach(b => { b.innerHTML = ICONS[t]; b.title = "الثيم: " + THEMES[t] + " (اضغط للتغيير)"; b.setAttribute("aria-label", b.title); });
   };
   const LOOK_ICO = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.9-.7-1.3-.7-2.1 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2" fill="currentColor"/><circle cx="10" cy="7" r="1.2" fill="currentColor"/><circle cx="14.5" cy="7" r="1.2" fill="currentColor"/></svg>';
-  CM.themeBtn = () => { const t = CM.theme(); return `<button class="btn sm ghost icon" data-theme-btn title="الثيم: ${THEMES[t]} (اضغط للتغيير)" aria-label="الثيم: ${THEMES[t]}">${ICONS[t]}</button><button class="btn sm ghost icon" data-look-btn title="المظهر: شكل الواجهة وألوانها" aria-label="المظهر: شكل الواجهة وألوانها">${LOOK_ICO}</button>`; };
+  CM.themeBtn = () => `<button class="btn sm ghost icon" data-look-btn title="المظهر: فاتح أو غامق، وشكل الواجهة وألوانها" aria-label="المظهر">${LOOK_ICO}</button>`;
   document.addEventListener("click", ev => {
     const b = ev.target.closest && ev.target.closest("[data-theme-btn]"); if (!b) return;
     const next = { auto: "light", light: "dark", dark: "auto" }[CM.theme()];
@@ -303,6 +304,7 @@
     const draw = () => {
       const c = palColors(L), own = L.own || c;
       d.innerHTML = `<div class="ap-box"><div class="ap-h"><b>المظهر</b><button class="btn sm ghost" data-apx aria-label="إغلاق">✕</button></div>
+        <div class="ap-sec"><span>فاتح ولا غامق</span><div class="ap-th">${["light", "dark", "auto"].map(t => `<button type="button" class="ap-thb" data-apt="${t}" aria-pressed="${CM.theme() === t}">${ICONS[t]}<b>${THEMES[t]}</b></button>`).join("")}</div></div>
         <div class="ap-sec"><span>شكل الواجهة</span><div class="ap-skins">
           <button type="button" class="ap-skin" data-aps="classic" aria-pressed="${L.skin === "classic"}">${prev(null, false)}<b>Hadro الكلاسيكي</b><small>الشكل المعتاد بالأخضر والزجاج</small></button>
           <button type="button" class="ap-skin" data-aps="nx" aria-pressed="${L.skin === "nx"}">${prev(c, true)}<b>الواجهة الحديثة</b><small>كروت كبيرة، شريط داكن، وحركة مع التمرير</small></button></div></div>
@@ -310,8 +312,9 @@
           <button type="button" class="ap-pal" data-app="own" aria-pressed="${L.pal === "own"}"><span class="ap-dots">${own.map(x => `<i style="background:${x}"></i>`).join("")}</span>ألواني</button></div>
           ${L.pal === "own" ? `<div class="ap-own">${[["الخلفية", 0], ["اللون المميز", 1], ["الداكن", 2]].map(([t, i]) => `<label>${t}<input type="color" data-apo="${i}" value="${own[i]}"></label>`).join("")}</div><small class="muted">اختار خلفية فاتحة ولون داكن غامق علشان الكلام يبان.</small>` : ""}</div>
         <div class="ap-sec${L.skin === "nx" ? "" : " ap-dis"}"><label class="ap-row"><span>حركة مع التمرير (ظهور الكروت وتراكب الأقسام)</span><input type="checkbox" data-apm ${L.motion ? "checked" : ""}></label></div>
-        <small class="muted">الاختيار بيتحفظ على الجهاز ده بس، والوضع الفاتح/الداكن من زرار الثيم جنبه.</small></div>`;
+        <small class="muted">الاختيار بيتحفظ على الجهاز ده بس.</small></div>`;
       d.querySelector("[data-apx]").onclick = close;
+      d.querySelectorAll("[data-apt]").forEach(b => b.onclick = () => { const t = b.dataset.apt; if (t === "auto") CM.store.del("cm_theme"); else CM.store.set("cm_theme", t); applyTheme(); draw(); });
       d.querySelectorAll("[data-aps]").forEach(b => b.onclick = () => { L.skin = b.dataset.aps; lookSet(L); draw(); });
       d.querySelectorAll("[data-app]").forEach(b => b.onclick = () => { L.pal = b.dataset.app; if (L.pal === "own" && !L.own) L.own = palColors({ pal: "lime" }).slice(); lookSet(L); draw(); });
       d.querySelectorAll("[data-apo]").forEach(i => i.oninput = () => { L.own[+i.dataset.apo] = i.value; lookSet(L); const dots = d.querySelector('[data-app="own"] .ap-dots'); if (dots) dots.children[+i.dataset.apo].style.background = i.value; });
@@ -655,12 +658,12 @@
     if (document.querySelector("footer.legal")) return;
     const A = CM.APP, f = document.createElement("footer");
     f.className = "legal";
-    f.innerHTML = `<span><b>${A.name}</b> · ${A.title} · الإصدار ${A.version} <span class="muted" dir="ltr" style="font-size:.8em">(b146)</span></span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
+    f.innerHTML = `<span><b>${A.name}</b> · ${A.title}</span><span>${CM.copyright()}</span><button type="button" class="linkish" data-about>عن البرنامج وحقوق الملكية</button>`;
     const app = document.getElementById("app"); (app && app.parentNode ? app.parentNode : document.body).insertBefore(f, app ? app.nextSibling : null);
     const d = document.createElement("dialog");
     d.className = "about"; d.id = "aboutDlg";
     d.innerHTML = `<div class="about-in">
-      <div class="brand">${CM.markHtml()}<div><h2>${A.name} <span class="muted small" style="font-weight:500;letter-spacing:.08em">${A.tagline.toUpperCase()}</span></h2><p class="muted small">${A.title} · الإصدار ${A.version} (${A.released})</p></div></div>
+      <div class="brand">${CM.markHtml()}<div><h2>${A.name} <span class="muted small" style="font-weight:500;letter-spacing:.08em">${A.tagline.toUpperCase()}</span></h2><p class="muted small">${A.title} · الإصدار ${A.version} (${A.released}) <span dir="ltr">${CM.BUILD}</span></p></div></div>
       <dl>
         <dt>الفكرة والتصميم والتطوير</dt><dd>${A.author}</dd>
         <dt>الجهة</dt><dd>${A.org}</dd>
@@ -858,3 +861,8 @@
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
   addEventListener("resize", () => { document.querySelectorAll(".fit-wide").forEach(b => b.classList.remove("fit-wide")); fit(); });
 })();
+
+// b147: أي قايمة مفتوحة (أدوات، حسابي…) بتتقفل لما تدوس برّاها
+document.addEventListener("click", ev => {
+  document.querySelectorAll("details.dd[open]").forEach(d => { if (!d.contains(ev.target)) d.removeAttribute("open"); });
+}, true);
