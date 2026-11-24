@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b160">
+<link rel="stylesheet" href="style.css?v=b161">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b160"></script>
-<script src="vendor/qrcode.js?v=b160"></script>
-<script src="config.js?v=b160"></script>
-<script src="common.js?v=b160"></script>
-<script src="drive.js?v=b160"></script>
-<script src="pack.js?v=b160"></script>
-<script src="catalog.js?v=b160"></script>
-<script src="voice.js?v=b160"></script>
-<script src="timetable.js?v=b160"></script>
-<script src="research.js?v=b160"></script>
+<script src="vendor/supabase.js?v=b161"></script>
+<script src="vendor/qrcode.js?v=b161"></script>
+<script src="config.js?v=b161"></script>
+<script src="common.js?v=b161"></script>
+<script src="drive.js?v=b161"></script>
+<script src="pack.js?v=b161"></script>
+<script src="catalog.js?v=b161"></script>
+<script src="voice.js?v=b161"></script>
+<script src="timetable.js?v=b161"></script>
+<script src="research.js?v=b161"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -640,7 +640,18 @@
     try { if (view !== "course" || ctab !== "tasks") { gbFull = false; document.documentElement.classList.remove("gb-lock"); } } catch (e) {}
     if (!$("#bellPop") || $("#bellPop").hidden) document.documentElement.classList.remove("bell-lock");
   }
+  // b161: شرح بملء الشاشة أول مرة يُفتح فيها كل قسم من أقسام المادة
+  const TAB_INTRO = {
+    live: [{ eb: "قسم جديد · المحاضرة", art: CM.illus("lecturer"), t: "ابدأ، واترك الباقي لـ Hadro", p: "اضغط «ابدأ المحاضرة» واعرض الرمز على شاشة القاعة. يسجّل الطلبة حضورهم من هواتفهم، وتتابع العدّاد وهو يرتفع.", tips: ["من لا يستطيع المسح تمسح أنت «بطاقة حضوره»", "الطلبات المعلّقة تعتمدها أو ترفضها من هنا"] }],
+    reg: [{ eb: "قسم جديد · الكشف", art: CM.mascot("tablet"), t: "الكشف بثلاث طرق", p: "على الهاتف: قائمة الطلبة بنسبهم، وملف كل طالب بسجل محاضراته، وكشف محاضرة واحدة بزر حاضر/غائب لكل طالب.", tips: ["اضغط اسم أي طالب لترى سجله", "«الجدول الكامل» ما زال متاحًا للتصدير والطباعة"] }],
+    students: [{ eb: "قسم جديد · الطلبة", art: CM.mascot("point"), t: "كل طلبتك في مكان واحد", p: "ارفع ملف الطلبة مرة واحدة، وابحث عن أي طالب بالاسم أو الكود، وأضف أو انقل طالبًا بين المجموعات." }],
+    report: [{ eb: "قسم جديد · التقرير", art: CM.illus("warning"), t: "الإنذارات في وقتها", p: "يتابع Hadro الغياب ويجهّز الإنذارات بالصياغة الرسمية، فتراجعها وتعتمدها قبل إبلاغ الطلبة." }],
+    tasks: [{ eb: "قسم جديد · التكليفات", art: CM.illus("submit"), t: "التكليفات والدرجات", p: "أنشئ تكليفًا يسلّمه الطلبة من صفحتهم، أو كشف رصد يدوي، ثم صحّح وارصد الدرجات وصدّرها للكنترول." }]
+  };
+  let tabIntroOn = false;
+  function tabIntro(k) { if (tabIntroOn || !TAB_INTRO[k] || CM.seen("st_" + k)) return; tabIntroOn = true; CM.intro("st_" + k, TAB_INTRO[k], { doneText: "فهمت" }).then(() => { tabIntroOn = false; }); }
   function showTab(k) {
+    tabIntro(k);
     ctab = k; store.set("cm_tab", k); closeFpop(); navMark(); unlockScroll();
     const cb = $("#cband"), c0 = course(); if (cb && c0) { cb.outerHTML = courseBand(c0); const nb = $("#cband"); if (nb) { nb.classList.add("swap"); } }
     document.querySelectorAll("[data-ct]").forEach(b => b.setAttribute("aria-selected", b.dataset.ct === k));
@@ -842,7 +853,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b160: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b161: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -943,7 +954,7 @@
     return `<article class="dh-card dh-feed"><div class="dh-h"><h2>آخر النشاط</h2>${l && l.length ? `<button type="button" class="btn sm ghost" data-tile="log">السجل كامل</button>` : ""}</div>
       ${l == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : l.length ? `<div class="dh-tl">${l.map(a => { const t = String(a.action || ""); return `<div class="dh-ev"><i class="c-${col(t)}"></i><span><span>${esc(t.length > 110 ? t.slice(0, 108) + "…" : t)}</span><small>${esc(staffName(a.actor) || a.actor || "")} · ${esc(ago(a.at))}</small></span></div>`; }).join("")}</div>` : `<div class="dh-empty">لا يوجد نشاط في المادة بعد.</div>`}</article>`;
   }
-  // b160: كارت «محاضرتك» الأسود: إجراء رئيسي واحد (ابدأ المحاضرة / افتح المحاضرة الجارية)
+  // b161: كارت «محاضرتك» الأسود: إجراء رئيسي واحد (ابدأ المحاضرة / افتح المحاضرة الجارية)
   function dhHero(c) {
     if (!c) return "";
     const has = D && D.cid === c.id, s = has ? running() : null;
@@ -1345,6 +1356,7 @@
     if (view === "admin") return renderAdmin();
     if (!c) return;
     renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit(); renderReport(); renderTasks(); drawResets();
+    if (view === "course") tabIntro(ctab);
   }
   const MAN_REASONS = ["لا يوجد إنترنت ولا GPS", "نفدت بطارية هاتفه", "هاتفه ليس معه", "مشكلة في حسابه", "حاضر وأراه بنفسي"];
   let kindPick = "hall";
@@ -1738,8 +1750,105 @@
   };
   let RGC = RGBASE;
   const RGG = { cols: null, st: () => rg, all: () => rgRows, redraw: () => renderRegister(), defSort: () => ({ col: "code", dir: 1 }) };
+  /* ===== b161: الكشف على الموبايل بثلاث طرق: قائمة الطلبة · ملف الطالب · كشف محاضرة ===== */
+  let rgm = { cid: null, mode: "stu", q: "", f: "all", stu: null, sid: null, chg: {}, sheet: false, reason: "", table: false, rm: null };
+  const isMob = () => matchMedia("(max-width: 760px)").matches;
+  const ST_TXT = { "ح": ["ok", "حاضر"], "ي": ["ok", "حاضر يدويًّا"], "ت": ["ok", "حضر تعويضيًّا"], "م": ["warn", "بانتظار الاعتماد"], "غ": ["bad", "غائب"], "إ": ["mu", "إجازة"], "…": ["mu", "لم تُحتسب بعد"], "—": ["mu", "ليست لمجموعته"] };
+  const lvChip = ab => { const l = CM.lvl(ab); return l ? `<span class="rgm-chip ${l >= 2 ? "bad" : "warn"}">${CM.WARN[l].t}</span>` : ""; };
+  function renderRegM(el) {
+    if (rgm.cid !== D.cid) rgm = { cid: D.cid, mode: "stu", q: "", f: "all", stu: null, sid: null, chg: {}, sheet: false, reason: "", table: false, rm: null };
+    const gs = groupsOf(), mng = canManage(course()), ss = D.sessions.slice().sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
+    const top = `<div class="rgm-top"><h2>كشف الحضور</h2><span class="muted small">${D.enroll.length} طالبًا · ${D.sessions.filter(x => !x.cancelled).length} محاضرة</span></div>
+      <div class="seg2" role="tablist"><button type="button" role="tab" data-rgm="stu" aria-selected="${rgm.mode === "stu"}">الطلبة</button><button type="button" role="tab" data-rgm="lec" aria-selected="${rgm.mode === "lec"}">كشف محاضرة</button></div>`;
+    const foot = `<div class="rgm-foot">${D.enroll.length ? CM.dd("تصدير الكشف", [`<button class="dd-i" id="exp">إكسل</button>`, `<button class="dd-i" id="expPdf">PDF للطباعة</button>`], { end: true }) : ""}<button type="button" class="btn sm ghost" id="rgmTbl">الجدول الكامل</button></div>`;
+    let body = "";
+    if (!D.enroll.length) body = CM.empty("لا يوجد طلبة في المادة بعد. ارفع ملف الطلبة من قسم «الطلبة».", "think");
+    else if (rgm.stu) body = stuView(D.enroll.find(e => e.student_code === rgm.stu), ss, mng);
+    else if (rgm.mode === "lec") body = lecView(ss, gs, mng);
+    else {
+      const q = normAr(rgm.q), warnN = D.enroll.filter(e => CM.lvl(absences(e)) > 0).length;
+      const list = D.enroll.filter(e => (!q || normAr(e.name).includes(q) || e.student_code.toLowerCase().includes(q)) && (rgm.f === "all" || (rgm.f === "warn" ? CM.lvl(absences(e)) > 0 : e.grp === rgm.f)))
+        .sort((a, b) => absences(b) - absences(a) || a.name.localeCompare(b.name, "ar"));
+      body = `<input type="search" class="rgm-q" id="rgmQ" placeholder="ابحث بالاسم أو الكود" value="${esc(rgm.q)}" autocomplete="off">
+        <div class="rgm-f">${[["all", "الكل " + D.enroll.length], ...(warnN ? [["warn", "عليهم إنذار " + warnN]] : []), ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button type="button" data-rgf="${esc(k)}" aria-pressed="${rgm.f === k}">${esc(t)}</button>`).join("")}</div>
+        <div class="rgm-list">${list.length ? list.map(e => { const a = attendance(e), ab = absences(e);
+          return `<button type="button" class="rgm-st" data-rgs="${esc(e.student_code)}"><span class="rgm-av">${esc((e.name || "؟").trim().charAt(0))}</span><span class="rgm-t"><b>${esc(e.name)}</b><small>${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""} · غاب ${ab}</small>${lvChip(ab) ? `<span>${lvChip(ab)}</span>` : ""}</span><span class="rgm-p${a.own && a.pct < 75 ? " low" : ""}">${a.own ? a.pct + "%" : "—"}<small>حضور</small></span></button>`; }).join("") : `<div class="empty">لا يوجد طلبة مطابقون.</div>`}</div>`;
+    }
+    el.innerHTML = top + msgHtml("reg") + body + foot;
+    wireRegM(el, ss);
+  }
+  function stuView(e, ss, mng) {
+    if (!e) { rgm.stu = null; return ""; }
+    const a = attendance(e), ab = absences(e);
+    const items = ss.filter(s => !s.cancelled || isOwn(s, e)).map(s => { const y = symOf(s, e), [k, t] = ST_TXT[y] || ["mu", y];
+      const act = mng && regDone(s) && isOwn(s, e) ? (y === "غ" ? `<button type="button" class="btn xs" data-rgmk="${s.id}">تحضير</button>` : (y === "ح" || y === "ي") ? `<button type="button" class="btn xs ghost${rgm.rm === s.id ? " danger" : ""}" data-rgmx="${s.id}">${rgm.rm === s.id ? "تأكيد الإلغاء" : "إلغاء"}</button>` : "") : "";
+      return `<div class="rgm-tl"><span class="rgm-dt"><b>${s.n}</b><small>${CM.fmtD(s.started_at)}</small></span><span class="rgm-tb"><span><b>المحاضرة ${s.n}</b>${s.grp ? `<small>مجموعة ${esc(s.grp)}</small>` : ""}</span><span class="rgm-chip ${k}">${t}</span>${act}</span></div>`; }).join("");
+    return `<div class="rgm-back"><button type="button" class="btn sm ghost" data-rgback>→ كل الطلبة</button></div>
+      <div class="rgm-prof"><span class="rgm-av lg">${esc((e.name || "؟").trim().charAt(0))}</span><h3>${esc(e.name)}</h3><div class="muted small">${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""} ${lvChip(ab)}</div></div>
+      <div class="hc2"><div class="hc2-c"><span>نسبة الحضور</span><b class="${a.own && a.pct < 75 ? "bad-t" : ""}">${a.own ? a.pct + "%" : "—"}</b></div><div class="hc2-c"><span>مرات الغياب</span><b>${ab}<small> من ${a.own}</small></b></div></div>
+      ${rgm.mark ? manSheet(1) : ""}
+      <h4 class="rgm-h">سجل المحاضرات <small class="muted">الأحدث أولًا</small></h4><div class="rgm-tls">${items || `<div class="empty">لا توجد محاضرات بعد.</div>`}</div>`;
+  }
+  function lecView(ss, gs, mng) {
+    const done = ss.filter(s => !s.cancelled); if (!done.length) return CM.empty("لم تبدأ أي محاضرة بعد.", "sleep");
+    if (!rgm.sid || !done.some(s => s.id === rgm.sid)) rgm.sid = done[0].id;
+    const s = done.find(x => x.id === rgm.sid), rows = D.enroll.filter(e => isOwn(s, e)), q = normAr(rgm.q);
+    const st = e => { const c = rgm.chg[e.student_code]; if (c) return c; const r = (D.att[s.id] || {})[e.student_code]; return !r ? "a" : r.status === "pending" ? "q" : "p"; };
+    const n = { p: 0, a: 0, q: 0 }; rows.forEach(e => n[st(e)]++);
+    const list = rows.filter(e => !q || normAr(e.name).includes(q) || e.student_code.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, "ar"));
+    const can = mng || (canRun(course()) && !regDone(s)), chg = Object.keys(rgm.chg).length;
+    return `<label class="rgm-sel"><span class="muted small">المحاضرة</span><select id="rgmS">${done.map(x => `<option value="${x.id}" ${x.id === s.id ? "selected" : ""}>المحاضرة ${x.n} · ${CM.fmtD(x.started_at)}${x.grp ? " · مجموعة " + esc(x.grp) : ""}${!regDone(x) ? " · جارية" : ""}</option>`).join("")}</select></label>
+      <div class="rgm-k"><div><b class="ok-t">${n.p}</b><small>حاضر</small></div><div><b class="bad-t">${n.a}</b><small>غائب</small></div><div><b class="warn-t">${n.q}</b><small>بانتظارك</small></div></div>
+      <input type="search" class="rgm-q" id="rgmQ" placeholder="ابحث في كشف هذه المحاضرة" value="${esc(rgm.q)}" autocomplete="off">
+      ${!can ? `<p class="muted small">تصحيح المحاضرات المنتهية لصاحب المادة والمحاضر المشارك.</p>` : ""}
+      <div class="rgm-list">${list.map(e => { const v = st(e), ch = !!rgm.chg[e.student_code];
+        return `<div class="rgm-row${ch ? " ch" : ""}"><span class="rgm-av sm">${esc((e.name || "؟").trim().charAt(0))}</span><span class="rgm-t"><b>${esc(e.name)}</b><small>${esc(e.student_code)}</small></span>
+          ${v === "q" && !ch ? `<span class="rgm-tg"><button type="button" class="p" data-rgap="${esc(e.student_code)}" ${can ? "" : "disabled"}>اعتماد</button><button type="button" data-rgrj="${esc(e.student_code)}" ${can ? "" : "disabled"}>رفض</button></span>`
+          : `<span class="rgm-tg" role="group" aria-label="حالة ${esc(e.name)}"><button type="button" class="${v === "p" ? "p" : ""}" data-rgt="${esc(e.student_code)}|p" aria-pressed="${v === "p"}" ${can ? "" : "disabled"}>حاضر</button><button type="button" class="${v === "a" ? "x" : ""}" data-rgt="${esc(e.student_code)}|a" aria-pressed="${v === "a"}" ${can ? "" : "disabled"}>غائب</button></span>`}</div>`; }).join("")}</div>
+      ${chg ? `<div class="rgm-save"><button type="button" class="btn primary block" id="rgmSave">حفظ التعديلات (${chg})</button><button type="button" class="btn ghost sm" id="rgmUndo">تراجع</button></div>` : ""}
+      ${rgm.sheet ? manSheet(0) : ""}`;
+  }
+  function manSheet(one) {
+    const adds = one ? 1 : Object.values(rgm.chg).filter(v => v === "p").length, rms = one ? 0 : Object.values(rgm.chg).filter(v => v === "a").length;
+    return `<div class="rgm-sheet" role="dialog" aria-modal="true"><div class="rgm-sp"><b>${adds ? "سبب التحضير اليدوي" : "تأكيد"}</b>
+      ${adds ? `<div class="rgm-qr">${MAN_REASONS.map(r => `<button type="button" class="btn xs ghost" data-rgr="${esc(r)}">${esc(r)}</button>`).join("")}</div><input type="text" id="rgmR" maxlength="200" placeholder="اكتب السبب (يظهر في سجل المادة)" value="${esc(rgm.reason)}">` : ""}
+      ${rms ? `<p class="small">سيُلغى حضور ${rms === 1 ? "طالب واحد" : rms + " طلبة"} في هذه المحاضرة.</p>` : ""}
+      <div class="row"><button type="button" class="btn primary" id="rgmGo">${one ? "تحضير" : "حفظ"}</button><button type="button" class="btn ghost" id="rgmNo">إلغاء</button></div></div></div>`;
+  }
+  function wireRegM(el, ss) {
+    const R = () => renderRegister();
+    el.querySelectorAll("[data-rgm]").forEach(b => b.onclick = () => { rgm.mode = b.dataset.rgm; rgm.stu = null; rgm.q = ""; R(); });
+    el.querySelectorAll("[data-rgf]").forEach(b => b.onclick = () => { rgm.f = b.dataset.rgf; R(); });
+    el.querySelectorAll("[data-rgs]").forEach(b => b.onclick = () => { rgm.stu = b.dataset.rgs; rgm.rm = null; rgm.mark = null; R(); window.scrollTo({ top: 0 }); });
+    const bk = el.querySelector("[data-rgback]"); if (bk) bk.onclick = () => { rgm.stu = null; rgm.mark = null; R(); };
+    const q = $("#rgmQ"); if (q) q.oninput = () => { rgm.q = q.value; const p = q.selectionStart; R(); const n = $("#rgmQ"); if (n) { n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} } };
+    const sl = $("#rgmS"); if (sl) sl.onchange = () => { rgm.sid = sl.value; rgm.chg = {}; R(); };
+    el.querySelectorAll("[data-rgt]").forEach(b => b.onclick = () => { const [code, v] = b.dataset.rgt.split("|"), r = (D.att[rgm.sid] || {})[code], cur = !r ? "a" : r.status === "pending" ? "q" : "p";
+      if (v === cur) delete rgm.chg[code]; else rgm.chg[code] = v; R(); });
+    el.querySelectorAll("[data-rgap]").forEach(b => b.onclick = () => act(() => rpc("approve_attendance", { sid: rgm.sid, code: b.dataset.rgap }), loadCourse));
+    el.querySelectorAll("[data-rgrj]").forEach(b => b.onclick = () => act(() => rpc("reject_attendance", { sid: rgm.sid, code: b.dataset.rgrj }), loadCourse));
+    const sv = $("#rgmSave"); if (sv) sv.onclick = () => { rgm.sheet = true; R(); const i = $("#rgmR"); if (i) i.focus(); };
+    const un = $("#rgmUndo"); if (un) un.onclick = () => { rgm.chg = {}; R(); };
+    el.querySelectorAll("[data-rgmk]").forEach(b => b.onclick = () => { rgm.mark = b.dataset.rgmk; R(); const i = $("#rgmR"); if (i) i.focus(); });
+    el.querySelectorAll("[data-rgmx]").forEach(b => b.onclick = () => { if (rgm.rm !== b.dataset.rgmx) { rgm.rm = b.dataset.rgmx; R(); return; } const sid = rgm.rm, code = rgm.stu; rgm.rm = null; act(() => rpc("cancel_attendance", { sid, code }), loadCourse); });
+    el.querySelectorAll("[data-rgr]").forEach(b => b.onclick = () => { rgm.reason = b.dataset.rgr; const i = $("#rgmR"); if (i) i.value = rgm.reason; });
+    const ri = $("#rgmR"); if (ri) ri.oninput = () => { rgm.reason = ri.value; };
+    const no = $("#rgmNo"); if (no) no.onclick = () => { rgm.sheet = false; rgm.mark = null; R(); };
+    const go = $("#rgmGo"); if (go) go.onclick = () => {
+      const reason = (rgm.reason || "").trim();
+      if (rgm.mark) { if (reason.length < 3) return showErr({ message: "reason_required" }); const sid = rgm.mark, code = rgm.stu; rgm.mark = null;
+        return act(() => rpc("mark_manual", { sid, code, p_reason: reason }), loadCourse); }
+      const adds = Object.keys(rgm.chg).filter(k => rgm.chg[k] === "p"), rms = Object.keys(rgm.chg).filter(k => rgm.chg[k] === "a");
+      if (adds.length && reason.length < 3) return showErr({ message: "reason_required" });
+      const sid = rgm.sid; rgm.sheet = false;
+      act(async () => { if (adds.length) await rpc("mark_manual_many", { sid, codes: adds, p_reason: reason }); for (const code of rms) await rpc("cancel_attendance", { sid, code }); rgm.chg = {}; say("reg", "حُفظت التعديلات."); }, loadCourse);
+    };
+    const tb = $("#rgmTbl"); if (tb) tb.onclick = () => { rgm.table = true; R(); };
+    const ex1 = $("#exp"); if (ex1) ex1.onclick = () => exportXlsx(false); const ex2 = $("#expPdf"); if (ex2) ex2.onclick = () => exportXlsx(true);
+  }
   function _renderRegister() {
     const el = $("#regPanel"), gs = groupsOf(), mng = canManage(course());
+    if (isMob() && !rgm.table && D && D.enroll) return renderRegM(el);
     const ae = document.activeElement, keepQ = ae && ae.id === "rgQ", selA = keepQ ? ae.selectionStart : 0, selB = keepQ ? ae.selectionEnd : 0;
     if (regGroup !== "all" && !gs.includes(regGroup)) regGroup = "all";
     if (rg.cid !== D.cid) rg = { cid: D.cid, q: "", sort: null, f: {} };
@@ -1754,7 +1863,7 @@
     const rh = (k, extra) => { const C = RGC[k], srt = sort.col === k, flt = !!rg.f[k];
       return `<button class="fh ${(srt && rg.sort) || flt ? "on" : ""}" data-rcol="${k}" aria-haspopup="true" title="ترتيب وتصفية">${extra || C.t}<span class="fh-i">${srt ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button>`; };
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[CM.lvl(absences(e))]++);
-    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.sessions.filter(s => !s.cancelled).length} محاضرة${D.sessions.some(s => s.cancelled) ? ` · ${D.sessions.filter(s => s.cancelled).length} إجازة` : ""} · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
+    el.innerHTML = (isMob() ? `<div class="rgm-back"><button type="button" class="btn sm ghost" id="rgmBack">→ العرض المبسّط</button></div>` : "") + `<div class="panel-h"><div><div class="eyebrow">${D.sessions.filter(s => !s.cancelled).length} محاضرة${D.sessions.some(s => s.cancelled) ? ` · ${D.sessions.filter(s => s.cancelled).length} إجازة` : ""} · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
       <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}${D.enroll.length ? CM.dd("تصدير الكشف", [`<button class="dd-i" id="exp">إكسل</button>`, `<button class="dd-i" id="expPdf">PDF للطباعة</button>`], { end: true }) : ""}</div></div>
       ${msgHtml("reg")}
       ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات سبقت البرنامج؟</span><button class="btn sm ghost" id="tplBtn">تنزيل ملف التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات سابقة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden><button class="btn sm ghost" id="offAdd">إضافة يوم إجازة</button></div>` : ""}
@@ -1772,6 +1881,7 @@
       <p class="muted small">ح حاضر · ي يدوي · ت تعويض مع مجموعة أخرى · م معلّق · غ غائب · إ إجازة أو محاضرة ملغاة (لا تُحتسب في الغياب) · النقطة تعني أن المحاضرة ليست لمجموعته.${mng ? " لتعديل تاريخ محاضرة أو تعليمها إجازة، اضغط تاريخها بالأعلى." : ""}${mng ? " إذا أنشأت محاضرة بالخطأ، فاضغط «حذف» أسفل رقمها. ولتحضير طالب في محاضرة سابقة غاب عنها، اضغط «غ» في خانتها أو زر «تحضير» بجوار اسمه." : ""} يُحتسب الغياب فور إغلاق التسجيل في المحاضرة، وإذا سُجِّل الطالب بعد ذلك يدويًّا أو بمسح بطاقته أُلغي الغياب. ويُلغي كل حضور تعويضي غيابًا واحدًا. الغياب مرتين إنذار أول، و3 مرات إنذار ثانٍ، و4 مرات إنذار ثالث ونهائي، و5 مرات انسحاب إجباري.</p>`
       : `<div class="empty">سيمتلئ الكشف بمجرد بدء المحاضرات.</div>`}`;
     el.querySelectorAll("[data-rg]").forEach(b => b.onclick = () => { regGroup = b.dataset.rg; renderRegister(); });
+    const rb = $("#rgmBack"); if (rb) rb.onclick = () => { rgm.table = false; renderRegister(); };
     el.querySelectorAll("[data-rcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === "r:" + b.dataset.rcol ? closeFpop() : openFpop(b, RGG, "r:"); });
     const rq = $("#rgQ"); if (rq) { rq.oninput = () => { rg.q = rq.value; renderRegister(); }; if (keepQ) { rq.focus(); try { rq.setSelectionRange(selA, selB); } catch (e) {} } }
     const rc = $("#rgClear"); if (rc) rc.onclick = () => { rg.q = ""; rg.sort = null; rg.f = {}; closeFpop(); renderRegister(); };
