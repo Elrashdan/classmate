@@ -3090,3 +3090,6 @@ html.hd-lock,html.hd-lock body{overflow:hidden}
 .hdc-box b{font-size:27px}
 .hd-empty .hd-m{width:min(66vw,260px)}
 @media (min-width:900px){ .hd-welcome .hw-art{width:min(360px,calc(100dvh - 420px))} }
+/* b154: روابط «تفاصيل أكثر» و«غيّرت هاتفك؟» واضحة في الوضعين */
+details.more>summary{color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:4px;text-decoration-color:color-mix(in srgb,var(--ink) 35%,transparent)}
+html[data-skin="nx"] details.more>summary{color:var(--ink)}
