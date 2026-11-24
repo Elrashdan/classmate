@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b145">
+<link rel="stylesheet" href="style.css?v=b146">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b145"></script>
-<script src="vendor/qrcode.js?v=b145"></script>
-<script src="config.js?v=b145"></script>
-<script src="common.js?v=b145"></script>
-<script src="drive.js?v=b145"></script>
-<script src="pack.js?v=b145"></script>
-<script src="catalog.js?v=b145"></script>
-<script src="voice.js?v=b145"></script>
-<script src="timetable.js?v=b145"></script>
-<script src="research.js?v=b145"></script>
+<script src="vendor/supabase.js?v=b146"></script>
+<script src="vendor/qrcode.js?v=b146"></script>
+<script src="config.js?v=b146"></script>
+<script src="common.js?v=b146"></script>
+<script src="drive.js?v=b146"></script>
+<script src="pack.js?v=b146"></script>
+<script src="catalog.js?v=b146"></script>
+<script src="voice.js?v=b146"></script>
+<script src="timetable.js?v=b146"></script>
+<script src="research.js?v=b146"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -834,7 +834,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b145: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b146: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -4636,7 +4636,7 @@
           <div class="tpw-v mono" dir="ltr">${esc(tmpPw.password)}</div>
           <p class="small muted">أرسلها إليه مع رابط صفحة المحاضرين. يدخل ببريده <span class="mono" dir="ltr">${esc(tmpPw.email)}</span> وبها، ثم يطلب منه الموقع اختيار كلمة سر جديدة فورًا. ولا يحتاج إلى أي رسالة على البريد.</p></div>
           <div class="row" style="gap:8px"><button class="btn sm primary" id="tpwShare">إرسال الرسالة</button><button class="btn sm" id="tpwCopy">نسخ</button><button class="btn sm ghost" id="tpwClose">تم</button></div></div>` : ""}
-        <div class="tbl-wrap"><table><thead><tr><th>الاسم</th><th>البريد الإلكتروني</th><th>الدور</th><th>المواد</th><th>الحالة</th><th></th></tr></thead><tbody>
+        <div class="tbl-wrap staff-wrap"><table class="staff-tbl"><thead><tr><th>الاسم</th><th>البريد الإلكتروني</th><th>الدور</th><th>المواد</th><th>الحالة</th><th></th></tr></thead><tbody>
         ${staff.map(u => { const live = id => (courses.find(c => c.id === id) || { archived: true }).archived === false;
           const o = courses.filter(c => c.owner_email === u.email && !c.no_owner && !c.archived).length, co = tasAll.filter(x => x.email === u.email && x.kind === "co" && live(x.course_id)).length, t = tasAll.filter(x => x.email === u.email && x.kind !== "co" && live(x.course_id)).length;
           const parts = [o && `صاحب ${o} ${o === 1 ? "مادة" : "مواد"}`, co && `محاضر مشارك في ${co}`, t && `معيد في ${t}`].filter(Boolean);
