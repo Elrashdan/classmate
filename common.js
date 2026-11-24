@@ -247,7 +247,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b162)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b163)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -352,7 +352,9 @@
       const vh = innerHeight;
       document.querySelectorAll(SEL).forEach(el => {
         if (el.dataset.nxr || el.closest(".bell-pop, .ap-dlg, #overlay, .cpk-pop, .gb-box.full")) return; el.dataset.nxr = "1";
-        const r = el.getBoundingClientRect(); if (r.top < vh * .92 && r.bottom > 0) return;     // الظاهر أصلًا ما يتحركش
+        const r = el.getBoundingClientRect(); if (!r.width || !r.height) { delete el.dataset.nxr; return; }   // مخفي (قسم مقفول): نستناه يظهر
+        if (r.top < vh * .92 && r.bottom > 0) return;     // الظاهر أصلًا ما يتحركش
+        setTimeout(() => { if (el.classList.contains("nx-r") && !el.classList.contains("nx-in")) el.classList.remove("nx-r"); }, 2500);   // أمان: عمره ما يفضل مخفي
         const sib = el.parentElement ? [...el.parentElement.children].indexOf(el) % 4 : 0; el.style.setProperty("--nxd", (sib * .07) + "s");
         el.classList.add("nx-r"); if (io) io.observe(el); else el.classList.add("nx-in");
       });
@@ -926,7 +928,7 @@ document.addEventListener("click", ev => {
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
 })();
 
-/* ===== «حاضر» والرسومات المتحركة (b162) =====
+/* ===== «حاضر» والرسومات المتحركة (b163) =====
    الروبوت: WebM شفاف لكروم وفايرفوكس وإيدج، وWebP متحرك لسفاري وكل متصفحات الآيفون (لأنها تتجاهل شفافية WebM).
    الرسومات: MP4 بخلفية بيضاء داخل كارت أبيض. ومن فعّل «تقليل الحركة» أو «توفير البيانات» يرى صورة ثابتة. */
 (function () {
@@ -1016,4 +1018,22 @@ document.addEventListener("click", ev => {
   };
   // حالة فارغة أو خطأ ودّية
   CM.empty = (text, art, extra) => `<div class="empty hd-empty">${CM.mascot(art || "sleep")}<p>${text}</p>${extra || ""}</div>`;
+})();
+
+/* ===== b163: الجداول على الموبايل تتحول لكروت (كل صف كارت، وكل خانة بعنوانها) ===== */
+(function () {
+  const mq = matchMedia("(max-width: 760px)");
+  const lab = t => {
+    const n = String(t.rows.length) + ":" + t.querySelectorAll("td").length; if (t.dataset.cardOk === n) return;
+    const hr = t.tHead && t.tHead.rows.length ? t.tHead.rows[t.tHead.rows.length - 1] : null; if (!hr) return;
+    const names = []; [...hr.cells].forEach(th => { const txt = (th.textContent || "").replace(/[▲▼⏷▾]/g, "").replace(/\s+/g, " ").trim(); for (let i = 0; i < (th.colSpan || 1); i++) names.push(txt); });
+    [...t.tBodies].forEach(tb => [...tb.rows].forEach(r => { let i = 0; [...r.cells].forEach(td => { if (!td.hasAttribute("data-th")) td.setAttribute("data-th", (td.colSpan > 2 ? "" : names[i]) || ""); i += td.colSpan || 1; }); }));
+    t.classList.add("cardify"); t.dataset.cardOk = n;
+  };
+  let q = 0;
+  const run = () => { q = 0; if (!mq.matches) return; document.querySelectorAll(".tabpane table:not(.regt):not(.staff-tbl), #adminArea table:not(.staff-tbl), #courseWrap table:not(.regt):not(.staff-tbl)").forEach(lab); };
+  const kick = () => { if (!q) q = requestAnimationFrame(run); };
+  const start = () => { run(); new MutationObserver(kick).observe(document.body, { childList: true, subtree: true }); };
+  mq.addEventListener ? mq.addEventListener("change", kick) : mq.addListener(kick);
+  if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
 })();

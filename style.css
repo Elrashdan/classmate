@@ -3364,3 +3364,28 @@ html[data-skin="nx"] .board .btn.primary{ background: var(--nx-hi) !important; c
   #livePanel .stats b{ font-size: 1.3rem !important; }
   #livePanel .stats span, #livePanel .stats small{ font-size: .68rem !important; line-height: 1.25; display: block; }
 }
+
+/* ===================== b163: الجداول ← كروت على الموبايل ===================== */
+@media (max-width: 760px){
+  .tbl-wrap:has(> table.cardify){ max-height: none !important; overflow: visible !important; border: 0 !important; background: none !important; box-shadow: none !important; padding: 0 !important; }
+  table.cardify, table.cardify > tbody{ display: block !important; width: 100% !important; min-width: 0 !important; }
+  table.cardify > thead{ display: none !important; }
+  table.cardify > tbody > tr{ display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px 14px; padding: 12px 14px; margin: 0 0 8px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+  table.cardify > tbody > tr > td{ display: flex !important; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0 !important; border: 0 !important; text-align: start !important; min-width: 0 !important; width: auto !important; height: auto !important; background: none !important; position: static !important; box-shadow: none !important; white-space: normal !important; font-size: 14px; }
+  table.cardify > tbody > tr > td::before{ content: attr(data-th); font: 500 11.5px var(--f-body); color: var(--muted); }
+  table.cardify > tbody > tr > td[data-th=""]::before{ display: none; }
+  table.cardify > tbody > tr > td:is([data-th="الاسم"], [data-th="الطالب"], [data-th="المادة"], [data-th="المحاضرة"], [data-th="التكليف"], [data-th="العضو"], [data-th="الحدث"], [data-th=""]){ grid-column: 1 / -1; }
+  table.cardify > tbody > tr > td:is([data-th="الاسم"], [data-th="الطالب"], [data-th="المادة"]){ font: 600 15px var(--f-display); }
+  table.cardify > tbody > tr > td[data-th=""]{ flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  table.cardify > tbody > tr > td.cb{ grid-column: auto; }
+  table.cardify > tbody > tr > td input:not([type=checkbox]):not([type=radio]){ width: 100%; }
+  table.cardify > tbody > tr:has(> td[colspan]){ display: block !important; }
+}
+.rs-more{display:none}
+@media (max-width: 760px){
+  .rs-more{display:inline-flex}
+  .rs-acts{display:none !important}
+  .rs-acts.on{display:flex !important; flex-wrap:wrap !important; gap:6px; width:100%; margin-top:6px}
+  table.cardify > tbody > tr > td:is([data-th="#"], [data-th="م"]){ display: none !important; }
+  #rsTbl.cardify > tbody > tr > td.mono{ order: -1; color: var(--muted); font-size: 12.5px; }
+}

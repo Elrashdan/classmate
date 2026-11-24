@@ -19,7 +19,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b162">
+<link rel="stylesheet" href="style.css?v=b163">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -45,16 +45,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b162"></script>
-<script src="vendor/qrcode.js?v=b162"></script>
-<script src="config.js?v=b162"></script>
-<script src="common.js?v=b162"></script>
-<script src="drive.js?v=b162"></script>
-<script src="pack.js?v=b162"></script>
-<script src="catalog.js?v=b162"></script>
-<script src="voice.js?v=b162"></script>
-<script src="timetable.js?v=b162"></script>
-<script src="research.js?v=b162"></script>
+<script src="vendor/supabase.js?v=b163"></script>
+<script src="vendor/qrcode.js?v=b163"></script>
+<script src="config.js?v=b163"></script>
+<script src="common.js?v=b163"></script>
+<script src="drive.js?v=b163"></script>
+<script src="pack.js?v=b163"></script>
+<script src="catalog.js?v=b163"></script>
+<script src="voice.js?v=b163"></script>
+<script src="timetable.js?v=b163"></script>
+<script src="research.js?v=b163"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -640,7 +640,7 @@
     try { if (view !== "course" || ctab !== "tasks") { gbFull = false; document.documentElement.classList.remove("gb-lock"); } } catch (e) {}
     if (!$("#bellPop") || $("#bellPop").hidden) document.documentElement.classList.remove("bell-lock");
   }
-  // b162: شرح بملء الشاشة أول مرة يُفتح فيها كل قسم من أقسام المادة
+  // b163: شرح بملء الشاشة أول مرة يُفتح فيها كل قسم من أقسام المادة
   const TAB_INTRO = {
     live: [{ eb: "قسم جديد · المحاضرة", art: CM.illus("lecturer"), t: "ابدأ، واترك الباقي لـ Hadro", p: "اضغط «ابدأ المحاضرة» واعرض الرمز على شاشة القاعة. يسجّل الطلبة حضورهم من هواتفهم، وتتابع العدّاد وهو يرتفع.", tips: ["من لا يستطيع المسح تمسح أنت «بطاقة حضوره»", "الطلبات المعلّقة تعتمدها أو ترفضها من هنا"] }],
     reg: [{ eb: "قسم جديد · الكشف", art: CM.mascot("tablet"), t: "الكشف بثلاث طرق", p: "على الهاتف: قائمة الطلبة بنسبهم، وملف كل طالب بسجل محاضراته، وكشف محاضرة واحدة بزر حاضر/غائب لكل طالب.", tips: ["اضغط اسم أي طالب لترى سجله", "«الجدول الكامل» ما زال متاحًا للتصدير والطباعة"] }],
@@ -853,7 +853,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b162: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b163: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -954,7 +954,7 @@
     return `<article class="dh-card dh-feed"><div class="dh-h"><h2>آخر النشاط</h2>${l && l.length ? `<button type="button" class="btn sm ghost" data-tile="log">السجل كامل</button>` : ""}</div>
       ${l == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : l.length ? `<div class="dh-tl">${l.map(a => { const t = String(a.action || ""); return `<div class="dh-ev"><i class="c-${col(t)}"></i><span><span>${esc(t.length > 110 ? t.slice(0, 108) + "…" : t)}</span><small>${esc(staffName(a.actor) || a.actor || "")} · ${esc(ago(a.at))}</small></span></div>`; }).join("")}</div>` : `<div class="dh-empty">لا يوجد نشاط في المادة بعد.</div>`}</article>`;
   }
-  // b162: كارت «محاضرتك» الأسود: إجراء رئيسي واحد (ابدأ المحاضرة / افتح المحاضرة الجارية)
+  // b163: كارت «محاضرتك» الأسود: إجراء رئيسي واحد (ابدأ المحاضرة / افتح المحاضرة الجارية)
   function dhHero(c) {
     if (!c) return "";
     const has = D && D.cid === c.id, s = has ? running() : null;
@@ -1750,7 +1750,7 @@
   };
   let RGC = RGBASE;
   const RGG = { cols: null, st: () => rg, all: () => rgRows, redraw: () => renderRegister(), defSort: () => ({ col: "code", dir: 1 }) };
-  /* ===== b162: الكشف على الموبايل بثلاث طرق: قائمة الطلبة · ملف الطالب · كشف محاضرة ===== */
+  /* ===== b163: الكشف على الموبايل بثلاث طرق: قائمة الطلبة · ملف الطالب · كشف محاضرة ===== */
   let rgm = { cid: null, mode: "stu", q: "", f: "all", stu: null, sid: null, chg: {}, sheet: false, reason: "", table: false, rm: null };
   const isMob = () => matchMedia("(max-width: 760px)").matches;
   const ST_TXT = { "ح": ["ok", "حاضر"], "ي": ["ok", "حاضر يدويًّا"], "ت": ["ok", "حضر تعويضيًّا"], "م": ["warn", "بانتظار الاعتماد"], "غ": ["bad", "غائب"], "إ": ["mu", "إجازة"], "…": ["mu", "لم تُحتسب بعد"], "—": ["mu", "ليست لمجموعته"] };
@@ -4517,7 +4517,7 @@
       ${rows.length ? rows.map(e => { const b = D.bindings[e.student_code] || {}; return `<tr><td class="mono">${esc(e.student_code)}</td><td class="nm"><div class="nm-c"><span class="nm-t" title="${esc(e.name)}">${esc(e.name)}</span>${e.source === "form" ? `<span class="nm-tags"><span class="chip warn small" title="أضاف نفسه من استمارة التسجيل الأكاديمي${e.added_at ? " يوم " + esc(CM.fmtD(e.added_at)) : ""}، ولم يرد في ملف الطلبة الذي رفعته. راجِعه، وأزِله إن لم يكن من طلبة المادة.">بالاستمارة</span></span>` : ""}</div></td>${ms ? `<td style="white-space:nowrap">${nowCell(e)}</td>` : ""}
         <td>${mng ? `<select data-grp="${esc(e.student_code)}" style="width:auto;padding:3px 6px">${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${esc(g) || "—"}</option>`).join("")}</select>` : esc(e.grp || "—")}</td>
         <td>${b.device_bound ? `<span class="chip ok"${b.device_label ? ` title="${esc(b.device_label)}"` : ""}>مرتبط بهاتف</span>${b.moved_at && Date.now() - new Date(b.moved_at) < 30 * 864e5 ? `<div class="small muted">نقل حسابه بنفسه ${esc(CM.fmtD(b.moved_at))}</div>` : ""}` : b.registered ? `<span class="chip warn">بانتظار ربط هاتف</span>` : `<span class="chip none">لم ينشئ حسابًا</span>`}</td>
-        ${mng ? `<td><div class="row" style="flex-wrap:nowrap">${D.locked && D.locked.has(e.student_code) ? `<button class="btn sm" data-unl="${esc(e.student_code)}" title="الحساب مقفل بسبب محاولات دخول خاطئة كثيرة">فك القفل</button>` : ""}${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الهاتف"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "حذف الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "إزالة من المادة"}</button></div></td>` : ""}</tr>
+        ${mng ? `<td><button type="button" class="btn sm ghost rs-more" data-rsmore aria-expanded="${String(confirmKey || "").endsWith(":" + e.student_code)}">إدارة الحساب ⌄</button><div class="row rs-acts${String(confirmKey || "").endsWith(":" + e.student_code) ? " on" : ""}" style="flex-wrap:nowrap">${D.locked && D.locked.has(e.student_code) ? `<button class="btn sm" data-unl="${esc(e.student_code)}" title="الحساب مقفل بسبب محاولات دخول خاطئة كثيرة">فك القفل</button>` : ""}${b.device_bound ? `<button class="btn sm ghost" data-dev="${esc(e.student_code)}">${confirmKey === "dev:" + e.student_code ? "متأكد؟" : "فك ربط الهاتف"}</button>` : ""}${b.registered ? `<button class="btn sm ghost danger" data-acc="${esc(e.student_code)}">${confirmKey === "acc:" + e.student_code ? "متأكد؟" : "حذف الحساب"}</button>` : ""}<button class="btn sm ghost danger" data-rmst="${esc(e.student_code)}">${confirmKey === "rmst:" + e.student_code ? "متأكد؟" : "إزالة من المادة"}</button></div></td>` : ""}</tr>
         ${ms && rosterMan === e.student_code ? `<tr class="manrow"><td colspan="${ncol}">${manBoxHtml([e.student_code], "rsm")}<span class="small muted">اضغط أحد الأسباب ليُسجَّل الحضور مباشرة، أو اكتب سببًا واضغط «تسجيله حاضرًا».</span></td></tr>` : ""}`; }).join("")
         : `<tr><td colspan="${ncol}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
       </tbody>`;
@@ -4526,6 +4526,7 @@
     const rc = $("#rsClear"); if (rc) rc.hidden = !busy;
     tb.querySelectorAll("[data-fcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === b.dataset.fcol ? closeFpop() : openFpop(b, RG, ""); });
     const again = () => { renderRosterTable(); };
+    tb.querySelectorAll("[data-rsmore]").forEach(b => b.onclick = () => { const x = b.nextElementSibling; const on = !x.classList.contains("on"); x.classList.toggle("on", on); b.setAttribute("aria-expanded", on); });
     if (ms) {
       const afterMark = async () => { await refreshLive(); keepScroll("#rosterPanel", renderRosterTable); };
       tb.querySelectorAll("[data-rman]").forEach(b => b.onclick = () => { rosterMan = rosterMan === b.dataset.rman ? null : b.dataset.rman; manDraft = ""; keepScroll("#rosterPanel", renderRosterTable); const i = $("#rsmReason"); if (i) { i.focus({ preventScroll: true }); } });
