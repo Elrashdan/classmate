@@ -86,7 +86,7 @@
         ${X.mode === "day" ? `<div class="tt-days">${tt.days.map(d => `<button class="cchip" aria-pressed="${X.day === d}" data-ttd="${d}">${DAY[d]}</button>`).join("")}</div>` : ""}
         ${X.mode !== "load" ? `<label class="tt-who"><span class="small muted">إبراز:</span><select id="ttWho"><option value="">كل الفريق</option>${people.map(p => `<option value="${esc(p.k + "|" + p.n)}" ${X.who === p.k + "|" + p.n ? "selected" : ""}>${esc(p.n)} (${p.periods} فترة)</option>`).join("")}</select></label>` : ""}
       </div>
-      ${nCf ? `<div class="msg warn small">⚠ في ${nCf} مادة فيها تعارض (نفس الشخص أو نفس المكان في نفس الوقت). المواد المتعارضة عليها إطار أحمر، ودوس عليها تشوف التفاصيل.</div>` : ""}
+      ${nCf ? `<div class="msg warn small">⚠ في ${nCf} مادة فيها تعارض (الشخص نفسه أو المكان نفسه في الوقت نفسه). المواد المتعارضة عليها إطار أحمر، واضغطها لعرض التفاصيل.</div>` : ""}
       ${!C.cohorts.length ? `<div class="empty">ابدأ بإضافة الفرق والشعب. ${admin ? `<button class="btn sm primary" id="ttAddC2">إضافة فرقة</button>` : ""}</div>`
         : X.mode === "day" ? dayGrid(cf) : X.mode === "week" ? weekGrid(cf) : loadHtml(people)}
       <p class="small muted tt-legend">${tt.periods.map((p, i) => `الفترة ${PN[i]}: ${rng(p.from, p.to)}`).join(" · ")}</p>
@@ -133,10 +133,10 @@
       <tbody>${X.cur.cohorts.map(c => `<tr>${cohortTh(c)}${tt.days.map(d => `<td>${dayCell(c, d, cf, true)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   }
   function loadHtml(people) {
-    if (!people.length) return `<div class="empty">لسه مفيش فريق متوزّع على المواد.</div>`;
+    if (!people.length) return `<div class="empty">لم يُوزَّع فريق على المواد بعد.</div>`;
     const tt = X.cur.tt;
     return `<div class="tbl-wrap"><table class="tt-load"><thead><tr><th>الاسم</th><th class="c">فترات في الأسبوع</th>${tt.days.map(d => `<th>${DAY[d]}</th>`).join("")}</tr></thead><tbody>
-      ${people.map(p => `<tr><td><b>${esc(p.n)}</b>${p.e ? "" : ` <span class="chip none small" title="مش مربوط بحساب في Hadro">خارجي</span>`}</td><td class="c"><b>${ar(p.periods)}</b></td>${tt.days.map(d => { const ss = p.slots.filter(s => s.day === d).sort((a, b) => a.p_from - b.p_from); return `<td class="small">${ss.map(s => `<div>${esc(s.title)} <span class="muted">(${pTime(tt, s.p_from, s.p_to)})</span></div>`).join("") || `<span class="muted">—</span>`}</td>`; }).join("")}</tr>`).join("")}
+      ${people.map(p => `<tr><td><b>${esc(p.n)}</b>${p.e ? "" : ` <span class="chip none small" title="غير مرتبط بحساب في Hadro">خارجي</span>`}</td><td class="c"><b>${ar(p.periods)}</b></td>${tt.days.map(d => { const ss = p.slots.filter(s => s.day === d).sort((a, b) => a.p_from - b.p_from); return `<td class="small">${ss.map(s => `<div>${esc(s.title)} <span class="muted">(${pTime(tt, s.p_from, s.p_to)})</span></div>`).join("") || `<span class="muted">—</span>`}</td>`; }).join("")}</tr>`).join("")}
     </tbody></table></div>`;
   }
 
@@ -148,9 +148,9 @@
       <div class="split-f">
         <label class="f"><span>العام الجامعي</span><select id="tnY">${years.map(a => `<option ${a === `${start}/${start + 1}` ? "selected" : ""}>${a}</option>`).join("")}</select></label>
         <label class="f"><span>الفصل</span><select id="tnT"><option value="1">الأول</option><option value="2" ${m >= 2 && m < 7 ? "selected" : ""}>الثاني</option><option value="3">الصيفي</option></select></label>
-        ${X.list.length ? `<label class="f"><span>ابدأ من</span><select id="tnC"><option value="">الفرق من مواد الفصل (فاضي)</option>${X.list.map(x => `<option value="${x.id}">نسخة من ${esc(x.academic_year)} · ${TERMS[x.term]}</option>`).join("")}</select></label>` : ""}
+        ${X.list.length ? `<label class="f"><span>ابدأ من</span><select id="tnC"><option value="">الفرق من مواد الفصل (فارغ)</option>${X.list.map(x => `<option value="${x.id}">نسخة من ${esc(x.academic_year)} · ${TERMS[x.term]}</option>`).join("")}</select></label>` : ""}
       </div>
-      <p class="small muted">الفرق والشعب وعدد الطلبة ومجموعاتهم بتتعمل لوحدها من مواد الفصل المسجّلة في Hadro، وتقدر تعدّلها.</p>
+      <p class="small muted">تُنشأ الفرق والشعب وعدد الطلبة ومجموعاتهم تلقائيًّا من مواد الفصل المسجّلة في Hadro، ويمكنك تعديلها.</p>
       <div class="row"><button class="btn primary" id="tnGo">إنشاء الجدول</button>${X.cur ? `<button class="btn ghost" id="tnX">إلغاء</button>` : ""}</div></div>`;
   }
   function settingsHtml() {
@@ -191,7 +191,7 @@
       <div class="hc-b tt-ed">
         ${issues.length ? `<div class="msg warn small">⚠ تعارض: ${issues.map(esc).join(" · ")}</div>` : ""}
         <label class="f"><span>المادة</span><select id="tseC"><option value="">— مادة غير مسجلة في Hadro (اكتب اسمها) —</option>${crs.map(x => `<option value="${x.id}" ${e.course_id === x.id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select></label>
-        ${!e.course_id ? `<label class="f"><span>اسم المادة</span><input id="tseT" value="${esc(e.title)}" placeholder="مثلًا: تصميم ٣"></label>` : `<p class="small muted">المادة مربوطة بـ Hadro، فهتظهر في جدول كل طالب مسجّل فيها بفريق مجموعته ومكانها.</p>`}
+        ${!e.course_id ? `<label class="f"><span>اسم المادة</span><input id="tseT" value="${esc(e.title)}" placeholder="مثلًا: تصميم ٣"></label>` : `<p class="small muted">المادة مرتبطة بـ Hadro، لذلك تظهر في جدول كل طالب مسجّل فيها مع فريق مجموعته ومكانها.</p>`}
         <div class="f"><span>اليوم</span><div class="cchips">${tt.days.map(d => `<button type="button" class="cchip" aria-pressed="${e.day === d}" data-sed="${d}" ${(c.off_days || []).includes(d) ? "disabled title='إجازة الفرقة'" : ""}>${DAY[d]}</button>`).join("")}</div></div>
         <div class="split-f">
           <label class="f"><span>من الفترة</span><select id="tseA">${tt.periods.map((p, i) => `<option value="${i + 1}" ${e.p_from === i + 1 ? "selected" : ""}>${PN[i]} (${t12(p.from)})</option>`).join("")}</select></label>
@@ -204,9 +204,9 @@
         <datalist id="ttStaffDL">${X.ctx.staff.filter(s => s.status !== "suspended").map(s => `<option value="${esc(TT.shortName(s, X.ctx.staff))}">${esc(s.name)}</option>`).join("")}</datalist>
         <div class="tt-team-ed">${rows.map((t, i) => `<div class="tt-grow">
           <div class="tt-gh">${e.same ? "كل المجموعات" : `مجموعة ${esc(gName(t.g))}`}${!e.same ? `<select data-ser="${esc(t.g)}" aria-label="مكان المجموعة">${roomOpts(t.room, true)}</select>` : ""}</div>
-          <div class="tt-chips">${t.staff.map((p, j) => `<span class="tt-p ${p.k}">${esc(p.n)}${p.e ? "" : ` <i title="مش مربوط بحساب">•</i>`}<button type="button" data-sex="${esc(t.g)}|${j}" aria-label="إزالة ${esc(p.n)}">✕</button></span>`).join("")}
+          <div class="tt-chips">${t.staff.map((p, j) => `<span class="tt-p ${p.k}">${esc(p.n)}${p.e ? "" : ` <i title="غير مرتبط بحساب">•</i>`}<button type="button" data-sex="${esc(t.g)}|${j}" aria-label="إزالة ${esc(p.n)}">✕</button></span>`).join("")}
             <span class="tt-addp"><input list="ttStaffDL" data-sea="${esc(t.g)}" placeholder="+ اسم (د. أو م.)" aria-label="إضافة عضو للفريق"></span></div>
-          ${!e.same && i === 0 && rows.length > 1 ? `<button type="button" class="linkish small" id="tseCopy">انسخ فريق ومكان المجموعة دي لكل المجموعات</button>` : ""}
+          ${!e.same && i === 0 && rows.length > 1 ? `<button type="button" class="linkish small" id="tseCopy">انسخ فريق هذه المجموعة ومكانها لكل المجموعات</button>` : ""}
         </div>`).join("")}</div>
         <label class="f"><span>ملاحظة (اختياري)</span><input id="tseN" value="${esc(e.note || "")}" maxlength="200"></label>
         <div class="row"><button class="btn primary" id="tseGo" ${X.busy ? "disabled" : ""}>${X.busy ? "جارٍ الحفظ…" : "حفظ"}</button>${e.id ? `<button class="btn ghost danger-t" id="tseDel">حذف من الجدول</button>` : ""}</div>
@@ -220,16 +220,16 @@
     el.querySelectorAll("[data-ttm]").forEach(b => b.onclick = () => { X.mode = b.dataset.ttm; draw(); });
     el.querySelectorAll("[data-ttd]").forEach(b => b.onclick = () => { X.day = +b.dataset.ttd; draw(); });
     const wh = $("#ttWho"); if (wh) wh.onchange = () => { X.who = wh.value; draw(); };
-    on("#ttPub", () => act(() => rpc("tt_update", { tid: X.cur.tt.id, p: { published: !X.cur.tt.published } }), X.cur.tt.published ? "اتخفى الجدول عن الطلبة." : "اتنشر الجدول: كل طالب هيشوف مواده المسجّلة بفريق مجموعته ومكانها."));
+    on("#ttPub", () => act(() => rpc("tt_update", { tid: X.cur.tt.id, p: { published: !X.cur.tt.published } }), X.cur.tt.published ? "أُخفي الجدول عن الطلبة." : "نُشر الجدول: سيرى كل طالب مواده المسجّلة مع فريق مجموعته ومكانها."));
     on("#ttSet", () => { X.setOpen = true; X.newOpen = false; X.cohortEdit = null; draw(); });
     on("#ttNew", () => { X.newOpen = true; X.setOpen = false; draw(); });
-    on("#ttDel", () => { if (!confirm("حذف الجدول ده نهائيًا بكل مواده؟")) return; act(() => rpc("tt_delete", { tid: X.cur.tt.id }), "اتحذف الجدول.", true); });
+    on("#ttDel", () => { if (!confirm("حذف هذا الجدول نهائيًّا بكل مواده؟")) return; act(() => rpc("tt_delete", { tid: X.cur.tt.id }), "حُذف الجدول.", true); });
     const addC = () => { X.cohortEdit = { level: 1, track: "", students: null, groups: ["1", "2", "3", "4"], off_days: [] }; X.setOpen = false; draw(); };
     on("#ttAddC", addC); on("#ttAddC2", addC);
     on("#ttXls", () => exportTT(false)); on("#ttPdf", () => exportTT(true)); on("#ttXlsWho", () => exportWho());
     // جدول جديد
     on("#tnX", () => { X.newOpen = false; draw(); });
-    on("#tnGo", async () => { try { const id = await rpc("tt_create", { p_year: $("#tnY").value, p_term: +$("#tnT").value, p_copy: ($("#tnC") || {}).value || null }); X.newOpen = false; await loadList(); await loadTT(id); say("اتعمل الجدول. دوس على «+» في أي فترة عشان تضيف مادة."); } catch (e) { fail(e); } });
+    on("#tnGo", async () => { try { const id = await rpc("tt_create", { p_year: $("#tnY").value, p_term: +$("#tnT").value, p_copy: ($("#tnC") || {}).value || null }); X.newOpen = false; await loadList(); await loadTT(id); say("أُنشئ الجدول. اضغط «+» في أي فترة لإضافة مادة."); } catch (e) { fail(e); } });
     // الإعدادات
     if (X.setOpen) {
       const tt = X.cur.tt, tmp = X.tmpSet || (X.tmpSet = { days: [...tt.days], periods: tt.periods.map(p => ({ ...p })) });
@@ -239,7 +239,7 @@
       on("#tsPDel", () => { readP(); tmp.periods.pop(); X.cur.tt = { ...X.cur.tt, periods: tmp.periods, days: tmp.days }; draw(); });
       on("#tsX", async () => { X.setOpen = false; X.tmpSet = null; await loadTT(X.cur.tt.id); draw(); });
       on("#tsGo", () => { readP(); const p = { title: $("#tsTitle").value, signer: $("#tsSign").value, days: tmp.days, periods: tmp.periods.map((x, i) => ({ n: i + 1, from: x.from, to: x.to })), rooms: $("#tsRooms").value.split(/\n|،|,/).map(s => s.trim()).filter(Boolean) };
-        X.setOpen = false; X.tmpSet = null; act(() => rpc("tt_update", { tid: X.cur.tt.id, p }), "اتحفظت الإعدادات."); });
+        X.setOpen = false; X.tmpSet = null; act(() => rpc("tt_update", { tid: X.cur.tt.id, p }), "حُفظت الإعدادات."); });
     }
     // الفرقة
     el.querySelectorAll("[data-ttc]").forEach(b => b.onclick = () => { const c = X.cur.cohorts.find(x => x.id === b.dataset.ttc); X.cohortEdit = { ...c, groups: [...c.groups], off_days: [...(c.off_days || [])] }; X.setOpen = false; draw(); el.querySelector(".tt-form").scrollIntoView({ block: "nearest" }); });
@@ -248,9 +248,9 @@
       el.querySelectorAll("[data-tco]").forEach(b => b.onclick = () => { const d = +b.dataset.tco; c.off_days = c.off_days.includes(d) ? c.off_days.filter(x => x !== d) : [...c.off_days, d]; b.setAttribute("aria-pressed", c.off_days.includes(d)); });
       const g = $("#tcG"); g.oninput = () => { const n = Math.max(1, Math.min(20, +g.value || 1)); $("#tcGN").value = Array.from({ length: n }, (_, i) => String(i + 1)).join("، "); };
       on("#tcX", () => { X.cohortEdit = null; draw(); });
-      on("#tcDel", () => { if (!confirm("حذف الفرقة وكل موادها من الجدول؟")) return; X.cohortEdit = null; act(() => rpc("tt_cohort_delete", { cid: c.id }), "اتحذفت الفرقة."); });
+      on("#tcDel", () => { if (!confirm("حذف الفرقة وكل موادها من الجدول؟")) return; X.cohortEdit = null; act(() => rpc("tt_cohort_delete", { cid: c.id }), "حُذفت الفرقة."); });
       on("#tcGo", () => { const p = { id: c.id || "", level: +$("#tcL").value, track: $("#tcT").value, students: $("#tcN").value, groups: $("#tcGN").value.split(/[،,]/).map(s => s.trim()).filter(Boolean), off_days: c.off_days };
-        X.cohortEdit = null; act(() => rpc("tt_cohort_save", { tid: X.cur.tt.id, p }), "اتحفظت الفرقة."); });
+        X.cohortEdit = null; act(() => rpc("tt_cohort_save", { tid: X.cur.tt.id, p }), "حُفظت الفرقة."); });
     }
     // المواد
     el.querySelectorAll("[data-tta]").forEach(b => b.onclick = () => { const [cid, d, p, q, gs] = b.dataset.tta.split("|"); X.edit = { cohort_id: cid, day: +d, p_from: +p, p_to: q ? +q : Math.min(+p + 1, X.cur.tt.periods.length), course_id: null, title: "", groups: gs ? gs.split(",").filter(Boolean) : [], room: "", team: [], same: false, note: "" }; draw(); });
@@ -283,14 +283,14 @@
       inp.onblur = () => { if (inp.value.trim()) add(); };
     });
     on("#tseCopy", () => { const c = X.cur.cohorts.find(x => x.id === e.cohort_id), gs = e.groups.length ? e.groups : c.groups, f = tFor(gs[0]); e.team = gs.map(g => ({ g, staff: f.staff.map(p => ({ ...p })), room: f.room })); redraw(); });
-    on("#tseDel", () => { if (!confirm("حذف «" + e.title + "» من الجدول؟")) return; const id = e.id; X.edit = null; act(() => rpc("tt_slot_delete", { sid: id }), "اتحذفت المادة من الجدول."); });
+    on("#tseDel", () => { if (!confirm("حذف «" + e.title + "» من الجدول؟")) return; const id = e.id; X.edit = null; act(() => rpc("tt_slot_delete", { sid: id }), "حُذفت المادة من الجدول."); });
     on("#tseGo", async () => {
-      keep(); if (!e.course_id && !e.title.trim()) return alert("اختار المادة أو اكتب اسمها.");
+      keep(); if (!e.course_id && !e.title.trim()) return alert("اختر المادة أو اكتب اسمها.");
       const c = X.cur.cohorts.find(x => x.id === e.cohort_id), gs = e.groups.length ? e.groups : c.groups;
       const team = e.same ? [{ g: "", staff: (e.team[0] || { staff: [] }).staff, room: "" }] : e.team.filter(t => gs.includes(t.g) && (t.staff.length || t.room));
       X.busy = true; draw();
       try { await rpc("tt_slot_save", { tid: X.cur.tt.id, p: { id: e.id || "", cohort_id: e.cohort_id, day: e.day, p_from: e.p_from, p_to: e.p_to, course_id: e.course_id, title: e.title, groups: e.groups, room: e.room, team, note: e.note } });
-        X.busy = false; X.edit = null; await loadTT(X.cur.tt.id); say("اتحفظت «" + (e.title || "المادة") + "».");
+        X.busy = false; X.edit = null; await loadTT(X.cur.tt.id); say("حُفظت «" + (e.title || "المادة") + "».");
       } catch (err) { X.busy = false; fail(err); X.edit = e; draw(); }
     });
   }
@@ -385,9 +385,9 @@
     const tt = data.tt, slots = data.slots, today = new Date().getDay();
     const now = new Date(), hm = now.getHours() * 60 + now.getMinutes(), toM = s => { const [h, m] = String(s || "0:0").split(":").map(Number); return h * 60 + m; };
     const days = (tt.days || []).filter(d => slots.some(s => s.day === d));
-    if (!days.length) return `<div class="empty">مفيش محاضرات في الجدول ليك.</div>`;
+    if (!days.length) return `<div class="empty">لا توجد لك محاضرات في الجدول.</div>`;
     const sel = opts.day != null && days.includes(opts.day) ? opts.day : days.includes(today) ? today : days[0];
-    return `<div class="tw"><div class="tw-days" role="tablist">${days.map(d => `<button role="tab" class="${d === sel ? "on" : ""}" aria-selected="${d === sel}" data-twd="${d}">${DAY[d]}${d === today ? `<i>النهارده</i>` : ""}</button>`).join("")}</div>
+    return `<div class="tw"><div class="tw-days" role="tablist">${days.map(d => `<button role="tab" class="${d === sel ? "on" : ""}" aria-selected="${d === sel}" data-twd="${d}">${DAY[d]}${d === today ? `<i>اليوم</i>` : ""}</button>`).join("")}</div>
       <div class="tw-list">${slots.filter(s => s.day === sel).map(s => {
         const a = (tt.periods[s.p_from - 1] || {}).from, b = (tt.periods[s.p_to - 1] || {}).to, live = sel === today && hm >= toM(a) && hm < toM(b), next = sel === today && hm < toM(a);
         return `<div class="tw-s ${live ? "live" : ""}"><div class="tw-t"><b dir="ltr">${t12(a)}</b><small dir="ltr">${t12(b)}</small></div><div class="tw-b"><b>${CM.esc(s.title)}</b>${live ? `<span class="chip ok">الآن</span>` : ""}

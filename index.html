@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b148">
+<link rel="stylesheet" href="style.css?v=b149">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b148"></script>
-<script src="config.js?v=b148"></script>
-<script src="common.js?v=b148"></script>
-<script src="drive.js?v=b148"></script>
-<script src="catalog.js?v=b148"></script>
-<script src="regform.js?v=b148"></script>
+<script src="vendor/qrcode.js?v=b149"></script>
+<script src="config.js?v=b149"></script>
+<script src="common.js?v=b149"></script>
+<script src="drive.js?v=b149"></script>
+<script src="catalog.js?v=b149"></script>
+<script src="regform.js?v=b149"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -78,7 +78,7 @@
     if (!r.ok || j.error) throw { message: j.error || "passkey_failed" };
     return j;
   }
-  const pkErr = e => e && (e.name === "NotAllowedError" || e.name === "AbortError") ? "لم يكتمل الدخول بالبصمة. غالبًا لم تفعّل البصمة لحسابك على هذا الهاتف من قبل (رسالة «No passkey found» معناها كده)، أو ألغيت العملية. ادخل بكودك وكلمة السر، وبعد الدخول تقدر تفعّل البصمة من صفحتك." : e && e.name === "InvalidStateError" ? "البصمة مفعّلة لهذا الحساب على هذا الهاتف من قبل." : errText(e);
+  const pkErr = e => e && (e.name === "NotAllowedError" || e.name === "AbortError") ? "لم يكتمل الدخول بالبصمة. غالبًا لم تفعّل البصمة لحسابك على هذا الهاتف من قبل (وهذا معنى رسالة «No passkey found»)، أو ألغيت العملية. ادخل بكودك وكلمة السر، وبعد الدخول يمكنك تفعيل البصمة من صفحتك." : e && e.name === "InvalidStateError" ? "البصمة مفعّلة لهذا الحساب على هذا الهاتف من قبل." : errText(e);
   async function pkRegister() {
     const ch = await rpc("passkey_begin", { p_token: token });
     const cred = await navigator.credentials.create({ publicKey: {
@@ -101,7 +101,7 @@
     try { await pkLogin(); busy = false; move = null; await loadHome(); }
     catch (e) { busy = false; authMsg = pkErr(e); move ? renderMove() : renderAuth(); }
   }
-  const pkBtn = id => pk.ok ? `<button class="btn block pk-btn" id="${id}" ${busy ? "disabled" : ""}><span aria-hidden="true">◉</span> الدخول ببصمة الوجه أو الإصبع</button><p class="muted small" style="margin:6px 0 0;text-align:center">للي فعّل البصمة من صفحته على الهاتف ده قبل كده بس. أول مرة؟ ادخل بالكود وكلمة السر.</p>` : "";
+  const pkBtn = id => pk.ok ? `<button class="btn block pk-btn" id="${id}" ${busy ? "disabled" : ""}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 11v3M8.5 8.5A5 5 0 0 1 17 12v1.5M7 12a5 5 0 0 0 .4 2M12 3a9 9 0 0 1 9 9v1M3 12a9 9 0 0 1 4-7.5M9.5 21a12 12 0 0 1-2-5.5M14.5 21a14 14 0 0 0 1.4-4.5M12 7a5 5 0 0 0-5 5"/></svg> الدخول ببصمة الوجه أو الإصبع</button><p class="muted small" style="margin:6px 0 0;text-align:center">لمن فعّل البصمة من صفحته على هذا الهاتف من قبل فقط. أول مرة؟ ادخل بالكود وكلمة السر.</p>` : "";
 
   let token = store.get("cm_token");
   let pkMsg = "";
@@ -139,8 +139,8 @@
   function renderForm() {
     const d = rf.data || {}, reg = rf.mode === "reg";
     let body = "";
-    if (rf.stage === "pick") body = `${rf.pre ? `<div class="msg warn rf-pre"><b>مالكش حساب بالكود ${esc(rf.pre.code)} لسه.</b><br>أول تسجيل بيكون باستمارة الإرشاد الأكاديمي: ارفعها، وبعدها تختار كلمة السر بتاعتك ونضيفك لموادك على طول.</div>` : ""}
-      ${reg ? `<ol class="rf-steps"><li class="on">ارفع استمارة التسجيل</li><li>راجع بياناتك وموادك</li><li>اختار كلمة السر وادخل</li></ol>` : ""}
+    if (rf.stage === "pick") body = `${rf.pre ? `<div class="msg warn rf-pre"><b>ليس لديك حساب بالكود ${esc(rf.pre.code)} بعد.</b><br>يكون التسجيل الأول باستمارة الإرشاد الأكاديمي: ارفعها، ثم اختر كلمة السر، فتُضاف إلى موادك مباشرة.</div>` : ""}
+      ${reg ? `<ol class="rf-steps"><li class="on">ارفع استمارة التسجيل</li><li>راجع بياناتك وموادك</li><li>اختر كلمة السر وادخل</li></ol>` : ""}
       <p>نزّل «استمارة التسجيل» من نظام ابن الهيثم لشئون الطلاب (ملف PDF أو صورة لها)، ثم اخترها هنا. يقرأ التطبيق منها كودك واسمك ومستواك والمقررات المسجلة، ويضيفك إلى موادها.</p>
       <p class="small muted">تُقرأ الاستمارة على هاتفك فقط ولا تُرفع إلى أي مكان. ويظهر للمحاضر أنك سجّلت بالاستمارة ليراجعها.</p>
       ${rf.msg ? `<div class="msg bad">${esc(rf.msg)}</div>` : ""}
@@ -158,9 +158,9 @@
         <h3 style="margin-top:6px">المقررات (${n})</h3>
         <div class="rf-list">${rf.items.map((x, i) => `<label class="rf-it ${x.bid == null ? "off" : ""}"><input type="checkbox" data-rfi="${i}" ${x.on ? "checked" : ""} ${x.bid == null ? "disabled" : ""}>
           <span><b>${esc(x.cat ? x.cat.n.replace(/\*$/, "") : x.name)}</b><small class="muted mono">${esc((x.prefix ? x.prefix + " " : "") + x.code)}</small>${x.bid == null ? `<small class="bad-t">ليس في لائحة القسم؛ اطلب من المحاضر إضافتك</small>` : ""}</span></label>`).join("")}</div>
-        ${reg && rf.pre && d.code && d.code !== rf.pre.code ? `<div class="msg warn">الكود في الاستمارة (${esc(d.code)}) مختلف عن اللي كتبته (${esc(rf.pre.code)}). الحساب هيتعمل بكود الاستمارة، فاتأكد إنه صح.</div>` : ""}
-        ${reg && rf.pre && rf.pre.pass ? `<p class="small muted">هيتعمل حسابك بكلمة السر اللي كتبتها في صفحة الدخول، ويرتبط بالهاتف ده. <button type="button" class="linkish" id="rfNewPass">اختار كلمة سر تانية</button></p>
-          <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا)</span><input type="text" id="rfPin" inputmode="numeric" class="mono" style="text-align:start"></label>` : reg ? `<h3 style="margin-top:6px">اختار كلمة السر اللي هتدخل بيها</h3><label class="f"><span>كلمة السر (6 أحرف على الأقل)</span><input type="password" id="rfPass" autocomplete="new-password"></label>
+        ${reg && rf.pre && d.code && d.code !== rf.pre.code ? `<div class="msg warn">الكود في الاستمارة (${esc(d.code)}) مختلف عن الكود الذي كتبته (${esc(rf.pre.code)}). سيُنشأ الحساب بكود الاستمارة، فتأكد من صحته.</div>` : ""}
+        ${reg && rf.pre && rf.pre.pass ? `<p class="small muted">سيُنشأ حسابك بكلمة السر التي كتبتها في صفحة الدخول، ويرتبط بهذا الهاتف. <button type="button" class="linkish" id="rfNewPass">اختر كلمة سر أخرى</button></p>
+          <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا)</span><input type="text" id="rfPin" inputmode="numeric" class="mono" style="text-align:start"></label>` : reg ? `<h3 style="margin-top:6px">اختر كلمة السر التي ستدخل بها</h3><label class="f"><span>كلمة السر (6 أحرف على الأقل)</span><input type="password" id="rfPass" autocomplete="new-password"></label>
           <label class="f"><span>أعد كتابة كلمة السر</span><input type="password" id="rfPass2" autocomplete="new-password"></label>
           <label class="f"><span>رمز التفعيل (إن أعطاكم المحاضر رمزًا)</span><input type="text" id="rfPin" inputmode="numeric" class="mono" style="text-align:start"></label>
           <p class="small muted">سيرتبط الحساب بهذا الهاتف وهذا المتصفح.</p>` : ""}
@@ -379,14 +379,15 @@
         <div class="tabs" role="group"><button id="tLogin" aria-pressed="${authTab === "login"}">دخول</button><button id="tReg" aria-pressed="${authTab === "reg"}">إنشاء حساب</button></div>
         ${authTab === "login" ? `
           <h2>ادخل بكود الطالب</h2>
-          <label class="f"><span>كود الطالب</span><input type="text" id="code" inputmode="numeric" autocomplete="username" enterkeyhint="next" class="mono" style="text-align:start" value="${esc(store.get("cm_last_code") || "")}"><small class="muted">الكود مكتوب فوق في استمارة التسجيل بتاعتك.</small></label>
-          <label class="f"><span>كلمة السر</span><input type="password" id="pass" autocomplete="current-password"></label>
+          <label class="f"><span>كود الطالب</span><input type="text" id="code" inputmode="numeric" autocomplete="username" enterkeyhint="next" class="mono" style="text-align:start" value="${esc(store.get("cm_last_code") || "")}"><small class="muted">تجد الكود أعلى استمارة التسجيل الخاصة بك.</small></label>
+          <label class="f"><span>كلمة السر</span><input type="password" id="pass" autocomplete="current-password" enterkeyhint="go"></label>
+          <div class="pw-forgot"><button type="button" class="linkish" id="rsOpen">نسيت كلمة السر؟</button></div>
         ` : `
           <h2>أنشئ حسابك باستمارة التسجيل</h2>
           
-          <ol class="rf-steps"><li class="on">ارفع استمارة التسجيل</li><li>راجع بياناتك وموادك</li><li>اختار كلمة السر وادخل</li></ol>
-          <p class="muted small">الحساب بيترَبط بالموبايل ده، فسجّل منه هو. وماتستخدمش التصفح الخفي.</p>
-          <details class="more"><summary>تفاصيل أكتر</summary><p>أول تسجيل على Hadro بيكون <b>باستمارة الإرشاد الأكاديمي</b> اللي بتنزّلها من نظام ابن الهيثم. البرنامج بيقرأ منها كودك واسمك ومستواك ومقرراتك، ويسجلك في موادك تلقائيًا، وبعدها تختار كلمة السر اللي هتدخل بيها.</p></details>
+          <ol class="rf-steps"><li class="on">ارفع استمارة التسجيل</li><li>راجع بياناتك وموادك</li><li>اختر كلمة السر وادخل</li></ol>
+          <p class="muted small">يرتبط الحساب بهذا الهاتف، فسجّل منه هو، ولا تستخدم التصفح الخفي.</p>
+          <details class="more"><summary>تفاصيل أكثر</summary><p>أول تسجيل على Hadro بيكون <b>باستمارة الإرشاد الأكاديمي</b> التي تنزّلها من نظام ابن الهيثم. يقرأ البرنامج منها كودك واسمك ومستواك ومقرراتك، ويسجّلك في موادك تلقائيًّا، ثم تختار كلمة السر التي ستدخل بها.</p></details>
         `}
         ${sstore.get("cm_pending_qr") ? `<div class="msg">سجّل الدخول أولًا، وبعدها يُسجَّل حضورك بالرمز الذي مسحته. وإن انتهت صلاحيته فامسحه من الشاشة مرة أخرى.</div>` : ""}
         ${inAppWarn()}
@@ -398,9 +399,9 @@
         ${iosTip()}
       </section>
       <p class="small" style="margin-top:14px;text-align:center"><button type="button" class="linkish" id="chBack">→ صفحة الدخول الرئيسية</button></p>
-      <div class="auth-links"><button type="button" class="linkish" id="rsOpen">نسيت كلمة السر؟</button>
-        <details class="more"><summary>غيّرت موبايلك؟</summary><p class="small muted">ادخل بكودك وكلمة السر عادي من الموبايل الجديد، وهيظهرلك زرار «نقل الحساب».</p></details></div>
-      <p class="small" style="text-align:center;margin-top:10px"><button type="button" class="linkish" id="helpOut">عندك مشكلة؟ اسأل مساعد Hadro</button></p>`;
+      <div class="auth-links">
+        <details class="more"><summary>غيّرت هاتفك؟</summary><p class="small muted">ادخل بكودك وكلمة السر من الهاتف الجديد كالمعتاد، وسيظهر لك زر «نقل الحساب».</p></details></div>
+      <p class="small" style="text-align:center;margin-top:10px"><button type="button" class="linkish" id="helpOut">لديك مشكلة؟ اسأل مساعد Hadro</button></p>`;
     if (authKeep) { const k = authKeep, c = $("#code"), p = $("#pass"), p2 = $("#pass2"); authKeep = null;
       if (c && k.code) c.value = k.code; if (p && k.pass) p.value = k.pass;
       const f = k.pass && p2 ? p2 : p; if (f) setTimeout(() => f.focus(), 60); }
@@ -550,7 +551,7 @@
   function nowHtml() {
     if (!home) return "";
     const live = home.courses.filter(c => c.session && !limited);
-    if (!live.length) return limited ? "" : `<div class="now-idle"><span class="small muted">مفيش محاضرة شغالة دلوقتي. أول ما المحاضر يبدأ هتلاقي خانة الرمز هنا.</span><button class="btn primary block now-qr" id="qrBtn2">بطاقة الحضور<small>من غير إنترنت: اعرضها على المحاضر يمسحها</small></button></div>`;
+    if (!live.length) return limited ? "" : `<div class="now-idle"><span class="small muted">لا توجد محاضرة جارية الآن. عندما يبدأ المحاضر تظهر خانة الرمز هنا.</span><button class="btn primary block now-qr" id="qrBtn2">بطاقة الحضور<small>من غير إنترنت: اعرضها على المحاضر يمسحها</small></button></div>`;
     return `<section class="now" id="now">${live.map(c => { const done = c.session.mine && c.session.mine.status !== "pending";
       return `<article class="now-c ${done ? "done" : ""}" data-course="${c.id}"><div class="now-h">${done ? "" : `<span class="pulse" aria-hidden="true"></span>`}<b>${done ? "سُجِّل حضورك" : "محاضرة جارية الآن"}</b><span class="now-n">${esc(c.name)}</span></div>${sessionBlock(c)}</article>`; }).join("")}</section>`;
   }
@@ -625,7 +626,7 @@
     const has = nt.items && nt.items.length;
     return `<div class="panel nt-panel"><div class="row between"><h3>التنبيهات</h3><div class="row" style="gap:6px">${nt.unread ? `<button class="btn xs primary" id="ntReadAll">قراءة الكل</button>` : ""}${has ? `<button class="btn xs ghost danger" id="ntDelAll">حذف الكل</button>` : ""}<button class="btn xs ghost" id="ntClose">إغلاق</button></div></div>
       ${has ? `<ul class="nt-list">${nt.items.map(n => `<li class="${n.read_at ? "" : "new"}" data-sw="${n.id}" data-ntgo="${n.id}" role="button" tabindex="0"><div class="nt-tx"><b>${esc(n.title)}</b>${n.body ? `<span>${esc(n.body)}</span>` : ""}<small>${n.read_at ? "مقروء · " : `<em class="bl-new">جديد</em> · `}${esc(ago(n.created_at))}</small></div><button class="btn xs ghost nt-del" data-ntdel="${n.id}" title="حذف" aria-label="حذف">${TR}</button></li>`).join("")}</ul>
-        <p class="small muted" style="margin:0">اسحب أي تنبيه يمين أو شمال، أو اضغط سلة المهملات، عشان تحذفه.</p>` : `<p class="muted small">لا توجد تنبيهات. ستصلك هنا تنبيهات بدء المحاضرات والتكليفات الجديدة وإعلان الدرجات.</p>`}
+        <p class="small muted" style="margin:0">اسحب أي تنبيه يمينًا أو يسارًا، أو اضغط سلة المهملات، لحذفه.</p>` : `<p class="muted small">لا توجد تنبيهات. ستصلك هنا تنبيهات بدء المحاضرات والتكليفات الجديدة وإعلان الدرجات.</p>`}
       ${pushOk() && nt.sub !== "on" ? `<button class="btn sm" id="ntPush">فعّل الإشعارات على هذا الجهاز</button>` : nt.sub === "on" ? `<p class="small ok-t">الإشعارات مفعّلة على هذا الجهاز.</p>` : ""}</div>`;
   }
   // حالة إشعارات هذا الجهاز: on / off (يمكن التفعيل) / denied / install (آيفون من Safari: لازم الشاشة الرئيسية) / none
@@ -687,12 +688,12 @@
       const todays = T.slots.filter(s => s.day === today), left = todays.filter(s => hm < toMin(tm(s)[1]));
       let nd = null; if (!left.length) { for (let i = 1; i <= 7 && nd == null; i++) { const d = (today + i) % 7; if (days.includes(d)) nd = d; } }
       const show = left.length ? left : T.slots.filter(s => s.day === nd);
-      return `<section class="panel tw-panel"><div class="panel-h"><div><div class="eyebrow">جدولي</div><h2>${left.length ? "محاضراتك النهارده" : nd != null ? "محاضراتك يوم " + TDAY[nd] : "جدولي"}</h2></div><button class="btn sm" id="ttAll">الأسبوع كله</button></div>
+      return `<section class="panel tw-panel"><div class="panel-h"><div><div class="eyebrow">جدولي</div><h2>${left.length ? "محاضراتك اليوم" : nd != null ? "محاضراتك يوم " + TDAY[nd] : "جدولي"}</h2></div><button class="btn sm" id="ttAll">الأسبوع كله</button></div>
         <div class="tw-list">${show.map(s => card(s, left.length ? today : nd)).join("")}</div></section>`;
     }
     const sel = ttDay != null && days.includes(ttDay) ? ttDay : days.includes(today) ? today : days[0];
     return `<section class="panel tw-panel"><div class="panel-h"><div><div class="eyebrow">جدولي · ${esc(T.year)}</div><h2>جدول الأسبوع</h2></div>${full ? "" : `<button class="btn sm ghost" id="ttAll">إغلاق</button>`}</div>
-      <div class="tw"><div class="tw-days" role="tablist">${days.map(d => `<button role="tab" class="${d === sel ? "on" : ""}" aria-selected="${d === sel}" data-twd="${d}">${TDAY[d]}${d === today ? "<i>النهارده</i>" : ""}</button>`).join("")}</div>
+      <div class="tw"><div class="tw-days" role="tablist">${days.map(d => `<button role="tab" class="${d === sel ? "on" : ""}" aria-selected="${d === sel}" data-twd="${d}">${TDAY[d]}${d === today ? "<i>اليوم</i>" : ""}</button>`).join("")}</div>
       <div class="tw-list">${T.slots.filter(s => s.day === sel).map(s => card(s, sel)).join("")}</div></div></section>`;
   }
   function wireTT() {
@@ -702,7 +703,7 @@
   // مركز المساعدة للطالب
   let hcUnread = 0;
   function openHelp(tab) {
-    if (!token) return CM.helpCenter({ who: "student", api: null, loginHint: "ادخل بكودك الأول عشان تقدر تراسل الإدارة." });
+    if (!token) return CM.helpCenter({ who: "student", api: null, loginHint: "سجّل دخولك بكودك أولًا لتتمكن من مراسلة الإدارة." });
     CM.helpCenter({ who: "student", tab, courses: (home && home.courses || []).map(c => ({ id: c.id, name: c.name })),
       api: { list: () => rpc("student_tickets", { p_token: token }), create: (cat, subj, body, course) => rpc("student_ticket_create", { p_token: token, p_cat: cat, p_subject: subj, p_body: body, p_course: course }), reply: (id, body) => rpc("student_ticket_reply", { p_token: token, tid: id, p_body: body }) },
       onRead: () => { if (hcUnread) { hcUnread = 0; const d = document.querySelector("#helpBtn .hc-dot"); if (d) d.remove(); } },
@@ -738,7 +739,7 @@
     const b = $("#ntBtn"); if (b) b.onclick = () => { nt.open = !nt.open; renderHome(); if (nt.open) window.scrollTo({ top: 0, behavior: "smooth" }); };
     const ntDel = id => { id = +id; nt.items = (nt.items || []).filter(n => n.id !== id); renderHome(); rpc("student_notifications_hide", { p_token: token, p_ids: [id] }).catch(() => {}); };
     const ntL = document.querySelector(".nt-list"); if (ntL) { CM.swipeDel(ntL, k => ntDel(k)); ntL.querySelectorAll("[data-ntdel]").forEach(b => b.onclick = () => { const li = b.closest("li"); li.style.transition = "transform .18s, opacity .18s"; li.style.transform = "translateX(-110%)"; li.style.opacity = "0"; setTimeout(() => ntDel(b.dataset.ntdel), 170); }); }
-    const nda = $("#ntDelAll"); if (nda) nda.onclick = () => { if (nda.dataset.c !== "1") { nda.dataset.c = "1"; nda.textContent = "متأكد؟ اضغط تاني"; setTimeout(() => { if (nda.isConnected) { nda.dataset.c = ""; nda.textContent = "حذف الكل"; } }, 3000); return; }
+    const nda = $("#ntDelAll"); if (nda) nda.onclick = () => { if (nda.dataset.c !== "1") { nda.dataset.c = "1"; nda.textContent = "متأكد؟ اضغط مرة أخرى"; setTimeout(() => { if (nda.isConnected) { nda.dataset.c = ""; nda.textContent = "حذف الكل"; } }, 3000); return; }
       nt.items = []; nt.unread = 0; renderHome(); rpc("student_notifications_hide", { p_token: token, p_ids: null }).catch(() => {}); };
     const c = $("#ntClose"); if (c) c.onclick = () => { nt.open = false; renderHome(); };
     const ra = $("#ntReadAll"); if (ra) ra.onclick = () => { (nt.items || []).forEach(n => n.read_at = n.read_at || new Date().toISOString()); nt.unread = 0; renderHome(); rpc("student_notifications_read", { p_token: token }).catch(() => {}); };
@@ -752,7 +753,7 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b148: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  /* b149: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
   let stab = ["home", "grades", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home", stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };
@@ -771,12 +772,12 @@
           <b class="st-cn">${esc(c.name)}</b><span class="st-cs">${CM.WARN[CM.lvl(c.absences)].t}${c.absences ? " · غبت " + c.absences : ""}</span></button>`; }).join("")}</div></section>`;
   }
   function stMeter(c) {
-    const ab = c.absences || 0, L = ["غياب 1", "إنذار أول", "إنذار تاني", "نهائي", "انسحاب"];
+    const ab = c.absences || 0, L = ["غياب 1", "إنذار أول", "إنذار ثانٍ", "نهائي", "انسحاب"];
     return `<section class="st-box" data-course="${c.id}"><div class="st-mh"><b>غيابك في ${esc(c.name)}</b><span class="st-mn k-${stCol(c)}">${ab} من 5</span></div>
       ${c.label || c.grp ? `<div class="small muted">${[c.label, c.grp ? "مجموعة " + c.grp : ""].filter(Boolean).map(esc).join(" · ")}</div>` : ""}
       <div class="st-meter">${L.map((l, i) => `<div><span class="m${i}${i < ab ? " on" : ""}" style="--i:${i}"></span><small>${l}</small></div>`).join("")}</div>
-      <p class="small muted">${ab ? "غبت " + CM.times(ab) + missedTxt(c) + ". " + afterTxt(ab) : c.held ? "ماغبتش ولا مرة" + (c.held ? " من " + c.held + (c.held === 1 ? " محاضرة" : c.held === 2 ? "" : " محاضرات") : "") + ". استمر." : "لسه مفيش محاضرات اتحسبت في المادة دي."}</p>
-      ${c.session && !limited ? `<a class="now-link small" href="#now">● محاضرة جارية الآن: سجّل حضورك من فوق ↑</a>` : c.session ? sessionBlock(c) : ""}
+      <p class="small muted">${ab ? "غبت " + CM.times(ab) + missedTxt(c) + ". " + afterTxt(ab) : c.held ? "لم تغب أي مرة" + (c.held ? " من " + c.held + (c.held === 1 ? " محاضرة" : c.held === 2 ? "" : " محاضرات") : "") + ". استمر." : "لم تُحتسب أي محاضرة في هذه المادة بعد."}</p>
+      ${c.session && !limited ? `<a class="now-link small" href="#now">● محاضرة جارية الآن: سجّل حضورك من الأعلى ↑</a>` : c.session ? sessionBlock(c) : ""}
       ${tasksBlock(c)}</section>`;
   }
   function stGrades() {
@@ -786,27 +787,27 @@
     return `<section class="st-sec"><div class="st-h"><h2>درجاتي</h2>${wait ? `<span class="small muted">${wait} ${wait === 1 ? "تسليم مستني" : "تسليمات مستنية"} التصحيح</span>` : ""}</div>
       ${tasks == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : g.length ? g.map((t, i) => { const m = t.mine, v = tot(m), w = Math.min(100, v / Math.max(1, Number(t.max)) * 100), win = apWins[t.id];
         return `<button type="button" class="st-gr" data-task="${t.id}" style="--i:${i}"><span class="st-gh"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}</small></span><b class="st-gv">${gNum(v)}<small> من ${gNum(t.max)}</small></b></span>
-          <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap">التظلم على الدرجة مفتوح${win.until ? " لحد " + esc(new Date(win.until).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })) : ""}</span>` : ""}</button>`; }).join("")
-      : `<div class="empty">لسه مفيش درجات اتعلنت ليك.</div>`}</section>`;
+          <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap">التظلم على الدرجة مفتوح${win.until ? " حتى " + esc(new Date(win.until).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })) : ""}</span>` : ""}</button>`; }).join("")
+      : `<div class="empty">لم تُعلَن لك أي درجات بعد.</div>`}</section>`;
   }
   // ملفات طلب الفريق إعادة رفعها: تنبيه واضح فوق في الرئيسية لحد ما الطالب يرفعها
   // استمارة التسجيل إجبارية كل ترم: تنبيه ثابت لحد ما الطالب يرفعها
   let formDue = false;
   function formAlert() {
     if (!formDue) return "";
-    return `<section class="rf-due" role="alert"><div><b>ارفع استمارة التسجيل</b><span class="small">عشان تتسجل في باقي موادك تلقائيًا.</span></div>
+    return `<section class="rf-due" role="alert"><div><b>ارفع استمارة التسجيل</b><span class="small">لتُسجَّل في باقي موادك تلقائيًّا.</span></div>
       <button class="btn primary" data-rf-due>ارفعها</button></section>`;
   }
-  // نافذة فوق البرنامج: بتظهر كل ما الطالب يفتح البرنامج ومارفعش استمارة الترم. «بعدين» بتأجلها 10 دقايق بس
+  // نافذة فوق البرنامج: بتظهر كل ما الطالب يفتح البرنامج ومارفعش استمارة الترم. «لاحقًا» بتأجلها 10 دقايق بس
   function formPopup() {
     if (!formDue || rf || document.querySelector(".fd-dlg")) return;
     if (Date.now() - +(sstore.get("cm_fd_later") || 0) < 10 * 60 * 1000) return;
     const d = document.createElement("div"); d.className = "fd-dlg"; d.setAttribute("role", "alertdialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-labelledby", "fdT");
     d.innerHTML = `<div class="fd-box"><div class="fd-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg></div>
       <h2 id="fdT">برجاء رفع استمارة التسجيل لتسجيل باقي المواد الخاصة بك</h2>
-      <p>نزّل استمارة الإرشاد الأكاديمي بتاعة الترم ده من نظام ابن الهيثم وارفعها هنا، وهتتسجل في كل موادك على طول.</p>
-      <button class="btn primary block" data-fd-go>ارفع استمارة التسجيل دلوقتي</button>
-      <button class="linkish fd-later" data-fd-later>بعدين</button></div>`;
+      <p>نزّل استمارة الإرشاد الأكاديمي لهذا الفصل الدراسي من نظام ابن الهيثم وارفعها هنا، فتُسجَّل في كل موادك مباشرة.</p>
+      <button class="btn primary block" data-fd-go>ارفع استمارة التسجيل الآن</button>
+      <button class="linkish fd-later" data-fd-later>لاحقًا</button></div>`;
     const close = () => d.remove();
     d.querySelector("[data-fd-go]").onclick = () => { close(); openForm("sync"); };
     d.querySelector("[data-fd-later]").onclick = () => { sstore.set("cm_fd_later", String(Date.now())); close(); };
@@ -815,8 +816,8 @@
   function fixAlert() {
     const l = (tasks || []).filter(t => t.mine && t.mine.fix && home.courses.some(c => c.id === t.course_id)); if (!l.length) return "";
     const cn = t => (home.courses.find(c => c.id === t.course_id) || {}).name || "";
-    return `<section class="msg bad fix-alert"><b>${l.length === 1 ? "في ملف محتاج تعيد رفعه" : "في " + l.length + " ملفات محتاجة تعيد رفعها"}</b>
-      <span class="small">فريق المادة طلب منك تعيد رفع ${l.length === 1 ? "الملف ده" : "الملفات دي"}. افتح التكليف وارفع صورة المشروع تاني، والتسليم مفتوح لك لحد ما ترفعه.</span>
+    return `<section class="msg bad fix-alert"><b>${l.length === 1 ? "يوجد ملف يحتاج إلى إعادة رفع" : "في " + l.length + " ملفات تحتاج إلى إعادة رفع"}</b>
+      <span class="small">فريق المادة طلب منك تعيد رفع ${l.length === 1 ? "هذا الملف" : "هذه الملفات"}. افتح التكليف وارفع صورة المشروع مرة أخرى، والتسليم مفتوح لك حتى ترفعها.</span>
       <div class="fix-l">${l.map(t => `<button class="btn sm" data-task="${t.id}"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}${t.mine.fix_reason ? " · " + esc(t.mine.fix_reason) : ""}</small></span><em>رفع ←</em></button>`).join("")}</div></section>`;
   }
   function stNav() {
@@ -828,7 +829,7 @@
     const active = document.activeElement && document.activeElement.id;
     if (stSel && !home.courses.some(c => c.id === stSel)) stSel = null;
     const sel = home.courses.find(c => c.id === stSel) || home.courses.find(c => c.session) || home.courses.find(c => (c.level || 0) > 0) || home.courses[0];
-    const tab = stab === "grades" ? stGrades() : stab === "tt" ? (myTT && myTT.slots.length ? ttHtml(true) : `<section class="st-sec"><div class="st-h"><h2>جدولي</h2></div><div class="empty">${myTT === null ? "مفيش جدول دراسي منشور لدفعتك لسه." : "مفيش محاضرات ليك في الجدول."}</div></section>`) : `
+    const tab = stab === "grades" ? stGrades() : stab === "tt" ? (myTT && myTT.slots.length ? ttHtml(true) : `<section class="st-sec"><div class="st-h"><h2>جدولي</h2></div><div class="empty">${myTT === null ? "لم يُنشر جدول دراسي لدفعتك بعد." : "لا توجد لك محاضرات في الجدول."}</div></section>`) : `
         ${formAlert()}
         ${nowHtml()}
         ${home.courses.filter(c => (c.level || 0) > (c.seen || 0)).map(noticeHtml).join("")}
@@ -940,7 +941,7 @@
     if (!past || t.ext_until || t.late === "accept") return "todo";
     return "missed";
   }
-  const TKC = { todo: "مطلوب منك", done: "سلّمته · بانتظار التصحيح", graded: "درجاتك", wait: "هتترصد من المحاضر", missed: "فات موعده" };
+  const TKC = { todo: "مطلوب منك", done: "سلّمته · بانتظار التصحيح", graded: "درجاتك", wait: "سيرصدها المحاضر", missed: "فات موعده" };
   const tkOrder = (a, b) => new Date(a.due_at) - new Date(b.due_at);
   const dueShort = t => new Date(t.due_at).toLocaleString("ar-EG", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
   function tkRow(t, withCourse) {
@@ -970,7 +971,7 @@
     const SH = { todo: "مطلوب", done: "سلّمته", graded: "درجات", missed: "فات" };
     return `<section class="panel tk-over" id="tkOver"><div class="row between"><h3>تكليفاتي</h3><span class="small muted">${all.length} تكليف في ${new Set(all.map(t => t.course_id)).size} مادة</span></div>
       <div class="tk-tabs" role="tablist">${cats.map(k => `<button type="button" role="tab" class="k-${k}" data-tkf="${k}" aria-selected="${tkF === k}"><b>${n(k)}</b><span>${SH[k]}</span></button>`).join("")}</div>
-      <div class="tk-olist">${list.length ? list.map(t => tkRow(t, true)).join("") : `<div class="empty">${tkF === "todo" ? "مفيش حاجة مطلوبة منك دلوقتي. 👌" : "لا يوجد."}</div>`}</div></section>`;
+      <div class="tk-olist">${list.length ? list.map(t => tkRow(t, true)).join("") : `<div class="empty">${tkF === "todo" ? "لا شيء مطلوب منك الآن. 👌" : "لا يوجد."}</div>`}</div></section>`;
   }
   function openTask(id) {
     tkId = id; pickFile = null; linkMode = !HD.ready; tkMsg = null;
@@ -995,13 +996,13 @@
       ${!t.at_home && t.absent_rule !== "refuse" && t.present_day && m.grade == null ? `<div class="msg warn small">من يغيب عن محاضرة يوم طرح المشروع يُحسب تسليمه متأخرًا.</div>` : ""}
       ${!t.at_home && t.absent_rule === "refuse" && !t.refused && m.grade == null ? `<div class="msg warn small">لا يُقبل ${t.mode === "manual" ? "المشروع" : "التسليم"} ممن يغيب عن محاضرة ${sDL(t)}.</div>` : ""}
       ${t.ext_until && m.grade == null && new Date(t.due_at).getTime() < nowS() ? `<div class="msg ok"><b>فُتح لك تسليم استثنائي</b> حتى ${esc(extTxt(t))}${t.ext_reason ? ` (${esc(t.ext_reason)})` : ""}. لا يُحسب تسليمك متأخرًا.</div>` : ""}
-      ${Number(t.minus) && m.grade == null ? `<div class="msg warn"><b>عليك خصم ${gNum(t.minus)} من درجة هذا التكليف.</b>${t.minus_note ? " السبب: " + esc(t.minus_note) + "." : ""} هيتخصم من درجتك بعد التصحيح.</div>` : ""}
+      ${Number(t.minus) && m.grade == null ? `<div class="msg warn"><b>عليك خصم ${gNum(t.minus)} من درجة هذا التكليف.</b>${t.minus_note ? " السبب: " + esc(t.minus_note) + "." : ""} سيُخصم من درجتك بعد التصحيح.</div>` : ""}
       ${t.refused && m.grade == null ? `<div class="msg bad">لا يُقبل ${t.mode === "manual" ? "مشروعك" : "تسليمك"} في هذا التكليف لأنك غبت في محاضرة ${sDL(t)}. إن كان لك عذر (مرضي أو غيره) فراجِع المحاضر ليقبله.</div>` : ""}
       ${m.grade != null ? `<div class="result ok"><b>درجتك ${gNum(tot(m))} من ${gNum(t.max)}</b>${Number(m.bonus) ? `<span class="small">${gNum(m.grade)} + ${gNum(m.bonus)} درجة إضافية (بونص)</span>` : ""}${Number(t.minus) ? `<span class="small">${gNum(Number(m.grade) + Number(m.bonus || 0))} − ${gNum(t.minus)} خصم${t.minus_note ? " (" + esc(t.minus_note) + ")" : ""}</span>` : ""}${Array.isArray(t.parts) && t.parts.length && Array.isArray(m.parts) ? `<div class="tk-parts">${t.parts.map((p, i) => `<div><span>${esc(p.name)}</span><b>${m.parts[i] == null ? "—" : gNum(m.parts[i])} / ${gNum(p.max)}</b></div>`).join("")}</div>` : ""}${m.feedback ? `<span class="small">ملاحظة المحاضر: ${esc(m.feedback)}</span>` : ""}
         ${stampOk ? `<button class="btn sm" id="tkStamp" style="justify-self:start;margin-top:6px">نزّل نسختك المختومة بالدرجة (PDF)</button>` : ""}</div>` : ""}
       ${appealHtml(t)}
       ${petitionHtml(t)}
-      ${m.fix ? `<div class="msg bad fix-msg"><b>في مشكلة في ملفك:</b> ${esc(m.fix_reason || "الملف مش مرفوع صح")}.<br>يرجى إعادة رفع صورة المشروع من «استبدال التسليم» تحت. التسليم مفتوح لك حتى لو الموعد فات، وتسليمك هيفضل محسوب في ميعاده.</div>` : ""}
+      ${m.fix ? `<div class="msg bad fix-msg"><b>في مشكلة في ملفك:</b> ${esc(m.fix_reason || "الملف لم يُرفع بشكل صحيح")}.<br>يُرجى إعادة رفع صورة المشروع من «استبدال التسليم» بالأسفل. التسليم مفتوح لك حتى لو انتهى الموعد، ويبقى تسليمك محسوبًا في موعده.</div>` : ""}
       ${sub ? `<div class="tk-sub"><div class="eyebrow">تسليمك</div><div id="mineChk"></div>
         <a href="${esc(m.url)}" target="_blank" rel="noopener" class="tk-file"><b>${esc(m.kind === "drive" ? m.file_name || "الملف" : m.url)}</b><small>${m.kind === "drive" ? "على Google Drive الخاص بك" + (m.size ? " · " + HD.size(m.size) : "") : "رابط"} · ${CM.fmtD(m.submitted_at)} ${CM.fmtT(m.submitted_at)}${m.version > 1 ? " · التسليم رقم " + m.version : ""}</small></a>
         ${m.late ? `<span class="small warn-t">سُلِّم بعد الموعد، ويظهر ذلك للمحاضر.</span>` : ""}
@@ -1043,7 +1044,7 @@
     // هل ملف الطالب لسه ظاهر للمحاضر؟ (لو اتمسح من Drive أو اتقفلت مشاركته المحاضر مش هيقدر يفتحه)
     { const mm = t.mine || {}, box = $("#mineChk");
       if (box && mm.kind === "drive" && mm.file_id && HD.canCheck) HD.meta(mm.file_id).then(x => { const b = $("#mineChk"); if (!b || tkId !== t.id) return;
-        if (x && (x.missing || x.trashed)) b.innerHTML = `<div class="msg bad"><b>ملفك مش ظاهر للمحاضر.</b> الملف اتمسح من Google Drive بتاعك أو اتقفلت مشاركته، فمش هيتفتح وقت التصحيح. ${t.open && mm.grade == null ? "ارفعه تاني دلوقتي من الزرار اللي تحت." : "بلّغ أستاذ المادة، ومتمسحش ملفات «Hadro» من Drive بتاعك لحد آخر الترم."}</div>`; }).catch(() => {}); }
+        if (x && (x.missing || x.trashed)) b.innerHTML = `<div class="msg bad"><b>ملفك غير ظاهر للمحاضر.</b> حُذف الملف من Google Drive الخاص بك أو أُوقفت مشاركته، فلن يُفتح عند التصحيح. ${t.open && mm.grade == null ? "ارفعه مرة أخرى الآن من الزر بالأسفل." : "أبلغ أستاذ المادة، ولا تحذف ملفات «Hadro» من Drive الخاص بك حتى نهاية الفصل الدراسي."}</div>`; }).catch(() => {}); }
   }
   /* ---------- التماس تسليم: الموعد فات أو التسليم مرفوض، وعند الطالب عذر ---------- */
   function petitionHtml(t) {
@@ -1051,20 +1052,20 @@
     if (limited || t.mode === "manual" || m.grade != null || m.fix || canSubmit(t) || (m.submitted_at && !t.refused)) return "";
     const mine = petitions.filter(p => p.task_id === t.id), last = mine[0];
     let out = "";
-    if (last && last.status !== "withdrawn") out += `<div class="ap-st ${last.status}"><div class="row between"><b>التماس التسليم: ${last.status === "pending" ? "قيد المراجعة" : last.status === "accepted" ? "اتقبل" : "اترفض"}</b><span class="small muted">${esc(CM.fmtD(last.created_at))}</span></div>
+    if (last && last.status !== "withdrawn") out += `<div class="ap-st ${last.status}"><div class="row between"><b>التماس التسليم: ${last.status === "pending" ? "قيد المراجعة" : last.status === "accepted" ? "قُبل" : "رُفض"}</b><span class="small muted">${esc(CM.fmtD(last.created_at))}</span></div>
       <span class="small">${last.kind === "sick" ? "عذر مرضي" : esc(last.note)}</span>
       ${last.status === "rejected" ? `<span>سبب الرفض: ${esc(last.reply)}</span>` : ""}
       ${last.status === "pending" ? `<span class="small muted">أستاذ المادة هيراجعه، ويوصلك تنبيه بالقرار.</span><button class="btn sm ghost" id="ptWd" style="justify-self:start">سحب الالتماس</button>` : ""}</div>`;
     if (last && last.status === "pending") return out;
     if (mine.filter(p => p.status !== "withdrawn").length >= 3) return out;
-    if (!pt || pt.tid !== t.id) return out + `<button class="btn block ap-open" id="ptOpen">فاتك ميعاد التسليم وعندك عذر؟ قدّم التماس تسليم</button>`;
+    if (!pt || pt.tid !== t.id) return out + `<button class="btn block ap-open" id="ptOpen">فاتك ميعاد التسليم ولديك عذر؟ قدّم التماس تسليم</button>`;
     return out + `<div class="ap-form" id="ptForm"><h3>التماس تسليم «${esc(t.title)}»</h3>
       <div class="ap-rs" role="radiogroup">
-        <label class="ap-r"><input type="radio" name="ptK" value="sick" ${pt.kind === "sick" ? "checked" : ""}><span><b>عذر مرضي</b> · لازم ترفع الشهادة الطبية، ومن غيرها الالتماس مش هيتقبل</span></label>
+        <label class="ap-r"><input type="radio" name="ptK" value="sick" ${pt.kind === "sick" ? "checked" : ""}><span><b>عذر مرضي</b> · يجب رفع الشهادة الطبية، ولن يُقبل الالتماس بدونها</span></label>
         <label class="ap-r"><input type="radio" name="ptK" value="other" ${pt.kind === "other" ? "checked" : ""}><span><b>سبب آخر</b> · اكتب السبب</span></label></div>
       <label class="f"><span>${pt.kind === "other" ? "اكتب السبب" : "توضيح (اختياري)"}</span><textarea id="ptNote" rows="2" maxlength="1000">${esc(pt.note || "")}</textarea></label>
       ${pt.kind === "sick" ? `<div class="ap-ph"><b>الشهادة الطبية (إلزامية)</b><span class="small muted">صورة واضحة أو PDF، يظهر فيها اسمك والتاريخ.</span>
-        ${HD.ready ? `<label class="filepick"><input type="file" id="ptFile" accept="image/*,application/pdf"><span class="fp-b">${pt.file ? `<b>${esc(pt.file.name)}</b><small>${HD.size(pt.file.size)} · اضغط لاختيار ملف تاني</small>` : `<b>صوّر الشهادة أو اختر ملف</b><small>بتترفع على Google Drive بتاعك</small>`}</span></label>`
+        ${HD.ready ? `<label class="filepick"><input type="file" id="ptFile" accept="image/*,application/pdf"><span class="fp-b">${pt.file ? `<b>${esc(pt.file.name)}</b><small>${HD.size(pt.file.size)} · اضغط لاختيار ملف آخر</small>` : `<b>صوّر الشهادة أو اختر ملف</b><small>تُرفع على Google Drive الخاص بك</small>`}</span></label>`
           : `<label class="f"><span>رابط الشهادة (مفتوح لمن معه الرابط)</span><input type="url" id="ptUrl" dir="ltr" placeholder="https://" value="${esc(pt.url || "")}"></label>`}</div>` : ""}
       ${pt.err ? `<div class="msg bad">${esc(pt.err)}</div>` : ""}
       <div class="row"><button class="btn primary" id="ptGo">إرسال الالتماس</button><button class="btn ghost" id="ptX">إلغاء</button></div></div>`;
@@ -1086,7 +1087,7 @@
     if (up) return;
     if (pt.kind === "other" && (pt.note || "").trim().length < 5) { pt.err = "اكتب سبب الالتماس."; return renderTask(); }
     const viaFile = pt.kind === "sick" && HD.ready;
-    if (pt.kind === "sick" && viaFile && !pt.file) { pt.err = "ارفع الشهادة الطبية، من غيرها الالتماس مش هيتقبل."; return renderTask(); }
+    if (pt.kind === "sick" && viaFile && !pt.file) { pt.err = "ارفع الشهادة الطبية، فلن يُقبل الالتماس بدونها."; return renderTask(); }
     if (pt.kind === "sick" && !viaFile && !/^https:\/\//.test(pt.url || "")) { pt.err = "الصق رابط الشهادة الطبية (يبدأ بـ https://)."; return renderTask(); }
     let fileId = null, meta = null;
     const auth = viaFile ? HD.authorize() : null;
@@ -1103,7 +1104,7 @@
       }
       setUp("جارٍ إرسال الالتماس…", 1);
       await rpc("student_petition", { p_token: token, tid: t.id, p_kind: pt.kind, p_note: pt.note || "", p_file_id: fileId, p_url: viaFile ? (meta.webViewLink || "https://drive.google.com/file/d/" + meta.id + "/view") : (pt.kind === "sick" ? pt.url : null), p_name: viaFile ? meta.name : "", p_mime: viaFile ? (meta.mimeType || pt.file.type) : null, p_size: viaFile ? Number(meta.size || pt.file.size) : null });
-      pt = null; tkMsg = { k: "ok", t: "اتبعت التماسك لأستاذ المادة. لو اتقبل هيتفتحلك التسليم ويوصلك تنبيه." };
+      pt = null; tkMsg = { k: "ok", t: "أُرسل التماسك إلى أستاذ المادة. إذا قُبل يُفتح لك التسليم ويصلك تنبيه." };
       petitions = await rpc("student_petitions", { p_token: token }).catch(() => petitions) || petitions;
     } catch (e) {
       if (fileId) HD.trash(fileId);
@@ -1126,8 +1127,8 @@
     const w = apWins[t.id], fmtW = d => new Date(d).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
     const used = mine.filter(a => a.status !== "withdrawn").length, grant = !!(w && w.grant);
     if (last && last.status === "pending") return out;
-    if ((used >= 3 || mine.length >= 12) && !grant) return out + `<div class="ap-win muted">استنفدت عدد التظلمات المسموح على هذا التكليف. لو عندك سبب، اطلب من أستاذ المادة يفتح لك تظلمًا جديدًا.</div>`;
-    if (grant) out += `<div class="ap-win"><b>اتفتح لك تظلم جديد على هذا التكليف.</b> تقدر تقدّمه مرة واحدة.</div>`;
+    if ((used >= 3 || mine.length >= 12) && !grant) return out + `<div class="ap-win muted">استنفدت عدد التظلمات المسموح به على هذا التكليف. وإن كان لديك سبب، فاطلب من أستاذ المادة فتح تظلم جديد لك.</div>`;
+    if (grant) out += `<div class="ap-win"><b>فُتح لك تظلم جديد على هذا التكليف.</b> يمكنك تقديمه مرة واحدة.</div>`;
     if (w && !w.open) {
       const soon = w.mode === "window" && w.from && new Date(w.from) > new Date();
       return out + `<div class="ap-win muted">${soon ? `باب التظلم على هذه الدرجة يُفتح ${esc(fmtW(w.from))} ويُغلق ${esc(fmtW(w.until))}.` : w.mode === "window" ? "انتهت مهلة التظلم على هذه الدرجة." : "باب التظلم على هذه الدرجة مغلق."}</div>`;
@@ -1219,7 +1220,7 @@
         p_file_id: meta.id, p_name: meta.name, p_mime: meta.mimeType || f.type, p_size: Number(meta.size) || f.size, p_md5: meta.md5Checksum, p_modified: meta.modifiedTime, p_note: note });
       fileId = null;
       if (old && old !== meta.id) HD.trash(old);
-      pickFile = null; tkMsg = r.fixed ? { k: "ok", t: r.match ? "تم! ملفك اترفع واتأكدنا إنه نفس الملف اللي سلّمته في الميعاد. وصل للمحاضر تنبيه إنك صلّحت ملفك." : "ملفك اترفع ووصل للمحاضر تنبيه إنك صلّحته. ده ملف مختلف عن اللي سلّمته في الميعاد، فالمحاضر هيراجعه." }
+      pickFile = null; tkMsg = r.fixed ? { k: "ok", t: r.match ? "تم! رُفع ملفك وتأكدنا أنه الملف نفسه الذي سلّمته في الموعد، ووصل المحاضرَ تنبيهٌ بأنك أصلحت ملفك." : "رُفع ملفك ووصل المحاضرَ تنبيهٌ بأنك أصلحته. هذا ملف مختلف عن الذي سلّمته في الموعد، لذلك سيراجعه المحاضر." }
         : { k: "ok", t: r.late ? "تم التسليم بعد الموعد، وسيظهر ذلك للمحاضر." : "تم التسليم. يمكنك استبدال الملف حتى موعد التسليم." };
     } catch (e) {
       if (fileId) HD.trash(fileId);

@@ -63,7 +63,7 @@
     not_allowed: "غير مسموح لك بهذا الإجراء.",
     not_found: "تعذّر العثور على هذه البيانات، وربما تغيّرت. حدّث الصفحة.",
     session_running: "توجد محاضرة جارية في هذه المادة. أنهِها أولًا.",
-    session_exists: "فيه محاضرة مسجّلة في التاريخ ده لنفس المجموعة. دوس على تاريخها في الكشف وعلّمها إجازة من هناك.",
+    session_exists: "توجد محاضرة مسجّلة في هذا التاريخ للمجموعة نفسها. اضغط تاريخها في الكشف وعلّمها إجازة من هناك.",
     session_ended: "انتهت هذه المحاضرة. تعديلها متاح لصاحب المادة فقط.",
     wrong_domain: "يجب أن يكون البريد على نطاق الجامعة.",
     bad_email: "البريد الإلكتروني غير صحيح.",
@@ -87,13 +87,13 @@
     already_owner: "هذا هو صاحب المادة بالفعل.",
     confirm_mismatch: "الاسم المكتوب لا يطابق اسم المادة.",
     not_enrolled: "هذا الكود غير موجود في ملف أي مادة. سجّل بزر «التسجيل باستمارة التسجيل» بالأعلى، أو تواصل مع المحاضر.",
-    form_required: "أول تسجيل على Hadro بيكون باستمارة التسجيل (الإرشاد الأكاديمي). اختار «إنشاء حساب» وارفع الاستمارة.",
+    form_required: "يكون التسجيل الأول على Hadro باستمارة التسجيل (الإرشاد الأكاديمي). اختر «إنشاء حساب» وارفع الاستمارة.",
     no_courses: "اختر مقررًا واحدًا على الأقل.",
     already_registered: "يوجد حساب بهذا الكود من قبل. ادخل من «دخول». إذا لم تكن أنت من أنشأه، فاطلب من المحاضر حذف الحساب.",
     weak_password: "يجب ألا تقل كلمة السر عن 6 أحرف.",
     bad_pin: "رمز التفعيل غير صحيح.",
     not_registered: "لا يوجد حساب بهذا الكود. أنشئ حسابًا من «إنشاء حساب».",
-    bad_password: "كلمة السر غير صحيحة. لو متأكد منها، جرّب «نسيت كلمة السر؟» تحت.",
+    bad_password: "كلمة السر غير صحيحة. إن كنت متأكدًا منها، فجرّب «نسيت كلمة السر؟» بالأسفل.",
     limited_session: "هذا الدخول لتسليم التكليفات فقط. افعل ذلك من هاتفك المرتبط بالحساب.",
     device_mismatch: "هذا الحساب مرتبط بهاتف أو متصفح آخر. ادخل بكودك وكلمة السر لترى أين، ولتنقله إلى هنا إن أردت.",
     absent_on_due: "لا يُقبل تسليمك لأنك غبت في محاضرة يوم طرح المشروع (أو يوم التسليم). إن كان لك عذر فراجِع المحاضر ليقبله.",
@@ -113,7 +113,7 @@
     reset_not_approved: "لم تتم الموافقة على الطلب بعد، أو انتهت صلاحيته.",
     move_too_soon: "نقلت حسابك مؤخرًا. يمكن النقل مرة كل 3 أيام، أو اطلب من المحاضر فك ربط الهاتف.",
     device_taken: "هذا المتصفح مرتبط بحساب طالب آخر، فلا يمكن نقل حسابك إليه.",
-    locked: "محاولات غلط كتير على الحساب ده. استنى ربع ساعة وجرّب تاني، أو اطلب من المحاضر «فك القفل».",
+    locked: "محاولات خاطئة كثيرة على هذا الحساب. انتظر ربع ساعة ثم حاول مرة أخرى، أو اطلب من المحاضر «فك القفل».",
     not_signed_in: "انتهت جلستك. سجّل الدخول مرة أخرى.",
     bad_device: "المتصفح لا يحفظ البيانات. أغلق وضع التصفح الخفي وأعد المحاولة.",
     title_required: "اكتب عنوان التكليف.",
@@ -136,8 +136,8 @@
     drive_no_share: "حسابك لا يسمح بمشاركة الملفات لمن معه الرابط (غالبًا حساب جامعي مقيّد). استخدم حساب Gmail شخصيًّا.",
     drive_forbidden: "رفض Google هذا الطلب. جرّب مرة أخرى أو استخدم حساب Gmail شخصيًّا.",
     drive_missing: "الملف غير موجود على Drive الطالب، أو لم يعد متاحًا لمن معه الرابط.",
-    survey_closed: "الاستطلاع ده اتقفل.", survey_required: "الاستطلاع ده مطلوب الإجابة عنه.", survey_consent: "علّم على الموافقة على المشاركة الأول.", bad_answers: "في مشكلة في الإجابات، راجعها.",
-    petition_sick_file: "العذر المرضي لازم ترفع معاه الشهادة الطبية.", petition_note: "اكتب سبب الالتماس.", petition_open: "عندك التماس على التكليف ده لسه بيتراجع.", petition_limit: "استنفدت عدد الالتماسات المسموح على التكليف ده.", petition_not_needed: "التسليم مفتوح لك بالفعل، سلّم على طول.", bad_until: "الموعد لازم يكون بعد دلوقتي وفي خلال 60 يوم.", appeal_reply: "اكتب السبب.",
+    survey_closed: "أُغلق هذا الاستطلاع.", survey_required: "الإجابة عن هذا الاستطلاع مطلوبة.", survey_consent: "علّم على الموافقة على المشاركة الأول.", bad_answers: "في مشكلة في الإجابات، راجعها.",
+    petition_sick_file: "العذر المرضي لازم ترفع معاه الشهادة الطبية.", petition_note: "اكتب سبب الالتماس.", petition_open: "لديك التماس على هذا التكليف قيد المراجعة.", petition_limit: "استنفدت عدد الالتماسات المسموح به على هذا التكليف.", petition_not_needed: "التسليم مفتوح لك بالفعل، فسلّم مباشرة.", bad_until: "يجب أن يكون الموعد بعد الآن وخلال 60 يومًا.", appeal_reply: "اكتب السبب.",
     minus_range: "قيمة الخصم لازم تكون أكبر من صفر ومتزيدش عن الدرجة العظمى للتكليف.",
     bonus_range: "البونص أكبر من الدرجة العظمى للتكليف أو أقل من صفر.",
     manual_task: "هذا رصد يدوي، لا يُسلَّم من التطبيق.",
@@ -151,11 +151,11 @@
     bad_category: "اختر نوع الرسالة.",
     ticket_subject: "اكتب عنوانًا من 3 حروف على الأقل.",
     ticket_body: "اكتب التفاصيل.",
-    ticket_closed: "أُغلقت هذه المحادثة. ابعت رسالة جديدة.",
+    ticket_closed: "أُغلقت هذه المحادثة. أرسل رسالة جديدة.",
     bad_subscription: "تعذّر تفعيل الإشعارات على هذا المتصفح.",
     bad_role: "اختر الصفة.",
-    uni_email: "اكتب بريدك الجامعي (اللي آخره .edu.eg).",
-    tt_exists: "في جدول لنفس العام والفصل بالفعل. اختاره من القائمة.",
+    uni_email: "اكتب بريدك الجامعي (المنتهي بـ ‎.edu.eg).",
+    tt_exists: "يوجد جدول للعام والفصل نفسيهما بالفعل. اختره من القائمة.",
     bad_term: "اختر العام والفصل.",
     bad_slot: "اختر يومًا من أيام الدراسة وفترات صحيحة.",
     slot_title: "اختر المادة أو اكتب اسمها."
@@ -247,7 +247,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b148)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b149)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -310,9 +310,9 @@
           <button type="button" class="ap-skin" data-aps="nx" aria-pressed="${L.skin === "nx"}">${prev(c, true)}<b>الواجهة الحديثة</b><small>كروت كبيرة، شريط داكن، وحركة مع التمرير</small></button></div></div>
         <div class="ap-sec${L.skin === "nx" ? "" : " ap-dis"}"><span>ألوان الواجهة الحديثة</span><div class="ap-pals">${CM.PALETTES.map(p => `<button type="button" class="ap-pal" data-app="${p.id}" aria-pressed="${L.pal === p.id}"><span class="ap-dots">${p.c.map(x => `<i style="background:${x}"></i>`).join("")}</span>${p.n}</button>`).join("")}
           <button type="button" class="ap-pal" data-app="own" aria-pressed="${L.pal === "own"}"><span class="ap-dots">${own.map(x => `<i style="background:${x}"></i>`).join("")}</span>ألواني</button></div>
-          ${L.pal === "own" ? `<div class="ap-own">${[["الخلفية", 0], ["اللون المميز", 1], ["الداكن", 2]].map(([t, i]) => `<label>${t}<input type="color" data-apo="${i}" value="${own[i]}"></label>`).join("")}</div><small class="muted">اختار خلفية فاتحة ولون داكن غامق علشان الكلام يبان.</small>` : ""}</div>
+          ${L.pal === "own" ? `<div class="ap-own">${[["الخلفية", 0], ["اللون المميز", 1], ["الداكن", 2]].map(([t, i]) => `<label>${t}<input type="color" data-apo="${i}" value="${own[i]}"></label>`).join("")}</div><small class="muted">اختر خلفية فاتحة ولونًا داكنًا ليظهر الكلام بوضوح.</small>` : ""}</div>
         <div class="ap-sec${L.skin === "nx" ? "" : " ap-dis"}"><label class="ap-row"><span>حركة مع التمرير (ظهور الكروت وتراكب الأقسام)</span><input type="checkbox" data-apm ${L.motion ? "checked" : ""}></label></div>
-        <small class="muted">الاختيار بيتحفظ على الجهاز ده بس.</small></div>`;
+        <small class="muted">يُحفظ الاختيار على هذا الجهاز فقط.</small></div>`;
       d.querySelector("[data-apx]").onclick = close;
       d.querySelectorAll("[data-apt]").forEach(b => b.onclick = () => { const t = b.dataset.apt; if (t === "auto") CM.store.del("cm_theme"); else CM.store.set("cm_theme", t); applyTheme(); draw(); });
       d.querySelectorAll("[data-aps]").forEach(b => b.onclick = () => { L.skin = b.dataset.aps; lookSet(L); draw(); });
@@ -487,28 +487,28 @@
   /* ================= مركز المساعدة: مساعد بالأسئلة الشائعة + مراسلة الإدارة (b72) ================= */
   // كل عنصر: who (student/staff/all)، q سؤال، k كلمات بحث، a إجابة (HTML بسيط)
   CM.FAQ = [
-    { who: "student", q: "إزاي أسجّل حضوري في المحاضرة؟", k: "حضور تسجيل سجل احضر المحاضره بدأت كود رمز qr باركود امسح", a: "أول ما المحاضرة تبدأ هتلاقي فوق خالص في صفحتك «محاضرة جارية الآن». اضغط عليها، وبعدين:<br>• لو المحاضرة في القاعة: اسمح للموقع يعرف مكانك، واكتب الرمز اللي على شاشة المحاضر أو اضغط «امسح رمز QR من الشاشة».<br>• لو أونلاين: اكتب الرمز اللي المحاضر بيقوله.<br>لو الرمز اتقفل أو ماعرفتش تسجّل، كلّم المعيد يسجّلك يدويًا." },
-    { who: "student", q: "بيقولي «الحساب مرتبط بهاتف آخر»", k: "مرتبط هاتف اخر تليفون جديد غيرت موبايل جهاز تاني متصفح اخر نقل الحساب", a: "حسابك مربوط بموبايل واحد عشان محدش يسجّل حضور مكانك.<br>• لو مفعّل الدخول بالبصمة: اضغط «الدخول ببصمة الوجه أو الإصبع» وهيتنقل على طول.<br>• لو غيّرت موبايلك: ادخل بكلمة السر من الموبايل الجديد واطلب نقل الحساب، أو اطلب من المعيد «فك ربط الهاتف».<br>• لو عايز تسلّم تكليف من الكمبيوتر بس: اختار «ادخل لتسليم التكليفات فقط»." },
-    { who: "student", q: "نسيت كلمة السر", k: "نسيت كلمه السر باسورد الباسورد مش فاكر استعادة تغيير", a: "في صفحة الدخول اضغط «نسيت كلمة السر؟» واختار طريقة من دول: نفس الموبايل المربوط، أو البصمة، أو حساب Google اللي سلّمت بيه قبل كده، أو موافقة المعيد (هيظهرلك رقم تحقق تقوله للمعيد)." },
-    { who: "student", q: "الموقع بيقول «لا يوجد اتصال» والنت شغال", k: "نت انترنت اتصال لا يوجد مش بيحمل بيحمل واقف ايفون سفاري خطأ مشكلة الموقع مش شغال", a: "• استنى ثواني، الموقع بيعيد المحاولة لوحده كل 5 ثواني.<br>• حدّث الصفحة.<br>• على الآيفون: افتح الموقع من أيقونته على الشاشة الرئيسية مش من Safari.<br>• جرّب تقفل الـ VPN أو أي برنامج حجب، أو جرّب Wi-Fi بدل الداتا (أو العكس).<br>• لو لسه، جرّب متصفح تاني (Chrome)." },
-    { who: "all", q: "إزاي أفعّل الإشعارات؟", k: "اشعارات اشعار تنبيهات نوتفكيشن تفعيل مش بيوصلني", a: "اضغط «تفعيل الإشعارات» واختار «سماح».<br>• على الآيفون: لازم الأول تضيف الموقع للشاشة الرئيسية (زر المشاركة ⬆︎ ← «إضافة إلى الشاشة الرئيسية»)، وتفتحه من الأيقونة، وبعدين تفعّل.<br>• لو رفضتها قبل كده: من إعدادات المتصفح ← إعدادات المواقع ← الإشعارات، اسمح لـ Hadro." },
-    { who: "all", q: "إزاي أضيف الموقع للشاشة الرئيسية؟", k: "شاشة رئيسية ايقونة تطبيق تنزيل تثبيت ابلكيشن home screen", a: "• آيفون (Safari): زر المشاركة ⬆︎ تحت ← «إضافة إلى الشاشة الرئيسية» ← «إضافة».<br>• أندرويد (Chrome): القائمة ⋮ ← «إضافة إلى الشاشة الرئيسية» أو «تثبيت التطبيق».<br>بعدها افتح Hadro دايمًا من الأيقونة: أسرع، ومابيخرجكش من حسابك، والإشعارات بتشتغل." },
-    { who: "student", q: "إزاي أسلّم تكليف؟", k: "تسليم سلم تكليف مشروع رفع ملف صوره درايف google drive", a: "افتح المادة ← التكليف ← اختار الملف. الملف بيترفع على Google Drive بتاعك ويتبعت للمعيد. لو نافذة Google قفلت أو ماكملتش، اضغط «جرّب طريقة أخرى» أو «سلّم رابطًا بدلًا من ذلك» وحط رابط الملف." },
-    { who: "student", q: "تسليمي مكتوب عليه «متأخر» أو «مرفوض»", k: "متاخر مرفوض غائب يوم الطرح عذر", a: "«متأخر» معناه إنك سلّمت بعد الموعد أو كنت غايب يوم طرح المشروع. «مرفوض» معناه إن التكليف مابيقبلش تسليم الغايب إلا بعذر. لو عندك عذر كلّم المعيد، يقدر يقبله أو يفتحلك تسليم استثنائي." },
-    { who: "student", q: "أعرف غيابي وإنذاراتي منين؟", k: "غياب انذار انذارات كام مرة غبت حرمان انسحاب", a: "افتح المادة من صفحتك هتلاقي عدد مرات غيابك ومستوى الإنذار. الإنذارات بالترتيب: أول، ثانٍ، ثالث ونهائي، وبعدها انسحاب إجباري من المادة. وبيوصلك إشعار أول ما توصل لإنذار جديد." },
-    { who: "student", q: "إزاي أتظلّم على درجة؟", k: "تظلم درجه غلط مرصوده مترصدتش اعتراض", a: "افتح التكليف بعد إعلان الدرجات ← «تظلم على الدرجة» ← اختار السبب ← ارفع صورة المشروع باين فيها اسمك ودرجتك ← «إرسال التظلم». هيوصلك إشعار بالقبول أو الرفض. التظلم متاح بس وباب التظلم مفتوح (المعيد بيحدد مهلته)." },
-    { who: "student", q: "درجتي مش ظاهرة", k: "درجه درجتي مش ظاهره الدرجات فين نتيجه", a: "الدرجات بتظهر بعد ما المعيد «يعلنها». لو اتعلنت ودرجتك مش موجودة رغم إنك سلّمت، قدّم تظلم واختار «سلّمت ولم تُرصد»." },
-    { who: "student", q: "ليه الموقع بيطلب مكاني (الموقع الجغرافي)؟", k: "موقع جغرافي لوكيشن gps مكاني القاعة بعيد", a: "في محاضرات القاعة الموقع بيتأكد إنك في الكلية فعلًا. اسمح بالموقع وشغّل GPS. لو قالك إنك بعيد وأنت في القاعة، استنى ثواني لحد ما الدقة تتحسن أو اطلع جنب الشباك، أو اطلب من المعيد يسجّلك." },
-    { who: "staff", q: "إزاي أبدأ محاضرة؟", k: "ابدا محاضره جديده بدء حضور قاعه اونلاين رمز", a: "افتح المادة ← «المحاضرة» ← اختار المجموعة ونوعها (قاعة أو أونلاين) ← «ابدأ المحاضرة». هيظهر رمز وQR تعرضهم على الشاشة. لما تخلّص اضغط «إغلاق التسجيل» وبعدين إنهاء المحاضرة (ده اللي بيبعت إشعارات الإنذار للطلبة)." },
-    { who: "staff", q: "طالب مش عارف يسجّل حضور", k: "طالب مش عارف يسجل يدوي حضرته تحضير غائب", a: "من «الكشف» دوس على خانة الطالب في المحاضرة وسجّله يدويًا، أو من شاشة المحاضرة الجارية. ولو موبايله مربوط غلط، من «الطلبة» اختار «فك ربط الهاتف»." },
-    { who: "staff", q: "إزاي أضيف طلبة أو أستورد كشف؟", k: "اضافه طلبه طالب كشف استيراد اكسل قائمه", a: "من «الطلبة» ← «إضافة طالب» لطالب واحد، أو استورد كشف إكسل فيه الكود والاسم والمجموعة." },
-    { who: "staff", q: "إزاي أعمل تكليف وأرصد الدرجات؟", k: "تكليف جديد رصد درجات مشروع تسليم اعلان", a: "«التكليفات» ← «تكليف أو رصد جديد». بعد التسليم افتح التكليف واكتب الدرجات (أو «رصد بالصوت» أو «رفع درجات» من إكسل)، واضغط «حفظ الدرجات»، وبعدين «إعلان» عشان الطلبة يشوفوها." },
-    { who: "staff", q: "إزاي أصدّر كشف الكنترول؟", k: "تصدير كشف الكنترول اكسل pdf طباعه درجات مجموعه", a: "«التكليفات» ← «تصدير واستيراد» ← اختار المجموعة ← إكسل أو PDF." },
-    { who: "staff", q: "إزاي أتحكم في مهلة التظلم؟", k: "مهله تظلم فتح قفل اغلاق تظلمات", a: "افتح التكليف، هتلاقي شريط «باب التظلم». تقدر تقفله، أو تفتحه لمدة (يوم/يومين/3 أيام/أسبوع)، أو «حدّد موعد الفتح والإغلاق». التظلمات بتظهر في نفس الصفحة بـ «قبول ورصد الدرجة» أو «رفض التظلم»." },
-    { who: "staff", q: "إزاي أقسّم الطلبة على مجموعات؟", k: "تقسيم مجموعات مجموعه جروب أ ب", a: "«الطلبة» ← «تقسيمهم تلقائيًا» (للطلبة اللي من غير مجموعة) أو «إعادة تقسيم المجموعات» (للكل). تختار العدد والتسمية والترتيب." },
-    { who: "staff", q: "الطلبة اللي عندهم إنذارات", k: "انذارات طلبه انذار تنبيه ابلاغ", a: "هتلاقي تنبيه في الرئيسية وفي «التقرير». تقدر «إرسال تنبيه للطلاب» (إشعار على موبايلاتهم)، أو تنزّل الكشف، أو تنسخ نص إعلان للجروب." },
-    { who: "staff", q: "إزاي أضيف معيد للمادة؟", k: "اضافه معيد فريق محاضر مشارك", a: "من «الفريق» في المادة اكتب بريده الجامعي. لازم يكون عنده حساب الأول؛ لو ماعندوش، يطلب حساب من صفحة الدخول («طلب حساب جديد») والمسؤول يوافق." },
-    { who: "staff", q: "نسيت كلمة السر (هيئة التدريس)", k: "نسيت كلمه السر باسورد معيد محاضر دخول", a: "في صفحة الدخول اختار «نسيت كلمة السر»، واكتب كلمة سر جديدة، وهيوصلك رمز على بريدك الجامعي تكتبه. لو الرمز ماوصلش، راجع البريد غير المرغوب أو اطلب من المسؤول «كلمة سر مؤقتة»." }
+    { who: "student", q: "كيف أسجّل حضوري في المحاضرة؟", k: "حضور تسجيل سجل احضر المحاضره بدأت كود رمز qr باركود امسح", a: "عندما تبدأ المحاضرة تجد في أعلى صفحتك «محاضرة جارية الآن». اضغط عليها، ثم:<br>• إذا كانت المحاضرة في القاعة: اسمح للموقع بمعرفة مكانك، واكتب الرمز الظاهر على شاشة المحاضر أو اضغط «امسح رمز QR من الشاشة».<br>• إذا كانت أونلاين: اكتب الرمز الذي يقوله المحاضر.<br>إذا أُغلق الرمز أو تعذّر عليك التسجيل، فاطلب من المعيد تسجيلك يدويًّا." },
+    { who: "student", q: "بيقولي «الحساب مرتبط بهاتف آخر»", k: "مرتبط هاتف اخر تليفون جديد غيرت موبايل جهاز تاني متصفح اخر نقل الحساب", a: "حسابك مرتبط بهاتف واحد حتى لا يسجّل أحد الحضور مكانك.<br>• إذا كنت فعّلت الدخول بالبصمة: اضغط «الدخول ببصمة الوجه أو الإصبع» وسيُنقل مباشرة.<br>• إذا غيّرت هاتفك: ادخل بكلمة السر من الهاتف الجديد واطلب نقل الحساب، أو اطلب من المعيد «فك ربط الهاتف».<br>• إذا أردت تسليم تكليف من الكمبيوتر فقط: اختر «ادخل لتسليم التكليفات فقط»." },
+    { who: "student", q: "نسيت كلمة السر", k: "نسيت كلمه السر باسورد الباسورد مش فاكر استعادة تغيير", a: "في صفحة الدخول اضغط «نسيت كلمة السر؟» واختر إحدى الطرق: الهاتف المرتبط نفسه، أو البصمة، أو حساب Google الذي سلّمت به من قبل، أو موافقة المعيد (سيظهر لك رقم تحقق تخبر به المعيد)." },
+    { who: "student", q: "الموقع يقول «لا يوجد اتصال» والإنترنت يعمل", k: "نت انترنت اتصال لا يوجد مش بيحمل بيحمل واقف ايفون سفاري خطأ مشكلة الموقع مش شغال", a: "• استنى ثواني، الموقع بيعيد المحاولة لوحده كل 5 ثواني.<br>• حدّث الصفحة.<br>• على الآيفون: افتح الموقع من أيقونته على الشاشة الرئيسية وليس من Safari.<br>• جرّب تقفل الـ VPN أو أي برنامج حجب، أو جرّب Wi-Fi بدل الداتا (أو العكس).<br>• وإن استمرت المشكلة، جرّب متصفحًا آخر (Chrome)." },
+    { who: "all", q: "كيف أفعّل الإشعارات؟", k: "اشعارات اشعار تنبيهات نوتفكيشن تفعيل مش بيوصلني", a: "اضغط «تفعيل الإشعارات» واختار «سماح».<br>• على الآيفون: لازم الأول تضيف الموقع للشاشة الرئيسية (زر المشاركة ⬆︎ ← «إضافة إلى الشاشة الرئيسية»)، وتفتحه من الأيقونة، ولاحقًا تفعّل.<br>• إذا رفضتها من قبل: من إعدادات المتصفح ← إعدادات المواقع ← الإشعارات، اسمح لـ Hadro." },
+    { who: "all", q: "كيف أضيف الموقع إلى الشاشة الرئيسية؟", k: "شاشة رئيسية ايقونة تطبيق تنزيل تثبيت ابلكيشن home screen", a: "• آيفون (Safari): زر المشاركة ⬆︎ بالأسفل ← «إضافة إلى الشاشة الرئيسية» ← «إضافة».<br>• أندرويد (Chrome): القائمة ⋮ ← «إضافة إلى الشاشة الرئيسية» أو «تثبيت التطبيق».<br>بعدها افتح Hadro دائمًا من الأيقونة: فهو أسرع، ولا يُخرجك من حسابك، وتعمل فيه الإشعارات." },
+    { who: "student", q: "كيف أسلّم تكليفًا؟", k: "تسليم سلم تكليف مشروع رفع ملف صوره درايف google drive", a: "افتح المادة ← التكليف ← اختر الملف. يُرفع الملف على Google Drive الخاص بك ويُرسل للمعيد. وإذا أُغلقت نافذة Google أو لم تكتمل، فاضغط «جرّب طريقة أخرى» أو «سلّم رابطًا بدلًا من ذلك» وضع رابط الملف." },
+    { who: "student", q: "تسليمي مكتوب عليه «متأخر» أو «مرفوض»", k: "متاخر مرفوض غائب يوم الطرح عذر", a: "«متأخر» يعني أنك سلّمت بعد الموعد أو كنت غائبًا يوم طرح المشروع. و«مرفوض» يعني أن التكليف لا يقبل تسليم الغائب إلا بعذر. فإذا كان لديك عذر فتواصل مع المعيد، ويمكنه قبوله أو فتح تسليم استثنائي لك." },
+    { who: "student", q: "أعرف غيابي وإنذاراتي منين؟", k: "غياب انذار انذارات كام مرة غبت حرمان انسحاب", a: "افتح المادة من صفحتك لتجد عدد مرات غيابك ومستوى الإنذار. الإنذارات بالترتيب: أول، ثانٍ، ثالث ونهائي، ثم الانسحاب الإجباري من المادة. ويصلك إشعار فور وصولك إلى إنذار جديد." },
+    { who: "student", q: "كيف أتظلّم على درجة؟", k: "تظلم درجه غلط مرصوده مترصدتش اعتراض", a: "افتح التكليف بعد إعلان الدرجات ← «تظلم على الدرجة» ← اختر السبب ← ارفع صورة المشروع يظهر فيها اسمك ودرجتك ← «إرسال التظلم». سيصلك إشعار بالقبول أو الرفض. والتظلم متاح فقط وباب التظلم مفتوح (يحدد المعيد مهلته)." },
+    { who: "student", q: "درجتي لا تظهر", k: "درجه درجتي مش ظاهره الدرجات فين نتيجه", a: "تظهر الدرجات بعد أن «يعلنها» المعيد. وإذا أُعلنت ولم تجد درجتك رغم أنك سلّمت، فقدّم تظلمًا واختر «سلّمت ولم تُرصد»." },
+    { who: "student", q: "ليه الموقع بيطلب مكاني (الموقع الجغرافي)؟", k: "موقع جغرافي لوكيشن gps مكاني القاعة بعيد", a: "في محاضرات القاعة يتحقق الموقع من أنك في الكلية فعلًا. اسمح بالموقع وشغّل GPS. وإذا أخبرك أنك بعيد وأنت في القاعة، فانتظر ثواني حتى تتحسن الدقة أو اقترب من النافذة، أو اطلب من المعيد تسجيلك." },
+    { who: "staff", q: "كيف أبدأ محاضرة؟", k: "ابدا محاضره جديده بدء حضور قاعه اونلاين رمز", a: "افتح المادة ← «المحاضرة» ← اختر المجموعة ونوعها (قاعة أو أونلاين) ← «ابدأ المحاضرة». يظهر رمز وQR تعرضهما على الشاشة. وعند الانتهاء اضغط «إغلاق التسجيل» ثم إنهاء المحاضرة (وهو ما يرسل إشعارات الإنذار للطلبة)." },
+    { who: "staff", q: "طالب لا يستطيع تسجيل الحضور", k: "طالب مش عارف يسجل يدوي حضرته تحضير غائب", a: "من «الكشف» اضغط خانة الطالب في المحاضرة وسجّله يدويًّا، أو من شاشة المحاضرة الجارية. وإذا كان هاتفه مرتبطًا خطأً، فمن «الطلبة» اختر «فك ربط الهاتف»." },
+    { who: "staff", q: "كيف أضيف طلبة أو أستورد كشفًا؟", k: "اضافه طلبه طالب كشف استيراد اكسل قائمه", a: "من «الطلبة» ← «إضافة طالب» لطالب واحد، أو استورد كشف إكسل فيه الكود والاسم والمجموعة." },
+    { who: "staff", q: "كيف أنشئ تكليفًا وأرصد الدرجات؟", k: "تكليف جديد رصد درجات مشروع تسليم اعلان", a: "«التكليفات» ← «تكليف أو رصد جديد». بعد التسليم افتح التكليف واكتب الدرجات (أو «رصد بالصوت» أو «رفع درجات» من إكسل)، واضغط «حفظ الدرجات»، ثم «إعلان» ليراها الطلبة." },
+    { who: "staff", q: "كيف أصدّر كشف الكنترول؟", k: "تصدير كشف الكنترول اكسل pdf طباعه درجات مجموعه", a: "«التكليفات» ← «تصدير واستيراد» ← اختر المجموعة ← إكسل أو PDF." },
+    { who: "staff", q: "كيف أتحكم في مهلة التظلم؟", k: "مهله تظلم فتح قفل اغلاق تظلمات", a: "افتح التكليف لتجد شريط «باب التظلم». يمكنك إغلاقه، أو فتحه لمدة (يوم/يومين/3 أيام/أسبوع)، أو «حدّد موعد الفتح والإغلاق». وتظهر التظلمات في الصفحة نفسها مع «قبول ورصد الدرجة» أو «رفض التظلم»." },
+    { who: "staff", q: "كيف أقسّم الطلبة على مجموعات؟", k: "تقسيم مجموعات مجموعه جروب أ ب", a: "«الطلبة» ← «تقسيمهم تلقائيًّا» (للطلبة بلا مجموعة) أو «إعادة تقسيم المجموعات» (للجميع). وتختار العدد والتسمية والترتيب." },
+    { who: "staff", q: "الطلبة الذين لديهم إنذارات", k: "انذارات طلبه انذار تنبيه ابلاغ", a: "تجد تنبيهًا في الرئيسية وفي «التقرير». ويمكنك «إرسال تنبيه للطلاب» (إشعار على هواتفهم)، أو تنزيل الكشف، أو نسخ نص إعلان للمجموعة." },
+    { who: "staff", q: "كيف أضيف معيدًا للمادة؟", k: "اضافه معيد فريق محاضر مشارك", a: "من «الفريق» في المادة اكتب بريده الجامعي. يجب أن يكون لديه حساب أولًا؛ وإن لم يكن، فيطلب حسابًا من صفحة الدخول («طلب حساب جديد») ويوافق المسؤول." },
+    { who: "staff", q: "نسيت كلمة السر (هيئة التدريس)", k: "نسيت كلمه السر باسورد معيد محاضر دخول", a: "في صفحة الدخول اختر «نسيت كلمة السر»، واكتب كلمة سر جديدة، وسيصلك رمز على بريدك الجامعي لتكتبه. وإن لم يصل الرمز، فراجع البريد غير المرغوب أو اطلب من المسؤول «كلمة سر مؤقتة»." }
   ];
   CM.normAr = x => String(x || "").toLowerCase().replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/[ًٌٍَُِّْـ]/g, "").replace(/[؟?!.,،:«»"()]/g, " ").replace(/\s+/g, " ").trim();
   CM.faqSearch = (q, who) => {
@@ -555,9 +555,9 @@
     function faqHtml() {
       const res = CM.faqSearch(st.q, o.who);
       return `<div class="hc-ask"><div class="hc-bot"><span class="hc-av">${CM.ICONS ? "" : ""}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="4"/><path d="M12 3v4M9 12h.01M15 12h.01M9.5 16h5"/></svg></span><p>أهلًا! أنا مساعد Hadro. اكتب سؤالك بكلامك، وهطلعلك الإجابة.</p></div>
-        <input type="search" id="hcQ" value="${esc(st.q)}" placeholder="مثلًا: نسيت كلمة السر، إزاي أسجل حضوري…" autocomplete="off" aria-label="سؤالك">
-        <div class="hc-res">${res.length ? res.map((f, i) => `<details class="hc-faq" ${st.q && i === 0 ? "open" : ""}><summary>${esc(f.q)}</summary><div>${f.a}</div></details>`).join("") : `<p class="small muted">مالقيتش إجابة جاهزة لسؤالك.</p>`}</div>
-        <div class="hc-more"><span class="small muted">مالقيتش اللي بتدور عليه؟</span>${o.api ? `<button class="btn sm primary" data-hct="new">راسل الإدارة</button>` : `<span class="small">${o.loginHint || "سجّل دخولك الأول عشان تقدر تراسل الإدارة."}</span>`}</div></div>`;
+        <input type="search" id="hcQ" value="${esc(st.q)}" placeholder="مثلًا: نسيت كلمة السر، كيف أسجّل حضوري…" autocomplete="off" aria-label="سؤالك">
+        <div class="hc-res">${res.length ? res.map((f, i) => `<details class="hc-faq" ${st.q && i === 0 ? "open" : ""}><summary>${esc(f.q)}</summary><div>${f.a}</div></details>`).join("") : `<p class="small muted">لم أجد إجابة جاهزة لسؤالك.</p>`}</div>
+        <div class="hc-more"><span class="small muted">لم تجد ما تبحث عنه؟</span>${o.api ? `<button class="btn sm primary" data-hct="new">راسل الإدارة</button>` : `<span class="small">${o.loginHint || "سجّل دخولك أولًا لتتمكن من مراسلة الإدارة."}</span>`}</div></div>`;
     }
     function newHtml() {
       const f = st.form;
@@ -565,7 +565,7 @@
         <div class="hc-cats" role="radiogroup" aria-label="نوع الرسالة">${Object.entries(HC_CATS).map(([k, l]) => `<button type="button" class="cchip" role="radio" aria-pressed="${f.cat === k}" data-hcc="${k}">${l}</button>`).join("")}</div>
         ${(o.courses || []).length ? `<label class="f"><span>تخص مادة؟ (اختياري)</span><select id="hcCourse"><option value="">لا تخص مادة بعينها</option>${o.courses.map(c => `<option value="${c.id}" ${f.course === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>` : ""}
         <label class="f"><span>العنوان</span><input id="hcSubj" maxlength="120" value="${esc(f.subject)}" placeholder="جملة قصيرة توضح الموضوع"></label>
-        <label class="f"><span>التفاصيل</span><textarea id="hcBody" rows="5" maxlength="3000" placeholder="اكتب المشكلة أو الاقتراح بالتفصيل: حصل إيه، وإمتى، وعلى أنهي جهاز…">${esc(f.body)}</textarea></label>
+        <label class="f"><span>التفاصيل</span><textarea id="hcBody" rows="5" maxlength="3000" placeholder="اكتب المشكلة أو الاقتراح بالتفصيل: ماذا حدث، ومتى، وعلى أي جهاز…">${esc(f.body)}</textarea></label>
         ${st.msg ? `<p class="small bad-t">${esc(st.msg)}</p>` : ""}
         <div class="row"><button class="btn primary" id="hcSend" ${st.busy ? "disabled" : ""}>${st.busy ? "جارٍ الإرسال…" : "إرسال الرسالة"}</button></div>
         <p class="small muted">هيوصلك إشعار لما المسؤول يرد، وتلاقي الرد في «رسائلي».</p></div>`;
@@ -578,9 +578,9 @@
           <div class="hc-th-h"><b>${esc(t.subject)}</b><span class="chip ${HC_ST[t.status][1]}">${HC_ST[t.status][0]}</span></div>
           <p class="small muted">${HC_CATS[t.category]}${t.course ? " · " + esc(t.course) : ""}</p>
           <div class="hc-msgs">${t.msgs.map(m => `<div class="hc-m ${m.admin ? "adm" : "me"}"><small>${m.admin ? esc(m.author || "المسؤول") : "أنت"} · ${fmt(m.at)}</small><p>${esc(m.body).replace(/\n/g, "<br>")}</p></div>`).join("")}</div>
-          ${t.status === "closed" ? `<p class="small muted">أُغلقت هذه المحادثة. لو عندك موضوع جديد ابعت رسالة جديدة.</p>` : `<label class="f"><span>ردّك</span><textarea id="hcRe" rows="3" maxlength="3000"></textarea></label>${st.msg ? `<p class="small bad-t">${esc(st.msg)}</p>` : ""}<div class="row"><button class="btn sm primary" id="hcReSend" ${st.busy ? "disabled" : ""}>إرسال</button></div>`}</div>`;
+          ${t.status === "closed" ? `<p class="small muted">أُغلقت هذه المحادثة. إن كان لديك موضوع جديد فأرسل رسالة جديدة.</p>` : `<label class="f"><span>ردّك</span><textarea id="hcRe" rows="3" maxlength="3000"></textarea></label>${st.msg ? `<p class="small bad-t">${esc(st.msg)}</p>` : ""}<div class="row"><button class="btn sm primary" id="hcReSend" ${st.busy ? "disabled" : ""}>إرسال</button></div>`}</div>`;
       }
-      if (!st.items.length) return `<div class="empty small">لسه مابعتش رسائل. <button class="linkish" data-hct="new">ابعت أول رسالة</button></div>`;
+      if (!st.items.length) return `<div class="empty small">لم ترسل رسائل بعد. <button class="linkish" data-hct="new">أرسل أول رسالة</button></div>`;
       return `<div class="hc-list">${st.items.map(t => `<button class="hc-it ${t.unread ? "unread" : ""}" data-hco="${t.id}"><span><b>${esc(t.subject)}</b><small>${HC_CATS[t.category]} · ${fmt(t.updated_at)}</small></span><span class="chip ${HC_ST[t.status][1]}">${HC_ST[t.status][0]}</span></button>`).join("")}</div>`;
     }
     function draw() {
@@ -832,7 +832,7 @@
           CM.SURVEY.open.forEach(([k]) => { const v = o.querySelector(`[data-o="${k}"]`).value.trim(); if (v) ans[k] = v.slice(0, 600); });
         }
         b.disabled = true;
-        try { await api.submit(sv.id, declined ? {} : ans, declined, !declined, Math.round((Date.now() - t0) / 1000)); card.innerHTML = `<div class="cg-thx">${CM.markHtml()}<b>${declined ? "تمام، شكرًا لك." : "شكرًا لمشاركتك!"}</b><span class="small muted">${declined ? "مش هيظهرلك الاستطلاع ده تاني." : "إجاباتك اتسجلت بمعرّف مجهول."}</span></div>`; setTimeout(() => { done(); res(); }, 1400); }
+        try { await api.submit(sv.id, declined ? {} : ans, declined, !declined, Math.round((Date.now() - t0) / 1000)); card.innerHTML = `<div class="cg-thx">${CM.markHtml()}<b>${declined ? "تمام، شكرًا لك." : "شكرًا لمشاركتك!"}</b><span class="small muted">${declined ? "لن يظهر لك هذا الاستطلاع مرة أخرى." : "سُجّلت إجاباتك بمعرّف مجهول."}</span></div>`; setTimeout(() => { done(); res(); }, 1400); }
         catch (e) { b.disabled = false; err(api.err ? api.err(e) : "تعذّر الإرسال. حاول مرة أخرى."); }
       };
       o.querySelector("#cgSend").onclick = () => send(false);
@@ -866,3 +866,61 @@
 document.addEventListener("click", ev => {
   document.querySelectorAll("details.dd[open]").forEach(d => { if (!d.contains(ev.target)) d.removeAttribute("open"); });
 }, true);
+
+// b149: زرار «إظهار» جنب كل خانة كلمة سر
+(function () {
+  const EYE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  const add = () => document.querySelectorAll('input[type="password"]:not([data-pw-eye])').forEach(i => {
+    i.dataset.pwEye = "1";
+    const w = document.createElement("span"); w.className = "pw-wrap"; i.parentNode.insertBefore(w, i); w.appendChild(i);
+    const b = document.createElement("button"); b.type = "button"; b.className = "pw-eye"; b.innerHTML = EYE; b.setAttribute("aria-label", "إظهار كلمة السر"); b.title = "إظهار كلمة السر";
+    b.onclick = e => { e.preventDefault(); const show = i.type === "password"; i.type = show ? "text" : "password"; b.innerHTML = show ? EYE_OFF : EYE; b.setAttribute("aria-label", show ? "إخفاء كلمة السر" : "إظهار كلمة السر"); b.title = b.getAttribute("aria-label"); i.focus(); };
+    w.appendChild(b);
+  });
+  const start = () => { add(); new MutationObserver(add).observe(document.body, { childList: true, subtree: true }); };
+  if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
+})();
+
+// b149: على الموبايل الشريط اللي تحت فيه 5 أزرار بالكتير، والباقي في «المزيد»
+(function () {
+  const R = document.documentElement;
+  const MORE = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
+  const activeOf = n => n.querySelector(':scope > [aria-selected="true"], :scope > [aria-pressed="true"], :scope > .on');
+  const label = b => (b.querySelector(".l") || b).textContent.trim();
+  const sheet = n => {
+    const hid = [...n.querySelectorAll(":scope > button.dk-hid")]; if (!hid.length) return;
+    const d = document.createElement("div"); d.className = "dk-sheet"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-label", "باقي الأقسام");
+    d.innerHTML = `<div class="dk-sh-box"><div class="dk-sh-h"><b>باقي الأقسام</b><button type="button" class="dk-sh-x" aria-label="إغلاق">✕</button></div><div class="dk-sh-g"></div></div>`;
+    const g = d.querySelector(".dk-sh-g");
+    hid.forEach(b => { const it = document.createElement("button"); it.type = "button"; it.className = "dk-sh-it";
+      const ic = b.querySelector("svg"); it.innerHTML = (ic ? ic.outerHTML : "") + `<span>${label(b).replace(/[<>&]/g, "")}</span>`;
+      const badge = b.querySelector(".tb, .bell-n, b"); if (badge && badge.textContent.trim() && /^\d+$/.test(badge.textContent.trim())) it.insertAdjacentHTML("beforeend", `<i class="dk-sh-n">${badge.textContent.trim()}</i>`);
+      it.onclick = () => { close(); b.click(); }; g.appendChild(it); });
+    const close = () => { d.classList.add("out"); setTimeout(() => d.remove(), 180); document.removeEventListener("keydown", esc); };
+    const esc = e => { if (e.key === "Escape") close(); };
+    d.onclick = e => { if (e.target === d) close(); }; d.querySelector(".dk-sh-x").onclick = close;
+    document.addEventListener("keydown", esc); document.body.appendChild(d); (g.firstElementChild || d).focus();
+  };
+  let q = 0;
+  const run = () => {
+    q = 0; let changed = false;
+    const mobile = R.dataset.skin === "nx" && innerWidth <= 760;
+    document.querySelectorAll(".ctabs, .nx-dock").forEach(n => {
+      const btns = [...n.querySelectorAll(":scope > button:not(.dk-more)")].filter(b => b.classList.contains("dk-hid") || getComputedStyle(b).display !== "none");
+      let m = n.querySelector(":scope > .dk-more");
+      if (!mobile || btns.length <= 5) { btns.forEach(b => b.classList.remove("dk-hid")); if (m) m.remove(); return; }
+      const a = activeOf(n); let keep = btns.slice(0, 4);
+      if (a && btns.includes(a) && !keep.includes(a)) keep = [...btns.slice(0, 3), a];
+      btns.forEach(b => { const h = !keep.includes(b); if (b.classList.contains("dk-hid") !== h) { b.classList.toggle("dk-hid", h); changed = true; } });
+      const anyHot = btns.some(b => b.classList.contains("dk-hid") && b.querySelector(".tb, b"));
+      if (!m) { changed = true; m = document.createElement("button"); m.type = "button"; m.className = "dk-more"; m.innerHTML = MORE + '<span class="l">المزيد</span>'; m.onclick = () => sheet(n); n.appendChild(m); }
+      if (m.classList.contains("hot") !== anyHot) m.classList.toggle("hot", anyHot);
+    });
+    if (changed) requestAnimationFrame(() => dispatchEvent(new Event("resize")));   // الخلفية الملونة تتحرك للزرار المختار في مكانه الجديد
+  };
+  const kick = () => { if (!q) q = requestAnimationFrame(run); };
+  const start = () => { run(); new MutationObserver(kick).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-selected", "aria-pressed", "class"] }); };
+  addEventListener("resize", kick);
+  if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
+})();
