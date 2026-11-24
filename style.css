@@ -2888,3 +2888,33 @@ details.more[open]>summary::after{content:"⌃"}
 /* قايمة الحساب: مسافة وخط قبل «خروج» */
 .dd-m .dd-i.danger{margin-top:8px;position:relative}
 .dd-m .dd-i.danger::before{content:"";position:absolute;inset-inline:10px;top:-5px;height:1px;background:var(--line)}
+/* ===== b148: الطباعة / PDF — كانت بتطلع صفحات بيضا =====
+   السبب: الكروت في الواجهة الحديثة بتبقى مخفية لحد ما تتعمل لها سكرول (حركة الظهور)، والطابعة كانت بتشوفها مخفية.
+   والأجزاء اللازقة (sticky) والشريط اللي تحت كانوا بيركبوا على بعض في الصفحات. */
+@media print{
+  @page{ size: A4; margin: 12mm; }
+  html, body{ background: #fff !important; color: #111 !important; height: auto !important; overflow: visible !important; }
+  html[data-skin] *{ animation: none !important; transition: none !important; }
+  html[data-skin] .nx-r, html[data-skin] [class*="nx-"], html[data-skin] .hx-in, html[data-skin] .sb-in{ opacity: 1 !important; transform: none !important; filter: none !important; }
+  html[data-skin] :is(header.top, .hd-sp, .ctabs, .nx-dock, .st-nav, .sband, .sb, .hx, .dh-secs, .filters, .no-print, .bl-pop, .toast, .fd-dlg, .ap-dlg, footer.legal, .savebar, .btn, details.dd, .tabs, .rp-acts){ display: none !important; }
+  html[data-skin] :is(section, .panel, .tabpane, .tile, .rp-sec, .card, th, td, tr){ position: static !important; top: auto !important; box-shadow: none !important; backdrop-filter: none !important; }
+  html[data-skin] :is(.panel, .rp-sec, .card){ background: #fff !important; color: #111 !important; border: 1px solid #ddd !important; border-radius: 10px !important; break-inside: avoid-page; margin: 0 0 10px !important; padding: 10px !important; }
+  html[data-skin] :is(.panel, .rp-sec) *{ color: inherit; }
+  html[data-skin] .muted{ color: #555 !important; }
+  html[data-skin] .tbl-wrap{ max-height: none !important; overflow: visible !important; border: 0 !important; }
+  html[data-skin] table{ width: 100% !important; border-collapse: collapse; }
+  html[data-skin] thead{ display: table-header-group; }   /* عنوان الجدول يتكرر في كل صفحة */
+  html[data-skin] tr{ break-inside: avoid; }
+  html[data-skin] th, html[data-skin] td{ border-bottom: 1px solid #e3e3e3 !important; background: #fff !important; color: #111 !important; }
+  html[data-skin] *{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+@media print{
+  /* الطباعة دايمًا بألوان الوضع الفاتح، حتى لو البرنامج مفتوح غامق */
+  html, html[data-theme], html[data-skin], html[data-skin][data-theme]{
+    --bg: #fff !important; --surface: #fff !important; --sunk: #f3f5f4 !important; --ink: #111 !important; --muted: #555 !important; --line: #d9dedc !important;
+    --board: #fff !important; --board-ink: #111 !important; --board-dim: #555 !important; --board-hot: #1d6b58 !important;
+    --accent-soft: #e6f0ec !important; color-scheme: light !important;
+  }
+  html[data-skin] :is(.rp-sec, .nx-board, [class*="board"]){ background: #fff !important; color: #111 !important; }
+}
+@media print{ html[data-skin] :is(.chip, .badge, .warn-chip, [class*="chip"]){ background: #fff !important; color: #111 !important; border: 1px solid #999 !important; } }
