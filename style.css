@@ -3079,3 +3079,14 @@ html.hd-lock,html.hd-lock body{overflow:hidden}
 .hd-authart p{color:var(--muted);margin:6px 0 0;font-size:14.5px}
 @media (min-width:900px){ .hd-welcome{padding-top:20px} .hd-welcome .hw-art{width:240px} }
 @media print{ .hd-intro,.hd-cele,.hd-m,.hd-i{display:none!important} }
+/* b153: تكبير الروبوت والرسومات (ومع ذلك تصغر وحدها في الشاشات القصيرة حتى تبقى الأزرار ظاهرة) */
+.hdi-art>*{width:min(92vw,440px,calc(100dvh - 380px))}
+.hdi-art .hd-m{width:min(94vw,440px,calc(100dvh - 360px))}
+.hdi-art{min-height:240px}
+.hd-welcome .hw-art{width:min(88vw,360px,calc(100dvh - 420px));min-width:200px;margin:-6px auto -14px}
+.hd-authart .hd-m{width:min(62vw,250px,30dvh);min-width:150px;margin-bottom:-8px}
+.hd-authart .hd-i{width:min(70vw,290px,34dvh);min-width:170px}
+.hdc-box .hd-m{width:min(90vw,400px)}
+.hdc-box b{font-size:27px}
+.hd-empty .hd-m{width:min(66vw,260px)}
+@media (min-width:900px){ .hd-welcome .hw-art{width:min(360px,calc(100dvh - 420px))} }
