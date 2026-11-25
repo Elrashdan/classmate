@@ -256,7 +256,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b169)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b170)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -1042,7 +1042,7 @@ document.addEventListener("click", ev => {
     t.classList.add("cardify"); t.dataset.cardOk = n;
   };
   let q = 0;
-  const run = () => { q = 0; if (!mq.matches) return; document.querySelectorAll(".tabpane table:not(.regt):not(.staff-tbl):not(.gb):not(.lvt), #adminArea table:not(.staff-tbl), #courseWrap table:not(.regt):not(.staff-tbl):not(.gb):not(.lvt)").forEach(lab); };
+  const run = () => { q = 0; if (!mq.matches) return; document.querySelectorAll(".tabpane table:not(.regt):not(.staff-tbl):not(.gb):not(.lvt):not(.tk-tbl), #adminArea table:not(.staff-tbl), #courseWrap table:not(.regt):not(.staff-tbl):not(.gb):not(.lvt):not(.tk-tbl)").forEach(lab); };
   const kick = () => { if (!q) q = requestAnimationFrame(run); };
   const start = () => { run(); new MutationObserver(kick).observe(document.body, { childList: true, subtree: true }); };
   mq.addEventListener ? mq.addEventListener("change", kick) : mq.addListener(kick);
@@ -1122,3 +1122,7 @@ document.addEventListener("click", ev => {
   const start = () => { new MutationObserver(scan).observe(document.body, { childList: true, subtree: true }); scan(); };
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
 })();
+
+/* ===== b170: مسافة بعد اللقب في الأسماء («أ.د.محمد» ← «أ.د. محمد»)، وزر «التالي» في كيبورد الموبايل لخانات الدرجات ===== */
+CM.tname = n => String(n == null ? "" : n).replace(/(^|[\s(،])((?:أ\.\s?م\.\s?د|أ\.\s?د|م\.\s?م|د|م|أ)\.)\s*(?=[^\s.\d])/g, "$1$2 ");
+document.addEventListener("focusin", e => { const t = e.target; if (t && t.matches && t.matches("input.gb-in, input.gin")) { t.enterKeyHint = "next"; if (!t.getAttribute("inputmode")) t.setAttribute("inputmode", "decimal"); } });

@@ -820,21 +820,6 @@ header.top .brand p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #tasksPanel>.panel-h .eyebrow{display:block}
 #tasksPanel>.panel-h>.row{justify-content:flex-start}
 .tk-sortbar>.seg .cchip{flex:1 1 auto}
-/* خانات الدرجات على الموبايل: صف أفقي مضغوط والمجموع آخره */
-@media (max-width:760px){
-  #tkWrap{overflow:visible}
-  table.tk-tbl,table.tk-tbl>tbody{display:block;width:100%} table.tk-tbl>thead{display:none}
-  table.tk-tbl>tbody>tr{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 6px;padding:12px 0;border-bottom:1px solid var(--line)}
-  table.tk-tbl>tbody>tr>td{display:block;padding:0;border:0;min-width:0}
-  table.tk-tbl>tbody>tr>td:nth-child(1),table.tk-tbl>tbody>tr>td:nth-child(2){display:none}
-  table.tk-tbl>tbody>tr>td.nm,table.tk-tbl>tbody>tr>td.tk-subc,table.tk-tbl>tbody>tr>td.tk-work,table.tk-tbl>tbody>tr>td.tk-fb{flex:1 1 100%}
-  table.tk-tbl td.tk-work{max-width:none}
-  table.tk-tbl td.tk-g{flex:1 1 0;display:grid;gap:2px;justify-items:center;text-align:center}
-  table.tk-tbl td.tk-g::before{content:attr(data-th);max-width:100%;font:500 10.5px var(--fb);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  table.tk-tbl td.tk-g .gin{width:100%;min-width:0;min-height:40px!important;padding:0 2px!important;font-size:15px}
-  table.tk-tbl td.tk-tt{flex:0 0 52px} table.tk-tbl td.tk-tt b{display:grid;place-items:center;min-height:40px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:15px}
-  table.tk-tbl td.tk-bn{flex:0 0 50px}
-}
 /* الأقسام الفرعية على الموبايل (من «المزيد»): زر رجوع، و«المزيد» يظهر مختارًا */
 .ch2-back{display:none}
 @media (max-width:760px){
@@ -860,3 +845,54 @@ header.top .brand p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dh-bars{z-index:2} .dh-avg{z-index:1}
 .dh-bv{inset-inline:auto;left:50%;transform:translateX(-50%);padding:0 4px;border-radius:6px;background:var(--card)}
 .apctl input:not([type=checkbox]):not([type=radio]),.apctl select{background:var(--card)}
+/* b170: عنوان التكليف في رأس كشف الدرجات بحد 3 أسطر (الاسم الكامل عند الوقوف عليه)، وخانة الدرجة أضيق عشان اسم الطالب ياخد مساحته */
+.gb-tt{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+input.gin{width:68px;min-width:0;text-align:center}
+@media (max-width:620px){ input.gin{width:58px} }
+/* b170: رصد الدرجات على الموبايل — كل طالب كارت مستقل بحدود واضحة، 3 أسطر:
+   (1) الاسم + المجموعة  (2) حالة التسليم + زر العمل  (3) الدرجة · البونص · المجموع · الملاحظة */
+@media (max-width:760px){
+  #tkWrap{overflow:visible;border:0;background:none;padding:0;box-shadow:none}
+  table.tk-tbl{display:block;width:100%;border:0} table.tk-tbl>thead{display:none}
+  table.tk-tbl>tbody{display:grid;gap:8px;width:100%}
+  table.tk-tbl>tbody>tr{display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px 8px;padding:12px 14px;background:var(--card);border:1px solid var(--card-b);border-radius:16px}
+  table.tk-tbl>tbody>tr.dirty{border-color:color-mix(in srgb,var(--warn) 70%,transparent);box-shadow:inset -4px 0 0 var(--warn)}
+  table.tk-tbl>tbody>tr>td{display:block;padding:0;border:0;min-width:0;background:none!important}
+  table.tk-tbl>tbody>tr>td:nth-child(1),table.tk-tbl>tbody>tr>td:nth-child(2),table.tk-tbl>tbody>tr>td:empty{display:none}
+  /* سطر 1 */
+  table.tk-tbl td.nm{order:0;flex:1 1 0;align-self:center}
+  table.tk-tbl td.nm .nm-t{font:600 15px var(--fd);color:var(--ink)}
+  table.tk-tbl td.c:not(.tk-g){order:1;flex:0 0 auto;align-self:center;padding:2px 10px;border-radius:var(--pill);background:var(--sunk);font:500 12px var(--fb);color:var(--muted)}
+  table.tk-tbl td.c:not(.tk-g)::before{content:"مجموعة "}
+  /* سطر 2 */
+  table.tk-tbl>tbody>tr::before{content:"";order:2;flex:0 0 100%;height:0}
+  table.tk-tbl td.tk-subc{order:3;flex:1 1 0;align-self:center;font-size:12.5px}
+  table.tk-tbl td.tk-subc .cell-s{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+  table.tk-tbl td.tk-subc .btn{min-height:32px;padding:0 12px;font-size:12px}
+  table.tk-tbl td.tk-work{order:4;flex:0 0 auto;max-width:55%;align-self:center;font-size:12px}
+  table.tk-tbl td.tk-work .btn{min-height:32px;padding:0 12px;font-size:12px}
+  table.tk-tbl td.tk-work .tk-a{display:none}
+  table.tk-tbl td.tk-work>.muted:only-child{display:none}
+  /* سطر 3 */
+  table.tk-tbl>tbody>tr::after{content:"";order:5;flex:0 0 100%;height:0;margin-bottom:2px;border-top:1px dashed var(--line)}
+  table.tk-tbl td.tk-g{order:6;flex:0 0 64px;display:grid;gap:3px;justify-items:stretch;text-align:center}
+  table.tk-tbl td.tk-g.tk-p{flex:1 1 56px}
+  table.tk-tbl td.tk-g.tk-bn{flex:0 0 52px}
+  table.tk-tbl td.tk-g.tk-tt{flex:0 0 48px}
+  table.tk-tbl td.tk-g::before,table.tk-tbl td.tk-fb::before{content:attr(data-th);font:500 11px var(--fb);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+  table.tk-tbl td.tk-fb::before{content:"ملاحظة";display:block;margin-bottom:3px}
+  table.tk-tbl td.tk-g .gin{width:100%;min-width:0;min-height:40px!important;padding:0 2px!important;font-size:15px;border-radius:10px}
+  table.tk-tbl td.tk-tt b{display:grid;place-items:center;min-height:40px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:15px}
+  table.tk-tbl td.tk-fb{order:7;flex:1 1 90px}
+  table.tk-tbl td.tk-fb .fin{width:100%;min-width:0;min-height:40px!important;font-size:13px;border-radius:10px}
+  table.tk-tbl>tbody>tr>td:not([class]){order:8;flex:1 1 100%}
+}
+@media (max-width:760px){
+  table.tk-tbl td.tk-subc .cell-s{flex-wrap:nowrap;justify-content:space-between}
+  table.tk-tbl td.tk-tt b:empty{background:var(--sunk);color:var(--muted)}
+  table.tk-tbl td.tk-tt b:empty::after{content:"—"}
+  .rs-bar{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:stretch}
+  .rs-bar>.tabs{min-width:0;overflow-x:auto;scrollbar-width:none}
+  .rs-bar>input{max-width:none!important;width:100%}
+}
+@media (max-width:760px){ table.tk-tbl td.tk-subc .cell-s>*{flex:0 0 auto;white-space:nowrap} }
