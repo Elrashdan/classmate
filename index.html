@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b167">
+<link rel="stylesheet" href="ui.css?v=b168">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -27,12 +27,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b167"></script>
-<script src="config.js?v=b167"></script>
-<script src="common.js?v=b167"></script>
-<script src="drive.js?v=b167"></script>
-<script src="catalog.js?v=b167"></script>
-<script src="regform.js?v=b167"></script>
+<script src="vendor/qrcode.js?v=b168"></script>
+<script src="config.js?v=b168"></script>
+<script src="common.js?v=b168"></script>
+<script src="drive.js?v=b168"></script>
+<script src="catalog.js?v=b168"></script>
+<script src="regform.js?v=b168"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -560,7 +560,7 @@
   }
 
   // أعلى الصفحة: أي محاضرة جارية الآن مع خانة الرمز وزر المسح مباشرة (لا يحتاج الطالب إلى النزول بحثًا عنها)
-  // b167: الرئيسية الجديدة — زر دائري كبير واحد أثناء المحاضرة، و«حاضر» مع المحاضرة التالية حين لا توجد محاضرة
+  // b168: الرئيسية الجديدة — زر دائري كبير واحد أثناء المحاضرة، و«حاضر» مع المحاضرة التالية حين لا توجد محاضرة
   const codeOpen = {};
   const QRI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>';
   function nextLecture() {
@@ -803,7 +803,7 @@
 
   let netRetry = null;
   window.addEventListener("online", () => { if (token && !home) loadHome(); });
-  /* b167: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
+  /* b168: الرئيسية بتصميم «لوحة الطالب»: مادة مختارة + شريط سفلي (الرئيسية · درجاتي · جدولي) */
   let tsub = store.get("cm_stab") === "grades" ? "grades" : "tasks";
   let stab = ({ grades: "tasks" })[store.get("cm_stab")] || (["home", "abs", "tasks", "tt"].includes(store.get("cm_stab")) ? store.get("cm_stab") : "home"), stSel = store.get("cm_stsel") || null, stAnimK = "";
   const stPct = c => c.held ? Math.max(0, Math.round((c.held - (c.absences || 0)) / c.held * 100)) : null;
@@ -1468,7 +1468,7 @@
     }
     busy = false; await loadHome(true).catch(() => renderHome());
   }
-  /* b167: الطالب لا يرى «تم» إلا بعد رد الخادم. لو النت مقطوع أو الطلب لم يصل: رسالة واضحة + «أعد المحاولة» (إعادة الإرسال آمنة: الخادم يرد «سُجِّل من قبل») */
+  /* b168: الطالب لا يرى «تم» إلا بعد رد الخادم. لو النت مقطوع أو الطلب لم يصل: رسالة واضحة + «أعد المحاولة» (إعادة الإرسال آمنة: الخادم يرد «سُجِّل من قبل») */
   const retryOf = {};
   const isNet = e => /Failed to fetch|NetworkError|network|Load failed|aborted|timeout/i.test(String((e && e.message) || e || ""));
   const offlineRes = () => ({ k: "bad", retry: true, title: "لم يُسجَّل حضورك: لا يوجد اتصال بالإنترنت", checks: [["x", "اتصل بالإنترنت ثم اضغط «أعد المحاولة»"], ["q", "أو اعرض «بطاقة الحضور» على المحاضر ليمسحها، فهي تعمل دون إنترنت"]] });

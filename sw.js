@@ -3,12 +3,12 @@
  */
 // Hadro offline cache: the student page (and its QR) must open with no internet.
 // Network first (so updates arrive), cache as fallback. Never touches Supabase API calls.
-const VER = "b167";
-const CACHE = "hadro-v167";
+const VER = "b168";
+const CACHE = "hadro-v168";
 const CDN = [];
 // ملفات الـJS والـCSS بتتطلب برقم النسخة (?v=bNN)، فينفع تتاخد من الذاكرة على طول من غير ما نستنى الشبكة
 const V = u => u + "?v=" + VER;
-const LOCAL = ["./", "index.html", V("style.css"), V("ui.css"), V("ui-staff.css"), V("ui-tools.css"), V("common.js"), V("drive.js"), V("catalog.js"), V("regform.js"), V("config.js"), V("vendor/qrcode.js"), V("vendor/supabase.js"), "vendor/jsQR.js", "icon.svg", "icon-192.png", "manifest.json"];
+const LOCAL = ["./", "index.html", V("style.css"), V("ui.css"), V("ui-staff.css"), V("ui-tools.css"), V("common.js"), V("timetable.js"), V("research.js"), V("voice.js"), V("pack.js"), "staff.html", V("drive.js"), V("catalog.js"), V("regform.js"), V("config.js"), V("vendor/qrcode.js"), V("vendor/supabase.js"), "vendor/jsQR.js", "icon.svg", "icon-192.png", "manifest.json"];
 const CACHE_HOSTS = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"];
 
 self.addEventListener("install", e => {

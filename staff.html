@@ -19,9 +19,9 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b167">
-<link rel="stylesheet" href="ui-tools.css?v=b167">
-<link rel="stylesheet" href="ui-staff.css?v=b167">
+<link rel="stylesheet" href="ui.css?v=b168">
+<link rel="stylesheet" href="ui-tools.css?v=b168">
+<link rel="stylesheet" href="ui-staff.css?v=b168">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -47,16 +47,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b167"></script>
-<script src="vendor/qrcode.js?v=b167"></script>
-<script src="config.js?v=b167"></script>
-<script src="common.js?v=b167"></script>
-<script src="drive.js?v=b167"></script>
-<script src="pack.js?v=b167"></script>
-<script src="catalog.js?v=b167"></script>
-<script src="voice.js?v=b167"></script>
-<script src="timetable.js?v=b167"></script>
-<script src="research.js?v=b167"></script>
+<script src="vendor/supabase.js?v=b168"></script>
+<script src="vendor/qrcode.js?v=b168"></script>
+<script src="config.js?v=b168"></script>
+<script src="common.js?v=b168"></script>
+<script src="drive.js?v=b168"></script>
+<script src="pack.js?v=b168"></script>
+<script src="catalog.js?v=b168"></script>
+<script src="voice.js?v=b168"></script>
+<script src="timetable.js?v=b168"></script>
+<script src="research.js?v=b168"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -297,6 +297,7 @@
       me = await rpc("staff_me");
       if (!me) return signOut("هذا البريد غير مسجَّل لمحاضر، أو أن حسابه موقوف. تواصل مع مسؤول القسم.");
       if (me.must_change_pw) { const em = me.email; me = null; login = { step: "newpw", email: em, err: "", busy: false, temp: true }; return renderLogin(); }
+      await ensureScripts();
       await loadBase();
       try { store.del(SREQ); } catch (e) {}
       staffPushSync();
@@ -306,6 +307,15 @@
     } catch (e) { app.innerHTML = `<div class="msg bad">${esc(errText(e))}</div>`; }
   }
 
+  // b168: لو ملف مساعد ماتحمّلش (شبكة متقطعة أو تحديث جاري)، نعيد تحميله بدل ما الصفحة كلها تقف
+  async function ensureScripts() {
+    const need = [["timetable.js", () => window.TT], ["research.js", () => true]].filter(([, ok]) => !ok());
+    for (const [f] of need) for (let k = 0; k < 3 && !window.TT; k++) {
+      await new Promise(res => { const s = document.createElement("script"); const old = document.querySelector(`script[src^="${f}"]`); s.src = (old ? old.getAttribute("src") : f) + (old && old.getAttribute("src").includes("?") ? "&" : "?") + "r=" + Date.now(); s.onload = s.onerror = res; document.head.appendChild(s); });
+      if (!window.TT) await new Promise(r => setTimeout(r, 800 * (k + 1)));
+    }
+    if (!window.TT) window.TT = { DAY: ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"], t12: x => x || "", cohortName: () => "", weekHtml: () => "", mine: async () => null, open: async () => { throw { message: "تعذّر تحميل الجدول الدراسي. أعد تحميل الصفحة." }; } };
+  }
   async function loadBase() {
     const [st, se, co, ta, pf] = await Promise.all([
       sb.from("staff").select("*").order("name"),
@@ -443,7 +453,7 @@
     const c = course();
     if (!c) { D = null; return render(); }
     store.set("cm_course", c.id);
-    // b167: مرحلتان فقط بدل خمس (كل مرحلة رحلة كاملة للخادم، وعلى شبكة الهاتف هي اللي بتبطّأ فتح المادة)
+    // b168: مرحلتان فقط بدل خمس (كل مرحلة رحلة كاملة للخادم، وعلى شبكة الهاتف هي اللي بتبطّأ فتح المادة)
     const safe = p => p.then(r => r, () => null);
     const [en, se, ta, au, tk] = await Promise.all([
       CM.fetchAll(() => sb.from("enrollments").select("*").eq("course_id", c.id).order("student_code")),
@@ -637,7 +647,7 @@
     try { if (view !== "course" || ctab !== "tasks") { gbFull = false; document.documentElement.classList.remove("gb-lock"); } } catch (e) {}
     if (!$("#bellPop") || $("#bellPop").hidden) document.documentElement.classList.remove("bell-lock");
   }
-  // b167: شرح بملء الشاشة أول مرة يُفتح فيها كل قسم من أقسام المادة
+  // b168: شرح بملء الشاشة أول مرة يُفتح فيها كل قسم من أقسام المادة
   const TAB_INTRO = {
     live: [{ eb: "قسم جديد · المحاضرة", art: CM.illus("lecturer"), t: "ابدأ، واترك الباقي لـ Hadro", p: "اضغط «ابدأ المحاضرة» واعرض الرمز على شاشة القاعة. يسجّل الطلبة حضورهم من هواتفهم، وتتابع العدّاد وهو يرتفع.", tips: ["من لا يستطيع المسح تمسح أنت «بطاقة حضوره»", "الطلبات المعلّقة تعتمدها أو ترفضها من هنا"] }],
     reg: [{ eb: "قسم جديد · الكشف", art: CM.mascot("tablet"), t: "الكشف بثلاث طرق", p: "على الهاتف: قائمة الطلبة بنسبهم، وملف كل طالب بسجل محاضراته، وكشف محاضرة واحدة بزر حاضر/غائب لكل طالب.", tips: ["اضغط اسم أي طالب لترى سجله", "«الجدول الكامل» ما زال متاحًا للتصدير والطباعة"] }],
@@ -855,7 +865,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b167: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b168: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -956,7 +966,7 @@
     return `<article class="dh-card dh-feed"><div class="dh-h"><h2>آخر النشاط</h2>${l && l.length ? `<button type="button" class="btn sm ghost" data-tile="log">السجل كامل</button>` : ""}</div>
       ${l == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : l.length ? `<div class="dh-tl">${l.map(a => { const t = String(a.action || ""); return `<div class="dh-ev"><i class="c-${col(t)}"></i><span><span>${esc(t.length > 110 ? t.slice(0, 108) + "…" : t)}</span><small>${esc(staffName(a.actor) || a.actor || "")} · ${esc(ago(a.at))}</small></span></div>`; }).join("")}</div>` : `<div class="dh-empty">لا يوجد نشاط في المادة بعد.</div>`}</article>`;
   }
-  // b167: كارت «محاضرتك» الأسود: إجراء رئيسي واحد (ابدأ المحاضرة / افتح المحاضرة الجارية)
+  // b168: كارت «محاضرتك» الأسود: إجراء رئيسي واحد (ابدأ المحاضرة / افتح المحاضرة الجارية)
   function dhHero(c) {
     if (!c) return "";
     const has = D && D.cid === c.id, s = has ? running() : null;
@@ -1356,7 +1366,7 @@
     const ft = $("#fTerm"); if (ft) ft.onchange = onFilter;
     if (view === "admin") return renderAdmin();
     if (!c) return;
-    // b167: نرسم القسم المفتوح فقط (رسم الأقسام السبعة مع 285 طالب كان بياخد ثانية على الهاتف)
+    // b168: نرسم القسم المفتوح فقط (رسم الأقسام السبعة مع 285 طالب كان بياخد ثانية على الهاتف)
     drawResets(); if (view === "course") renderPane(ctab);
     if (view === "course") tabIntro(ctab);
   }
@@ -1752,7 +1762,7 @@
   };
   let RGC = RGBASE;
   const RGG = { cols: null, st: () => rg, all: () => rgRows, redraw: () => renderRegister(), defSort: () => ({ col: "code", dir: 1 }) };
-  /* ===== b167: الكشف على الموبايل بثلاث طرق: قائمة الطلبة · ملف الطالب · كشف محاضرة ===== */
+  /* ===== b168: الكشف على الموبايل بثلاث طرق: قائمة الطلبة · ملف الطالب · كشف محاضرة ===== */
   let rgm = { cid: null, mode: "stu", q: "", f: "all", stu: null, sid: null, chg: {}, sheet: false, reason: "", table: false, rm: null };
   const isMob = () => matchMedia("(max-width: 760px)").matches;
   const ST_TXT = { "ح": ["ok", "حاضر"], "ي": ["ok", "حاضر يدويًّا"], "ت": ["ok", "حضر تعويضيًّا"], "م": ["warn", "بانتظار الاعتماد"], "غ": ["bad", "غائب"], "إ": ["mu", "إجازة"], "…": ["mu", "لم تُحتسب بعد"], "—": ["mu", "ليست لمجموعته"] };
@@ -4483,7 +4493,7 @@
     renderRosterTable();
   }
 
-  /* b167: الطلبة على الموبايل — صف بسيط لكل طالب، والإجراءات في ورقة من تحت */
+  /* b168: الطلبة على الموبايل — صف بسيط لكل طالب، والإجراءات في ورقة من تحت */
   const ACC_DOT = { bound: "ok", reg: "warn", none: "none" };
   let rsSheet = null, rsConfirm = null;
   function rosterListM(lw, rows, ms) {
