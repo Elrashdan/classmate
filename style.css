@@ -3389,3 +3389,7 @@ html[data-skin="nx"] .board .btn.primary{ background: var(--nx-hi) !important; c
   table.cardify > tbody > tr > td:is([data-th="#"], [data-th="م"]){ display: none !important; }
   #rsTbl.cardify > tbody > tr > td.mono{ order: -1; color: var(--muted); font-size: 12.5px; }
 }
+/* b166: حالة الاتصال */
+.hd-net{position:fixed;inset-inline:12px;top:calc(10px + env(safe-area-inset-top,0px));z-index:200;display:flex;align-items:center;gap:10px;max-width:520px;margin:0 auto;padding:12px 16px;border-radius:16px;background:#121614;color:#fff;font:600 13.5px var(--f-display,system-ui);box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.hd-net i{width:8px;height:8px;border-radius:50%;background:#c8423a;flex:none}
+.hd-net.back i{background:#1e7f55}

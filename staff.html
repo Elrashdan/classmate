@@ -1801,6 +1801,8 @@
     return `<label class="rgm-sel"><span class="muted small">المحاضرة</span><select id="rgmS">${done.map(x => `<option value="${x.id}" ${x.id === s.id ? "selected" : ""}>المحاضرة ${x.n} · ${CM.fmtD(x.started_at)}${x.grp ? " · مجموعة " + esc(x.grp) : ""}${!regDone(x) ? " · جارية" : ""}</option>`).join("")}</select></label>
       <div class="rgm-k"><div><b class="ok-t">${n.p}</b><small>حاضر</small></div><div><b class="bad-t">${n.a}</b><small>غائب</small></div><div><b class="warn-t">${n.q}</b><small>بانتظارك</small></div></div>
       <input type="search" class="rgm-q" id="rgmQ" placeholder="ابحث في كشف هذه المحاضرة" value="${esc(rgm.q)}" autocomplete="off">
+      ${can ? (() => { const left = rows.filter(e => !(D.att[s.id] || {})[e.student_code] && !rgm.chg[e.student_code]).length;
+        return left ? `<div class="rgm-all"><button type="button" class="btn sm" data-rgall>تحضير الباقين (${left})</button><small class="muted">يُحضَّر كل من لم يُسجَّل بعد، ثم تستثني الغائبين قبل الحفظ.</small></div>` : ""; })() : ""}
       ${!can ? `<p class="muted small">تصحيح المحاضرات المنتهية لصاحب المادة والمحاضر المشارك.</p>` : ""}
       <div class="rgm-list">${list.map(e => { const v = st(e), ch = !!rgm.chg[e.student_code];
         return `<div class="rgm-row${ch ? " ch" : ""}"><span class="rgm-av sm">${esc((e.name || "؟").trim().charAt(0))}</span><span class="rgm-t"><b>${esc(e.name)}</b><small>${esc(e.student_code)}</small></span>
@@ -1813,6 +1815,7 @@
     const adds = one ? 1 : Object.values(rgm.chg).filter(v => v === "p").length, rms = one ? 0 : Object.values(rgm.chg).filter(v => v === "a").length;
     return `<div class="rgm-sheet" role="dialog" aria-modal="true"><div class="rgm-sp"><b>${adds ? "سبب التحضير اليدوي" : "تأكيد"}</b>
       ${adds ? `<div class="rgm-qr">${MAN_REASONS.map(r => `<button type="button" class="btn xs ghost" data-rgr="${esc(r)}">${esc(r)}</button>`).join("")}</div><input type="text" id="rgmR" maxlength="200" placeholder="اكتب السبب (يظهر في سجل المادة)" value="${esc(rgm.reason)}">` : ""}
+      ${adds > 1 && rgm.bulk ? `<p class="small muted">سيُكتب في سجل المادة أنه تحضير جماعي لـ ${adds} طلبة، مع هذا السبب.</p>` : ""}
       ${rms ? `<p class="small">سيُلغى حضور ${rms === 1 ? "طالب واحد" : rms + " طلبة"} في هذه المحاضرة.</p>` : ""}
       <div class="row"><button type="button" class="btn primary" id="rgmGo">${one ? "تحضير" : "حفظ"}</button><button type="button" class="btn ghost" id="rgmNo">إلغاء</button></div></div></div>`;
   }
@@ -1829,7 +1832,9 @@
     el.querySelectorAll("[data-rgap]").forEach(b => b.onclick = () => act(() => rpc("approve_attendance", { sid: rgm.sid, code: b.dataset.rgap }), loadCourse));
     el.querySelectorAll("[data-rgrj]").forEach(b => b.onclick = () => act(() => rpc("reject_attendance", { sid: rgm.sid, code: b.dataset.rgrj }), loadCourse));
     const sv = $("#rgmSave"); if (sv) sv.onclick = () => { rgm.sheet = true; R(); const i = $("#rgmR"); if (i) i.focus(); };
-    const un = $("#rgmUndo"); if (un) un.onclick = () => { rgm.chg = {}; R(); };
+    const un = $("#rgmUndo"); if (un) un.onclick = () => { rgm.chg = {}; rgm.bulk = false; R(); };
+    const ra = el.querySelector("[data-rgall]"); if (ra) ra.onclick = () => { const s0 = D.sessions.find(x => x.id === rgm.sid); if (!s0) return;
+      D.enroll.filter(e => isOwn(s0, e) && !(D.att[s0.id] || {})[e.student_code] && !rgm.chg[e.student_code]).forEach(e => { rgm.chg[e.student_code] = "p"; }); rgm.bulk = true; R(); };
     el.querySelectorAll("[data-rgmk]").forEach(b => b.onclick = () => { rgm.mark = b.dataset.rgmk; R(); const i = $("#rgmR"); if (i) i.focus(); });
     el.querySelectorAll("[data-rgmx]").forEach(b => b.onclick = () => { if (rgm.rm !== b.dataset.rgmx) { rgm.rm = b.dataset.rgmx; R(); return; } const sid = rgm.rm, code = rgm.stu; rgm.rm = null; act(() => rpc("cancel_attendance", { sid, code }), loadCourse); });
     el.querySelectorAll("[data-rgr]").forEach(b => b.onclick = () => { rgm.reason = b.dataset.rgr; const i = $("#rgmR"); if (i) i.value = rgm.reason; });
@@ -1842,7 +1847,8 @@
       const adds = Object.keys(rgm.chg).filter(k => rgm.chg[k] === "p"), rms = Object.keys(rgm.chg).filter(k => rgm.chg[k] === "a");
       if (adds.length && reason.length < 3) return showErr({ message: "reason_required" });
       const sid = rgm.sid; rgm.sheet = false;
-      act(async () => { if (adds.length) await rpc("mark_manual_many", { sid, codes: adds, p_reason: reason }); for (const code of rms) await rpc("cancel_attendance", { sid, code }); rgm.chg = {}; say("reg", "حُفظت التعديلات."); }, loadCourse);
+      const why = rgm.bulk && adds.length > 1 ? "تحضير جماعي · " + reason : reason; rgm.bulk = false;
+      act(async () => { if (adds.length) await rpc("mark_manual_many", { sid, codes: adds, p_reason: why }); for (const code of rms) await rpc("cancel_attendance", { sid, code }); rgm.chg = {}; say("reg", "حُفظت التعديلات."); }, loadCourse);
     };
     const tb = $("#rgmTbl"); if (tb) tb.onclick = () => { rgm.table = true; R(); };
     const ex1 = $("#exp"); if (ex1) ex1.onclick = () => exportXlsx(false); const ex2 = $("#expPdf"); if (ex2) ex2.onclick = () => exportXlsx(true);
@@ -4485,8 +4491,10 @@
     const nowTag = e => { if (!ms) return ""; const r = (D.att[ms.id] || {})[e.student_code]; return counted(r) ? `<span class="rs-now ok">حاضر</span>` : r ? `<span class="rs-now warn">معلّق</span>` : `<span class="rs-now">لم يُسجَّل</span>`; };
     const gs = groupsOf(), noAcc = D.enroll.filter(e => accOf(e) === "none").length, fk = rv.f.acc ? "acc" : rv.f.grp ? "g:" + [...rv.f.grp][0] : "all";
     const chips = gs.length || noAcc ? `<div class="rgm-f rs-f">${[["all", "الكل " + D.enroll.length], ...gs.map(g => ["g:" + g, "مجموعة " + g + " " + D.enroll.filter(e => e.grp === g).length]), ...(noAcc ? [["acc", "بلا حساب " + noAcc]] : [])].map(([k, t]) => `<button type="button" data-rsf="${esc(k)}" aria-pressed="${fk === k}">${esc(t)}</button>`).join("")}</div>` : "";
-    lw.innerHTML = chips + `<div class="rs-rows">` + (rows.length ? rows.map(e => `<button type="button" class="rs-row" data-rss="${esc(e.student_code)}"><span class="rs-av">${esc((e.name || "؟").trim().charAt(0))}<i class="rs-dot ${ACC_DOT[accOf(e)]}" title="${ACC[accOf(e)]}"></i></span><span class="rs-t"><b>${esc(e.name)}</b><small><span class="mono">${esc(e.student_code)}</span>${e.grp ? " · مجموعة " + esc(e.grp) : ""}${e.source === "form" ? " · بالاستمارة" : ""}</small></span>${nowTag(e)}</button>`).join("")
+    const sortBy = ["name", "code", "grp", "acc", ...(ms ? ["now"] : [])].map(k => { const on = rv.sort.col === k; return `<button type="button" data-rso="${k}" aria-pressed="${on}">${k === "now" ? "حضور المحاضرة " + ms.n : RCOLS[k].t}${on ? (rv.sort.dir > 0 ? " ↑" : " ↓") : ""}</button>`; }).join("");
+    lw.innerHTML = chips + `<div class="rs-sort"><span class="muted small">ترتيب حسب</span>${sortBy}</div><div class="rs-rows">` + (rows.length ? rows.map(e => `<button type="button" class="rs-row" data-rss="${esc(e.student_code)}"><span class="rs-av">${esc((e.name || "؟").trim().charAt(0))}<i class="rs-dot ${ACC_DOT[accOf(e)]}" title="${ACC[accOf(e)]}"></i></span><span class="rs-t"><b>${esc(e.name)}</b><small><span class="mono">${esc(e.student_code)}</span>${e.grp ? " · مجموعة " + esc(e.grp) : ""}${e.source === "form" ? " · بالاستمارة" : ""}</small></span>${nowTag(e)}</button>`).join("")
       : `<div class="empty">لا يوجد طلبة مطابقون للبحث.</div>`) + `</div>`;
+    lw.querySelectorAll("[data-rso]").forEach(b => b.onclick = () => { const k = b.dataset.rso; rv.sort = { col: k, dir: rv.sort.col === k ? -rv.sort.dir : 1 }; renderRosterTable(); });
     lw.querySelectorAll("[data-rsf]").forEach(b => b.onclick = () => { const k = b.dataset.rsf; rv.f.grp = k.startsWith("g:") ? new Set([k.slice(2)]) : null; rv.f.acc = k === "acc" ? new Set(["none"]) : null; renderRosterTable(); });
     lw.querySelectorAll("[data-rss]").forEach(b => b.onclick = () => { rsSheet = b.dataset.rss; rsConfirm = null; rosterSheet(); });
     if (rsSheet) rosterSheet();

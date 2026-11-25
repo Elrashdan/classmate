@@ -470,7 +470,7 @@
     if (!silent && !home && !rf) CM.loader(app, "جارٍ تجهيز صفحتك…");
     try {
       home = await rpc("student_home", { p_token: token });
-      rpc("student_form_due", { p_token: token }).then(r => { const d = !!(r && r.due); if (d !== formDue) { formDue = d; if (home && !rf && !tkId) renderHome(); } if (d && !tkId) formPopup(); }).catch(() => {});
+      rpc("student_form_due", { p_token: token }).then(r => { const d = !!(r && r.due); if (d !== formDue) { formDue = d; if (home && !rf && !tkId) renderHome(); } }).catch(() => {});
       if (!limited && pk.ok && pk.count == null) rpc("student_passkey_count", { p_token: token }).then(n => { pk.count = Number(n) || 0; if (home && !rf && !tkId) renderHome(); }).catch(() => {});
       const q = qrGet();
       if (limited) {} else if (!silent || !q || q.code !== home.code) await refreshQrKey();
@@ -601,7 +601,7 @@
       <span class="n2-live">${done ? "" : `<span class="pulse" aria-hidden="true"></span>`}${done ? "حضورك مسجَّل" : "محاضرة جارية الآن"}</span>
       <h2 class="n2-n">${esc(c.name)}</h2><div class="n2-m">${meta}</div>
       ${body}
-      ${res && can ? `<div class="result ${res.k}"><b>${esc(res.title)}</b>${res.checks.length ? `<ul class="checks">${res.checks.map(ch => `<li class="${ch[0]}">${esc(ch[1])}</li>`).join("")}</ul>` : ""}</div>` : ""}
+      ${res && can ? `<div class="result ${res.k}"><b>${esc(res.title)}</b>${res.checks.length ? `<ul class="checks">${res.checks.map(ch => `<li class="${ch[0]}">${esc(ch[1])}</li>`).join("")}</ul>` : ""}${res.retry ? `<button type="button" class="btn primary sm" data-retry="${c.id}">أعد المحاولة</button>` : ""}</div>` : ""}
       ${!done ? `<button type="button" class="linkish n2-alt" data-qrcard>لا يوجد إنترنت؟ اعرض بطاقة الحضور</button>` : ""}</article>`;
   }
   function sessionBlock(c) {
@@ -623,7 +623,7 @@
       <button class="btn block" data-ci="${c.id}" ${busy ? "disabled" : ""}>${busy === c.id ? `<span class="spinner"></span> جارٍ تحديد موقعك…` : "سجّل حضوري بالرمز"}</button>
       <p class="muted small">سيطلب التطبيق إذن الوصول إلى الموقع للتأكد من أنك ${s.kind === "outdoor" ? "في مكان المحاضرة" : "في القاعة"}.${s.tries_left < 5 ? ` متبقٍّ لك ${s.tries_left} محاولات.` : ""}</p>`;
     return `<div class="row between"><span class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كاملة"}</span>${s.open ? `<span class="chip ok">التسجيل مفتوح</span>` : ""}</div>${body}
-      ${res ? `<div class="result ${res.k}"><b>${esc(res.title)}</b>${res.checks.length ? `<ul class="checks">${res.checks.map(ch => `<li class="${ch[0]}">${esc(ch[1])}</li>`).join("")}</ul>` : ""}</div>` : ""}`;
+      ${res ? `<div class="result ${res.k}"><b>${esc(res.title)}</b>${res.checks.length ? `<ul class="checks">${res.checks.map(ch => `<li class="${ch[0]}">${esc(ch[1])}</li>`).join("")}</ul>` : ""}${res.retry ? `<button type="button" class="btn primary sm" data-retry="${c.id}">أعد المحاولة</button>` : ""}</div>` : ""}`;
   }
 
   /* ---------------- إشعار الإنذار ---------------- */
@@ -937,6 +937,7 @@
       inp.onkeydown = e => { if (e.key === "Enter") checkIn(cid); };
     });
     app.querySelectorAll("[data-ci]").forEach(b => b.onclick = () => checkIn(b.dataset.ci));
+    app.querySelectorAll("[data-retry]").forEach(b => b.onclick = () => { const f = retryOf[b.dataset.retry]; delete retryOf[b.dataset.retry]; results[b.dataset.retry] = null; if (f) f(); });
     app.querySelectorAll("[data-qrscan]").forEach(b => b.onclick = () => openStScan());
     app.querySelectorAll("[data-codeopen]").forEach(b => b.onclick = () => { codeOpen[b.dataset.codeopen] = true; renderHome(); const i = $("#ci-" + b.dataset.codeopen); if (i) i.focus(); });
     app.querySelectorAll("[data-ack]").forEach(b => b.onclick = () => ackWarning(b.dataset.ack, b));
@@ -1386,6 +1387,7 @@
     qrFlash = null;
     const c = home.courses.find(x => x.session && x.session.id === sid);
     if (!c) { qrFlash = { k: "bad", t: "هذا الرمز لمحاضرة لست مسجَّلًا فيها، أو انتهت المحاضرة." }; renderHome(); return; }
+    if (navigator.onLine === false) { results[c.id] = offlineRes(); retryOf[c.id] = () => checkInQr(sid, tok); return renderHome(); }
     busy = c.id; results[c.id] = null; renderHome();
     const card = document.querySelector(`[data-course="${c.id}"]`); if (card) card.scrollIntoView({ block: "start", behavior: "smooth" });
     const pos = await CM.getPosition();
@@ -1395,9 +1397,10 @@
       if (r.result === "present") CM.celebrate(results[c.id].title + "!", esc(c.name));
     } catch (e) {
       if (String(e.message || "").includes("not_signed_in")) { busy = false; return signOut(); }
-      results[c.id] = { k: "bad", title: "تعذّر التسجيل", checks: [["x", errText(e)]] };
+      results[c.id] = isNet(e) ? netRes() : { k: "bad", title: "تعذّر التسجيل", checks: [["x", errText(e)]] };
+      if (isNet(e)) retryOf[c.id] = () => checkInQr(sid, tok);
     }
-    busy = false; await loadHome(true);
+    busy = false; await loadHome(true).catch(() => renderHome());
   }
   let stStream = null, stTimer = null, stDet = null, stBusy = false;
   const loadJsQR = () => window.jsQR ? Promise.resolve() : new Promise((ok, bad) => { const sc = document.createElement("script"); sc.src = "vendor/jsQR.js"; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc); });
@@ -1448,6 +1451,7 @@
     const c = home.courses.find(x => x.id === cid); if (!c || !c.session) return;
     const code = (drafts[cid] || "").trim();
     if (code.length !== 6) { results[cid] = { k: "bad", title: "الرمز من 6 أرقام", checks: [["x", "اكتب الرمز كاملًا كما يظهر على الشاشة"]] }; return renderHome(); }
+    if (navigator.onLine === false) { results[cid] = offlineRes(); retryOf[cid] = () => checkIn(cid); return renderHome(); }
     busy = cid; results[cid] = null; renderHome();
     const pos = await CM.getPosition();
     try {
@@ -1459,10 +1463,16 @@
       else if (r.reason === "wrong_code" || r.reason === "expired_code") drafts[cid] = "";
     } catch (e) {
       if (String(e.message || "").includes("not_signed_in")) { busy = false; return signOut(); }
-      results[cid] = { k: "bad", title: "تعذّر التسجيل", checks: [["x", errText(e)]] };
+      results[cid] = isNet(e) ? netRes() : { k: "bad", title: "تعذّر التسجيل", checks: [["x", errText(e)]] };
+      if (isNet(e)) retryOf[cid] = () => checkIn(cid);
     }
-    busy = false; await loadHome(true);
+    busy = false; await loadHome(true).catch(() => renderHome());
   }
+  /* b166: الطالب لا يرى «تم» إلا بعد رد الخادم. لو النت مقطوع أو الطلب لم يصل: رسالة واضحة + «أعد المحاولة» (إعادة الإرسال آمنة: الخادم يرد «سُجِّل من قبل») */
+  const retryOf = {};
+  const isNet = e => /Failed to fetch|NetworkError|network|Load failed|aborted|timeout/i.test(String((e && e.message) || e || ""));
+  const offlineRes = () => ({ k: "bad", retry: true, title: "لم يُسجَّل حضورك: لا يوجد اتصال بالإنترنت", checks: [["x", "اتصل بالإنترنت ثم اضغط «أعد المحاولة»"], ["q", "أو اعرض «بطاقة الحضور» على المحاضر ليمسحها، فهي تعمل دون إنترنت"]] });
+  const netRes = () => ({ k: "bad", retry: true, title: "لم يصلنا طلبك بعد", checks: [["x", "انقطع الاتصال قبل أن يرد الخادم، فلم يُسجَّل حضورك حتى الآن"], ["q", "اضغط «أعد المحاولة». إن كان قد سُجِّل فسيظهر لك ذلك ولن يُحسب مرتين"]] });
 
   function describe(r, pos, kind) {
     const QR = ["q", "إذا كنت موجودًا فعلًا، فاعرض «بطاقة الحضور» على المحاضر أو المعيد ليمسحها"];

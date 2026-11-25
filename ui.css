@@ -453,3 +453,10 @@ dialog.about::backdrop{background:rgba(18,22,20,.45)}
 .tk-row{display:grid;grid-template-columns:10px 1fr;grid-template-areas:"d t" ". c";align-items:start;gap:6px 12px}
 .tk-row .tk-dot{grid-area:d;margin-top:6px} .tk-row .tk-t{grid-area:t} .tk-row>.chip{grid-area:c;justify-self:start}
 .tk-t em{font-style:normal;color:var(--muted);font-size:12.5px}
+/* b166: حالة الاتصال */
+.hd-net{position:fixed;inset-inline:12px;top:calc(10px + env(safe-area-inset-top,0px));z-index:200;display:flex;align-items:center;gap:10px;max-width:520px;margin:0 auto;padding:12px 16px;border-radius:16px;background:var(--ink);color:var(--bg);font:600 13.5px var(--fd);box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.hd-net i{width:8px;height:8px;border-radius:50%;background:var(--bad);flex:none}
+.hd-net.back i{background:var(--ok)}
+.result [data-retry]{margin-top:10px}
+.rgm-all{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rgm-all small{flex:1;min-width:180px;font-size:12px}

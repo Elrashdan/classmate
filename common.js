@@ -1037,3 +1037,16 @@ document.addEventListener("click", ev => {
   mq.addEventListener ? mq.addEventListener("change", kick) : mq.addListener(kick);
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
 })();
+
+/* ===== b166: شريط «لا يوجد اتصال» في كل الصفحات ===== */
+(function () {
+  let el = null;
+  const show = off => {
+    if (off && !el) { el = document.createElement("div"); el.className = "hd-net"; el.setAttribute("role", "status"); el.innerHTML = `<i aria-hidden="true"></i>لا يوجد اتصال بالإنترنت. ما تفعله الآن لن يُحفظ حتى يعود الاتصال.`; document.body.appendChild(el); }
+    else if (!off && el) { el.classList.add("back"); el.innerHTML = `<i aria-hidden="true"></i>عاد الاتصال.`; const x = el; el = null; setTimeout(() => x.remove(), 2200); }
+  };
+  addEventListener("offline", () => show(true));
+  addEventListener("online", () => show(false));
+  const init = () => { if (navigator.onLine === false) show(true); };
+  if (document.readyState === "loading") addEventListener("DOMContentLoaded", init); else init();
+})();
