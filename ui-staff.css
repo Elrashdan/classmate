@@ -556,3 +556,128 @@ table.cardify td[data-th="م"]{display:none}
 .rs-sort button{flex:none;min-height:32px;padding:0 12px;border:1px solid var(--line);border-radius:var(--pill);background:none;font:500 12.5px var(--fd);color:var(--muted);cursor:pointer;white-space:nowrap}
 .rs-sort button[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);font-weight:600}
 @media (min-width:1000px){ .rs-sort{margin:0;padding:0} }
+
+/* =====================================================================
+   b167 — حدود بصرية واضحة: الصفحة رمادية فاتحة، وكل قسم كارت أبيض بحدّ رفيع.
+   مقاسات الأزرار ثلاثة فقط: 48 (الإجراء الرئيسي) · 40 (عادي) · 32 (داخل الصفوف).
+   ===================================================================== */
+:root{--page:#eef0ea;--card-b:#e3e6df}
+:root[data-theme="dark"]{--page:#0b0d0c;--card-b:#232926}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--page:#0b0d0c;--card-b:#232926} }
+body{background:var(--page)}
+header.top{background:var(--page)}
+header.top>.row>.btn,header.top>.row>details>summary.btn{background:var(--surface)}
+#nxCurtain{display:none!important}
+
+/* الكارت */
+#livePanel,#rosterPanel,#regPanel,#teamPanel,#auditPanel,.board,.rp-sec,.dh-card,.dh-kpi,.tk-card,#reportPanel>.kpis>.kpi,.cpk-pop{background:var(--surface);border:1px solid var(--card-b);border-radius:22px}
+#livePanel,#rosterPanel,#regPanel,#teamPanel,#auditPanel{padding:16px!important}
+.rp-sec,.dh-card{padding:16px}
+.dh-kpi{padding:14px}
+#reportPanel,#tasksPanel{background:none;padding:0}
+.tabpane>.panel{gap:14px}
+/* شرائط التبديل والبحث على أرضية الصفحة تكون بيضاء */
+#tasksPanel .tk-sortbar>.seg,#reportPanel>.panel-h .tabs,#tasksPanel .stu-q{background:var(--surface);border:1px solid var(--card-b)}
+#tasksPanel .tk-sortbar>.seg .cchip[aria-pressed="true"],#reportPanel>.panel-h .tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);box-shadow:none}
+.board{background:var(--surface)}
+.bqr{background:var(--soft)} .bqr .qrimg{background:#fff;padding:10px;border-radius:16px}
+.bcode{background:var(--soft)}
+/* داخل الكارت: الأسطح الثانوية رمادية */
+.stat,.kpi,.rgm-k>div,.sh-k>div{background:var(--soft)}
+#reportPanel>.kpis>.kpi{background:var(--surface)}
+
+/* الأزرار: ثلاثة مقاسات وشكل واحد */
+.btn{min-height:40px;padding:0 16px;font-size:14px;border:0;background:var(--soft)}
+.btn.primary{min-height:44px}
+.btn.block.primary,.n2-big,.dhx-b{min-height:48px}
+.btn.sm{min-height:36px;padding:0 14px;font-size:13.5px}
+.btn.xs{min-height:32px;padding:0 12px;font-size:12.5px}
+.btn.ghost{background:transparent}
+.btn.danger:not(.ghost){background:var(--bad-soft);color:var(--bad)}
+details.dd>summary.btn{background:var(--soft)}
+.panel-h .row{gap:8px;flex-wrap:wrap}
+
+/* اختيار المادة: ورقة من تحت على الموبايل */
+@media (max-width:999px){
+  .cpk.open::before{content:"";position:fixed;inset:0;z-index:94;background:rgba(18,22,20,.4)}
+  .cpk-pop{position:fixed!important;inset:auto 0 0 0!important;top:auto!important;z-index:95;max-height:82vh;border-radius:26px 26px 0 0;border:0;padding:20px 16px calc(20px + env(safe-area-inset-bottom,0px));box-shadow:0 -12px 40px rgba(0,0,0,.18)}
+  .cpk-pop .cchips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}
+  .cpk-pop .cchip{flex:none;white-space:nowrap}
+  .cpk-list{max-height:none}
+}
+
+/* الجداول المتحولة لقائمة على الموبايل: سطر للاسم، وسطر صغير للتفاصيل */
+@media (max-width:760px){
+  table.cardify>tbody>tr{display:flex;flex-wrap:wrap;align-items:center;gap:2px 14px;padding:12px 2px;border-bottom:1px solid var(--line)}
+  table.cardify>tbody>tr>td{display:inline-flex;flex-direction:row;align-items:baseline;gap:5px;font-size:13px;color:var(--ink)}
+  table.cardify>tbody>tr>td::before{font-size:11.5px}
+  table.cardify>tbody>tr>td:is([data-th="الاسم"],[data-th="الطالب"],[data-th="المادة"],[data-th="المحاضرة"],[data-th="التكليف"],[data-th="العضو"],[data-th="الحدث"]){flex:1 1 100%;order:-1;font:600 15px var(--fd)}
+  table.cardify>tbody>tr>td[data-th=""]{flex:1 1 100%}
+  table.cardify>tbody>tr>td:empty{display:none}
+}
+
+/* الحضور المباشر: صف مضغوط لكل طالب */
+@media (max-width:760px){
+  #lvWrap{max-height:none!important;overflow:visible!important}
+  table.lvt,table.lvt>tbody{display:block;width:100%} table.lvt>thead{display:none}
+  table.lvt>tbody>tr{display:grid;grid-template-columns:auto auto auto 1fr auto;grid-template-areas:"cb nm nm nm st" "cb cd gp tm ac" "cb dt dt dt dt";align-items:center;gap:2px 10px;padding:12px 2px;border-bottom:1px solid var(--line)}
+  table.lvt>tbody>tr:last-child{border-bottom:0}
+  table.lvt td{display:block;padding:0;border:0;min-width:0}
+  table.lvt td:nth-child(1){grid-area:cb} table.lvt td:nth-child(1):empty{display:none}
+  table.lvt td:nth-child(2){grid-area:st;justify-self:end}
+  table.lvt td:nth-child(3){grid-area:nm;font:600 15px var(--fd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  table.lvt td:nth-child(4){grid-area:ac;justify-self:end}
+  table.lvt td:nth-child(5){grid-area:cd;font-size:12px;color:var(--muted)}
+  table.lvt td:nth-child(6){grid-area:gp;font-size:12px;color:var(--muted)}
+  table.lvt td:nth-child(6)::before{content:"مج "}
+  table.lvt td:nth-child(7){grid-area:tm;font-size:12px;color:var(--muted)}
+  table.lvt td:nth-child(8){grid-area:dt;font-size:12px;color:var(--muted)} table.lvt td:nth-child(8):empty{display:none}
+  table.lvt .btn{min-height:32px;padding:0 12px;font-size:12.5px}
+  table.lvt .row{gap:6px}
+  table.lvt tr.sel{background:var(--lime-soft)}
+}
+.lvt .chip{height:24px}
+
+/* الكشف الكامل على الموبايل: الاسم ثابت، والكود مخفي */
+@media (max-width:760px){
+  .regt :is(th,td):nth-child(1){display:none}
+  .regt :is(th,td):nth-child(2){inset-inline-start:0;box-shadow:-8px 0 12px -10px rgba(0,0,0,.18);min-width:140px;max-width:160px}
+  .regt .nm-t{white-space:normal;font-size:13px;line-height:1.35}
+}
+/* كشف الدرجات: جدول يتحرك بالعرض مع اسم ثابت، مش كروت */
+.gb-wrap{max-height:none!important;overflow-x:auto!important;overflow-y:visible!important;-webkit-overflow-scrolling:touch}
+table.gb{min-width:max-content}
+table.gb .gb-nm{background:var(--surface)}
+.gb-bar{gap:8px} .gb-bar input[type=search]{flex:1;min-width:0;max-width:none;min-height:40px!important;border-radius:var(--pill)!important;background:var(--soft)!important;border:0!important;padding:0 16px!important}
+.gb-note{font-size:12px}
+@media (max-width:760px){ table.gb .gb-nm{min-width:132px;max-width:150px} .gb-nm b{white-space:normal;font-size:13px} .gb-in{width:56px} .gb-bar #gbSt{flex-basis:100%} }
+
+/* الرئيسية: الكروت بيضاء على أرضية الصفحة */
+.dh-card{background:var(--surface)}
+.dh-kpi{background:var(--surface);border:1px solid var(--card-b)}
+.dh-chip{background:var(--surface);border:1px solid var(--card-b)}
+.dh-chip.on,.dh-chip[aria-pressed="true"]{border-color:transparent}
+.home .dh-card.dh-todo{display:grid}
+.btn.dhx-b{background:#121614;color:#fff}
+@media (max-width:760px){ table.gb :is(th,td):first-child{display:none} }
+.gb-bar>.cchips:empty{display:none}
+/* b167: الشريط العلوي — النص يتقص بنقط بدل ما يدخل تحت الأزرار */
+header.top .brand{flex:1 1 auto;min-width:0}
+header.top .brand>div{min-width:0;overflow:hidden}
+header.top .brand p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:420px){ header.top>.row{gap:6px} header.top>.row>.btn,header.top>.row>details>summary.btn{width:40px;min-width:40px;height:40px;min-height:40px} }
+/* شريط توزيع الحالات: ألوان ثابتة فاتحة، فالرقم عليها لازم يكون غامق في الوضعين */
+.segbar .seg{color:#121614} .segbar .seg.w4{color:#fff}
+.bell-n,.tbx:not(:empty),.tb,.dk-sh-n{background:#c8423a!important;color:#fff!important}
+.bqr .lbl{color:#3d4440}
+.segbar .seg.w4{background:#e8786c;color:#121614} .segbar .seg span{color:inherit}
+.blabels span,.bplot .gl em,.dh-xs span{color:var(--muted)}
+.bplot .gl.avg em{inset-inline-end:auto;inset-inline-start:0;top:-18px;background:var(--surface);padding:0 4px;border-radius:6px;z-index:2}
+.bchart .bin{padding-top:24px}
+.bqr{background:#fff} .bqr .lbl{color:#3d4440}
+.rs-t{overflow:hidden}
+/* رسم المحاضرات: المتوسط فوق الرسم كمفتاح، وأرقام المحاور مخفية عشان ماتركبش على قيم الأعمدة */
+.bavg{display:inline-flex;align-items:center;gap:8px;font:600 12.5px var(--fd);color:var(--ink)}
+.bavg i{width:18px;border-top:2px solid var(--ink)}
+.bplot .gl em{display:none}
+.bchart .bin{padding-top:18px}

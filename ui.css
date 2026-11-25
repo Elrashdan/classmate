@@ -460,3 +460,4 @@ dialog.about::backdrop{background:rgba(18,22,20,.45)}
 .result [data-retry]{margin-top:10px}
 .rgm-all{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .rgm-all small{flex:1;min-width:180px;font-size:12px}
+.st-nb{background:#c8423a!important;color:#fff!important}

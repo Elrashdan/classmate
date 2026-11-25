@@ -209,6 +209,15 @@
   };
 
   // fetch every row of a query (PostgREST returns at most 1000 per call)
+  // b167: لما نعرف أقصى عدد ممكن للصفوف، نطلب كل الصفحات مرة واحدة بالتوازي بدل واحدة ورا التانية
+  CM.fetchPages = async (build, maxRows) => {
+    const step = 1000, n = Math.max(1, Math.ceil((maxRows || 0) / step));
+    if (n > 20) return CM.fetchAll(build);
+    const res = await Promise.all(Array.from({ length: n }, (_, i) => build().range(i * step, i * step + step - 1)));
+    const out = []; for (const r of res) { if (r.error) throw r.error; out.push(...r.data); }
+    if (res[n - 1].data.length === step) { const more = await CM.fetchAll(() => build().range(n * step, 1e9)); out.push(...more); }
+    return out;
+  };
   CM.fetchAll = async build => {
     const out = []; const step = 1000;
     for (let from = 0; ; from += step) {
@@ -247,7 +256,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b166)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b167)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -928,7 +937,7 @@ document.addEventListener("click", ev => {
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
 })();
 
-/* ===== «حاضر» والرسومات المتحركة (b166) =====
+/* ===== «حاضر» والرسومات المتحركة (b167) =====
    الروبوت: WebM شفاف لكروم وفايرفوكس وإيدج، وWebP متحرك لسفاري وكل متصفحات الآيفون (لأنها تتجاهل شفافية WebM).
    الرسومات: MP4 بخلفية بيضاء داخل كارت أبيض. ومن فعّل «تقليل الحركة» أو «توفير البيانات» يرى صورة ثابتة. */
 (function () {
@@ -1031,7 +1040,7 @@ document.addEventListener("click", ev => {
     t.classList.add("cardify"); t.dataset.cardOk = n;
   };
   let q = 0;
-  const run = () => { q = 0; if (!mq.matches) return; document.querySelectorAll(".tabpane table:not(.regt):not(.staff-tbl), #adminArea table:not(.staff-tbl), #courseWrap table:not(.regt):not(.staff-tbl)").forEach(lab); };
+  const run = () => { q = 0; if (!mq.matches) return; document.querySelectorAll(".tabpane table:not(.regt):not(.staff-tbl):not(.gb):not(.lvt), #adminArea table:not(.staff-tbl), #courseWrap table:not(.regt):not(.staff-tbl):not(.gb):not(.lvt)").forEach(lab); };
   const kick = () => { if (!q) q = requestAnimationFrame(run); };
   const start = () => { run(); new MutationObserver(kick).observe(document.body, { childList: true, subtree: true }); };
   mq.addEventListener ? mq.addEventListener("change", kick) : mq.addListener(kick);

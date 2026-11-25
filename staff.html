@@ -19,9 +19,9 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b166">
-<link rel="stylesheet" href="ui-tools.css?v=b166">
-<link rel="stylesheet" href="ui-staff.css?v=b166">
+<link rel="stylesheet" href="ui.css?v=b167">
+<link rel="stylesheet" href="ui-tools.css?v=b167">
+<link rel="stylesheet" href="ui-staff.css?v=b167">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -47,16 +47,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b166"></script>
-<script src="vendor/qrcode.js?v=b166"></script>
-<script src="config.js?v=b166"></script>
-<script src="common.js?v=b166"></script>
-<script src="drive.js?v=b166"></script>
-<script src="pack.js?v=b166"></script>
-<script src="catalog.js?v=b166"></script>
-<script src="voice.js?v=b166"></script>
-<script src="timetable.js?v=b166"></script>
-<script src="research.js?v=b166"></script>
+<script src="vendor/supabase.js?v=b167"></script>
+<script src="vendor/qrcode.js?v=b167"></script>
+<script src="config.js?v=b167"></script>
+<script src="common.js?v=b167"></script>
+<script src="drive.js?v=b167"></script>
+<script src="pack.js?v=b167"></script>
+<script src="catalog.js?v=b167"></script>
+<script src="voice.js?v=b167"></script>
+<script src="timetable.js?v=b167"></script>
+<script src="research.js?v=b167"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -307,15 +307,16 @@
   }
 
   async function loadBase() {
-    const [st, se, co, ta] = await Promise.all([
+    const [st, se, co, ta, pf] = await Promise.all([
       sb.from("staff").select("*").order("name"),
       sb.from("settings").select("*").single(),
       sb.from("courses").select("*").order("created_at"),
-      sb.from("course_tas").select("*")
+      sb.from("course_tas").select("*"),
+      rpc("course_profs").then(r => r, () => null)
     ]);
     for (const r of [st, se, co, ta]) if (r.error) throw r.error;
     staff = st.data; settings = se.data; courses = co.data; tasAll = ta.data;
-    try { profs = await rpc("course_profs") || {}; } catch (e) { profs = profs || {}; }
+    profs = pf || profs || {};
     const fl = filtered(); if (!fl.find(c => c.id === curId)) curId = (fl.find(c => !["viewer", "admin"].includes(role(c)) && !c.archived) || fl[0] || {}).id || null;
   }
 
@@ -442,49 +443,43 @@
     const c = course();
     if (!c) { D = null; return render(); }
     store.set("cm_course", c.id);
-    const [en, se, ta, au] = await Promise.all([
+    // b167: مرحلتان فقط بدل خمس (كل مرحلة رحلة كاملة للخادم، وعلى شبكة الهاتف هي اللي بتبطّأ فتح المادة)
+    const safe = p => p.then(r => r, () => null);
+    const [en, se, ta, au, tk] = await Promise.all([
       CM.fetchAll(() => sb.from("enrollments").select("*").eq("course_id", c.id).order("student_code")),
       sb.from("sessions").select("*").eq("course_id", c.id).order("n"),
       sb.from("course_tas").select("*").eq("course_id", c.id),
-      sb.from("audit").select("*").eq("course_id", c.id).order("at", { ascending: false }).limit(60)
+      sb.from("audit").select("*").eq("course_id", c.id).order("at", { ascending: false }).limit(60),
+      sb.from("tasks").select("*").eq("course_id", c.id).order("due_at")
     ]);
     for (const r of [se, ta, au]) if (r.error) throw r.error;
     const sessions = se.data, ids = sessions.map(s => s.id);
-    const att = {};
-    if (ids.length) {
-      const rows = await CM.fetchAll(() => sb.from("attendance").select("*").in("session_id", ids).order("at"));
-      rows.forEach(r => { (att[r.session_id] = att[r.session_id] || {})[r.student_code] = r; });
-    }
     const focus = sessions.find(s => !s.ended) || sessions[sessions.length - 1];
-    let attempts = [];
-    if (focus) { const r = await sb.from("attempts").select("*").eq("session_id", focus.id).order("at", { ascending: false }).limit(300); if (r.error) throw r.error; attempts = r.data; }
-    // الطلبات الثانوية تُرسل معًا بالتوازي (أسرع بكثير على شبكات الهاتف)
-    const safe = p => p.then(r => r, () => null);
-    const [bnd, nr, tk, rsq, apq, anq, psq, ptq, lkq] = await Promise.all([
+    const tasks = tk.error ? [] : tk.data, subs = {}, excuses = {}, exts = {}, tids = tasks.map(t => t.id);
+    const [rows, atq, bnd, nr, rsq, apq, anq, psq, ptq, lkq, sr, xr, er] = await Promise.all([
+      ids.length ? CM.fetchPages(() => sb.from("attendance").select("*").in("session_id", ids).order("at"), ids.length * en.length) : [],
+      focus ? sb.from("attempts").select("*").eq("session_id", focus.id).order("at", { ascending: false }).limit(300) : null,
       safe(rpc("course_bindings2", { cid: c.id }).catch(() => rpc("course_bindings", { cid: c.id }))),
       safe(sb.from("warning_notices").select("student_code,level,seen_at").eq("course_id", c.id)),
-      sb.from("tasks").select("*").eq("course_id", c.id).order("due_at"),
       canRun(c) ? safe(rpc("course_reset_requests", { cid: c.id })) : null,
       safe(rpc("course_appeals", { cid: c.id })),
       safe(sb.from("warning_announced").select("student_code,level,announced_at").eq("course_id", c.id)),
       safe(rpc("course_push_status", { cid: c.id })),
       safe(rpc("course_petitions", { cid: c.id })),
-      canRun(c) ? safe(rpc("course_locked_students", { cid: c.id })) : null
+      canRun(c) ? safe(rpc("course_locked_students", { cid: c.id })) : null,
+      tids.length ? CM.fetchPages(() => sb.from("submissions").select("*").in("task_id", tids).order("task_id"), tids.length * en.length) : [],
+      tids.length ? safe(sb.from("task_excuses").select("*").in("task_id", tids)) : null,
+      tids.length ? safe(sb.from("task_extensions").select("*").in("task_id", tids)) : null
     ]);
+    if (atq && atq.error) throw atq.error;
+    const att = {}; rows.forEach(r => { (att[r.session_id] = att[r.session_id] || {})[r.student_code] = r; });
+    const attempts = atq ? atq.data : [];
     const announced = {}; if (anq && !anq.error) anq.data.forEach(n => { (announced[n.student_code] = announced[n.student_code] || {})[n.level] = n.announced_at; });
     const bindings = {}; (bnd || []).forEach(b => bindings[b.student_code] = b);
     const notices = {}; if (nr && !nr.error) nr.data.forEach(n => { (notices[n.student_code] = notices[n.student_code] || {})[n.level] = n.seen_at; });
-    const tasks = tk.error ? [] : tk.data, subs = {}, excuses = {}, exts = {}, tids = tasks.map(t => t.id);
-    if (tids.length) {
-      const [sr, xr, er] = await Promise.all([
-        CM.fetchAll(() => sb.from("submissions").select("*").in("task_id", tids).order("task_id")),
-        safe(sb.from("task_excuses").select("*").in("task_id", tids)),
-        safe(sb.from("task_extensions").select("*").in("task_id", tids))
-      ]);
-      sr.forEach(r => { (subs[r.task_id] = subs[r.task_id] || {})[r.student_code] = r; });
-      if (xr && !xr.error) xr.data.forEach(x => { if (x.active) (excuses[x.task_id] = excuses[x.task_id] || {})[x.student_code] = x; });
-      if (er && !er.error) er.data.forEach(x => { if (x.active) (exts[x.task_id] = exts[x.task_id] || {})[x.student_code] = x; });
-    }
+    sr.forEach(r => { (subs[r.task_id] = subs[r.task_id] || {})[r.student_code] = r; });
+    if (xr && !xr.error) xr.data.forEach(x => { if (x.active) (excuses[x.task_id] = excuses[x.task_id] || {})[x.student_code] = x; });
+    if (er && !er.error) er.data.forEach(x => { if (x.active) (exts[x.task_id] = exts[x.task_id] || {})[x.student_code] = x; });
     if (tkSel && !tasks.some(t => t.id === tkSel)) tkSel = null;
     const resets = rsq || [], appeals = apq || [];
     pushRecent(c.id);
@@ -642,7 +637,7 @@
     try { if (view !== "course" || ctab !== "tasks") { gbFull = false; document.documentElement.classList.remove("gb-lock"); } } catch (e) {}
     if (!$("#bellPop") || $("#bellPop").hidden) document.documentElement.classList.remove("bell-lock");
   }
-  // b166: شرح بملء الشاشة أول مرة يُفتح فيها كل قسم من أقسام المادة
+  // b167: شرح بملء الشاشة أول مرة يُفتح فيها كل قسم من أقسام المادة
   const TAB_INTRO = {
     live: [{ eb: "قسم جديد · المحاضرة", art: CM.illus("lecturer"), t: "ابدأ، واترك الباقي لـ Hadro", p: "اضغط «ابدأ المحاضرة» واعرض الرمز على شاشة القاعة. يسجّل الطلبة حضورهم من هواتفهم، وتتابع العدّاد وهو يرتفع.", tips: ["من لا يستطيع المسح تمسح أنت «بطاقة حضوره»", "الطلبات المعلّقة تعتمدها أو ترفضها من هنا"] }],
     reg: [{ eb: "قسم جديد · الكشف", art: CM.mascot("tablet"), t: "الكشف بثلاث طرق", p: "على الهاتف: قائمة الطلبة بنسبهم، وملف كل طالب بسجل محاضراته، وكشف محاضرة واحدة بزر حاضر/غائب لكل طالب.", tips: ["اضغط اسم أي طالب لترى سجله", "«الجدول الكامل» ما زال متاحًا للتصدير والطباعة"] }],
@@ -652,8 +647,13 @@
   };
   let tabIntroOn = false;
   function tabIntro(k) { if (tabIntroOn || !TAB_INTRO[k] || CM.seen("st_" + k)) return; tabIntroOn = true; CM.intro("st_" + k, TAB_INTRO[k], { doneText: "فهمت" }).then(() => { tabIntroOn = false; }); }
+  function renderPane(k) {
+    if (!D) return;
+    try { ({ live: () => { renderSession(); renderLive(); }, students: renderRoster, reg: renderRegister, report: renderReport, tasks: renderTasks, team: renderTeam, log: renderAudit }[k] || (() => {}))(); } catch (e) { console.error(e); }
+  }
   function showTab(k) {
     tabIntro(k);
+    if (ctab !== k || !(($("#pane-" + k) || {}).children || []).length || !$("#pane-" + k).textContent.trim()) setTimeout(() => renderPane(k), 0);
     ctab = k; store.set("cm_tab", k); closeFpop(); navMark(); unlockScroll();
     const cb = $("#cband"), c0 = course(); if (cb && c0) { cb.outerHTML = courseBand(c0); const nb = $("#cband"); if (nb) { nb.classList.add("swap"); } }
     document.querySelectorAll("[data-ct]").forEach(b => b.setAttribute("aria-selected", b.dataset.ct === k));
@@ -855,7 +855,7 @@
   }
   document.addEventListener("click", e => { if (pk.open && !(e.target.closest && e.target.closest(".cpk"))) { pk.open = false; pickerRedraw(); } });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && pk.open) { pk.open = false; pickerRedraw(); } });
-  /* ======================= b166: الرئيسية «لوحة اليوم» ======================= */
+  /* ======================= b167: الرئيسية «لوحة اليوم» ======================= */
   let dhGrp = "all", dhOpen = null;
   const dhFirst = () => esc(String(myStaff().name || me.name || "").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().split(" ")[0]);
   const dhSpark = vals => {
@@ -956,7 +956,7 @@
     return `<article class="dh-card dh-feed"><div class="dh-h"><h2>آخر النشاط</h2>${l && l.length ? `<button type="button" class="btn sm ghost" data-tile="log">السجل كامل</button>` : ""}</div>
       ${l == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : l.length ? `<div class="dh-tl">${l.map(a => { const t = String(a.action || ""); return `<div class="dh-ev"><i class="c-${col(t)}"></i><span><span>${esc(t.length > 110 ? t.slice(0, 108) + "…" : t)}</span><small>${esc(staffName(a.actor) || a.actor || "")} · ${esc(ago(a.at))}</small></span></div>`; }).join("")}</div>` : `<div class="dh-empty">لا يوجد نشاط في المادة بعد.</div>`}</article>`;
   }
-  // b166: كارت «محاضرتك» الأسود: إجراء رئيسي واحد (ابدأ المحاضرة / افتح المحاضرة الجارية)
+  // b167: كارت «محاضرتك» الأسود: إجراء رئيسي واحد (ابدأ المحاضرة / افتح المحاضرة الجارية)
   function dhHero(c) {
     if (!c) return "";
     const has = D && D.cid === c.id, s = has ? running() : null;
@@ -1356,7 +1356,8 @@
     const ft = $("#fTerm"); if (ft) ft.onchange = onFilter;
     if (view === "admin") return renderAdmin();
     if (!c) return;
-    renderSession(); renderLive(); renderRegister(); renderRoster(); renderTeam(); renderAudit(); renderReport(); renderTasks(); drawResets();
+    // b167: نرسم القسم المفتوح فقط (رسم الأقسام السبعة مع 285 طالب كان بياخد ثانية على الهاتف)
+    drawResets(); if (view === "course") renderPane(ctab);
     if (view === "course") tabIntro(ctab);
   }
   const MAN_REASONS = ["لا يوجد إنترنت ولا GPS", "نفدت بطارية هاتفه", "هاتفه ليس معه", "مشكلة في حسابه", "حاضر وأراه بنفسي"];
@@ -1751,7 +1752,7 @@
   };
   let RGC = RGBASE;
   const RGG = { cols: null, st: () => rg, all: () => rgRows, redraw: () => renderRegister(), defSort: () => ({ col: "code", dir: 1 }) };
-  /* ===== b166: الكشف على الموبايل بثلاث طرق: قائمة الطلبة · ملف الطالب · كشف محاضرة ===== */
+  /* ===== b167: الكشف على الموبايل بثلاث طرق: قائمة الطلبة · ملف الطالب · كشف محاضرة ===== */
   let rgm = { cid: null, mode: "stu", q: "", f: "all", stu: null, sid: null, chg: {}, sheet: false, reason: "", table: false, rm: null };
   const isMob = () => matchMedia("(max-width: 760px)").matches;
   const ST_TXT = { "ح": ["ok", "حاضر"], "ي": ["ok", "حاضر يدويًّا"], "ت": ["ok", "حضر تعويضيًّا"], "م": ["warn", "بانتظار الاعتماد"], "غ": ["bad", "غائب"], "إ": ["mu", "إجازة"], "…": ["mu", "لم تُحتسب بعد"], "—": ["mu", "ليست لمجموعته"] };
@@ -1871,9 +1872,8 @@
       return `<button class="fh ${(srt && rg.sort) || flt ? "on" : ""}" data-rcol="${k}" aria-haspopup="true" title="ترتيب وتصفية">${extra || C.t}<span class="fh-i">${srt ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button>`; };
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[CM.lvl(absences(e))]++);
     el.innerHTML = (isMob() ? `<div class="rgm-back"><button type="button" class="btn sm ghost" id="rgmBack">→ العرض المبسّط</button></div>` : "") + `<div class="panel-h"><div><div class="eyebrow">${D.sessions.filter(s => !s.cancelled).length} محاضرة${D.sessions.some(s => s.cancelled) ? ` · ${D.sessions.filter(s => s.cancelled).length} إجازة` : ""} · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
-      <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}${D.enroll.length ? CM.dd("تصدير الكشف", [`<button class="dd-i" id="exp">إكسل</button>`, `<button class="dd-i" id="expPdf">PDF للطباعة</button>`], { end: true }) : ""}</div></div>
+      <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}${D.enroll.length ? CM.dd("المزيد", [`<div class="dd-h">تصدير</div>`, `<button class="dd-i" id="exp">تصدير إكسل</button>`, `<button class="dd-i" id="expPdf">PDF للطباعة</button>`, mng ? `<div class="dd-h">محاضرات سبقت البرنامج</div>` : "", mng ? `<button class="dd-i" id="tplBtn">تنزيل ملف التحضير</button>` : "", mng ? `<label class="dd-i" for="pastX">رفع حضور محاضرات سابقة</label>` : "", mng ? `<button class="dd-i" id="offAdd">إضافة يوم إجازة</button>` : ""], { end: true }) : ""}${mng && D.enroll.length ? `<input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
       ${msgHtml("reg")}
-      ${mng && D.enroll.length ? `<div class="row small past"><span class="muted">محاضرات سبقت البرنامج؟</span><button class="btn sm ghost" id="tplBtn">تنزيل ملف التحضير</button><label class="btn sm ghost" for="pastX">رفع حضور محاضرات سابقة</label><input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden><button class="btn sm ghost" id="offAdd">إضافة يوم إجازة</button></div>` : ""}
       ${impBoxHtml()}
       ${dsBox()}
       ${seBox()}
@@ -2233,7 +2233,7 @@
   function lecChart(st) {
     if (!st.length) return `<div class="empty">لا توجد محاضرات أُغلق تسجيلها حتى الآن.</div>`;
     const avg = Math.round(st.reduce((a, b) => a + b.pct, 0) / st.length), cols = `repeat(${st.length},minmax(40px,1fr))`;
-    return `<div class="bchart" role="img" aria-label="نسبة الحضور في كل محاضرة، المتوسط ${avg}%"><div class="bin" style="min-width:${st.length * 48}px">
+    return `<div class="bavg"><i></i>المتوسط ${avg}%</div><div class="bchart" role="img" aria-label="نسبة الحضور في كل محاضرة، المتوسط ${avg}%"><div class="bin" style="min-width:${st.length * 48}px">
       <div class="bplot">
         ${[100, 50, 0].map(p => `<i class="gl" style="bottom:${p}%"><em>${p}%</em></i>`).join("")}
         <i class="gl avg" style="bottom:${avg}%"><em>المتوسط <span dir="ltr">${avg}%</span></em></i>
@@ -4483,7 +4483,7 @@
     renderRosterTable();
   }
 
-  /* b166: الطلبة على الموبايل — صف بسيط لكل طالب، والإجراءات في ورقة من تحت */
+  /* b167: الطلبة على الموبايل — صف بسيط لكل طالب، والإجراءات في ورقة من تحت */
   const ACC_DOT = { bound: "ok", reg: "warn", none: "none" };
   let rsSheet = null, rsConfirm = null;
   function rosterListM(lw, rows, ms) {
