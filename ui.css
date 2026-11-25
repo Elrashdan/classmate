@@ -461,3 +461,72 @@ dialog.about::backdrop{background:rgba(18,22,20,.45)}
 .rgm-all{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .rgm-all small{flex:1;min-width:180px;font-size:12px}
 .st-nb{background:#c8423a!important;color:#fff!important}
+
+/* =====================================================================
+   b169 — نظام التصميم الموحّد (نفس b167 عند الفريق): أرضية رمادية فاتحة،
+   وكل قسم كارت أبيض بحدّ رفيع. الألوان الثانوية داخل الكارت تبقى رمادية.
+   ===================================================================== */
+:root{--bg-page:#eef0ea;--card:#ffffff;--card-b:#e3e6df;--card-r:22px;--card-p:16px;--scroll-pad:84px}
+:root[data-theme="dark"]{--bg-page:#0b0d0c;--card:#161a18;--card-b:#282e2b}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--bg-page:#0b0d0c;--card:#161a18;--card-b:#282e2b} }
+body{background:var(--bg-page)}
+.hd-intro{background:var(--bg-page)}
+.nt-badge,.hc-dot,.st-live{border-color:var(--bg-page)}
+
+/* الكارت الموحّد */
+.card,
+.sh>:is(.st-sec,.st-box,.now,.ni,.tw-panel,.panel,.fix-alert,.pk-cta,.rf-cta,.qrcta,.push-must,.ios-tip,.rf-due),
+.hc2>.hc2-c{background:var(--card);border:1px solid var(--card-b);border-radius:var(--card-r);padding:var(--card-p)}
+.sh>.panel.nt-panel{background:var(--card)!important;padding:var(--card-p)!important}
+/* الإنذار والرسائل تحتفظ بلونها الدلالي، ومعها حدّ بنفس الشكل */
+.sh>:is(.notice,.msg,.result){border:1px solid color-mix(in srgb,currentColor 14%,transparent);border-radius:var(--card-r)}
+.sh>.notice{padding:var(--card-p);color:var(--ink)}
+.sh>.notice.lv1{border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+.sh>.notice:not(.lv1){border-color:color-mix(in srgb,var(--bad) 30%,transparent)}
+/* التبويبات على الأرضية تكون كارتًا هي أيضًا */
+.sh>.seg2{background:var(--card);border:1px solid var(--card-b)}
+.sh>.seg2 button[aria-selected="true"]{background:var(--ink);color:var(--bg);box-shadow:none}
+/* داخل الكارت: الأسطح الثانوية رمادية فاتحة واضحة */
+.card .tk-link,.sh .tk-link,.sh>.st-sec .st-box{background:var(--soft)}
+.sh>.now .n2-big{margin:18px 0 16px}
+/* قائمة المواد داخل الكارت: بلا حواف جانبية زائدة */
+.sh>.st-sec .st-card{padding-inline:2px}
+
+/* حاويات التمرير: مسافة تحت تكفي الشريط السفلي فلا تنقصّ البطاقة الأخيرة (مثل إشعار الإنذار) */
+body.has-stnav{padding-bottom:calc(var(--scroll-pad) + env(safe-area-inset-bottom,0px))}
+body.has-stnav .wrap{padding-bottom:16px}
+.sheet,.hc>div:first-child,.ap-box,.cg-card,.bell-pop .bl-b{scroll-padding-bottom:var(--scroll-pad)}
+body.has-stnav footer.legal{margin-bottom:0}
+
+/* ---------- شاشة الترحيب والدخول ---------- */
+footer.legal{padding:16px 18px max(24px,env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;justify-content:center;gap:2px 10px}
+footer.legal .linkish{min-height:32px}
+.hd-intro{padding-bottom:max(24px,env(safe-area-inset-bottom,0px))}
+@media (max-height:680px){
+  .hd-welcome{padding-top:0}
+  .hd-welcome .hw-art{width:min(56vw,220px,calc(100dvh - 480px));min-width:110px;margin:-12px auto -4px}
+  header.top[data-pre]{padding:6px 0 6px}
+  .hd-welcome h2{font-size:23px;margin-top:2px}
+  .hw-sub{font-size:14px;margin-top:4px}
+  .hw-btns{margin-top:14px;gap:10px}
+  .hw-btns .btn{min-height:50px}
+  .hd-authart .hd-m,.hd-authart .hd-i{width:min(44vw,170px,24dvh);min-width:110px;margin-bottom:4px}
+  .hd-authart h2{font-size:22px}
+  .hdi-art{min-height:170px}
+  .hdi-art>*{width:min(80vw,320px,calc(100dvh - 400px))}
+  .hdi-txt h2{font-size:21px} .hdi-txt p{font-size:14.5px;margin-top:4px}
+  .hdi-dots{margin:10px 0 4px}
+  .hdi-btns{margin-top:6px} .hdi-btns .btn{min-height:50px}
+  footer.legal{margin-top:14px;padding-top:10px;font-size:12px}
+}
+
+/* b169: قائمة الاختيار بالبحث (select[data-spick]) */
+.spick{position:relative;display:block;min-width:0;flex:1 1 240px}
+.spick-in{min-height:46px!important;border-radius:var(--pill)!important;padding-inline:18px!important}
+.spick-l{position:absolute;inset-inline:0;top:calc(100% + 6px);z-index:70;max-height:min(50vh,340px);overflow:auto;display:grid;padding:6px;border-radius:18px;background:var(--card,var(--surface));border:1px solid var(--card-b,var(--line));box-shadow:0 18px 44px rgba(0,0,0,.18)}
+.spick-o{display:block;width:100%;min-height:44px;padding:8px 12px;border:0;border-radius:12px;background:none;text-align:start;font:500 14px var(--fb);color:var(--ink);cursor:pointer}
+.spick-o:hover,.spick-o.on{background:var(--soft)}
+.spick-more{padding:8px 12px;font-size:12.5px;color:var(--muted)}
+/* b169: فحص التباين — النص الباهت (الأرقام الثانوية والـ placeholder) كان 2.6:1 في الفاتح؛ بقى ≥3.6:1 على الكارت والرمادي */
+:root:not([data-theme="dark"]){--faint:#7a817c}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--faint:#6d7571} }

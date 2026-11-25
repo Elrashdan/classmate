@@ -19,9 +19,9 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b168">
-<link rel="stylesheet" href="ui-tools.css?v=b168">
-<link rel="stylesheet" href="ui-staff.css?v=b168">
+<link rel="stylesheet" href="ui.css?v=b169">
+<link rel="stylesheet" href="ui-tools.css?v=b169">
+<link rel="stylesheet" href="ui-staff.css?v=b169">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -47,16 +47,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b168"></script>
-<script src="vendor/qrcode.js?v=b168"></script>
-<script src="config.js?v=b168"></script>
-<script src="common.js?v=b168"></script>
-<script src="drive.js?v=b168"></script>
-<script src="pack.js?v=b168"></script>
-<script src="catalog.js?v=b168"></script>
-<script src="voice.js?v=b168"></script>
-<script src="timetable.js?v=b168"></script>
-<script src="research.js?v=b168"></script>
+<script src="vendor/supabase.js?v=b169"></script>
+<script src="vendor/qrcode.js?v=b169"></script>
+<script src="config.js?v=b169"></script>
+<script src="common.js?v=b169"></script>
+<script src="drive.js?v=b169"></script>
+<script src="pack.js?v=b169"></script>
+<script src="catalog.js?v=b169"></script>
+<script src="voice.js?v=b169"></script>
+<script src="timetable.js?v=b169"></script>
+<script src="research.js?v=b169"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -335,6 +335,9 @@
   // المادة اللي لم يُحدَّد لها محاضر بعد: لو الجدول كاتب اسم محاضرها بنعرضه (لم ينشئ حسابًا بعد)، وإلا «لم يُحدَّد لها محاضر بعد» — أبدًا مش اسم المسؤول
   const ownerName = c => { if (!(c && c.no_owner)) return staffName(c && c.owner_email); const p = profs[c.id] || {};
     return p.name && (p.src === "tt" || p.src === "manual") ? p.name + (p.src === "tt" ? " (لم ينشئ حسابًا بعد)" : "") : "لم يُحدَّد لها محاضر بعد"; };
+  // b169: نفس المعلومة بشكل HTML: الاسم + شارة صغيرة «بلا حساب» بدل تكرار الجملة، أو رسالة واضحة لو مفيش محاضر
+  const ownerHtml = c => { if (!(c && c.no_owner)) return esc(staffName(c && c.owner_email)); const p = profs[c.id] || {};
+    return p.name && (p.src === "tt" || p.src === "manual") ? esc(p.name) + (p.src === "tt" ? ` <em class="nb-acc" title="لم ينشئ حسابًا في Hadro بعد">بلا حساب</em>` : "") : `<em class="no-prof">لم يُحدَّد محاضر بعد</em>`; };
 
   /* ---------- course classification: academic year, term, level, track ---------- */
   const LEVELS = ["", "المستوى الأول", "المستوى الثاني", "المستوى الثالث", "المستوى الرابع", "المستوى الخامس"];
@@ -618,14 +621,16 @@
     ["log", "السجل", ICO('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>')]
   ];
   const HOME_ICO = '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>';
-  let ctab = ["live", "students", "reg", "report", "tasks", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live";
+  let ctab = ["live", "students", "reg", "report", "tasks", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live", prevTab = "live";
+  // b169: الأقسام اللي بتتفتح من «المزيد» على الموبايل صفحات فرعية بزر رجوع للقسم اللي قبلها
+  document.addEventListener("click", e => { if (e.target.closest && e.target.closest("[data-ch-back]")) { const to = prevTab && prevTab !== ctab ? prevTab : "live"; const b = document.querySelector(`.ctabs [data-ct="${to}"]`); if (b) b.click(); } });
   // زر «رجوع» في الهاتف: يتنقّل بين أقسام البرنامج بدل أن يخرج منه
   // شريط المادة: خلفيته مستمدة من أيقونة القسم المفتوح، ويتغيّر مع التبويب
   const TAB_SUB = { live: "ابدأ محاضرة وتابع الحضور لحظة بلحظة", students: "ملف الطلبة والمجموعات والأجهزة", reg: "كشف الحضور والغياب والإنذارات", report: "نسب الحضور وتقارير المادة", tasks: "التكليفات والتسليم والدرجات", team: "المحاضرون والمعيدون في المادة", log: "كل ما حدث في المادة" };
   const icoInner = ic => ic.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
   function courseBand(c) {
     const t = CTABS.find(x => x[0] === ctab) || CTABS[0];
-    return `<section class="ch2" id="cband"><h2>${t[1]}</h2><p>${esc(TAB_SUB[t[0]] || "")}${c.archived ? " · مادة مؤرشفة" : ""}</p></section>`;
+    return `<section class="ch2" id="cband"><button type="button" class="ch2-back" data-ch-back aria-label="رجوع إلى ${esc((CTABS.find(x => x[0] === prevTab) || CTABS[0])[1])}">${ICO('<path d="M9 5l7 7-7 7"/>')}<span>رجوع</span></button><h2>${t[1]}</h2><p>${esc(TAB_SUB[t[0]] || "")}${c.archived ? " · مادة مؤرشفة" : ""}</p></section>`;
   }
   let lastRise = null;
   function navMark() {
@@ -664,6 +669,7 @@
   function showTab(k) {
     tabIntro(k);
     if (ctab !== k || !(($("#pane-" + k) || {}).children || []).length || !$("#pane-" + k).textContent.trim()) setTimeout(() => renderPane(k), 0);
+    if (ctab !== k) { const ob = document.querySelector(`.ctabs [data-ct="${ctab}"]`); if (!ob || !ob.classList.contains("dk-hid")) prevTab = ctab; }
     ctab = k; store.set("cm_tab", k); closeFpop(); navMark(); unlockScroll();
     const cb = $("#cband"), c0 = course(); if (cb && c0) { cb.outerHTML = courseBand(c0); const nb = $("#cband"); if (nb) { nb.classList.add("swap"); } }
     document.querySelectorAll("[data-ct]").forEach(b => b.setAttribute("aria-selected", b.dataset.ct === k));
@@ -825,23 +831,26 @@
     const atLvl = list.filter(x => pk.lvl === "all" || lvKey(x) === pk.lvl);
     const trs = [...new Set(atLvl.map(x => x.track).filter(Boolean))];
     if (pk.tr !== "all" && !trs.includes(pk.tr)) pk.tr = "all";
-    const shown = atLvl.filter(x => pk.tr === "all" || x.track === pk.tr);
+    const shown = atLvl.filter(x => (pk.tr === "all" || x.track === pk.tr) && !!x.archived === !!pk.arch);
     const chip = (attr, v, cur, label) => `<button type="button" class="cchip" ${attr}="${esc(v)}" aria-pressed="${v === cur}">${label}</button>`;
-    const rl = x => { const r = role(x); return r === "ta" ? "معيد" : r === "co" ? "محاضر مشارك" : r === "viewer" || r === "admin" ? ownerName(x) : ""; };
+    const rl = x => { const r = role(x); return r === "ta" ? "معيد" : r === "co" ? "محاضر مشارك" : r === "viewer" || r === "admin" ? ownerHtml(x) : ""; };
+    const sub = x => { const parts = [x.track ? esc(x.track) : "", rl(x)].filter(Boolean); return parts.length ? parts.join(" · ") : x.no_owner ? `<em class="no-prof">لم يُحدَّد محاضر بعد</em>` : esc(clsLabel(x)); };
+    const nArch = list.filter(x => x.archived).length; if (!nArch) pk.arch = false;
     let n = 0;
     const step = (t, body) => `<div class="cpk-step"><span class="cpk-n">${++n}</span><div class="cpk-sb"><b>${t}</b>${body}</div></div>`;
     return `<div class="cpk ${pk.open ? "open" : ""}" data-where="${where}">
       ${where === "dash" ? `<button type="button" class="dh-chip dh-all" data-pk="toggle" aria-expanded="${pk.open}">${courses.length > 1 ? "كل المواد" : "المادة"} (${courses.length})${CHEV}</button>` : `<button type="button" class="cpk-cur" data-pk="toggle" aria-expanded="${pk.open}">
         <span class="cpk-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5h6a4 4 0 0 1 4 4v11a3 3 0 0 0-3-3H2z"/><path d="M22 5h-6a4 4 0 0 0-4 4v11a3 3 0 0 1 3-3h7z"/></svg></span>
         <span class="cpk-t"><small>${c ? "المادة المفتوحة" : "اختر المادة"}</small><b>${c ? esc(c.name) : courses.length ? "لم تُختر مادة" : "لا توجد مواد بعد"}</b>${c ? `<span>${esc(clsLabel(c))}</span>` : ""}</span>${CHEV}</button>`}
-      ${pk.open ? `<div class="cpk-pop">
+      ${pk.open ? `<div class="cpk-pop" role="dialog" aria-label="اختيار المادة">
+        <div class="cpk-hd"><div class="cpk-find"><input type="search" id="pkQ" placeholder="ابحث باسم المادة" autocomplete="off" aria-label="ابحث عن مادة"></div><button type="button" class="cpk-x" data-pk="close" aria-label="إغلاق قائمة المواد"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          ${nArch ? `<div class="seg cpk-tabs" role="tablist"><button type="button" role="tab" data-pka="0" aria-selected="${!pk.arch}">المواد الحالية</button><button type="button" role="tab" data-pka="1" aria-selected="${!!pk.arch}">المؤرشفة <small>${nArch}</small></button></div>` : ""}</div>
         ${(() => { const rc = recentCourses().filter(x => !c || x.id !== c.id).slice(0, 4); return rc.length ? `<div class="cpk-rec"><b>فتحتها مؤخرًا</b><div class="cchips">${rc.map(x => `<button type="button" class="cchip" data-pkc="${x.id}">${esc(x.name)}</button>`).join("")}</div></div>` : ""; })()}
         ${step("العام الدراسي", `<div class="cchips">${chip("data-pky", "all", fYear, "كل الأعوام")}${yearList().map(v => chip("data-pky", v, fYear, v + (v === nowYear() ? " · الحالي" : ""))).join("")}</div>`)}
         ${step("الفصل الدراسي", `<div class="cchips">${chip("data-pkt", "all", fTerm, "كل الفصول")}${Object.entries(TERMS).map(([k, v]) => chip("data-pkt", k, fTerm, v.replace("الفصل الدراسي ", "").replace("الفصل ", ""))).join("")}</div>`)}
         ${lvls.length ? step("المستوى", `<div class="cchips">${chip("data-pkl", "all", pk.lvl, "كل المستويات")}${lvls.map(k => chip("data-pkl", k, pk.lvl, lvLabel(k))).join("")}</div>`) : ""}
         ${trs.length ? step("الشعبة", `<div class="cchips">${chip("data-pkr", "all", pk.tr, "كل الشعب")}${trs.map(t => chip("data-pkr", t, pk.tr, esc(t))).join("")}</div>`) : ""}
-        ${step("المادة", shown.length ? `<div class="cpk-find"><input type="search" id="pkQ" placeholder="ابحث باسم المادة (${shown.length})" autocomplete="off" aria-label="ابحث عن مادة"></div>
-          <div class="cpk-list" id="pkList">${(pk.lvl === "all" && lvls.length > 1 ? lvls.map(k => [lvLabel(k), shown.filter(x => lvKey(x) === k)]) : [["", shown]]).filter(([, a]) => a.length).map(([h, a]) => `${h ? `<div class="cpk-gh">${esc(h)} <small>${a.length}</small></div>` : ""}${a.map(x => `<button type="button" class="cpk-c ${c && x.id === c.id ? "on" : ""}" data-pkc="${x.id}" data-nm="${esc(normAr(x.name))}"><b>${esc(x.name)}${x.archived ? ` <span class="chip none">أرشيف</span>` : ""}</b><span>${esc([x.track, rl(x)].filter(Boolean).join(" · "))}</span></button>`).join("")}`).join("")}<p class="small muted" id="pkNone" hidden>لا توجد مادة بهذا الاسم.</p></div>` : `<p class="small muted">لا توجد مواد بهذه الاختيارات.</p>`)}
+        ${step("المادة" + (pk.arch ? " (المؤرشفة)" : ""), shown.length ? `<div class="cpk-list" id="pkList">${(pk.lvl === "all" && lvls.length > 1 ? lvls.map(k => [lvLabel(k), shown.filter(x => lvKey(x) === k)]) : [["", shown]]).filter(([, a]) => a.length).map(([h, a]) => `${h ? `<div class="cpk-gh">${esc(h)} <small>${a.length}</small></div>` : ""}${a.map(x => `<button type="button" class="cpk-c ${c && x.id === c.id ? "on" : ""}" data-pkc="${x.id}" data-nm="${esc(normAr(x.name))}"><b>${esc(x.name)}</b><span>${sub(x)}</span></button>`).join("")}`).join("")}<p class="small muted" id="pkNone" hidden>لا توجد مادة بهذا الاسم.</p></div>` : `<p class="small muted">لا توجد مواد بهذه الاختيارات.</p>`)}
       </div>` : ""}
     </div>`;
   }
@@ -854,6 +863,8 @@
       document.querySelectorAll("#pkList .cpk-gh").forEach(g => { let n = g.nextElementSibling, vis = false; while (n && n.classList.contains("cpk-c")) { if (!n.hidden) vis = true; n = n.nextElementSibling; } g.hidden = !vis; });
       const none = $("#pkNone"); if (none) none.hidden = any; };
     document.querySelectorAll(".cpk [data-pk=toggle]").forEach(b => b.onclick = () => { pk.open = !pk.open; pickerRedraw(); });
+    document.querySelectorAll(".cpk [data-pk=close]").forEach(b => b.onclick = () => { pk.open = false; pickerRedraw(); });
+    document.querySelectorAll("[data-pka]").forEach(b => b.onclick = () => { pk.arch = b.dataset.pka === "1"; pickerRedraw(); });
     document.querySelectorAll("[data-pky]").forEach(b => b.onclick = () => { fYear = b.dataset.pky; store.set("cm_year", fYear); pickerRedraw(); });
     document.querySelectorAll("[data-pkt]").forEach(b => b.onclick = () => { fTerm = b.dataset.pkt; store.set("cm_term", fTerm); pickerRedraw(); });
     document.querySelectorAll("[data-pkl]").forEach(b => b.onclick = () => { pk.lvl = b.dataset.pkl; pk.tr = "all"; pickerRedraw(); });
@@ -916,12 +927,12 @@
     if (!D || D.cid !== c.id) return `<article class="dh-card dh-chart"><div class="dh-h"><h2>الحضور في كل محاضرة</h2></div><p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p></article>`;
     const gs = groupsOf(); if (dhGrp !== "all" && !gs.includes(dhGrp)) dhGrp = "all";
     const rows = dhGrp === "all" ? D.enroll : D.enroll.filter(e => e.grp === dhGrp);
-    const st = lectureStats(D.sessions, rows).filter(x => x.own).slice(-12), avg = st.length ? Math.round(st.reduce((s, x) => s + x.pct, 0) / st.length) : 0;
-    return `<article class="dh-card dh-chart" id="dhChart"><div class="dh-h"><div><h2>الحضور في كل محاضرة</h2><span class="dh-sub">${esc(c.name)}${st.length ? " · مرّر على العمود لتفاصيله" : ""}</span></div>
+    const st = lectureStats(D.sessions, rows).filter(x => x.own).slice(-12), avg = st.length ? Math.round(st.reduce((s, x) => s + x.pct, 0) / st.length) : 0, sc = st.length ? chartScale(st.map(x => x.pct)) : null;
+    return `<article class="dh-card dh-chart" id="dhChart"><div class="dh-h"><div><h2>الحضور في كل محاضرة</h2><span class="dh-sub">${esc(c.name)}${st.length ? " · مرّر على العمود لتفاصيله" : ""}</span></div>${st.length ? `<span class="dh-avgb"><i></i>المتوسط <b dir="ltr">${avg}%</b></span>` : ""}
       ${gs.length ? `<div class="dh-chips sm">${["all", ...gs].map(g => `<button type="button" class="dh-chip${dhGrp === g ? " on" : ""}" data-dhg="${esc(g)}">${g === "all" ? "كل المجموعات" : "مجموعة " + esc(g)}</button>`).join("")}</div>` : ""}</div>
-      ${st.length ? `<div class="dh-plot" style="--a:${(avg / 100).toFixed(3)}"><div class="dh-tip" id="dhTip" hidden></div><div class="dh-avg"><span>المتوسط ${avg}%</span></div><div class="dh-g75"></div>
-        <div class="dh-bars" id="dhBars">${st.map((x, i) => `<button type="button" class="dh-bar${x.pct < 75 ? " low" : ""}" style="--h:${Math.max(3, x.pct)}%;--i:${i}" data-tile="reg" data-tip="${esc(`المحاضرة ${x.s.n}|${x.pct}%|${x.pres} من ${x.own} حضروا${x.mk ? " · " + x.mk + " تعويضي" : ""}|${CM.fmtD(x.s.started_at)}`)}" aria-label="المحاضرة ${x.s.n}: ${x.pct}%"><i></i></button>`).join("")}</div>
-        <div class="dh-xs">${st.map(x => `<span>${x.s.n}</span>`).join("")}</div></div>` : `<div class="dh-empty">بعد إغلاق أول محاضرة تظهر هنا نسبة الحضور في كل محاضرة.</div>`}</article>`;
+      ${st.length ? `<div class="dh-plot" style="--a:${(sc.y(avg) / 100).toFixed(3)}"><div class="dh-tip" id="dhTip" hidden></div><div class="dh-avg"></div><div class="dh-g75"></div>
+        <div class="dh-bars" id="dhBars">${st.map((x, i) => `<button type="button" class="dh-bar${x.pct < 75 ? " low" : ""}" style="--h:${Math.max(3, sc.y(x.pct))}%;--i:${i}" data-tile="reg" data-tip="${esc(`المحاضرة ${x.s.n}|${x.pct}%|${x.pres} من ${x.own} حضروا${x.mk ? " · " + x.mk + " تعويضي" : ""}|${CM.fmtD(x.s.started_at)}`)}" aria-label="المحاضرة ${x.s.n}: ${x.pct}%"><em class="dh-bv" dir="ltr">${x.pct}%</em><i></i></button>`).join("")}</div>
+        <div class="dh-xs">${st.map(x => `<span>${x.s.n}</span>`).join("")}</div></div>${sc.lo ? `<div class="dh-base">المحور يبدأ من <bdi dir="ltr">${sc.lo}%</bdi></div>` : ""}` : `<div class="dh-empty">بعد إغلاق أول محاضرة تظهر هنا نسبة الحضور في كل محاضرة.</div>`}</article>`;
   }
   function dhDayHtml() {
     const td = dhToday();
@@ -1448,8 +1459,23 @@
     if (scan) scan.busy = false;
   }
 
-  const toast = text => { const m = document.createElement("div"); m.className = "msg ok"; m.textContent = text; m.style.cssText = "position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:60;max-width:560px;margin:auto"; document.body.appendChild(m); setTimeout(() => m.remove(), 5000); };
-  const showErr = e => { const m = document.createElement("div"); m.className = "msg bad"; m.textContent = errText(e); m.style.cssText = "position:fixed;inset-inline:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:60;max-width:560px;margin:auto"; document.body.appendChild(m); setTimeout(() => m.remove(), 6000); };
+  const toast = text => { const m = document.createElement("div"); m.className = "msg ok hd-flt"; m.setAttribute("role", "status"); m.textContent = text; document.body.appendChild(m); setTimeout(() => m.remove(), 5000); };
+  // b169: إجراء قابل للتراجع — يُنفَّذ بعد 4 ثوانٍ، و«تراجع» يلغيه قبل أن يصل إلى الخادم
+  const undoQ = new Map();
+  function undoToast(key, text, run, onUndo) {
+    flushUndo();
+    const m = document.createElement("div"); m.className = "hd-toast"; m.setAttribute("role", "status");
+    m.innerHTML = `<span>${esc(text)}</span><button type="button" class="hd-toast-u">تراجع</button><i class="hd-toast-bar"></i>`;
+    document.body.appendChild(m);
+    const done = () => { undoQ.delete(key); m.classList.add("out"); setTimeout(() => m.remove(), 200); };
+    const u = { done, run, t: setTimeout(() => { done(); run(); }, 4000) };
+    undoQ.set(key, u);
+    m.querySelector(".hd-toast-u").onclick = () => { clearTimeout(u.t); done(); if (onUndo) onUndo(); };
+  }
+  function flushUndo() { [...undoQ.values()].forEach(u => { clearTimeout(u.t); u.done(); u.run(); }); }
+  addEventListener("pagehide", flushUndo);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushUndo(); });
+  const showErr = e => { const m = document.createElement("div"); m.className = "msg bad hd-flt"; m.setAttribute("role", "alert"); m.textContent = errText(e); document.body.appendChild(m); setTimeout(() => m.remove(), 6000); };
   async function act(fn, after) { try { await fn(); } catch (e) { showErr(e); } if (after) await after().catch(showErr); }
 
   /* ---------- lecture panel ---------- */
@@ -1529,7 +1555,7 @@
   /* ---------- live attendance ---------- */
   function renderLive() { keepScroll("#livePanel", _renderLive); }
   /* live attendance as an Excel-style table: search, sort & filter per column, select rows, bulk actions */
-  let lv = { q: "", sort: null, f: { st: null, grp: null } }, lvSel = new Set();
+  let lv = { q: "", sort: null, f: { st: null, grp: null } }, lvSel = new Set(), lvRm = new Set();
   const LCOLS = {
     st: { t: "الحالة", v: it => it.chip, list: true, lab: x => x, up: "أ ← ي", down: "ي ← أ" },
     code: { t: "الكود", v: it => it.e.student_code, num: true, up: "من الأصغر للأكبر", down: "من الأكبر للأصغر" },
@@ -1587,7 +1613,7 @@
     const selectable = new Map(); items.forEach(it => { if (editable && it.sel) selectable.set(it.e.student_code, it.sel); });
     [...lvSel].forEach(k => { if (!selectable.has(k)) lvSel.delete(k); });
     const q = normAr(lv.q), sort = lv.sort || LDEF[liveTab];
-    const shown = sortRows(items.filter(it => (!q || normAr(it.e.name).includes(q) || String(it.e.student_code).toLowerCase().includes(q))
+    const shown = sortRows(items.filter(it => !(it.sel !== "pend" && it.sel !== "abs" && lvRm.has(it.e.student_code)) && (!q || normAr(it.e.name).includes(q) || String(it.e.student_code).toLowerCase().includes(q))
       && (!lv.f.st || lv.f.st.has(LCOLS.st.v(it))) && (!lv.f.grp || lv.f.grp.has(LCOLS.grp.v(it)))), LCOLS, sort);
     const shownSel = [...new Set(shown.filter(it => editable && it.sel).map(it => it.e.student_code))];
     const selPend = [...lvSel].filter(k => selectable.get(k) === "pend"), selAbs = [...lvSel].filter(k => selectable.get(k) === "abs");
@@ -1619,7 +1645,7 @@
           <td class="cb">${can ? `<input type="checkbox" data-sel="${esc(code)}" ${lvSel.has(code) ? "checked" : ""} aria-label="تحديد">` : ""}</td>
           <td><span class="chip ${it.k}">${esc(it.chip)}</span></td>
           <td class="nm">${esc(it.e.name)}</td>
-          <td><div class="row" style="flex-wrap:nowrap">${!editable ? "" : it.sel === "pend" ? `<button class="btn sm" data-ap="${esc(code)}">موافقة</button><button class="btn sm danger" data-rj="${esc(code)}">رفض</button>` : it.sel === "abs" ? `<button class="btn sm" data-man="${esc(code)}">تحضير</button>` : it.log ? "" : `<button class="btn sm ghost" data-rm="${esc(code)}">${confirmKey === "rm:" + code ? "متأكد؟" : "إلغاء"}</button>`}</div></td>
+          <td><div class="row" style="flex-wrap:nowrap">${!editable ? "" : it.sel === "pend" ? `<button class="btn sm" data-ap="${esc(code)}">موافقة</button><button class="btn sm danger" data-rj="${esc(code)}">رفض</button>` : it.sel === "abs" ? `<button class="btn sm" data-man="${esc(code)}">تحضير</button>` : it.log ? "" : `<button class="btn sm ghost" data-rm="${esc(code)}" aria-label="إلغاء حضور ${esc(it.e.name)}">إلغاء</button>`}</div></td>
           <td class="mono">${esc(code)}</td><td>${esc(it.e.grp || "—")}</td>
           <td class="mono small">${it.r ? CM.fmtT(it.r.at) : ""}</td>
           <td class="small muted">${[it.r && it.r.dist != null ? "على بعد " + CM.dist(it.r.dist) : "", it.r && it.r.reason ? esc(it.r.reason) : ""].filter(Boolean).join(" · ")}</td>
@@ -1644,8 +1670,10 @@
     el.querySelectorAll("[data-man]").forEach(b => b.onclick = () => { manFor = [b.dataset.man]; manDraft = ""; renderLive(); const i = $("#lvmReason"); if (i) { i.focus(); if (i.scrollIntoView) i.scrollIntoView({ block: "nearest" }); } });
     if (manCodes) wireManBox(el, "lvm", manCodes, s.id, ok => { manFor = null; if (ok) manCodes.forEach(k => lvSel.delete(k)); renderLive(); });
     el.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => {
-      const k = "rm:" + b.dataset.rm; if (confirmKey !== k) { confirmKey = k; return renderLive(); }
-      confirmKey = null; act(() => rpc("cancel_attendance", { sid: s.id, code: b.dataset.rm }), after);
+      const code = b.dataset.rm; lvRm.add(code); lvSel.delete(code); renderLive();
+      undoToast("rm:" + s.id + ":" + code, "أُلغي حضور " + nameOf(code) + ".",
+        () => act(() => rpc("cancel_attendance", { sid: s.id, code }), async () => { await after(); lvRm.delete(code); renderLive(); }).catch(() => { lvRm.delete(code); renderLive(); }),
+        () => { lvRm.delete(code); renderLive(); });
     });
   }
 
@@ -1801,6 +1829,8 @@
       ${rgm.mark ? manSheet(1) : ""}
       <h4 class="rgm-h">سجل المحاضرات <small class="muted">الأحدث أولًا</small></h4><div class="rgm-tls">${items || `<div class="empty">لا توجد محاضرات بعد.</div>`}</div>`;
   }
+  const TG_OK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+  const TG_NO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>`;
   function lecView(ss, gs, mng) {
     const done = ss.filter(s => !s.cancelled); if (!done.length) return CM.empty("لم تبدأ أي محاضرة بعد.", "sleep");
     if (!rgm.sid || !done.some(s => s.id === rgm.sid)) rgm.sid = done[0].id;
@@ -1817,8 +1847,8 @@
       ${!can ? `<p class="muted small">تصحيح المحاضرات المنتهية لصاحب المادة والمحاضر المشارك.</p>` : ""}
       <div class="rgm-list">${list.map(e => { const v = st(e), ch = !!rgm.chg[e.student_code];
         return `<div class="rgm-row${ch ? " ch" : ""}"><span class="rgm-av sm">${esc((e.name || "؟").trim().charAt(0))}</span><span class="rgm-t"><b>${esc(e.name)}</b><small>${esc(e.student_code)}</small></span>
-          ${v === "q" && !ch ? `<span class="rgm-tg"><button type="button" class="p" data-rgap="${esc(e.student_code)}" ${can ? "" : "disabled"}>اعتماد</button><button type="button" data-rgrj="${esc(e.student_code)}" ${can ? "" : "disabled"}>رفض</button></span>`
-          : `<span class="rgm-tg" role="group" aria-label="حالة ${esc(e.name)}"><button type="button" class="${v === "p" ? "p" : ""}" data-rgt="${esc(e.student_code)}|p" aria-pressed="${v === "p"}" ${can ? "" : "disabled"}>حاضر</button><button type="button" class="${v === "a" ? "x" : ""}" data-rgt="${esc(e.student_code)}|a" aria-pressed="${v === "a"}" ${can ? "" : "disabled"}>غائب</button></span>`}</div>`; }).join("")}</div>
+          ${v === "q" && !ch ? `<span class="rgm-tg"><button type="button" class="p" data-rgap="${esc(e.student_code)}" aria-label="اعتماد حضور ${esc(e.name)}" ${can ? "" : "disabled"}>${TG_OK}<span class="tg-l">اعتماد</span></button><button type="button" data-rgrj="${esc(e.student_code)}" aria-label="رفض حضور ${esc(e.name)}" ${can ? "" : "disabled"}>${TG_NO}<span class="tg-l">رفض</span></button></span>`
+          : `<span class="rgm-tg" role="group" aria-label="حالة ${esc(e.name)}"><button type="button" class="${v === "p" ? "p" : ""}" data-rgt="${esc(e.student_code)}|p" aria-pressed="${v === "p"}" aria-label="حاضر" title="حاضر" ${can ? "" : "disabled"}>${TG_OK}<span class="tg-l">حاضر</span></button><button type="button" class="${v === "a" ? "x" : ""}" data-rgt="${esc(e.student_code)}|a" aria-pressed="${v === "a"}" aria-label="غائب" title="غائب" ${can ? "" : "disabled"}>${TG_NO}<span class="tg-l">غائب</span></button></span>`}</div>`; }).join("")}</div>
       ${chg ? `<div class="rgm-save"><button type="button" class="btn primary block" id="rgmSave">حفظ التعديلات (${chg})</button><button type="button" class="btn ghost sm" id="rgmUndo">تراجع</button></div>` : ""}
       ${rgm.sheet ? manSheet(0) : ""}`;
   }
@@ -2240,14 +2270,19 @@
   // الغائبون في محاضرة من بين الطلبة المعروضين
   const absentIn = (s, rows) => rows.filter(e => isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).sort(byGroupName);
   function missedIn(e) { return D.sessions.filter(s => regDone(s) && isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).map(s => s.n); }
+  // b169: مقياس الارتفاع (min-max) — لو كل النسب عالية، المحور يبدأ من رقم أقل منها بدل الصفر فتظهر الفروق، ويُكتب ذلك فوق الرسم
+  function chartScale(vals) {
+    const mn = Math.min(...vals), lo = mn >= 40 ? Math.max(0, Math.floor((mn - 15) / 10) * 10) : 0;
+    return { lo, mid: Math.round((lo + 100) / 20) * 10, y: v => +(((Math.max(lo, Math.min(100, v)) - lo) / (100 - lo)) * 100).toFixed(2) };
+  }
   function lecChart(st) {
     if (!st.length) return `<div class="empty">لا توجد محاضرات أُغلق تسجيلها حتى الآن.</div>`;
-    const avg = Math.round(st.reduce((a, b) => a + b.pct, 0) / st.length), cols = `repeat(${st.length},minmax(40px,1fr))`;
-    return `<div class="bavg"><i></i>المتوسط ${avg}%</div><div class="bchart" role="img" aria-label="نسبة الحضور في كل محاضرة، المتوسط ${avg}%"><div class="bin" style="min-width:${st.length * 48}px">
+    const avg = Math.round(st.reduce((a, b) => a + b.pct, 0) / st.length), cols = `repeat(${st.length},minmax(40px,1fr))`, sc = chartScale(st.map(r => r.pct));
+    return `<div class="bhead"><span class="bavg"><i></i>المتوسط <b dir="ltr">${avg}%</b></span>${sc.lo ? `<span class="bbase">المحور يبدأ من <bdi dir="ltr">${sc.lo}%</bdi></span>` : ""}</div><div class="bchart" role="img" aria-label="نسبة الحضور في كل محاضرة، المتوسط ${avg}%"><div class="bin" style="min-width:${st.length * 48}px">
       <div class="bplot">
-        ${[100, 50, 0].map(p => `<i class="gl" style="bottom:${p}%"><em>${p}%</em></i>`).join("")}
-        <i class="gl avg" style="bottom:${avg}%"><em>المتوسط <span dir="ltr">${avg}%</span></em></i>
-        <div class="bcols" style="grid-template-columns:${cols}">${st.map(r => `<div class="bcol ${rpLec === r.s.id ? "on" : ""}" data-lec="${r.s.id}" title="محاضرة ${r.s.n}${r.s.grp ? " · مجموعة " + esc(r.s.grp) : ""} · ${CM.fmtD(r.s.started_at)}&#10;حضر ${r.pres} من ${r.own} (${r.pct}%)${r.mk ? "&#10;+ " + r.mk + " تعويض" : ""}"><span class="bv">${r.pct}%</span><i class="b ${r.pct < 50 ? "low" : ""}" style="height:${Math.max(r.pct, 1)}%"></i></div>`).join("")}</div>
+        ${[100, sc.mid, sc.lo].map(p => `<i class="gl" style="bottom:${sc.y(p)}%"><em>${p}%</em></i>`).join("")}
+        <i class="gl avg" style="bottom:${sc.y(avg)}%"></i>
+        <div class="bcols" style="grid-template-columns:${cols}">${st.map(r => `<div class="bcol ${rpLec === r.s.id ? "on" : ""}" data-lec="${r.s.id}" title="محاضرة ${r.s.n}${r.s.grp ? " · مجموعة " + esc(r.s.grp) : ""} · ${CM.fmtD(r.s.started_at)}&#10;حضر ${r.pres} من ${r.own} (${r.pct}%)${r.mk ? "&#10;+ " + r.mk + " تعويض" : ""}"><span class="bv" dir="ltr">${r.pct}%</span><i class="b ${r.pct < 50 ? "low" : ""}" style="height:${Math.max(sc.y(r.pct), 2)}%"></i></div>`).join("")}</div>
       </div>
       <div class="blabels" style="grid-template-columns:${cols}">${st.map(r => `<span><b>م${r.s.n}${r.s.grp ? " " + esc(r.s.grp) : ""}</b>${CM.fmtD(r.s.started_at)}</span>`).join("")}</div>
     </div></div>`;
@@ -2595,6 +2630,9 @@
   }
   /* ---------- ترتيب قائمة التكليفات وتقسيمها حسب المجموعة ---------- */
   let tkLay = store.get("cm_tklay") || "cards", gbG = "all", gbQ = "", gbPend = {}, gbTimer = null, gbFull = false;
+  // b169: «رصد تكليف واحد» — قائمة رأسية لتكليف واحد بدل الجدول العريض (الافتراضي على الموبايل)
+  let gbMode = store.get("cm_gbmode") || (matchMedia("(max-width:760px)").matches ? "one" : "all"), gbOneT = null;
+  const gbAvgT = e => { const v = gbAvg(e); return v == null ? "—" : v + "%"; };
   let tkSort = store.get("cm_tksort") || "az", tkSplit = store.get("cm_tksplit") !== "0", tkXg = store.get("cm_tkxg") || "all";
   const courseGroups = () => [...new Set(D.enroll.map(e => e.grp).filter(Boolean))].sort((a, b) => GORD(a) - GORD(b) || a.localeCompare(b, "ar"));
   // مفتاح الترتيب الأبجدي: الأرقام العربية والكلمات الترتيبية (الأول، الثاني…) تُقرأ أعدادًا، فيأتي «المشروع العاشر» بعد «التاسع»
@@ -2620,16 +2658,26 @@
     const q = normAr(gbQ), run = canRun(course());
     const rows = D.enroll.filter(e => (gbG === "all" || e.grp === gbG || ts.some(t => t.grp === gbG && hasWork(t, e.student_code))) && (!q || normAr(e.name).includes(q) || e.student_code.includes(q))).slice().sort(byGroupName);
     const showG = gs.length > 1 && gbG === "all";
-    return `<div class="gb-box${gbFull ? " full" : ""}" id="gbBox"><div class="gb-bar no-print">${gs.length > 1 ? `<div class="cchips">${["all", ...gs].map(g => `<button type="button" class="cchip" data-gbg="${esc(g)}" aria-pressed="${gbG === g}">${g === "all" ? "كل المجموعات" : "مجموعة " + esc(g)}</button>`).join("")}</div>` : ""}
+    if (gbOneT && !ts.some(t => t.id === gbOneT)) gbOneT = null;
+    const one = gbMode === "one" && ts.length ? ts.find(t => t.id === gbOneT) || ts[0] : null;
+    const editable = run && (one ? !partsOf(one) : ts.some(t => !partsOf(t)));
+    const modeSeg = ts.length ? `<div class="seg gb-mode" role="group" aria-label="طريقة العرض"><button type="button" data-gbmode="one" aria-pressed="${!!one}">رصد تكليف واحد</button><button type="button" data-gbmode="all" aria-pressed="${!one}">كل التكليفات</button></div>` : "";
+    const oneList = one ? (() => { const P = partsOf(one); return `<div class="gb1">
+      <label class="f gb1-pick"><span>التكليف</span><select id="gb1T">${ts.map(t => `<option value="${t.id}" ${t.id === one.id ? "selected" : ""}>${esc(t.title)} · من ${gN(t.max_grade)}${t.grp ? " · مجموعة " + esc(t.grp) : ""}</option>`).join("")}</select></label>
+      ${P ? `<div class="msg info small gb1-ro">هذا التكليف مقسّم إلى ${P.length} مشاريع فرعية، فيُرصد من داخله. <button type="button" class="btn xs" data-tk="${one.id}">فتح التكليف</button></div>` : ""}
+      <div class="gb1-list">${rows.map((e, i) => { const sb = subOf(one, e.student_code), na = !inTaskGrp(one, e) && !hasWork(one, e.student_code), k = one.id + "|" + e.student_code, pend = gbPend[one.id] && e.student_code in gbPend[one.id];
+        return `<div class="gb1-r${na ? " na" : ""}" data-gbr="${esc(e.student_code)}"><span class="gb1-i mono">${i + 1}</span><span class="gb1-n"><b>${esc(e.name)}</b><small><bdi class="mono">${esc(e.student_code)}</bdi>${e.grp ? " · مجموعة " + esc(e.grp) : ""}${na ? " · من مجموعة أخرى" : ""}</small></span>
+          ${P ? `<span class="gb1-v mono">${sb && sb.grade != null ? gN(totalOf(sb)) : "—"}</span>` : `<span class="gb1-in"><input class="gb-in${pend ? " pend" : ""}" data-gb="${k}" inputmode="decimal" autocomplete="off" enterkeyhint="next" value="${pend ? esc(String(gbPend[one.id][e.student_code] ?? "")) : sb && sb.grade != null ? esc(gN(sb.grade)) : ""}" ${run ? "" : "readonly"} aria-label="درجة ${esc(e.name)} من ${gN(one.max_grade)}"><small>/${gN(one.max_grade)}</small>${sb && Number(sb.bonus) ? `<i class="gb-b">+${gN(sb.bonus)}</i>` : ""}</span>`}</div>`; }).join("")}</div></div>`; })() : "";
+    return `<div class="gb-box${gbFull ? " full" : ""}${one ? " one" : ""}" id="gbBox">${modeSeg}<div class="gb-bar no-print">${gs.length > 1 ? `<div class="cchips">${["all", ...gs].map(g => `<button type="button" class="cchip" data-gbg="${esc(g)}" aria-pressed="${gbG === g}">${g === "all" ? "كل المجموعات" : "مجموعة " + esc(g)}</button>`).join("")}</div>` : ""}
       <input type="search" id="gbQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(gbQ)}" autocomplete="off">
-      <span class="small muted" id="gbSt">${run ? "اكتب الدرجة في خانتها؛ تُحفظ تلقائيًّا. Enter للطالب التالي." : "للعرض فقط."}</span>
-      <button type="button" class="btn sm ghost gb-fs" id="gbFull" title="${gbFull ? "رجوع للحجم العادي (Esc)" : "عرض الكشف على الشاشة كلها"}">${gbFull ? ICO('<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>') + "تصغير" : ICO('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>') + "ملء الشاشة"}</button></div>
-      <div class="tbl-wrap gb-wrap"><table class="gb"><thead><tr><th class="c gb-n">م</th><th class="gb-nm">الطالب</th>${showG ? `<th class="c">مج</th>` : ""}${ts.map(t => `<th class="c gb-th"><button type="button" class="gb-tt" data-tk="${t.id}" title="فتح التكليف">${esc(t.title)}</button><small>من ${gN(t.max_grade)}${t.grp ? " · " + esc(t.grp) : ""}${t.released ? "" : " · غير معلنة"}</small></th>`).join("")}<th class="c gb-avg">المتوسط %</th></tr></thead>
+      <span class="small muted" id="gbSt" ${editable || !run ? "" : "hidden"}>${editable ? "اكتب الدرجة؛ تُحفظ تلقائيًّا بعد لحظة." + (one ? "" : " Enter للطالب التالي.") : "للعرض فقط."}</span>
+      ${one ? "" : `<button type="button" class="btn sm ghost gb-fs" id="gbFull" title="${gbFull ? "رجوع للحجم العادي (Esc)" : "عرض الكشف على الشاشة كلها"}">${gbFull ? ICO('<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>') + "تصغير" : ICO('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>') + "ملء الشاشة"}</button>`}</div>
+      ${one ? oneList : `<div class="tbl-wrap gb-wrap"><table class="gb"><thead><tr><th class="c gb-n">م</th><th class="gb-nm">الطالب</th>${showG ? `<th class="c">مج</th>` : ""}${ts.map(t => `<th class="c gb-th"><button type="button" class="gb-tt" data-tk="${t.id}" title="فتح التكليف">${esc(t.title)}</button><small>من ${gN(t.max_grade)}${t.grp ? " · " + esc(t.grp) : ""}${t.released ? "" : " · غير معلنة"}</small></th>`).join("")}<th class="c gb-avg">المتوسط (%)</th></tr></thead>
       <tbody>${rows.map((e, i) => `<tr data-gbr="${esc(e.student_code)}"><td class="c mono muted">${i + 1}</td><td class="gb-nm"><b>${esc(e.name)}</b><small class="mono">${esc(e.student_code)}${!showG && gbG !== "all" && e.grp !== gbG ? " · استثناء من " + esc(e.grp || "") : ""}</small></td>${showG ? `<td class="c">${esc(e.grp || "")}</td>` : ""}
         ${ts.map(t => { const sb = subOf(t, e.student_code), na = !inTaskGrp(t, e) && !hasWork(t, e.student_code), P = partsOf(t), k = t.id + "|" + e.student_code, pend = gbPend[t.id] && k.split("|")[1] in gbPend[t.id];
           return `<td class="c gb-c${na ? " na" : ""}">${P ? `<span class="gb-ro" title="مقسّم إلى مشاريع فرعية؛ افتح التكليف لرصدها">${sb && sb.grade != null ? gN(totalOf(sb)) : "—"}</span>` : `<input class="gb-in${pend ? " pend" : ""}" data-gb="${k}" inputmode="decimal" autocomplete="off" value="${pend ? esc(String(gbPend[t.id][e.student_code] ?? "")) : sb && sb.grade != null ? esc(gN(sb.grade)) : ""}" placeholder="${na ? "·" : ""}" ${run ? "" : "readonly"} aria-label="${esc(e.name)} · ${esc(t.title)}">${sb && Number(sb.bonus) ? `<i class="gb-b">+${gN(sb.bonus)}</i>` : ""}`}</td>`; }).join("")}
-        <td class="c mono gb-avg" data-gbavg="${esc(e.student_code)}">${gbAvg(e) ?? "—"}</td></tr>`).join("")}</tbody></table></div>
-      ${!rows.length ? `<div class="empty">لا يوجد طلبة بهذا البحث.</div>` : ""}<p class="small muted gb-note">الخانة الرمادية: الطالب ليس من مجموعة هذا التكليف؛ إن كتبت له درجة أُضيف إليه استثناءً. البونص يظهر صغيرًا بجوار الدرجة ويُعدَّل من داخل التكليف.</p></div>`;
+        <td class="c mono gb-avg" data-gbavg="${esc(e.student_code)}" dir="ltr">${gbAvgT(e)}</td></tr>`).join("")}</tbody></table></div>`}
+      ${!rows.length ? `<div class="empty">لا يوجد طلبة بهذا البحث.</div>` : ""}<p class="small muted gb-note" ${editable ? "" : "hidden"}>الخانة الرمادية: الطالب ليس من مجموعة هذا التكليف؛ إن كتبت له درجة أُضيف إليه استثناءً. البونص يظهر صغيرًا بجوار الدرجة ويُعدَّل من داخل التكليف.</p></div>`;
   }
   function gbStatus(t, cls) { const el = $("#gbSt"); if (el) { el.textContent = t; el.className = "small " + (cls || "muted"); } }
   async function gbFlush() {
@@ -2645,22 +2693,26 @@
         rows.forEach(r => { const inp = document.querySelector(`[data-gb="${tid}|${r.code}"]`); if (inp) { inp.classList.remove("pend"); inp.classList.add("saved"); setTimeout(() => inp.classList.remove("saved"), 900); } });
       } catch (e) { bad++; rows.forEach(r => { const inp = document.querySelector(`[data-gb="${tid}|${r.code}"]`); if (inp) { inp.classList.remove("pend"); inp.classList.add("bad"); } }); showErr(e); }
     }
-    D.enroll.forEach(e => { const c = document.querySelector(`[data-gbavg="${CSS.escape(e.student_code)}"]`); if (c) c.textContent = gbAvg(e) ?? "—"; });
+    D.enroll.forEach(e => { const c = document.querySelector(`[data-gbavg="${CSS.escape(e.student_code)}"]`); if (c) c.textContent = gbAvgT(e); });
     gbStatus(bad ? "تعذّر حفظ بعض الدرجات (باللون الأحمر)." : "حُفظت " + n + " درجة · " + new Date().toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" }), bad ? "bad-t" : "ok-t");
   }
   function wireGb(el) {
     if (tkLay !== "sheet") return;
     el.querySelectorAll("[data-gbg]").forEach(b => b.onclick = () => { gbFlush(); gbG = b.dataset.gbg; renderTasks(); });
+    el.querySelectorAll("[data-gbmode]").forEach(b => b.onclick = () => { gbFlush(); gbMode = b.dataset.gbmode; store.set("cm_gbmode", gbMode); if (gbMode === "one" && gbFull) { gbFull = false; document.documentElement.classList.remove("gb-lock"); } renderTasks(); });
+    const g1 = $("#gb1T"); if (g1) g1.onchange = () => { gbFlush(); gbOneT = g1.value; renderTasks(); };
     const fb = $("#gbFull"); if (fb) fb.onclick = () => { gbFull = !gbFull; document.documentElement.classList.toggle("gb-lock", gbFull); renderTasks(); };
     if (!wireGb.esc) { wireGb.esc = true; document.addEventListener("keydown", e => { if (e.key === "Escape" && gbFull) { gbFull = false; document.documentElement.classList.remove("gb-lock"); renderTasks(); } }); }
     document.documentElement.classList.toggle("gb-lock", gbFull && !!$("#gbBox"));
     const q = $("#gbQ"); if (q) q.oninput = () => { gbQ = q.value; gbFlush(); renderTasks(); const r2 = $("#gbQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
     const ins = [...el.querySelectorAll(".gb-in")];
-    const at = (inp, dr) => { const td = inp.closest("td"), tr = td.parentElement, ci = [...tr.children].indexOf(td); let r = tr; do { r = dr > 0 ? r.nextElementSibling : r.previousElementSibling; } while (r && !(r.children[ci] && r.children[ci].querySelector(".gb-in"))); return r && r.children[ci].querySelector(".gb-in"); };
+    const at = (inp, dr) => { if (inp.closest(".gb1-list")) { const L = ins.filter(x => !x.readOnly); return L[L.indexOf(inp) + dr] || null; } const td = inp.closest("td"), tr = td.parentElement, ci = [...tr.children].indexOf(td); let r = tr; do { r = dr > 0 ? r.nextElementSibling : r.previousElementSibling; } while (r && !(r.children[ci] && r.children[ci].querySelector(".gb-in"))); return r && r.children[ci].querySelector(".gb-in"); };
     ins.forEach(inp => {
       if (inp.readOnly) return;
       inp.onfocus = () => inp.select();
-      inp.onchange = () => {
+      // حفظ تلقائي أثناء الكتابة: بعد ثانية من آخر رقم (المسح الكامل يحتاج تأكيدًا فيُترك للخروج من الخانة)
+      inp.oninput = () => { clearTimeout(inp._gbT); if (toNum(inp.value) === "") return; inp._gbT = setTimeout(() => inp.dispatchEvent(new Event("change")), 1000); };
+      inp.onchange = () => { clearTimeout(inp._gbT);
         const [tid, code] = inp.dataset.gb.split("|"), t = D.tasks.find(x => x.id === tid), v = toNum(inp.value);
         inp.classList.remove("bad", "saved");
         if (v !== "" && (isNaN(Number(v)) || Number(v) < 0 || Number(v) > Number(t.max_grade))) { inp.classList.add("bad"); gbStatus("الدرجة في «" + t.title + "» يجب أن تكون من 0 إلى " + gN(t.max_grade) + ".", "bad-t"); return; }
@@ -2922,17 +2974,17 @@
       </div>
       <div class="rs-bar no-print"><div class="tabs">${FT.map(([k, l, n]) => `<button data-tf="${k}" aria-pressed="${tkFilter === k}">${l} <span class="small muted">${n}</span></button>`).join("")}</div>
         <input type="search" id="tkQ" placeholder="ابحث بالاسم أو الكود" value="${esc(tkQ)}" autocomplete="off" style="max-width:240px"></div>
-      ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" style="max-width:320px"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select></div>` : ""; })() : ""}
+      ${run && t.grp ? (() => { const out = D.enroll.filter(e => !rows.includes(e)).slice().sort(byGroupName); return out.length ? `<div class="row no-print small" style="gap:8px"><span class="muted">طالب من مجموعة أخرى سلّم مع هذه المجموعة؟</span><select id="tkAddX" data-spick="ابحث عن الطالب لإضافته استثناءً…"><option value="">أضفه إلى الكشف استثناءً…</option>${out.map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}${e.grp ? " · مجموعة " + esc(e.grp) : ""}</option>`).join("")}</select></div>` : ""; })() : ""}
       ${list.length ? `<div class="tbl-wrap" id="tkWrap"><table class="tk-tbl"><thead><tr><th class="c">م</th><th>الكود</th><th>الاسم</th>${gs.length > 1 && !t.grp ? "<th>مج</th>" : ""}${man ? "" : "<th>التسليم</th><th>العمل</th>"}${partsOf(t) ? partsOf(t).map((p, i) => `<th class="c pth" title="${esc(p.name)}">${esc(p.name)}<br><small>(من ${gN(p.max)})</small></th>`).join("") : `<th class="c">الدرجة من ${gN(t.max_grade)}</th>`}<th class="c">بونص</th><th class="c">المجموع</th><th>ملاحظة للطالب</th>${stampCol ? "<th></th>" : ""}</tr></thead><tbody>
         ${list.map(e => { const s = subOf(t, e.student_code), code = esc(e.student_code), ck = s && s.kind === "drive" ? (CHECK[s.check_state] || ["none", "لم يُفحص"]) : null, n = rows.indexOf(e) + 1;
           return `<tr class="${tkEdits[e.student_code] ? "dirty" : ""}"><td class="c muted mono">${n}</td><td class="mono">${code}</td><td class="nm"><div class="nm-c"><button type="button" class="nm-t nm-lnk" data-stu="${code}" title="ملف ${esc(e.name)} في كل التكليفات">${esc(e.name)}</button><div class="nm-tags">${extraChip(t, e)}${absChip(t, e)}${minusChip(t, e.student_code)}${fixChip(s)}${s && s.rejected_at ? ` <span class="chip bad" title="ظهر للطالب: «مشروعك مرفوض. توجّه لأستاذ المادة»">مرفوض</span>${run ? ` <button class="btn xs ghost" data-unrej="${code}" title="إلغاء الرفض">إلغاء</button>` : ""}` : ""}</div></div></td>${gs.length > 1 && !t.grp ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}
             ${man ? "" : `<td class="small tk-subc"><div class="cell-s">${s && s.submitted_at ? `<span class="nowrap">${CM.fmtD(s.submitted_at)} ${CM.fmtT(s.submitted_at)}</span>${s.late || s.version > 1 ? `<span class="nm-tags">${s.late ? `<span class="chip warn">متأخر</span>` : ""}${s.version > 1 ? `<span class="muted">التسليم ${s.version}</span>` : ""}</span>` : ""}${extCell(t, e, s, run)}` : `<span class="muted">لم يسلّم</span>${extCell(t, e, s, run)}`}</div></td>
             <td class="small tk-work">${s && s.url ? `<button class="btn sm tk-view" data-view="${code}">${ICO('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>')} عرض العمل</button><a href="${esc(s.url)}" target="_blank" rel="noopener" class="tk-a" title="${esc(s.kind === "drive" ? (s.file_name || "الملف") : s.url)}">${esc(s.kind === "drive" ? (s.file_name || "الملف").replace(/^\d{6,}\s*-\s*/, "") : "رابط")}</a>${ck && ck[0] !== "none" && ck[0] !== "ok" ? `<span class="chip ${ck[0]}">${ck[1]}</span>` : ""}${s.note ? `<div class="muted tk-note">«${esc(s.note)}»</div>` : ""}` : `<span class="muted">—</span>`}</td>`}
-            ${partsOf(t) ? partsOf(t).map((p, i) => `<td class="c">${run ? `<input type="text" class="gin pin ${badVal(valOf(e.student_code, "p" + i, s), +p.max) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-p="${code}" data-pi="${i}" value="${esc(valOf(e.student_code, "p" + i, s))}" inputmode="decimal" autocomplete="off" title="${esc(p.name)} (من ${gN(p.max)})">` : gN(s && Array.isArray(s.parts) ? s.parts[i] : "")}</td>`).join("")
-            : `<td class="c">${run ? `<input type="text" class="gin ${badVal(valOf(e.student_code, "grade", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? `disabled title="مرفوض: غاب ${DL(t)}. اقبل عذره أولًا لترصد درجته."` : ""} data-g="${code}" value="${esc(valOf(e.student_code, "grade", s))}" inputmode="decimal" autocomplete="off">` : gN(s && s.grade)}</td>`}
-            <td class="c">${run ? `<input type="text" class="gin bin ${badVal(valOf(e.student_code, "bonus", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-b="${code}" value="${esc(valOf(e.student_code, "bonus", s))}" inputmode="decimal" autocomplete="off" placeholder="—">` : (s && Number(s.bonus) ? "+" + gN(s.bonus) : "")}</td>
-            <td class="c mono"><b data-tot="${code}">${run ? liveTotal(t, e.student_code) : gN(totalOf(s))}</b></td>
-            <td>${run ? `<input type="text" class="fin" data-f="${code}" maxlength="2000" value="${esc(valOf(e.student_code, "feedback", s))}" placeholder="اختياري">` : esc((s && s.feedback) || "")}</td>
+            ${partsOf(t) ? partsOf(t).map((p, i) => `<td class="c tk-g tk-p" data-th="${esc(p.name)}" data-of="/${gN(p.max)}">${run ? `<input type="text" class="gin pin ${badVal(valOf(e.student_code, "p" + i, s), +p.max) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-p="${code}" data-pi="${i}" value="${esc(valOf(e.student_code, "p" + i, s))}" inputmode="decimal" autocomplete="off" title="${esc(p.name)} (من ${gN(p.max)})">` : gN(s && Array.isArray(s.parts) ? s.parts[i] : "")}</td>`).join("")
+            : `<td class="c tk-g" data-th="الدرجة" data-of="/${gN(t.max_grade)}">${run ? `<input type="text" class="gin ${badVal(valOf(e.student_code, "grade", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? `disabled title="مرفوض: غاب ${DL(t)}. اقبل عذره أولًا لترصد درجته."` : ""} data-g="${code}" value="${esc(valOf(e.student_code, "grade", s))}" inputmode="decimal" autocomplete="off">` : gN(s && s.grade)}</td>`}
+            <td class="c tk-g tk-bn" data-th="بونص">${run ? `<input type="text" class="gin bin ${badVal(valOf(e.student_code, "bonus", s), +t.max_grade) ? "bad" : ""}" ${refusedFor(t, e) ? "disabled" : ""} data-b="${code}" value="${esc(valOf(e.student_code, "bonus", s))}" inputmode="decimal" autocomplete="off" placeholder="—">` : (s && Number(s.bonus) ? "+" + gN(s.bonus) : "")}</td>
+            <td class="c mono tk-g tk-tt" data-th="المجموع"><b data-tot="${code}">${run ? liveTotal(t, e.student_code) : gN(totalOf(s))}</b></td>
+            <td class="tk-fb">${run ? `<input type="text" class="fin" data-f="${code}" maxlength="2000" value="${esc(valOf(e.student_code, "feedback", s))}" placeholder="اختياري">` : esc((s && s.feedback) || "")}</td>
             ${stampCol ? `<td>${s && s.kind === "drive" && s.grade != null && HD.stampable(s.mime) ? `<button class="btn xs ghost" data-stamp="${code}" title="نسخة PDF من عمل الطالب عليها ختم بالدرجة">نسخة مختومة</button>` : ""}</td>` : ""}</tr>`; }).join("")}
       </tbody></table></div>` : `<div class="empty">لا يوجد طلبة في هذا التصنيف.</div>`}
       ${run ? `<div class="savebar" id="tkSave" ${Object.keys(tkEdits).length ? "" : "hidden"}><span id="tkDirty"></span><button class="btn primary" id="tkSaveBtn">حفظ الدرجات</button><button class="btn ghost" id="tkUndo">تراجع</button></div>` : ""}
@@ -3257,6 +3309,7 @@
           <button type="button" class="gx-det-b${grader.det ? " on" : ""}" id="grDetB" aria-expanded="${grader.det}" title="ملاحظة للطالب، مشكلة في الملف، درجات سريعة" aria-label="ملاحظة ومشكلة الملف">${ICO('<path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/>')}<span>ملاحظة</span></button>
           <button class="btn primary gx-save" id="grSave">اعتماد ${GX_ARR(1)}</button>
         </div>
+        <div class="gx-nav" role="group" aria-label="التنقل بين الطلبة"><button type="button" class="btn sm" data-grgo="-1" ${grader.i <= 0 ? "disabled" : ""}>${GX_ARR(-1)} السابق</button><span class="small muted">${grader.i + 1} من ${grader.order.length}</span><button type="button" class="btn sm" data-grgo="1" ${grader.i >= grader.order.length - 1 ? "disabled" : ""}>التالي ${GX_ARR(1)}</button></div>
       </div>
       ${grader.vcOn ? `<p class="small gx-vct" id="grVcTxt">قل الدرجة فقط، وستُحفظ وننتقل إلى التالي.</p>` : ""}
       <div class="gx-det" ${grader.det ? "" : "hidden"}>
@@ -3275,6 +3328,7 @@
     $("#grF").onchange = () => { const cur = grader.order[grader.i]; grader.f = $("#grF").value; grader.order = graderOrder(t, grader.f); grader.i = Math.max(0, grader.order.indexOf(cur)); grader.msg = ""; ov.querySelector(".gx-menu").open = false; drawGrader(true); };
     const go = d => { grader.i = Math.min(Math.max(0, grader.i + d), Math.max(0, grader.order.length - 1)); grader.msg = ""; fixUi = null; drawGrader(true); };
     $("#grPrevB").onclick = () => go(-1); $("#grNext").onclick = () => go(1);
+    ov.querySelectorAll("[data-grgo]").forEach(b => b.onclick = () => go(+b.dataset.grgo));
     if (!e) return;
     const fb0 = $("#grFb");
     const gdx = $("#grDetX"); if (gdx) gdx.onclick = () => $("#grDetB").click();
@@ -3714,7 +3768,7 @@
         ${s.k === "on" ? `<button class="btn sm" id="apCloseNow">إغلاق باب التظلم الآن</button>` : `<button class="btn sm primary" id="apOpenNow">فتح باب التظلم</button>`}
         ${CM.dd("مهلة محددة", [`<div class="dd-h">افتح الآن لمدة</div>`, quick(1, "يوم واحد"), quick(2, "يومين"), quick(3, "3 أيام"), quick(7, "أسبوع"), `<hr><button class="dd-i" id="apPick">حدّد موعد الفتح والإغلاق…</button>`], { end: true })}
       </div>
-      ${t.released ? `<div class="apctl-g"><label class="f"><span>فتح تظلم جديد لطالب معيّن (حتى لو استنفد محاولاته أو كان الباب مغلقًا)</span><select id="apGrantSel"><option value="">اختر الطالب…</option>${taskRows(t).map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}</option>`).join("")}</select></label><button class="btn sm" id="apGrantGo">افتح له تظلمًا</button></div>` : ""}
+      ${t.released ? `<div class="apctl-g"><label class="f"><span>فتح تظلم جديد لطالب معيّن (حتى لو استنفد محاولاته أو كان الباب مغلقًا)</span><select id="apGrantSel" data-spick="ابحث عن الطالب بالاسم أو الكود…"><option value="">اختر الطالب…</option>${taskRows(t).map(e => `<option value="${esc(e.student_code)}">${esc(e.name)} · ${esc(e.student_code)}</option>`).join("")}</select></label><button class="btn sm" id="apGrantGo">افتح له تظلمًا</button></div>` : ""}
       ${apWin && apWin.tid === t.id ? `<div class="apctl-f">
         <label class="f"><span>يُفتح</span><input type="datetime-local" id="apFrom" value="${esc(apWin.from)}"></label>
         <label class="f"><span>يُغلق</span><input type="datetime-local" id="apUntil" value="${esc(apWin.until)}"></label>
@@ -4522,7 +4576,9 @@
       ${ms ? (counted(r) ? `<div class="msg ok">مسجَّل حاضرًا في المحاضرة ${ms.n}.</div>` : r ? `<button type="button" class="btn primary block" data-rsa="ap">اعتماد حضوره في المحاضرة ${ms.n}</button>`
         : `<div class="sh-sec"><b>تحضير يدوي في المحاضرة ${ms.n}${isOwn(ms, e) ? "" : " (تعويض)"}</b><div class="cchips">${MAN_REASONS.map(x => `<button type="button" class="cchip" data-rsr="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>`) : ""}
       ${mng ? `<label class="f"><span>المجموعة</span><select data-rsg>${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${g ? "مجموعة " + esc(g) : "دون مجموعة"}</option>`).join("")}</select></label>
-      <div class="sh-acts">${D.locked && D.locked.has(e.student_code) ? `<button type="button" class="sh-a" data-rsa="unl">فك قفل الحساب</button>` : ""}${b.device_bound ? cf("dev", "فك ربط الهاتف") : ""}${b.registered || b.device_bound ? cf("acc", "حذف الحساب", true) : ""}${cf("rm", "إزالة من المادة", true)}</div>` : ""}
+      ${(D.locked && D.locked.has(e.student_code)) || b.device_bound ? `<div class="sh-acts">${D.locked && D.locked.has(e.student_code) ? `<button type="button" class="sh-a" data-rsa="unl">فك قفل الحساب</button>` : ""}${b.device_bound ? cf("dev", "فك ربط الهاتف") : ""}</div>` : ""}
+      <div class="sh-danger" role="group" aria-labelledby="rsDz"><b id="rsDz">منطقة الخطر</b><small>لا يمكن التراجع عن هذين الإجراءين. يحتاج كلٌّ منهما ضغطتين.</small>
+        <div class="sh-acts">${b.registered || b.device_bound ? cf("acc", "حذف حساب الطالب", true) : ""}${cf("rm", "إزالة من المادة", true)}</div></div>` : ""}
     </div>`;
     const close = () => { ov.remove(); rsSheet = null; };
     const done = async (fn, msg) => { try { await fn(); close(); if (msg) say("roster", msg); await loadCourse(); } catch (x) { showErr(x); } };
@@ -4532,7 +4588,7 @@
     ov.querySelectorAll("[data-rsa]").forEach(x => x.onclick = () => { const k = x.dataset.rsa;
       if (k === "ap") return done(() => rpc("approve_attendance", { sid: ms.id, code: e.student_code }));
       if (k === "unl") return done(() => rpc("student_unlock", { cid: c.id, code: e.student_code }), "اتفك قفل حساب " + e.name + ".");
-      if (rsConfirm !== k) { rsConfirm = k; return rosterSheet(); }
+      if (rsConfirm !== k) { rsConfirm = k; setTimeout(() => { if (rsConfirm === k && rsSheet) { rsConfirm = null; rosterSheet(); } }, 4000); return rosterSheet(); }
       if (k === "dev") return done(() => rpc("reset_device", { cid: c.id, code: e.student_code }), "فُكّ ربط هاتف " + e.name + ".");
       if (k === "acc") return done(() => rpc("reset_account", { cid: c.id, code: e.student_code }), "حُذف حساب " + e.name + ".");
       if (k === "rm") return done(() => rpc("remove_student", { cid: c.id, code: e.student_code }), "أُزيل " + e.name + " من المادة.");
@@ -4729,13 +4785,9 @@
             <label class="f"><span>الساعات المعتمدة</span><input type="number" id="blCr" min="0" max="30" value="${c.credits ?? ""}"></label>
             <button class="btn" id="blSave">حفظ مقرر اللائحة</button>
           </div></div>
-        <div class="row"><button class="btn sm ghost" id="arch">${c.archived ? "إعادة المادة من الأرشيف" : "أرشفة المادة (نهاية الفصل الدراسي)"}</button><span class="muted small">الأرشفة تُخفي المادة عن الطلبة وتحتفظ بالكشف.</span></div>` : ""}
-        ${confirmKey === "delcourse" ? `<div class="msg bad" style="display:grid;gap:8px">
-            <b>الحذف نهائي ولا يمكن التراجع عنه.</b>
-            <span class="small">سيُحذف ${D.sessions.length} محاضرة بما فيها من حضور وإنذارات، وطلبة المادة. إذا احتجت الكشف فصدّره إلى إكسل أولًا. للتأكيد اكتب اسم المادة كما هو: <b>${esc(c.name)}</b></span>
-            <input type="text" id="delName" autocomplete="off">
-            <div class="row"><button class="btn sm danger" id="delGo">حذف المادة نهائيًّا</button><button class="btn sm ghost" id="delCancel">إلغاء</button></div>
-          </div>` : me.role === "head" && c.owner_email !== me.email ? "" : `<div class="row"><button class="btn sm ghost danger" id="delAsk">حذف المادة</button></div>`}
+        <div class="set-row"><div><b>الأرشفة</b><span class="muted small">تُخفي المادة عن الطلبة في نهاية الفصل، وتحتفظ بالكشف والدرجات. يمكن إعادتها في أي وقت.</span></div><button class="btn sm" id="arch">${c.archived ? "إعادة المادة من الأرشيف" : "أرشفة المادة"}</button></div>` : ""}
+        ${me.role === "head" && c.owner_email !== me.email ? "" : `<section class="dz" aria-labelledby="dzT"><h3 id="dzT">منطقة الخطر</h3>
+          <div class="set-row"><div><b>حذف المادة نهائيًّا</b><span class="muted small">يحذف ${D.sessions.length} محاضرة بما فيها من حضور وإنذارات، وطلبة المادة. لا يمكن التراجع عنه.</span></div><button class="btn sm danger" id="delAsk">حذف المادة…</button></div></section>`}
       </div>` : ""}`;
     const pe = $("#profEditB"); if (pe) pe.onclick = () => { profEdit = true; renderTeam(); const i = $("#profIn"); if (i) i.focus(); };
     const pc = $("#profCancel"); if (pc) pc.onclick = () => { profEdit = false; renderTeam(); };
@@ -4762,17 +4814,33 @@
       act(async () => { await rpc("set_course_bylaw", { cid: c.id, p_code: $("#blCode").value.trim(), p_cw: num("#blCw"), p_exam: num("#blEx"), p_credits: num("#blCr") }); say("course", "حُفظ مقرر اللائحة."); },
         async () => { await loadBase(); await loadCourse(); });
     };
-    const da = $("#delAsk"); if (da) da.onclick = () => { confirmKey = "delcourse"; renderTeam(); const i = $("#delName"); if (i) i.focus(); };
-    const dc = $("#delCancel"); if (dc) dc.onclick = () => { confirmKey = null; renderTeam(); };
-    const dg = $("#delGo"); if (dg) dg.onclick = async () => {
-      const typed = $("#delName").value.trim();
-      if (typed !== c.name.trim()) { say("course", "!الاسم المكتوب لا يطابق اسم المادة."); return renderTeam(); }
-      try {
-        await rpc("delete_course", { cid: c.id, p_confirm: typed });
-        confirmKey = null; flash = {}; curId = null; store.del("cm_course");
-        await loadBase(); await loadCourse();
-        toast("حُذفت المادة «" + c.name + "».");
-      } catch (e) { say("course", "!" + errText(e)); renderTeam(); }
+    // b169: حذف المادة في نافذة تأكيد مستقلة (اكتب اسم المادة)، لا داخل الصفحة
+    const da = $("#delAsk"); if (da) da.onclick = () => {
+      const ov = document.createElement("div"); ov.className = "sheet-ov dz-ov";
+      ov.innerHTML = `<div class="sheet dz-dlg" role="alertdialog" aria-modal="true" aria-labelledby="dzH"><h3 id="dzH">حذف «${esc(c.name)}» نهائيًّا؟</h3>
+        <p class="small">سيُحذف ${D.sessions.length} محاضرة بما فيها من حضور وإنذارات، وطلبة المادة وتكليفاتها. إذا احتجت الكشف فصدّره إلى إكسل أولًا.</p>
+        <label class="f"><span>للتأكيد اكتب اسم المادة كما هو: <b>${esc(c.name)}</b></span><input type="text" id="delName" autocomplete="off"></label>
+        <p class="small bad-t" id="delErr" hidden></p>
+        <div class="row"><button class="btn danger" id="delGo" disabled>حذف المادة نهائيًّا</button><button class="btn ghost" id="delCancel">إلغاء</button></div></div>`;
+      document.body.appendChild(ov);
+      const close = () => { ov.remove(); document.removeEventListener("keydown", onEsc); da.focus(); };
+      const onEsc = e => { if (e.key === "Escape") close(); };
+      document.addEventListener("keydown", onEsc);
+      ov.onclick = e => { if (e.target === ov) close(); };
+      const inp = ov.querySelector("#delName"), go = ov.querySelector("#delGo"), er = ov.querySelector("#delErr");
+      inp.oninput = () => { go.disabled = inp.value.trim() !== c.name.trim(); };
+      ov.querySelector("#delCancel").onclick = close;
+      go.onclick = async () => {
+        const typed = inp.value.trim(); if (typed !== c.name.trim()) return;
+        go.disabled = true; go.textContent = "جارٍ الحذف…";
+        try {
+          await rpc("delete_course", { cid: c.id, p_confirm: typed });
+          close(); confirmKey = null; flash = {}; curId = null; store.del("cm_course");
+          await loadBase(); await loadCourse();
+          toast("حُذفت المادة «" + c.name + "».");
+        } catch (e) { er.textContent = errText(e); er.hidden = false; go.disabled = false; go.textContent = "حذف المادة نهائيًّا"; }
+      };
+      setTimeout(() => inp.focus(), 30);
     };
   }
 

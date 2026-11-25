@@ -256,7 +256,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b168)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b169)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -921,13 +921,15 @@ document.addEventListener("click", ev => {
     document.querySelectorAll(".ctabs, .nx-dock").forEach(n => {
       const btns = [...n.querySelectorAll(":scope > button:not(.dk-more)")].filter(b => b.classList.contains("dk-hid") || getComputedStyle(b).display !== "none");
       let m = n.querySelector(":scope > .dk-more");
-      if (!mobile || btns.length <= 5) { btns.forEach(b => b.classList.remove("dk-hid")); if (m) m.remove(); return; }
-      const a = activeOf(n); let keep = btns.slice(0, 4);
-      if (a && btns.includes(a) && !keep.includes(a)) keep = [...btns.slice(0, 3), a];
+      if (!mobile || btns.length <= 5) { btns.forEach(b => b.classList.remove("dk-hid")); if (m) m.remove(); if (n.classList.contains("ctabs")) R.classList.remove("dk-sub"); return; }
+      // b169: الشريط ثابت — القسم المفتوح من «المزيد» لا يحلّ محل زر آخر؛ «المزيد» نفسه يظهر مختارًا، والقسم يفتح كصفحة فرعية بزر رجوع
+      const a = activeOf(n), keep = btns.slice(0, 4), sub = !!(a && btns.includes(a) && !keep.includes(a));
       btns.forEach(b => { const h = !keep.includes(b); if (b.classList.contains("dk-hid") !== h) { b.classList.toggle("dk-hid", h); changed = true; } });
       const anyHot = btns.some(b => b.classList.contains("dk-hid") && b.querySelector(".tb, b"));
       if (!m) { changed = true; m = document.createElement("button"); m.type = "button"; m.className = "dk-more"; m.innerHTML = MORE + '<span class="l">المزيد</span>'; m.onclick = () => sheet(n); n.appendChild(m); }
       if (m.classList.contains("hot") !== anyHot) m.classList.toggle("hot", anyHot);
+      if (m.classList.contains("on") !== sub) { m.classList.toggle("on", sub); m.setAttribute("aria-current", sub ? "page" : "false"); }
+      if (n.classList.contains("ctabs")) R.classList.toggle("dk-sub", sub);
     });
     if (changed) requestAnimationFrame(() => dispatchEvent(new Event("resize")));   // الخلفية الملونة تتحرك للزرار المختار في مكانه الجديد
   };
@@ -1058,4 +1060,65 @@ document.addEventListener("click", ev => {
   addEventListener("online", () => show(false));
   const init = () => { if (navigator.onLine === false) show(true); };
   if (document.readyState === "loading") addEventListener("DOMContentLoaded", init); else init();
+})();
+
+/* b169: الأشرطة الأفقية القابلة للتمرير (التصفية والتبويبات) — تلاشٍ عند الطرف الأيسر يبيّن أن بعدها المزيد */
+(function () {
+  const SEL = "#livePanel .tabs,.rgm-f,.rs-sort,.dh-chips,.seg,.tkseg,.tk-sortrow,.cpk-pop .cchips,.tw-days,.tk-tabs,.ml-chips";
+  const upd = el => {
+    const max = el.scrollWidth - el.clientWidth;
+    if (max <= 2) { el.removeAttribute("data-ovf"); return; }
+    // في RTL يكون scrollLeft صفرًا عند البداية وسالبًا كلما تقدّمنا نحو اليسار
+    const left = Math.abs(el.scrollLeft), atEnd = left >= max - 2, atStart = left <= 2;
+    el.setAttribute("data-ovf", atEnd ? "start" : atStart ? "end" : "both");
+  };
+  const scan = () => document.querySelectorAll(SEL).forEach(upd);
+  let q = 0; const later = () => { if (!q) q = requestAnimationFrame(() => { q = 0; scan(); }); };
+  document.addEventListener("scroll", e => { const t = e.target; if (t && t.matches && t.matches(SEL)) upd(t); }, true);
+  addEventListener("resize", later);
+  const start = () => { new MutationObserver(later).observe(document.body, { childList: true, subtree: true }); scan(); };
+  if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
+})();
+
+/* b169: قائمة اختيار بالبحث — تحلّ محل <select data-spick> الطويلة (اختيار طالب من 200+)، والـ select الأصلي يبقى مخفيًّا ويستقبل القيمة */
+(function () {
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const norm = s => String(s).replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").replace(/[ًٌٍَُِّْـ]/g, "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).toLowerCase();
+  let n = 0;
+  function enhance(sel) {
+    if (sel.dataset.spickOn) return; sel.dataset.spickOn = "1";
+    const id = "spk" + (++n), wrap = document.createElement("div"), inp = document.createElement("input"), list = document.createElement("div");
+    wrap.className = "spick";
+    inp.type = "search"; inp.className = "spick-in"; inp.autocomplete = "off"; inp.placeholder = sel.dataset.spick || "ابحث بالاسم أو الكود…";
+    inp.setAttribute("role", "combobox"); inp.setAttribute("aria-autocomplete", "list"); inp.setAttribute("aria-expanded", "false"); inp.setAttribute("aria-controls", id);
+    list.className = "spick-l"; list.id = id; list.setAttribute("role", "listbox"); list.hidden = true;
+    sel.parentNode.insertBefore(wrap, sel); wrap.append(inp, list, sel); sel.hidden = true; sel.tabIndex = -1;
+    if (sel.value) { const o = sel.selectedOptions[0]; if (o) inp.value = o.text; }
+    let act = 0, shown = [];
+    const opts = () => [...sel.options].filter(o => o.value);
+    const close = () => { list.hidden = true; inp.setAttribute("aria-expanded", "false"); inp.removeAttribute("aria-activedescendant"); };
+    const draw = () => {
+      const q = norm(inp.value.trim()), all = opts(), hit = all.filter(o => !q || norm(o.text).includes(q));
+      shown = hit.slice(0, 50); act = Math.max(0, Math.min(act, shown.length - 1));
+      list.innerHTML = shown.length ? shown.map((o, i) => `<button type="button" role="option" id="${id}-${i}" class="spick-o${i === act ? " on" : ""}" aria-selected="${i === act}" data-i="${i}">${esc(o.text)}</button>`).join("")
+        + (hit.length > shown.length ? `<div class="spick-more">${hit.length - shown.length} آخرون · اكتب جزءًا من الاسم أو الكود لتضييق البحث</div>` : "")
+        : `<div class="spick-more">لا يوجد اسم أو كود مطابق.</div>`;
+      list.hidden = false; inp.setAttribute("aria-expanded", "true");
+      if (shown.length) { inp.setAttribute("aria-activedescendant", id + "-" + act); const on = list.children[act]; if (on && on.scrollIntoView) on.scrollIntoView({ block: "nearest" }); }
+    };
+    const pick = i => { const o = shown[i]; if (!o) return; sel.value = o.value; inp.value = o.text; close(); sel.dispatchEvent(new Event("change", { bubbles: true })); };
+    inp.addEventListener("focus", draw);
+    inp.addEventListener("input", () => { act = 0; if (!inp.value && sel.value) { sel.value = ""; } draw(); });
+    inp.addEventListener("keydown", e => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); if (list.hidden) return draw(); act = (act + (e.key === "ArrowDown" ? 1 : -1) + shown.length) % Math.max(1, shown.length); draw(); }
+      else if (e.key === "Enter") { if (!list.hidden && shown.length) { e.preventDefault(); pick(act); } }
+      else if (e.key === "Escape") { if (!list.hidden) { e.preventDefault(); e.stopPropagation(); close(); } }
+    });
+    list.addEventListener("mousedown", e => e.preventDefault());
+    list.addEventListener("click", e => { const b = e.target.closest("[data-i]"); if (b) pick(+b.dataset.i); });
+    inp.addEventListener("blur", () => setTimeout(close, 120));
+  }
+  const scan = () => document.querySelectorAll("select[data-spick]:not([data-spick-on])").forEach(enhance);
+  const start = () => { new MutationObserver(scan).observe(document.body, { childList: true, subtree: true }); scan(); };
+  if (document.readyState === "loading") addEventListener("DOMContentLoaded", start); else start();
 })();
