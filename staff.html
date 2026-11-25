@@ -19,7 +19,9 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="style.css?v=b164">
+<link rel="stylesheet" href="ui.css?v=b164">
+<link rel="stylesheet" href="ui-tools.css?v=b164">
+<link rel="stylesheet" href="ui-staff.css?v=b164">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -618,7 +620,7 @@
   const icoInner = ic => ic.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
   function courseBand(c) {
     const t = CTABS.find(x => x[0] === ctab) || CTABS[0];
-    return CM.band({ id: "cband", cls: "course-h", icon: icoInner(t[2]), eyebrow: t[1] + " · " + esc(TAB_SUB[t[0]] || ""), title: esc(c.name), sub: esc(clsLabel(c)) + (c.archived ? " · مؤرشفة" : "") + (c.auto_created ? " · أنشأها النظام من استمارات التسجيل" : "") });
+    return `<section class="ch2" id="cband"><h2>${t[1]}</h2><p>${esc(TAB_SUB[t[0]] || "")}${c.archived ? " · مادة مؤرشفة" : ""}</p></section>`;
   }
   let lastRise = null;
   function navMark() {
@@ -1264,9 +1266,8 @@
         <div class="row">
           ${view !== "home" ? `<button class="btn sm" id="goHome" aria-label="الرئيسية" data-cap="الرئيسية">${ICO(HOME_ICO)}<span class="gh-l">الرئيسية</span></button>` : ""}
           ${view === "admin" ? `<button class="btn sm primary" id="admin">رجوع للمواد</button>` : ""}
-          ${CM.dd("أدوات", [`<button class="dd-i dd-mob" data-look-btn>المظهر (فاتح / غامق والألوان)</button>`, canCreate() && view === "course" ? `<button class="dd-i" id="newC">مادة جديدة</button>` : "", view !== "timetable" ? `<button class="dd-i" id="goTT">الجدول الدراسي</button>` : "", isDept() && view !== "admin" ? `<button class="dd-i" id="admin">${me.role === "head" ? "متابعة القسم" : "لوحة المسؤول"}</button>` : "", me.role === "admin" ? `<a class="dd-i" href="pg-admin.html">الدراسات العليا</a>` : ""])}
+          ${CM.dd(`${ICO('<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>')}<span class="dd-hide">أدوات</span>`, [`<button class="dd-i" data-look-btn>المظهر (فاتح / داكن)</button>`, canCreate() && view === "course" ? `<button class="dd-i" id="newC">مادة جديدة</button>` : "", view !== "timetable" ? `<button class="dd-i" id="goTT">الجدول الدراسي</button>` : "", isDept() && view !== "admin" ? `<button class="dd-i" id="admin">${me.role === "head" ? "متابعة القسم" : "لوحة المسؤول"}</button>` : "", me.role === "admin" ? `<a class="dd-i" href="pg-admin.html">الدراسات العليا</a>` : ""])}
           <button class="btn sm ghost bell-btn" id="bellBtn" aria-label="التنبيهات" title="التنبيهات" data-cap="إشعارات">${ICO(BELL_ICO)}<i class="bell-n" id="bellN" hidden></i></button>
-          ${CM.themeBtn()}
           ${CM.dd(`<span class="dd-ava">${esc(String(me.name || "؟").replace(/^(د|م|أ\.?د)\.\s*/, "").trim().charAt(0))}</span><span class="dd-hide">حسابي</span>`, [`<div class="dd-h">حسابي<small>${esc(me.name || "")}</small></div>`, `<button class="dd-i" id="goProf">ملفي الشخصي</button>`, `<button class="dd-i" id="pwSet">كلمة السر</button>`, `<button class="dd-i" id="goHelp">المساعدة والتواصل</button>`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "حسابي" })}
         </div>
       </header>
@@ -4430,7 +4431,7 @@
     const c = course(), el = $("#rosterPanel"), mng = canManage(c), add = canRun(c);
     const gOpts = [...new Set(["أ", "ب", "ج", ...groupsOf()])].sort();
     el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.enroll.length} طالب</div><h2>طلبة المادة</h2></div>
-      <div class="row">${add ? `<button class="btn sm ${addOpen ? "primary" : ""}" id="stAddT">إضافة طالب</button>` : ""}${add && D.enroll.length > 1 && groupsOf().length && !split ? `<button class="btn sm" id="spAll">إعادة تقسيم المجموعات</button>` : ""}${mng ? `<button class="btn sm ghost" id="rsTpl" title="ملف إكسل جاهز فيه أعمدة الكود والاسم والمجموعة، تملاه وترفعه">تنزيل نموذج إكسل</button><label class="btn sm" for="xls">رفع ملف إكسل</label><input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
+      <div class="row">${add ? `<button class="btn sm ${addOpen ? "primary" : ""}" id="stAddT">إضافة طالب</button>` : ""}${CM.dd("المزيد", [add && D.enroll.length > 1 && groupsOf().length && !split ? `<button class="dd-i" id="spAll">إعادة تقسيم المجموعات</button>` : "", mng ? `<label class="dd-i" for="xls">رفع ملف إكسل</label>` : "", mng ? `<button class="dd-i" id="rsTpl">تنزيل نموذج إكسل</button>` : ""], { end: true })}${mng ? `<input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
       ${msgHtml("roster")}
       ${splitHtml(c)}
       ${pushSumHtml(c)}
@@ -4443,14 +4444,14 @@
         </div>
         <div class="row"><button class="btn sm primary" id="stSave">أضف الطالب</button><button class="btn sm ghost" id="stCancel">إلغاء</button><span class="muted small">يظهر الطالب في الكشف من الآن، ويمكنه إنشاء حساب بكوده.</span></div>
       </div>` : ""}
-      ${mng ? `<p class="muted small">يتضمن الملف عمودًا للكود وعمودًا للاسم، ويمكن إضافة عمودَي «المجموعة» (أ / ب) و«رمز التفعيل». رفع ملف جديد يستبدل القائمة كلها (يُزال أي طالب غير موجود في الملف الجديد)، ويبقى الحضور السابق محفوظًا. لإضافة طالب واحد استخدم «إضافة طالب».</p>` : ""}
+      ${mng ? `<details class="more"><summary>عن ملف الطلبة</summary><p class="muted small">يتضمن الملف عمودًا للكود وعمودًا للاسم، ويمكن إضافة عمودَي «المجموعة» (أ / ب) و«رمز التفعيل». رفع ملف جديد يستبدل القائمة كلها (يُزال أي طالب غير موجود في الملف الجديد)، ويبقى الحضور السابق محفوظًا. لإضافة طالب واحد استخدم «إضافة طالب».</p></details>` : ""}
       ${D.enroll.length ? `<div class="rs-bar">
           <input type="search" id="rsQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rv.q)}" autocomplete="off">
           <span class="small muted" id="rsCount"></span>
           <button class="btn sm ghost" id="rsClear" hidden>إلغاء الترتيب والتصفية</button>
         </div>
-        <div class="tbl-wrap" id="rsWrap" style="max-height:480px;overflow:auto"><table id="rsTbl"></table></div>` : `<div class="empty">${mng ? "نزّل «نموذج إكسل»، واملاه بأكواد الطلبة وأسمائهم ومجموعاتهم، ولاحقًا ارفعه." : "لم يرفع المحاضر ملف الطلبة بعد."}</div>`}
-      ${mng && D.enroll.length ? `<p class="muted small">«فك ربط الهاتف» إذا غيّر الطالب هاتفه، فيدخل من الهاتف الجديد بكلمة السر نفسها. «حذف الحساب» إذا نسي كلمة السر أو أنشأ شخص آخر حسابًا بكوده، فينشئ حسابًا جديدًا. «إزالة من المادة» تحذفه من الكشف، وإذا أعدته لاحقًا عاد حضوره السابق.</p>` : ""}`;
+        <div class="rs-list" id="rsList"></div><div class="tbl-wrap" id="rsWrap" style="max-height:480px;overflow:auto"><table id="rsTbl"></table></div>` : `<div class="empty">${mng ? "نزّل «نموذج إكسل»، واملاه بأكواد الطلبة وأسمائهم ومجموعاتهم، ولاحقًا ارفعه." : "لم يرفع المحاضر ملف الطلبة بعد."}</div>`}
+      ${mng && D.enroll.length ? `<p class="muted small rs-help">«فك ربط الهاتف» إذا غيّر الطالب هاتفه، فيدخل من الهاتف الجديد بكلمة السر نفسها. «حذف الحساب» إذا نسي كلمة السر أو أنشأ شخص آخر حسابًا بكوده، فينشئ حسابًا جديدًا. «إزالة من المادة» تحذفه من الكشف، وإذا أعدته لاحقًا عاد حضوره السابق.</p>` : ""}`;
     const x = $("#xls"); if (x) x.onchange = ev => importFile(ev.target.files[0]);
     const tp = $("#rsTpl"); if (tp) tp.onclick = () => rosterTemplate().catch(showErr);
     wireSplit(c); wirePushSum(c);
@@ -4476,6 +4477,49 @@
     renderRosterTable();
   }
 
+  /* b165: الطلبة على الموبايل — صف بسيط لكل طالب، والإجراءات في ورقة من تحت */
+  const ACC_DOT = { bound: "ok", reg: "warn", none: "none" };
+  let rsSheet = null, rsConfirm = null;
+  function rosterListM(lw, rows, ms) {
+    const cnt = $("#rsCount"); if (cnt) cnt.textContent = rows.length === D.enroll.length ? "" : rows.length + " من " + D.enroll.length;
+    const nowTag = e => { if (!ms) return ""; const r = (D.att[ms.id] || {})[e.student_code]; return counted(r) ? `<span class="rs-now ok">حاضر</span>` : r ? `<span class="rs-now warn">معلّق</span>` : `<span class="rs-now">لم يُسجَّل</span>`; };
+    const gs = groupsOf(), noAcc = D.enroll.filter(e => accOf(e) === "none").length, fk = rv.f.acc ? "acc" : rv.f.grp ? "g:" + [...rv.f.grp][0] : "all";
+    const chips = gs.length || noAcc ? `<div class="rgm-f rs-f">${[["all", "الكل " + D.enroll.length], ...gs.map(g => ["g:" + g, "مجموعة " + g + " " + D.enroll.filter(e => e.grp === g).length]), ...(noAcc ? [["acc", "بلا حساب " + noAcc]] : [])].map(([k, t]) => `<button type="button" data-rsf="${esc(k)}" aria-pressed="${fk === k}">${esc(t)}</button>`).join("")}</div>` : "";
+    lw.innerHTML = chips + `<div class="rs-rows">` + (rows.length ? rows.map(e => `<button type="button" class="rs-row" data-rss="${esc(e.student_code)}"><span class="rs-av">${esc((e.name || "؟").trim().charAt(0))}<i class="rs-dot ${ACC_DOT[accOf(e)]}" title="${ACC[accOf(e)]}"></i></span><span class="rs-t"><b>${esc(e.name)}</b><small><span class="mono">${esc(e.student_code)}</span>${e.grp ? " · مجموعة " + esc(e.grp) : ""}${e.source === "form" ? " · بالاستمارة" : ""}</small></span>${nowTag(e)}</button>`).join("")
+      : `<div class="empty">لا يوجد طلبة مطابقون للبحث.</div>`) + `</div>`;
+    lw.querySelectorAll("[data-rsf]").forEach(b => b.onclick = () => { const k = b.dataset.rsf; rv.f.grp = k.startsWith("g:") ? new Set([k.slice(2)]) : null; rv.f.acc = k === "acc" ? new Set(["none"]) : null; renderRosterTable(); });
+    lw.querySelectorAll("[data-rss]").forEach(b => b.onclick = () => { rsSheet = b.dataset.rss; rsConfirm = null; rosterSheet(); });
+    if (rsSheet) rosterSheet();
+  }
+  function rosterSheet() {
+    let ov = $("#rsSh"); const e = D && D.enroll.find(x => x.student_code === rsSheet);
+    if (!e) { if (ov) ov.remove(); rsSheet = null; return; }
+    const c = course(), mng = canManage(c), ms = markSess(), b = D.bindings[e.student_code] || {}, code = esc(e.student_code), a = attendance(e), ab = absences(e);
+    const r = ms && (D.att[ms.id] || {})[e.student_code];
+    const cf = (k, t, danger) => `<button type="button" class="sh-a${danger ? " danger" : ""}${rsConfirm === k ? " cf" : ""}" data-rsa="${k}">${rsConfirm === k ? "اضغط مرة ثانية للتأكيد" : t}</button>`;
+    if (!ov) { ov = document.createElement("div"); ov.id = "rsSh"; ov.className = "sheet-ov"; document.body.appendChild(ov); ov.onclick = ev => { if (ev.target === ov) { ov.remove(); rsSheet = null; } }; }
+    ov.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(e.name)}">
+      <div class="sh-hd"><span class="rs-av lg">${esc((e.name || "؟").trim().charAt(0))}</span><div><h3>${esc(e.name)}</h3><p class="muted small"><span class="mono">${code}</span>${e.grp ? " · مجموعة " + esc(e.grp) : ""}</p></div><button type="button" class="sh-x" data-rsx aria-label="إغلاق">✕</button></div>
+      <div class="sh-k"><div><b>${a.own ? a.pct + "%" : "—"}</b><small>الحضور</small></div><div><b>${ab}</b><small>غياب</small></div><div><b class="rs-dot-t ${ACC_DOT[accOf(e)]}">●</b><small>${ACC[accOf(e)]}</small></div></div>
+      ${ms ? (counted(r) ? `<div class="msg ok">مسجَّل حاضرًا في المحاضرة ${ms.n}.</div>` : r ? `<button type="button" class="btn primary block" data-rsa="ap">اعتماد حضوره في المحاضرة ${ms.n}</button>`
+        : `<div class="sh-sec"><b>تحضير يدوي في المحاضرة ${ms.n}${isOwn(ms, e) ? "" : " (تعويض)"}</b><div class="cchips">${MAN_REASONS.map(x => `<button type="button" class="cchip" data-rsr="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>`) : ""}
+      ${mng ? `<label class="f"><span>المجموعة</span><select data-rsg>${[...new Set(["", "أ", "ب", "ج", e.grp])].map(g => `<option value="${esc(g)}" ${e.grp === g ? "selected" : ""}>${g ? "مجموعة " + esc(g) : "دون مجموعة"}</option>`).join("")}</select></label>
+      <div class="sh-acts">${D.locked && D.locked.has(e.student_code) ? `<button type="button" class="sh-a" data-rsa="unl">فك قفل الحساب</button>` : ""}${b.device_bound ? cf("dev", "فك ربط الهاتف") : ""}${b.registered || b.device_bound ? cf("acc", "حذف الحساب", true) : ""}${cf("rm", "إزالة من المادة", true)}</div>` : ""}
+    </div>`;
+    const close = () => { ov.remove(); rsSheet = null; };
+    const done = async (fn, msg) => { try { await fn(); close(); if (msg) say("roster", msg); await loadCourse(); } catch (x) { showErr(x); } };
+    ov.querySelector("[data-rsx]").onclick = close;
+    ov.querySelectorAll("[data-rsr]").forEach(x => x.onclick = () => done(() => rpc("mark_manual", { sid: ms.id, code: e.student_code, p_reason: x.dataset.rsr }), "سُجِّل " + e.name + " حاضرًا في المحاضرة " + ms.n + "."));
+    const g = ov.querySelector("[data-rsg]"); if (g) g.onchange = () => done(() => rpc("set_group", { cid: c.id, code: e.student_code, p_grp: g.value }));
+    ov.querySelectorAll("[data-rsa]").forEach(x => x.onclick = () => { const k = x.dataset.rsa;
+      if (k === "ap") return done(() => rpc("approve_attendance", { sid: ms.id, code: e.student_code }));
+      if (k === "unl") return done(() => rpc("student_unlock", { cid: c.id, code: e.student_code }), "اتفك قفل حساب " + e.name + ".");
+      if (rsConfirm !== k) { rsConfirm = k; return rosterSheet(); }
+      if (k === "dev") return done(() => rpc("reset_device", { cid: c.id, code: e.student_code }), "فُكّ ربط هاتف " + e.name + ".");
+      if (k === "acc") return done(() => rpc("reset_account", { cid: c.id, code: e.student_code }), "حُذف حساب " + e.name + ".");
+      if (k === "rm") return done(() => rpc("remove_student", { cid: c.id, code: e.student_code }), "أُزيل " + e.name + " من المادة.");
+    });
+  }
   /* ---------- roster table: search + Excel-style sort & filter per column ---------- */
   let rv = { cid: null, q: "", sort: { col: "code", dir: 1 }, f: { grp: null, acc: null } }, fpopCol = null;
   const ACC = { bound: "مرتبط بهاتف", reg: "بانتظار ربط هاتف", none: "لم ينشئ حسابًا" };
@@ -4506,6 +4550,7 @@
   function renderRosterTable() {
     const tb = $("#rsTbl"); if (!tb || !D) return;
     const c = course(), mng = canManage(c), rows = rosterRows(), ms = markSess(), ncol = 4 + (ms ? 1 : 0) + (mng ? 1 : 0);
+    const lw = $("#rsList"); if (lw) { lw.hidden = false; $("#rsWrap").hidden = true; return rosterListM(lw, rows, ms); }
     if (rosterMan && (!ms || counted((D.att[ms.id] || {})[rosterMan]))) rosterMan = null;
     const head = k => { const C = RCOLS[k], srt = rv.sort.col === k, flt = C.list && rv.f[k];
       return `<th><button class="fh ${srt || flt ? "on" : ""}" data-fcol="${k}" aria-haspopup="true">${k === "now" && ms ? "المحاضرة " + ms.n : C.t}<span class="fh-i">${srt ? (rv.sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button></th>`; };
