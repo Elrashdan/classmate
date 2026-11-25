@@ -19,9 +19,9 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b170">
-<link rel="stylesheet" href="ui-tools.css?v=b170">
-<link rel="stylesheet" href="ui-staff.css?v=b170">
+<link rel="stylesheet" href="ui.css?v=b171">
+<link rel="stylesheet" href="ui-tools.css?v=b171">
+<link rel="stylesheet" href="ui-staff.css?v=b171">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -47,16 +47,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b170"></script>
-<script src="vendor/qrcode.js?v=b170"></script>
-<script src="config.js?v=b170"></script>
-<script src="common.js?v=b170"></script>
-<script src="drive.js?v=b170"></script>
-<script src="pack.js?v=b170"></script>
-<script src="catalog.js?v=b170"></script>
-<script src="voice.js?v=b170"></script>
-<script src="timetable.js?v=b170"></script>
-<script src="research.js?v=b170"></script>
+<script src="vendor/supabase.js?v=b171"></script>
+<script src="vendor/qrcode.js?v=b171"></script>
+<script src="config.js?v=b171"></script>
+<script src="common.js?v=b171"></script>
+<script src="drive.js?v=b171"></script>
+<script src="pack.js?v=b171"></script>
+<script src="catalog.js?v=b171"></script>
+<script src="voice.js?v=b171"></script>
+<script src="timetable.js?v=b171"></script>
+<script src="research.js?v=b171"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -338,7 +338,7 @@
   // المادة اللي لم يُحدَّد لها محاضر بعد: لو الجدول كاتب اسم محاضرها بنعرضه (لم ينشئ حسابًا بعد)، وإلا «لم يُحدَّد لها محاضر بعد» — أبدًا مش اسم المسؤول
   const ownerName = c => { if (!(c && c.no_owner)) return staffName(c && c.owner_email); const p = profs[c.id] || {};
     return p.name && (p.src === "tt" || p.src === "manual") ? p.name + (p.src === "tt" ? " (لم ينشئ حسابًا بعد)" : "") : "لم يُحدَّد لها محاضر بعد"; };
-  // b170: نفس المعلومة بشكل HTML: الاسم + شارة صغيرة «بلا حساب» بدل تكرار الجملة، أو رسالة واضحة لو مفيش محاضر
+  // b171: نفس المعلومة بشكل HTML: الاسم + شارة صغيرة «بلا حساب» بدل تكرار الجملة، أو رسالة واضحة لو مفيش محاضر
   const ownerHtml = c => { if (!(c && c.no_owner)) return esc(staffName(c && c.owner_email)); const p = profs[c.id] || {};
     return p.name && (p.src === "tt" || p.src === "manual") ? esc(p.name) + (p.src === "tt" ? ` <em class="nb-acc" title="لم ينشئ حسابًا في Hadro بعد">بلا حساب</em>` : "") : `<em class="no-prof">لم يُحدَّد محاضر بعد</em>`; };
 
@@ -625,7 +625,7 @@
   ];
   const HOME_ICO = '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>';
   let ctab = ["live", "students", "reg", "report", "tasks", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live", prevTab = "live";
-  // b170: الأقسام اللي بتتفتح من «المزيد» على الموبايل صفحات فرعية بزر رجوع للقسم اللي قبلها
+  // b171: الأقسام اللي بتتفتح من «المزيد» على الموبايل صفحات فرعية بزر رجوع للقسم اللي قبلها
   document.addEventListener("click", e => { if (e.target.closest && e.target.closest("[data-ch-back]")) { const to = prevTab && prevTab !== ctab ? prevTab : "live"; const b = document.querySelector(`.ctabs [data-ct="${to}"]`); if (b) b.click(); } });
   // زر «رجوع» في الهاتف: يتنقّل بين أقسام البرنامج بدل أن يخرج منه
   // شريط المادة: خلفيته مستمدة من أيقونة القسم المفتوح، ويتغيّر مع التبويب
@@ -1463,7 +1463,7 @@
   }
 
   const toast = text => { const m = document.createElement("div"); m.className = "msg ok hd-flt"; m.setAttribute("role", "status"); m.textContent = text; document.body.appendChild(m); setTimeout(() => m.remove(), 5000); };
-  // b170: إجراء قابل للتراجع — يُنفَّذ بعد 4 ثوانٍ، و«تراجع» يلغيه قبل أن يصل إلى الخادم
+  // b171: إجراء قابل للتراجع — يُنفَّذ بعد 4 ثوانٍ، و«تراجع» يلغيه قبل أن يصل إلى الخادم
   const undoQ = new Map();
   function undoToast(key, text, run, onUndo) {
     flushUndo();
@@ -2273,7 +2273,7 @@
   // الغائبون في محاضرة من بين الطلبة المعروضين
   const absentIn = (s, rows) => rows.filter(e => isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).sort(byGroupName);
   function missedIn(e) { return D.sessions.filter(s => regDone(s) && isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).map(s => s.n); }
-  // b170: مقياس الارتفاع (min-max) — لو كل النسب عالية، المحور يبدأ من رقم أقل منها بدل الصفر فتظهر الفروق، ويُكتب ذلك فوق الرسم
+  // b171: مقياس الارتفاع (min-max) — لو كل النسب عالية، المحور يبدأ من رقم أقل منها بدل الصفر فتظهر الفروق، ويُكتب ذلك فوق الرسم
   function chartScale(vals) {
     const mn = Math.min(...vals), lo = mn >= 40 ? Math.max(0, Math.floor((mn - 15) / 10) * 10) : 0;
     return { lo, mid: Math.round((lo + 100) / 20) * 10, y: v => +(((Math.max(lo, Math.min(100, v)) - lo) / (100 - lo)) * 100).toFixed(2) };
@@ -2633,7 +2633,7 @@
   }
   /* ---------- ترتيب قائمة التكليفات وتقسيمها حسب المجموعة ---------- */
   let tkLay = store.get("cm_tklay") || "cards", gbG = "all", gbQ = "", gbPend = {}, gbTimer = null, gbFull = false;
-  // b170: «رصد تكليف واحد» — قائمة رأسية لتكليف واحد بدل الجدول العريض (الافتراضي على الموبايل)
+  // b171: «رصد تكليف واحد» — قائمة رأسية لتكليف واحد بدل الجدول العريض (الافتراضي على الموبايل)
   let gbMode = store.get("cm_gbmode") || (matchMedia("(max-width:760px)").matches ? "one" : "all"), gbOneT = null;
   const gbAvgT = e => { const v = gbAvg(e); return v == null ? "—" : v + "%"; };
   let tkSort = store.get("cm_tksort") || "az", tkSplit = store.get("cm_tksplit") !== "0", tkXg = store.get("cm_tkxg") || "all";
@@ -2663,24 +2663,48 @@
     const showG = gs.length > 1 && gbG === "all";
     if (gbOneT && !ts.some(t => t.id === gbOneT)) gbOneT = null;
     const one = gbMode === "one" && ts.length ? ts.find(t => t.id === gbOneT) || ts[0] : null;
-    const editable = run && (one ? !partsOf(one) : ts.some(t => !partsOf(t)));
+    const editable = run && ts.length > 0;
     const modeSeg = ts.length ? `<div class="seg gb-mode" role="group" aria-label="طريقة العرض"><button type="button" data-gbmode="one" aria-pressed="${!!one}">رصد تكليف واحد</button><button type="button" data-gbmode="all" aria-pressed="${!one}">كل التكليفات</button></div>` : "";
     const oneList = one ? (() => { const P = partsOf(one); return `<div class="gb1">
       <label class="f gb1-pick"><span>التكليف</span><select id="gb1T">${ts.map(t => `<option value="${t.id}" ${t.id === one.id ? "selected" : ""}>${esc(t.title)} · من ${gN(t.max_grade)}${t.grp ? " · مجموعة " + esc(t.grp) : ""}</option>`).join("")}</select></label>
-      ${P ? `<div class="msg info small gb1-ro">هذا التكليف مقسّم إلى ${P.length} مشاريع فرعية، فيُرصد من داخله. <button type="button" class="btn xs" data-tk="${one.id}">فتح التكليف</button></div>` : ""}
+      ${P ? `<div class="msg info small gb1-ro">هذا التكليف مقسّم إلى ${P.length} مشاريع فرعية: اضغط على درجة الطالب لترصد أجزاءها.</div>` : ""}
       <div class="gb1-list">${rows.map((e, i) => { const sb = subOf(one, e.student_code), na = !inTaskGrp(one, e) && !hasWork(one, e.student_code), k = one.id + "|" + e.student_code, pend = gbPend[one.id] && e.student_code in gbPend[one.id];
         return `<div class="gb1-r${na ? " na" : ""}" data-gbr="${esc(e.student_code)}"><span class="gb1-i mono">${i + 1}</span><span class="gb1-n"><b>${esc(e.name)}</b><small><bdi class="mono">${esc(e.student_code)}</bdi>${e.grp ? " · مجموعة " + esc(e.grp) : ""}${na ? " · من مجموعة أخرى" : ""}</small></span>
-          ${P ? `<span class="gb1-v mono">${sb && sb.grade != null ? gN(totalOf(sb)) : "—"}</span>` : `<span class="gb1-in"><input class="gb-in${pend ? " pend" : ""}" data-gb="${k}" inputmode="decimal" autocomplete="off" enterkeyhint="next" value="${pend ? esc(String(gbPend[one.id][e.student_code] ?? "")) : sb && sb.grade != null ? esc(gN(sb.grade)) : ""}" ${run ? "" : "readonly"} aria-label="درجة ${esc(e.name)} من ${gN(one.max_grade)}"><small>/${gN(one.max_grade)}</small>${sb && Number(sb.bonus) ? `<i class="gb-b">+${gN(sb.bonus)}</i>` : ""}</span>`}</div>`; }).join("")}</div></div>`; })() : "";
+          ${P ? (run && !refusedFor(one, e) ? `<button type="button" class="gb-pb gb1-v mono" data-gbp="${k}" aria-label="عدّل درجات ${esc(e.name)}">${sb && sb.grade != null ? gN(totalOf(sb)) : "—"}</button>` : `<span class="gb1-v mono">${sb && sb.grade != null ? gN(totalOf(sb)) : "—"}</span>`) : `<span class="gb1-in"><input class="gb-in${pend ? " pend" : ""}" data-gb="${k}" inputmode="decimal" autocomplete="off" enterkeyhint="next" value="${pend ? esc(String(gbPend[one.id][e.student_code] ?? "")) : sb && sb.grade != null ? esc(gN(sb.grade)) : ""}" ${run ? "" : "readonly"} aria-label="درجة ${esc(e.name)} من ${gN(one.max_grade)}"><small>/${gN(one.max_grade)}</small>${sb && Number(sb.bonus) ? `<i class="gb-b">+${gN(sb.bonus)}</i>` : ""}</span>`}</div>`; }).join("")}</div></div>`; })() : "";
     return `<div class="gb-box${gbFull ? " full" : ""}${one ? " one" : ""}" id="gbBox">${modeSeg}<div class="gb-bar no-print">${gs.length > 1 ? `<div class="cchips">${["all", ...gs].map(g => `<button type="button" class="cchip" data-gbg="${esc(g)}" aria-pressed="${gbG === g}">${g === "all" ? "كل المجموعات" : "مجموعة " + esc(g)}</button>`).join("")}</div>` : ""}
       <input type="search" id="gbQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(gbQ)}" autocomplete="off">
-      <span class="small muted" id="gbSt" ${editable || !run ? "" : "hidden"}>${editable ? "اكتب الدرجة؛ تُحفظ تلقائيًّا بعد لحظة." + (one ? "" : " زر «التالي» في الكيبورد ينقلك للطالب التالي.") : "للعرض فقط."}</span>
+      <span class="small muted" id="gbSt" ${editable || !run ? "" : "hidden"}>${editable ? (one && partsOf(one) ? "اضغط على درجة الطالب لترصد مشاريعه الفرعية." : "اكتب الدرجة؛ تُحفظ تلقائيًّا بعد لحظة." + (one ? "" : " زر «التالي» في الكيبورد ينقلك للطالب التالي.") + (!one && ts.some(partsOf) ? " الدرجة ذات الإطار المنقّط مقسّمة إلى مشاريع: اضغط عليها لترصد أجزاءها." : "")) : "للعرض فقط."}</span>
       ${one ? "" : `<button type="button" class="btn sm ghost gb-fs" id="gbFull" title="${gbFull ? "رجوع للحجم العادي (Esc)" : "عرض الكشف على الشاشة كلها"}">${gbFull ? ICO('<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>') + "تصغير" : ICO('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>') + "ملء الشاشة"}</button>`}</div>
       ${one ? oneList : `<div class="tbl-wrap gb-wrap"><table class="gb"><thead><tr><th class="c gb-n">م</th><th class="gb-nm">الطالب</th>${showG ? `<th class="c">مج</th>` : ""}${ts.map(t => `<th class="c gb-th"><button type="button" class="gb-tt" data-tk="${t.id}" title="${esc(t.title)}">${esc(t.title)}</button><small>من ${gN(t.max_grade)}${t.grp ? " · " + esc(t.grp) : ""}${t.released ? "" : " · غير معلنة"}</small></th>`).join("")}<th class="c gb-avg">المتوسط (%)</th></tr></thead>
       <tbody>${rows.map((e, i) => `<tr data-gbr="${esc(e.student_code)}"><td class="c mono muted">${i + 1}</td><td class="gb-nm"><b>${esc(e.name)}</b><small class="mono">${esc(e.student_code)}${!showG && gbG !== "all" && e.grp !== gbG ? " · استثناء من " + esc(e.grp || "") : ""}</small></td>${showG ? `<td class="c">${esc(e.grp || "")}</td>` : ""}
         ${ts.map(t => { const sb = subOf(t, e.student_code), na = !inTaskGrp(t, e) && !hasWork(t, e.student_code), P = partsOf(t), k = t.id + "|" + e.student_code, pend = gbPend[t.id] && k.split("|")[1] in gbPend[t.id];
-          return `<td class="c gb-c${na ? " na" : ""}">${P ? `<span class="gb-ro" title="مقسّم إلى مشاريع فرعية؛ افتح التكليف لرصدها">${sb && sb.grade != null ? gN(totalOf(sb)) : "—"}</span>` : `<input class="gb-in${pend ? " pend" : ""}" data-gb="${k}" inputmode="decimal" autocomplete="off" value="${pend ? esc(String(gbPend[t.id][e.student_code] ?? "")) : sb && sb.grade != null ? esc(gN(sb.grade)) : ""}" placeholder="${na ? "·" : ""}" ${run ? "" : "readonly"} aria-label="${esc(e.name)} · ${esc(t.title)}">${sb && Number(sb.bonus) ? `<i class="gb-b">+${gN(sb.bonus)}</i>` : ""}`}</td>`; }).join("")}
+          return `<td class="c gb-c${na ? " na" : ""}">${P ? (run && !refusedFor(t, e) ? `<button type="button" class="gb-pb" data-gbp="${k}" title="عدّل درجات المشاريع الفرعية لـ ${esc(e.name)}">${sb && sb.grade != null ? gN(totalOf(sb)) : "—"}</button>` : `<span class="gb-ro" title="مقسّم إلى مشاريع فرعية">${sb && sb.grade != null ? gN(totalOf(sb)) : "—"}</span>`) : `<input class="gb-in${pend ? " pend" : ""}" data-gb="${k}" inputmode="decimal" autocomplete="off" value="${pend ? esc(String(gbPend[t.id][e.student_code] ?? "")) : sb && sb.grade != null ? esc(gN(sb.grade)) : ""}" placeholder="${na ? "·" : ""}" ${run ? "" : "readonly"} aria-label="${esc(e.name)} · ${esc(t.title)}">${sb && Number(sb.bonus) ? `<i class="gb-b">+${gN(sb.bonus)}</i>` : ""}`}</td>`; }).join("")}
         <td class="c mono gb-avg" data-gbavg="${esc(e.student_code)}" dir="ltr">${gbAvgT(e)}</td></tr>`).join("")}</tbody></table></div>`}
       ${!rows.length ? `<div class="empty">لا يوجد طلبة بهذا البحث.</div>` : ""}<p class="small muted gb-note" ${editable ? "" : "hidden"}>الخانة الرمادية: الطالب ليس من مجموعة هذا التكليف؛ إن كتبت له درجة أُضيف إليه استثناءً. البونص يظهر صغيرًا بجوار الدرجة ويُعدَّل من داخل التكليف.</p></div>`;
+  }
+  /* b171: رصد المشاريع الفرعية لطالب واحد من كشف الدرجات */
+  function gbPartsSheet(tid, code) {
+    const t = D.tasks.find(x => x.id === tid), P = partsOf(t), e = D.enroll.find(x => x.student_code === code); if (!t || !P || !e) return;
+    const s = subOf(t, code), cur = i => s && Array.isArray(s.parts) && s.parts[i] != null ? gN(s.parts[i]) : "";
+    const ov = document.createElement("div"); ov.className = "sheet-ov"; document.body.appendChild(ov);
+    const close = () => ov.remove(); ov.onclick = ev => { if (ev.target === ov) close(); };
+    ov.innerHTML = `<div class="sheet gbp-sh" role="dialog" aria-modal="true" aria-label="درجات ${esc(e.name)}">
+      <div class="sh-hd"><span class="rs-av lg">${esc((e.name || "؟").trim().charAt(0))}</span><div><h3>${esc(e.name)}</h3><p class="muted small">${esc(t.title)} · من ${gN(t.max_grade)}</p></div><button type="button" class="sh-x" data-x aria-label="إغلاق">✕</button></div>
+      <div class="gbp-list">${P.map((p, i) => `<label class="gbp-r"><span>${esc(p.name)}</span><span class="gbp-in"><input class="gin" data-pi="${i}" inputmode="decimal" enterkeyhint="${i < P.length - 1 ? "next" : "done"}" autocomplete="off" value="${esc(cur(i))}"><small>/${gN(p.max)}</small></span></label>`).join("")}</div>
+      <div class="gbp-tot"><span>المجموع</span><b class="mono" data-tot>—</b></div>
+      <div class="msg bad small" data-err hidden></div>
+      <div class="row"><button type="button" class="btn primary" data-save>حفظ</button><button type="button" class="btn ghost" data-x>إلغاء</button></div></div>`;
+    const ins = [...ov.querySelectorAll("input[data-pi]")], tot = ov.querySelector("[data-tot]"), er = ov.querySelector("[data-err]");
+    const calc = () => { let sum = 0, any = false; ins.forEach(i => { const v = toNum(i.value); if (v !== "" && !isNaN(Number(v))) { sum += Number(v); any = true; } }); tot.textContent = any ? gN(Math.round((sum + Number(s && s.bonus || 0)) * 100) / 100) : "—"; };
+    ins.forEach((i, k) => { i.oninput = () => { i.classList.toggle("bad", badVal(i.value, +P[k].max)); calc(); }; i.onfocus = () => i.select(); i.onkeydown = ev => { if (ev.key === "Enter") { ev.preventDefault(); if (ins[k + 1]) ins[k + 1].focus(); else ov.querySelector("[data-save]").click(); } }; });
+    calc(); ov.querySelectorAll("[data-x]").forEach(b => b.onclick = close);
+    ov.querySelector("[data-save]").onclick = async ev => {
+      const parts = []; for (const [k, i] of ins.entries()) { const v = toNum(i.value); if (v === "") { parts.push(null); continue; } const n = Number(v); if (isNaN(n) || n < 0 || n > Number(P[k].max)) { er.textContent = "درجة «" + P[k].name + "» يجب أن تكون من 0 إلى " + gN(P[k].max) + "."; er.hidden = false; i.focus(); return; } parts.push(n); }
+      const b = ev.currentTarget; b.disabled = true; b.textContent = "جارٍ الحفظ…";
+      try { await rpc("grade_many", { tid, rows: [{ code, parts, bonus: Number(s && s.bonus || 0), feedback: s ? s.feedback || "" : "" }], p_source: "من كشف الدرجات" }); await refreshSubs(t); close(); toast("حُفظت درجات " + e.name + " في «" + t.title + "»."); keepScroll("#tasksPanel", renderTasks); }
+      catch (x) { b.disabled = false; b.textContent = "حفظ"; er.textContent = errText(x); er.hidden = false; }
+    };
+    setTimeout(() => { const f = ins.find(i => !i.value) || ins[0]; if (f) f.focus(); }, 60);
   }
   function gbStatus(t, cls) { const el = $("#gbSt"); if (el) { el.textContent = t; el.className = "small " + (cls || "muted"); } }
   async function gbFlush() {
@@ -2708,6 +2732,7 @@
     if (!wireGb.esc) { wireGb.esc = true; document.addEventListener("keydown", e => { if (e.key === "Escape" && gbFull) { gbFull = false; document.documentElement.classList.remove("gb-lock"); renderTasks(); } }); }
     document.documentElement.classList.toggle("gb-lock", gbFull && !!$("#gbBox"));
     const q = $("#gbQ"); if (q) q.oninput = () => { gbQ = q.value; gbFlush(); renderTasks(); const r2 = $("#gbQ"); r2.focus(); r2.setSelectionRange(r2.value.length, r2.value.length); };
+    el.querySelectorAll("[data-gbp]").forEach(b => b.onclick = () => { gbFlush(); const [tid, code] = b.dataset.gbp.split("|"); gbPartsSheet(tid, code); });
     const ins = [...el.querySelectorAll(".gb-in")];
     const at = (inp, dr) => { if (inp.closest(".gb1-list")) { const L = ins.filter(x => !x.readOnly); return L[L.indexOf(inp) + dr] || null; } const td = inp.closest("td"), tr = td.parentElement, ci = [...tr.children].indexOf(td); let r = tr; do { r = dr > 0 ? r.nextElementSibling : r.previousElementSibling; } while (r && !(r.children[ci] && r.children[ci].querySelector(".gb-in"))); return r && r.children[ci].querySelector(".gb-in"); };
     ins.forEach(inp => {
@@ -4817,7 +4842,7 @@
       act(async () => { await rpc("set_course_bylaw", { cid: c.id, p_code: $("#blCode").value.trim(), p_cw: num("#blCw"), p_exam: num("#blEx"), p_credits: num("#blCr") }); say("course", "حُفظ مقرر اللائحة."); },
         async () => { await loadBase(); await loadCourse(); });
     };
-    // b170: حذف المادة في نافذة تأكيد مستقلة (اكتب اسم المادة)، لا داخل الصفحة
+    // b171: حذف المادة في نافذة تأكيد مستقلة (اكتب اسم المادة)، لا داخل الصفحة
     const da = $("#delAsk"); if (da) da.onclick = () => {
       const ov = document.createElement("div"); ov.className = "sheet-ov dz-ov";
       ov.innerHTML = `<div class="sheet dz-dlg" role="alertdialog" aria-modal="true" aria-labelledby="dzH"><h3 id="dzH">حذف «${esc(c.name)}» نهائيًّا؟</h3>

@@ -69,7 +69,10 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .f small{color:var(--muted);font-size:12.5px}
 input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]),select,textarea{width:100%;min-height:50px;padding:12px 16px;border-radius:14px;border:1.5px solid transparent;background:var(--soft);color:var(--ink);font:500 16px var(--fb);outline:0;transition:border-color .15s,background .15s;-webkit-appearance:none;appearance:none}
 textarea{min-height:110px;resize:vertical}
-select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:18px 52%,12px 52%;background-size:6px 6px;background-repeat:no-repeat;padding-inline-start:36px}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7266' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-size:18px 18px;background-position:left 14px center;padding-inline-start:16px;padding-inline-end:42px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+[dir=ltr] select{background-position:right 14px center}
+:root[data-theme=dark] select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa39a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa39a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}}
 input:focus,select:focus,textarea:focus{border-color:var(--ink);background:var(--surface)}
 input::placeholder,textarea::placeholder{color:var(--faint)}
 input[type=checkbox],input[type=radio]{accent-color:var(--ink);width:18px;height:18px}
@@ -530,3 +533,4 @@ footer.legal .linkish{min-height:32px}
 /* b169: فحص التباين — النص الباهت (الأرقام الثانوية والـ placeholder) كان 2.6:1 في الفاتح؛ بقى ≥3.6:1 على الكارت والرمادي */
 :root:not([data-theme="dark"]){--faint:#7a817c}
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--faint:#6d7571} }
+.settings>.f{margin:0}
