@@ -537,3 +537,28 @@ footer.legal .linkish{min-height:32px}
 /* b173: شاشة التحميل في منتصف الشاشة بالظبط (مهما كان عرض الشاشة أو مكان الشريط الجانبي)، والفوتر يستنى لحد ما الصفحة تحمل */
 #app>.hd-loader{position:fixed;inset:0;z-index:300;min-height:0;margin:0;background:var(--bg-page,var(--bg))}
 body:has(#app>.hd-loader) footer.legal{display:none}
+/* ===== b175: الحقول والأزرار لازم تبان عن الخلفية في كل الشاشات والثيمين =====
+   الحقل: خلفية بيضاء/أغمق من الكارت + حد رمادي واضح. الزرار الثانوي والشيب: حد واضح. */
+:root{--field-bg:#ffffff;--field-b:#aab1a6;--ctl-b:#b0b7ac}
+:root[data-theme="dark"]{--field-bg:#0c0f0e;--field-b:#4a5450;--ctl-b:#444d49}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--field-bg:#0c0f0e;--field-b:#4a5450;--ctl-b:#444d49}}
+html input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]):not([type=hidden]):not(:is(.top-q,.stu-q) *),html select,html textarea{background-color:var(--field-bg)!important;border:1px solid var(--field-b)!important}
+html input:not([type=checkbox]):not([type=radio]):not(:is(.top-q,.stu-q) *):focus,html select:focus,html textarea:focus{border-color:var(--ink)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--lime) 45%,transparent)!important}
+html :is(.top-q>label,.stu-q){background:var(--field-bg)!important;border:1px solid var(--field-b)!important}
+html :is(.top-q>label,.stu-q):focus-within{border-color:var(--ink)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--lime) 45%,transparent)}
+html input.gb-in.pend,html input.gin.pend{background-color:var(--warn-soft)!important;border-color:var(--warn)!important}
+html input.gb-in.saved,html input.gin.saved{background-color:var(--ok-soft)!important;border-color:var(--ok)!important}
+html input.gb-in.bad,html input.gin.bad{background-color:var(--bad-soft)!important;border-color:var(--bad)!important}
+html .gb-c.na input.gb-in{border-style:dashed!important;background-color:transparent!important}
+html input:disabled,html select:disabled,html textarea:disabled{opacity:.6;border-style:dashed!important}
+html .btn:not(.primary):not(.ghost):not(.danger):not(.linkish),html summary.btn:not(.primary),html .cchip:not([aria-pressed="true"]),html .dh-chip:not(.on){border:1px solid var(--ctl-b)!important}
+html .btn.danger{border:1px solid color-mix(in srgb,var(--bad) 45%,transparent)!important}
+/* كشف الدرجات على كل المقاسات: البحث في سطر لوحده، وخانات الدرجات بعرض معقول */
+.gb-bar{display:grid!important;grid-template-columns:minmax(0,1fr);gap:10px}
+.gb-bar>.cchips{min-width:0;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+.gb-bar>input[type=search]{width:100%!important;max-width:520px!important;min-height:46px!important}
+html table.gb input.gb-in{width:68px!important;min-width:0!important;min-height:40px!important;padding:0 4px!important;text-align:center;font:600 15px var(--fm)!important;border-radius:10px!important}
+table.gb .gb-th{min-width:84px;max-width:150px;white-space:normal}
+table.gb .gb-nm b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ap-box{margin:0 0 10px!important}
+html .seg>.cchip:not([aria-pressed="true"]),html .seg>button:not([aria-pressed="true"]):not([aria-selected="true"]){border-color:transparent!important}
