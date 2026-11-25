@@ -11,7 +11,7 @@
 <meta name="author" content="أحمد محمد راشد حامد">
 <meta name="copyright" content="© 2026 أحمد محمد راشد حامد. جميع الحقوق محفوظة.">
 <meta name="description" content="Hadro: نظام إدارة الحضور. تصميم وتطوير أحمد محمد راشد حامد.">
-<script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}try{var L=JSON.parse(localStorage.getItem("cm_look")||"{}");if(!L||L.skin!=="classic"){var P={lime:["#f5f6f1","#d4f23b","#121614"],hadro:["#eef2f0","#9fe3c8","#122320"],sun:["#efebe6","#ff8a3d","#1b1712"],violet:["#ecebf3","#b9a6ff","#17142a"],sky:["#e8edf3","#7cc8ff","#0f1a2b"],rose:["#f3eaee","#ff9ec4","#1d1418"],sand:["#efe8dc","#e9c46a","#23201a"],mint:["#e9f0ec","#5fe3a1","#0b1d16"]};var c=L.pal==="own"&&L.own&&L.own.length===3?L.own:(P[L.pal]||P.lime),r=document.documentElement;r.dataset.skin="nx";r.style.setProperty("--nx-base",c[0]);r.style.setProperty("--nx-hi",c[1]);r.style.setProperty("--nx-dark",c[2]);if(L.motion===false)r.dataset.motion="off";}}catch(e){}</script>
+<script>try{var t=localStorage.getItem("cm_theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;}catch(e){}try{var L=JSON.parse(localStorage.getItem("cm_look")||"{}");if(!L||L.skin!=="classic"){var P={lime:["#f5f6f1","#d4f23b","#121614"],hadro:["#eef2f0","#9fe3c8","#122320"],sun:["#efebe6","#ff8a3d","#1b1722"],violet:["#ecebf3","#b9a6ff","#17142a"],sky:["#e8edf3","#7cc8ff","#0f1a2b"],rose:["#f3eaee","#ff9ec4","#1d1418"],sand:["#efe8dc","#e9c46a","#23201a"],mint:["#e9f0ec","#5fe3a1","#0b1d16"]};var c=L.pal==="own"&&L.own&&L.own.length===3?L.own:(P[L.pal]||P.lime),r=document.documentElement;r.dataset.skin="nx";r.style.setProperty("--nx-base",c[0]);r.style.setProperty("--nx-hi",c[1]);r.style.setProperty("--nx-dark",c[2]);if(L.motion===false)r.dataset.motion="off";}}catch(e){}</script>
 <title>Hadro · المحاضرين</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -19,9 +19,9 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b171">
-<link rel="stylesheet" href="ui-tools.css?v=b171">
-<link rel="stylesheet" href="ui-staff.css?v=b171">
+<link rel="stylesheet" href="ui.css?v=b172">
+<link rel="stylesheet" href="ui-tools.css?v=b172">
+<link rel="stylesheet" href="ui-staff.css?v=b172">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -47,16 +47,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b171"></script>
-<script src="vendor/qrcode.js?v=b171"></script>
-<script src="config.js?v=b171"></script>
-<script src="common.js?v=b171"></script>
-<script src="drive.js?v=b171"></script>
-<script src="pack.js?v=b171"></script>
-<script src="catalog.js?v=b171"></script>
-<script src="voice.js?v=b171"></script>
-<script src="timetable.js?v=b171"></script>
-<script src="research.js?v=b171"></script>
+<script src="vendor/supabase.js?v=b172"></script>
+<script src="vendor/qrcode.js?v=b172"></script>
+<script src="config.js?v=b172"></script>
+<script src="common.js?v=b172"></script>
+<script src="drive.js?v=b172"></script>
+<script src="pack.js?v=b172"></script>
+<script src="catalog.js?v=b172"></script>
+<script src="voice.js?v=b172"></script>
+<script src="timetable.js?v=b172"></script>
+<script src="research.js?v=b172"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -338,7 +338,7 @@
   // المادة اللي لم يُحدَّد لها محاضر بعد: لو الجدول كاتب اسم محاضرها بنعرضه (لم ينشئ حسابًا بعد)، وإلا «لم يُحدَّد لها محاضر بعد» — أبدًا مش اسم المسؤول
   const ownerName = c => { if (!(c && c.no_owner)) return staffName(c && c.owner_email); const p = profs[c.id] || {};
     return p.name && (p.src === "tt" || p.src === "manual") ? p.name + (p.src === "tt" ? " (لم ينشئ حسابًا بعد)" : "") : "لم يُحدَّد لها محاضر بعد"; };
-  // b171: نفس المعلومة بشكل HTML: الاسم + شارة صغيرة «بلا حساب» بدل تكرار الجملة، أو رسالة واضحة لو مفيش محاضر
+  // b172: نفس المعلومة بشكل HTML: الاسم + شارة صغيرة «بلا حساب» بدل تكرار الجملة، أو رسالة واضحة لو مفيش محاضر
   const ownerHtml = c => { if (!(c && c.no_owner)) return esc(staffName(c && c.owner_email)); const p = profs[c.id] || {};
     return p.name && (p.src === "tt" || p.src === "manual") ? esc(p.name) + (p.src === "tt" ? ` <em class="nb-acc" title="لم ينشئ حسابًا في Hadro بعد">بلا حساب</em>` : "") : `<em class="no-prof">لم يُحدَّد محاضر بعد</em>`; };
 
@@ -625,7 +625,7 @@
   ];
   const HOME_ICO = '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>';
   let ctab = ["live", "students", "reg", "report", "tasks", "team", "log"].includes(store.get("cm_tab")) ? store.get("cm_tab") : "live", prevTab = "live";
-  // b171: الأقسام اللي بتتفتح من «المزيد» على الموبايل صفحات فرعية بزر رجوع للقسم اللي قبلها
+  // b172: الأقسام اللي بتتفتح من «المزيد» على الموبايل صفحات فرعية بزر رجوع للقسم اللي قبلها
   document.addEventListener("click", e => { if (e.target.closest && e.target.closest("[data-ch-back]")) { const to = prevTab && prevTab !== ctab ? prevTab : "live"; const b = document.querySelector(`.ctabs [data-ct="${to}"]`); if (b) b.click(); } });
   // زر «رجوع» في الهاتف: يتنقّل بين أقسام البرنامج بدل أن يخرج منه
   // شريط المادة: خلفيته مستمدة من أيقونة القسم المفتوح، ويتغيّر مع التبويب
@@ -1463,7 +1463,7 @@
   }
 
   const toast = text => { const m = document.createElement("div"); m.className = "msg ok hd-flt"; m.setAttribute("role", "status"); m.textContent = text; document.body.appendChild(m); setTimeout(() => m.remove(), 5000); };
-  // b171: إجراء قابل للتراجع — يُنفَّذ بعد 4 ثوانٍ، و«تراجع» يلغيه قبل أن يصل إلى الخادم
+  // b172: إجراء قابل للتراجع — يُنفَّذ بعد 4 ثوانٍ، و«تراجع» يلغيه قبل أن يصل إلى الخادم
   const undoQ = new Map();
   function undoToast(key, text, run, onUndo) {
     flushUndo();
@@ -2273,7 +2273,7 @@
   // الغائبون في محاضرة من بين الطلبة المعروضين
   const absentIn = (s, rows) => rows.filter(e => isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).sort(byGroupName);
   function missedIn(e) { return D.sessions.filter(s => regDone(s) && isOwn(s, e) && !counted((D.att[s.id] || {})[e.student_code])).map(s => s.n); }
-  // b171: مقياس الارتفاع (min-max) — لو كل النسب عالية، المحور يبدأ من رقم أقل منها بدل الصفر فتظهر الفروق، ويُكتب ذلك فوق الرسم
+  // b172: مقياس الارتفاع (min-max) — لو كل النسب عالية، المحور يبدأ من رقم أقل منها بدل الصفر فتظهر الفروق، ويُكتب ذلك فوق الرسم
   function chartScale(vals) {
     const mn = Math.min(...vals), lo = mn >= 40 ? Math.max(0, Math.floor((mn - 15) / 10) * 10) : 0;
     return { lo, mid: Math.round((lo + 100) / 20) * 10, y: v => +(((Math.max(lo, Math.min(100, v)) - lo) / (100 - lo)) * 100).toFixed(2) };
@@ -2633,7 +2633,7 @@
   }
   /* ---------- ترتيب قائمة التكليفات وتقسيمها حسب المجموعة ---------- */
   let tkLay = store.get("cm_tklay") || "cards", gbG = "all", gbQ = "", gbPend = {}, gbTimer = null, gbFull = false;
-  // b171: «رصد تكليف واحد» — قائمة رأسية لتكليف واحد بدل الجدول العريض (الافتراضي على الموبايل)
+  // b172: «رصد تكليف واحد» — قائمة رأسية لتكليف واحد بدل الجدول العريض (الافتراضي على الموبايل)
   let gbMode = store.get("cm_gbmode") || (matchMedia("(max-width:760px)").matches ? "one" : "all"), gbOneT = null;
   const gbAvgT = e => { const v = gbAvg(e); return v == null ? "—" : v + "%"; };
   let tkSort = store.get("cm_tksort") || "az", tkSplit = store.get("cm_tksplit") !== "0", tkXg = store.get("cm_tkxg") || "all";
@@ -2682,7 +2682,7 @@
         <td class="c mono gb-avg" data-gbavg="${esc(e.student_code)}" dir="ltr">${gbAvgT(e)}</td></tr>`).join("")}</tbody></table></div>`}
       ${!rows.length ? `<div class="empty">لا يوجد طلبة بهذا البحث.</div>` : ""}<p class="small muted gb-note" ${editable ? "" : "hidden"}>الخانة الرمادية: الطالب ليس من مجموعة هذا التكليف؛ إن كتبت له درجة أُضيف إليه استثناءً. البونص يظهر صغيرًا بجوار الدرجة ويُعدَّل من داخل التكليف.</p></div>`;
   }
-  /* b171: رصد المشاريع الفرعية لطالب واحد من كشف الدرجات */
+  /* b172: رصد المشاريع الفرعية لطالب واحد من كشف الدرجات */
   function gbPartsSheet(tid, code) {
     const t = D.tasks.find(x => x.id === tid), P = partsOf(t), e = D.enroll.find(x => x.student_code === code); if (!t || !P || !e) return;
     const s = subOf(t, code), cur = i => s && Array.isArray(s.parts) && s.parts[i] != null ? gN(s.parts[i]) : "";
@@ -4842,7 +4842,7 @@
       act(async () => { await rpc("set_course_bylaw", { cid: c.id, p_code: $("#blCode").value.trim(), p_cw: num("#blCw"), p_exam: num("#blEx"), p_credits: num("#blCr") }); say("course", "حُفظ مقرر اللائحة."); },
         async () => { await loadBase(); await loadCourse(); });
     };
-    // b171: حذف المادة في نافذة تأكيد مستقلة (اكتب اسم المادة)، لا داخل الصفحة
+    // b172: حذف المادة في نافذة تأكيد مستقلة (اكتب اسم المادة)، لا داخل الصفحة
     const da = $("#delAsk"); if (da) da.onclick = () => {
       const ov = document.createElement("div"); ov.className = "sheet-ov dz-ov";
       ov.innerHTML = `<div class="sheet dz-dlg" role="alertdialog" aria-modal="true" aria-labelledby="dzH"><h3 id="dzH">حذف «${esc(c.name)}» نهائيًّا؟</h3>
