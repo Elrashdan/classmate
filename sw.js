@@ -3,12 +3,12 @@
  */
 // Hadro offline cache: the student page (and its QR) must open with no internet.
 // Network first (so updates arrive), cache as fallback. Never touches Supabase API calls.
-const VER = "b164";
-const CACHE = "hadro-v164";
+const VER = "b165";
+const CACHE = "hadro-v165";
 const CDN = [];
 // ملفات الـJS والـCSS بتتطلب برقم النسخة (?v=bNN)، فينفع تتاخد من الذاكرة على طول من غير ما نستنى الشبكة
 const V = u => u + "?v=" + VER;
-const LOCAL = ["./", "index.html", V("style.css"), V("ui.css"), V("common.js"), V("drive.js"), V("catalog.js"), V("regform.js"), V("config.js"), V("vendor/qrcode.js"), V("vendor/supabase.js"), "vendor/jsQR.js", "icon.svg", "icon-192.png", "manifest.json"];
+const LOCAL = ["./", "index.html", V("style.css"), V("ui.css"), V("ui-staff.css"), V("ui-tools.css"), V("common.js"), V("drive.js"), V("catalog.js"), V("regform.js"), V("config.js"), V("vendor/qrcode.js"), V("vendor/supabase.js"), "vendor/jsQR.js", "icon.svg", "icon-192.png", "manifest.json"];
 const CACHE_HOSTS = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"];
 
 self.addEventListener("install", e => {
