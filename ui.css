@@ -534,3 +534,6 @@ footer.legal .linkish{min-height:32px}
 :root:not([data-theme="dark"]){--faint:#7a817c}
 @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){--faint:#6d7571} }
 .settings>.f{margin:0}
+/* b173: شاشة التحميل في منتصف الشاشة بالظبط (مهما كان عرض الشاشة أو مكان الشريط الجانبي)، والفوتر يستنى لحد ما الصفحة تحمل */
+#app>.hd-loader{position:fixed;inset:0;z-index:300;min-height:0;margin:0;background:var(--bg-page,var(--bg))}
+body:has(#app>.hd-loader) footer.legal{display:none}
