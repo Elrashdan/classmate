@@ -20,10 +20,10 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b184">
-<link rel="stylesheet" href="ui-tools.css?v=b184">
-<link rel="stylesheet" href="ui-legacy.css?v=b184">
-<link rel="stylesheet" href="ui-staff.css?v=b184">
+<link rel="stylesheet" href="ui.css?v=b185">
+<link rel="stylesheet" href="ui-tools.css?v=b185">
+<link rel="stylesheet" href="ui-legacy.css?v=b185">
+<link rel="stylesheet" href="ui-staff.css?v=b185">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -49,16 +49,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b184"></script>
-<script src="vendor/qrcode.js?v=b184"></script>
-<script src="config.js?v=b184"></script>
-<script src="common.js?v=b184"></script>
-<script src="drive.js?v=b184"></script>
-<script src="pack.js?v=b184"></script>
-<script src="catalog.js?v=b184"></script>
-<script src="voice.js?v=b184"></script>
-<script src="timetable.js?v=b184"></script>
-<script src="research.js?v=b184"></script>
+<script src="vendor/supabase.js?v=b185"></script>
+<script src="vendor/qrcode.js?v=b185"></script>
+<script src="config.js?v=b185"></script>
+<script src="common.js?v=b185"></script>
+<script src="drive.js?v=b185"></script>
+<script src="pack.js?v=b185"></script>
+<script src="catalog.js?v=b185"></script>
+<script src="voice.js?v=b185"></script>
+<script src="timetable.js?v=b185"></script>
+<script src="research.js?v=b185"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -2988,7 +2988,7 @@
         <p class="small muted">${man ? (hasDueDay(t) ? "يوم الاستلام " + esc(dayStr(cmpDate(t))) + " · " : "") : (t.present_day ? "يوم طرح المشروع " + esc(dayStr(cmpDate(t))) + " · " : "") + "آخر موعد لرفع الملفات " + esc(dueStr(t.due_at)) + " · "}الدرجة العظمى ${gN(t.max_grade)}${man ? "" : " · " + (t.late === "close" ? "يُغلق التسليم بعد الموعد" : "يُقبل التسليم المتأخر ويُعلَّم")}${t.at_home ? " · يُنفَّذ في البيت (لا يُشترط الحضور)" : t.absent_rule === "refuse" ? " · في الكلية · لا يُقبل ممن غاب " + DL(t) + " إلا بعذر" : hasDueDay(t) ? " · في الكلية · من غاب " + DL(t) + " يُعلَّم متأخرًا" : ""} · ${t.released ? "الدرجات معلنة للطلبة" : "الدرجات غير معلنة للطلبة"}</p>
         ${t.details ? `<p class="tk-det" style="margin-top:8px">${esc(t.details)}</p>` : ""}
         ${partsOf(t) ? `<p class="small" style="margin-top:6px">الدرجة مقسّمة على ${partsOf(t).length} مشاريع فرعية: ${partsOf(t).map(p => `<b>${esc(p.name)}</b> (${gN(p.max)})`).join(" + ")} = ${gN(t.max_grade)}</p>` : ""}
-        ${hasDueDay(t) ? (nAbs ? `<div class="msg warn small" style="margin-top:8px"><b>${nAbs} ${nAbs === 1 ? "طالب كان غائبًا" : "طلبة كانوا غائبين"} في محاضرة ${DL(t)}</b> (${esc(dayStr(cmpDate(t)))})${t.absent_rule === "refuse" ? "، و<b>هذا التكليف لا يُقبل ممن غاب</b>: لا يستطيعون التسليم ولا تُرصد درجاتهم إلا إذا ضغطت «قبول بعذر» أمام الاسم (عذر مرضي أو غيره)." : "، فيُعدّ تسليمهم متأخرًا. تظهر أمام أسمائهم علامة «متأخر · غاب " + DL(t) + "»؛ راجِع العذر (مرضي أو غيره) ثم ارصد الدرجة، واكتب السبب في الملاحظة إن أردت."}</div>`
+        ${hasDueDay(t) ? (nAbs ? `<div class="msg warn small" style="margin-top:8px"><b>${nAbs === 1 ? "طالب واحد كان غائبًا" : nAbs === 2 ? "طالبان كانا غائبين" : CM.n(nAbs, CM.W.student) + " كانوا غائبين"} في محاضرة ${DL(t)} (${esc(dayStr(cmpDate(t)))})</b>${t.absent_rule === "refuse" ? "<strong>هذا التكليف لا يُقبل ممن غاب</strong>: لا يستطيعون التسليم ولا تُرصد درجاتهم إلا إذا ضغطت «قبول بعذر» أمام الاسم (عذر مرضي أو غيره)." : "يُعدّ تسليمهم متأخرًا. تظهر أمام أسمائهم علامة «متأخر · غاب " + DL(t) + "»؛ راجِع العذر (مرضي أو غيره) ثم ارصد الدرجة، واكتب السبب في الملاحظة إن أردت."}</div>`
           : !dueSessions(t).length ? `<p class="small muted" style="margin-top:6px">لا توجد محاضرة مسجّلة في ${DL(t)} (${esc(dayStr(cmpDate(t)))})، لذا لا يمكن معرفة من سلّم متأخرًا من الحضور.</p>` : "") : ""}</div>
       ${appealCtl(c, t)}
       ${msgHtml("tasks")}

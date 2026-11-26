@@ -592,7 +592,7 @@ html .seg>.cchip:not([aria-pressed="true"]),html .seg>button:not([aria-pressed="
   body:not(.has-ctabs):not(.has-dock) #app:not(:has(.ctabs.admin))>header.top{margin-inline-start:0}
 }
 /* b178: قواعد كانت في style.css بس (اللي الصفحات مبقتش بتحمّله) فضاعت مع إعادة البناء */
-header.top>.row #admin{display:none} /* «رجوع للمواد»: زرار الرئيسية بيعمل نفس الشغل، وكان ظاهر دايرة فاضية (نص أبيض على أبيض) */
+header.top>.row .btn#admin{display:none} /* «رجوع للمواد»: زرار الرئيسية بيعمل نفس الشغل، وكان ظاهر دايرة فاضية (نص أبيض على أبيض) */
 .l-short{display:none} /* الاسم الطويل على الكمبيوتر، والقصير على الموبايل بس — كانوا بيظهروا لازقين في بعض */
 @media (max-width:760px){nav .l-long{display:none}nav .l-short{display:inline}}
 /* b178: اسم اليوم في «جدولي» كان لازق فوق الزرار وتحته 24px فاضيين */

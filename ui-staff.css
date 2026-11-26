@@ -475,7 +475,7 @@ td.c,th.c{text-align:center}
 .panel,.dh,.board,.col{grid-template-columns:minmax(0,1fr)}
 .panel>*,.tabpane,#courseWrap{min-width:0}
 .tt-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
-@media (max-width:999px){ header.top #admin{display:none} }
+@media (max-width:999px){ header.top .btn#admin{display:none} }
 .tabs{overflow-x:auto;scrollbar-width:none;max-width:100%} .tabs::-webkit-scrollbar{display:none}
 .sband h2,.sband *{font-style:normal}
 .tkseg{display:flex;gap:4px;padding:4px;border-radius:var(--pill);background:var(--soft);overflow-x:auto;scrollbar-width:none}
@@ -1161,16 +1161,16 @@ html .gx .gx-b input:not([type=checkbox]):not([type=radio]):not([type=file]):not
 
 /* ===== b184: نسبة وتناسب ===== */
 /* زراير «ghost» كانت من غير إطار، فبتبان كلام عادي جنب زرار بإطار (زي «تحويله إلى معيد» جنب «إزالة»، و«طباعة» جنب «تصدير»). دلوقتي كلها بإطار خفيف */
-#app .btn.ghost:not(.icon):not(.xs):not(.danger):not(:is(.dd-m,table,.tabs,.seg) *){border:1px solid var(--card-b)}
+#app .btn.ghost:not(.icon):not(.xs):not(.danger):not(:is(.dd-m,table,.tabs,.seg) *){border:1.5px solid var(--line)} /* b185: نفس إطار الزرار العادي بالظبط */
 /* زرار الإجراء في آخر كل صندوق (التظلمات، الالتماسات، تقسيم المجموعات، تذكير الإشعارات) بقى بعرض واحد، بدل ما كل واحد على قد كلامه */
-#app :is(.ap-box>.row.between,.push-sum,.split-hint>.row)>.btn{min-width:176px;justify-content:center;text-align:center}
+@media (min-width:761px){#app :is(.ap-box>.row.between,.push-sum,.split-hint>.row)>.btn{min-width:176px;justify-content:center;text-align:center}}
 /* الفريق: الشارة والاسم في عمود، والزراير في آخر الصف ناحية الشمال، وبنفس المقاس في كل الصفوف */
 @media (min-width:761px){
   #teamPanel .list>.li{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;row-gap:4px;align-items:center;justify-content:stretch}
   #teamPanel .list>.li>:not(.acts){grid-column:1}
   #teamPanel .list>.li>.acts{grid-column:2;grid-row:1/span 3;flex-wrap:nowrap;justify-content:flex-end;align-self:center}
 }
-#teamPanel .acts>[data-kind]{min-width:176px;justify-content:center}
+@media (min-width:761px){#teamPanel .acts>[data-kind]{min-width:176px;justify-content:center}}
 /* كروت التكليفات: الشارة («الدرجات معلنة») دايمًا في نفس الركن، والعنوان الطويل يلف تحتها بدل ما يزق الشارة لسطر لوحدها */
 .tk-card .row.between:has(>.tk-name){flex-wrap:nowrap;align-items:flex-start}
 .tk-card .tk-name{flex:1;min-width:0}
@@ -1203,3 +1203,114 @@ html .gx .gx-b input:not([type=checkbox]):not([type=radio]):not([type=file]):not
   .tt-bar>.tt-who{width:100%}
   .tt-bar>.tt-who>select{flex:1;min-width:0;width:auto}
 }
+
+/* ===== b185: شبكة ثابتة على الموبايل ===== */
+/* القاعدة: أي مجموعة زراير لوحدها (مفيش جنبها كلام) = عمودين متساويين بعرض الصفحة، ولو العدد فردي الأخير بياخد السطر كله. زرار لوحده = بعرض الصفحة. كده شكل الزرار بيحدده المكان مش طول الكلام */
+@media (max-width:760px){
+  #app :is(div,span):has(>:is(.btn,details.dd)):not(:has(>:not(.btn,details.dd,input[type=file],[hidden]))):not(:has(>.btn.icon)):not(:is(.tabs,.seg,.tkseg,.cchips,.dd,.dd-m,.rh-acts,.ctabs,.cpk,.gx-nav,.gx-grade,.gx-bar,.gx-f,.li>.acts,.spick,.rs-sort)):not(:is(table,.tabs,.dd-m,.rh-acts,.gx,.ctabs,.nx-dock,.sheet-ft,header,.dh,.dhx) *){display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;flex:1 1 auto}
+  #app :is(div,span):has(>:is(.btn,details.dd)):not(:has(>:not(.btn,details.dd,input[type=file],[hidden]))):not(:has(>.btn.icon)):not(:is(.tabs,.seg,.tkseg,.cchips,.dd,.dd-m,.rh-acts,.ctabs,.cpk,.gx-nav,.gx-grade,.gx-bar,.gx-f,.li>.acts,.spick,.rs-sort)):not(:is(table,.tabs,.dd-m,.rh-acts,.gx,.ctabs,.nx-dock,.sheet-ft,header,.dh,.dhx) *)>:nth-child(odd of :is(.btn,details.dd)):nth-last-child(1 of :is(.btn,details.dd)){grid-column:1/-1}
+  #app :is(div,span):has(>:is(.btn,details.dd)):not(:has(>:not(.btn,details.dd,input[type=file],[hidden]))):not(:has(>.btn.icon)):not(:is(.tabs,.seg,.tkseg,.cchips,.dd,.dd-m,.rh-acts,.ctabs,.cpk,.gx-nav,.gx-grade,.gx-bar,.gx-f,.li>.acts,.spick,.rs-sort)):not(:is(table,.tabs,.dd-m,.rh-acts,.gx,.ctabs,.nx-dock,.sheet-ft,header,.dh,.dhx) *)>*{width:100%;min-width:0;max-width:none;margin:0}
+  #app :is(div,span):has(>:is(.btn,details.dd)):not(:has(>:not(.btn,details.dd,input[type=file],[hidden]))):not(:has(>.btn.icon)):not(:is(.tabs,.seg,.tkseg,.cchips,.dd,.dd-m,.rh-acts,.ctabs,.cpk,.gx-nav,.gx-grade,.gx-bar,.gx-f,.li>.acts,.spick,.rs-sort)):not(:is(table,.tabs,.dd-m,.rh-acts,.gx,.ctabs,.nx-dock,.sheet-ft,header,.dh,.dhx) *) :is(.btn,summary.btn){width:100%;justify-content:center;text-align:center;white-space:normal;line-height:1.3}
+  /* زرار لوحده جوه فورم أو لوحة (حفظ، حفظ مقرر اللائحة، حذف المادة، أرشفة، رجوع لكل التكليفات) بعرض المكان */
+  #app :is(.panel,form,.settings,.col,.dz,.prof,.panel-h>div)>.btn:not(.icon):not(.linkish){width:100%;justify-content:center}
+  #app .panel-h>div:has(>.tk-back){width:100%}
+  /* مجموعات الكبسولات (فلاتر السجل، الترتيب، شرح الألوان، مجموعات التقرير): تملا السطر من غير فراغ في الآخر */
+  #app :is(.cchips,.legend,.rs-sort,.tabs){width:100%}
+  #app :is(.cchips,.legend)>*,#app .rs-sort>button{flex:1 1 auto;justify-content:center;text-align:center}
+  #app .tabs>button{flex:1 0 auto;justify-content:center;text-align:center}
+  /* التقرير: المجموعات سطر كامل، وتحته «تصدير» و«طباعة» نصين */
+  #app .panel-h>.row:has(>.tabs){display:grid!important;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+  #app .panel-h>.row:has(>.tabs)>.tabs{grid-column:1/-1}
+  #app .panel-h>.row:has(>.tabs)>.btn{width:100%;justify-content:center}
+  /* كروت الأعداد: 2×2، ولو فردي الأخير بعرض السطر بدل ما يفضل لوحده ونص */
+  #app .kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #app .kpis>.kpi:last-child:nth-child(odd){grid-column:1/-1}
+  /* الفريق على الموبايل: الزراير جنب الاسم ناحية الشمال فوق بعض، بنفس العرض */
+  #teamPanel .list>.li{display:grid;grid-template-columns:minmax(0,1fr) 128px;column-gap:12px;row-gap:4px;align-items:center}
+  #teamPanel .list>.li>:not(.acts){grid-column:1}
+  #teamPanel .list>.li>.acts{grid-column:2;grid-row:1/span 3;display:grid;gap:6px;align-self:center}
+  #teamPanel .list>.li>.acts>.btn{width:100%;justify-content:center;text-align:center;white-space:normal;line-height:1.25;padding-inline:8px}
+  /* الطلبة: شارة الإنذار فوق نسبة الحضور، فالاسم ياخد مكانه كامل */
+  #rosterPanel .rs-end{flex-direction:column;align-items:flex-end;gap:4px}
+  /* حالة الحضور في المحاضرة: كبسولة بعرض ثابت، فكلها على خط واحد */
+  #app td>.chip:first-child:only-child{min-width:104px;justify-content:center}
+}
+/* كروت الأعداد وشريط الفلاتر: الخلفية الرمادي على الأبيض كانت باهتة، فبقى ليها إطار */
+#app .kpis>.kpi{border:1px solid var(--card-b)}
+#app .rs-bar>.tabs{border:1px solid var(--card-b)}
+/* «افتح له تظلمًا» كان بيتقص جنب خانة البحث */
+.apctl-g .spick>.btn:not(.icon){flex:none;white-space:nowrap}
+/* لوحتين ورا بعض لازم بينهم مسافة (ملفي الشخصي ← موادي كانوا لازقين) */
+#app section.panel+section.panel{margin-top:16px}
+@media (max-width:760px){
+  #app .panel-h{flex-wrap:wrap}
+  #app .panel-h>.row{flex:1 1 auto;width:100%}
+  #app .push-sum>.btn{width:100%;justify-content:center}
+}
+@media (max-width:760px){
+  /* فورم «إضافة طالب»: الكود بعرض السطر زي الاسم، والمجموعة والرمز نصين */
+  #app .manbox .settings{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  #app .manbox .settings>.f:has(#stCode){grid-column:1/-1}
+  /* زراير وبعدها سطر شرح: الزراير عمودين متساويين والشرح تحتهم */
+  #app .row:has(>.btn):has(>span.small):not(:has(>:not(.btn,span.small))){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%}
+  #app .row:has(>.btn):has(>span.small):not(:has(>:not(.btn,span.small)))>.btn{width:100%;justify-content:center}
+  #app .row:has(>.btn):has(>span.small):not(:has(>:not(.btn,span.small)))>span.small{grid-column:1/-1}
+}
+@media (max-width:760px){
+  #tasksPanel>.panel-h>.row{grid-template-columns:1fr!important}
+  #app .ap-box>.row.between>.btn{width:150px;flex:none;justify-content:center}
+}
+@media (max-width:760px){
+  #app .ap-box>.row.between>.btn{width:172px;white-space:nowrap;padding-inline:10px}
+  /* الترتيب: الكلمة فوق، والأربع اختيارات 2×2 متساويين بدل سطر بيتقص */
+  .tk-sortrow{flex-wrap:wrap}
+  .tk-sortrow>.cchips{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;overflow:visible}
+  .tk-sortrow>.cchips>.cchip{width:100%;justify-content:center}
+}
+@media (max-width:760px){
+  #tasksPanel>.panel-h>.row:has(#tkRel){grid-template-columns:1fr 1fr!important}
+  #tasksPanel>.panel-h>.row>#tkRel{grid-column:1/-1}
+  .apctl-g .spick{flex-wrap:wrap}
+  .apctl-g .spick>.btn:not(.icon){flex:1 1 100%;width:100%;justify-content:center}
+}
+@media (max-width:760px){
+  #tasksPanel>.panel-h>.row>#tkDel{grid-column:auto}
+  .apctl-g .btn:not(.icon){width:100%;justify-content:center}
+}
+/* التنبيه فيه عنوان (b) وبعده جملة: الجملة فيها جزء عريض inline */
+.msg strong{font-weight:700}
+@media (max-width:760px){
+  /* كروت التسليم في التكليف: «عرض العمل» بعرض الكارت والحالة تحته بنفس العرض، و«قبول بعذر» نص السطر جنب الشارة، و«فتح تسليم استثنائي» بعرض الكارت */
+  #tasksPanel td.tk-work{display:grid!important;gap:6px}
+  #tasksPanel td.tk-work>.tk-view{width:100%;justify-content:center}
+  #tasksPanel td.tk-work>.chip{justify-self:stretch;justify-content:center}
+  #tasksPanel .nm-tags:has(>[data-exc]){display:grid;grid-template-columns:1fr 1fr;gap:6px;align-items:center}
+  #tasksPanel .nm-tags>[data-exc]{width:100%;justify-content:center;min-height:36px}
+  #tasksPanel .nm-tags:has(>[data-exc])>.chip{justify-content:center;width:100%}
+  #tasksPanel [data-ext]{width:100%;justify-content:center}
+  #tasksPanel div:has(>[data-ext]){width:100%}
+  /* أيام الجدول بعرض اللوحة كله */
+  .tt-days{width:100%}
+}
+@media (max-width:760px){
+  /* الأداة الأولى (العرض) سطر كامل، فاللي بعدها: لو عددهم فردي الأخيرة سطر كامل، لو زوجي 2×2 */
+  #tasksPanel .tk-tools>.btn.primary:first-child~:last-child:nth-child(odd){grid-column:auto!important}
+  #tasksPanel .tk-tools>.btn.primary:first-child~:last-child:nth-child(even){grid-column:1/-1!important}
+  #tasksPanel .tk-tools>.btn:not(.primary):nth-last-child(2):nth-child(even){grid-column:auto}
+  #tasksPanel tr>td.tk-work,#tasksPanel tr>td.tk-subc{flex:0 0 100%!important;width:100%;max-width:none}
+  #tasksPanel td.tk-subc .cell-s{width:100%;display:flex;flex-wrap:wrap;gap:6px}
+  #tasksPanel td.tk-subc div:has(>[data-ext]){display:block;flex:0 0 100%;width:100%;min-width:0;margin-top:2px}
+}
+/* قايمة «كل المواد» في الرئيسية كانت بتتقص: صف الكبسولات عليه mask (التلاشي على الطرف) والـmask بيقص أي حاجة جواه حتى لو fixed. وهي مفتوحة نشيله */
+.dh-chips:has(.cpk.open){-webkit-mask-image:none!important;mask-image:none!important}
+/* السجل (لوحة المسؤول والمادة): الصف كان space-between بين الوقت والنص وعنصر فاضي، فالنص بيتحرك من صف لصف. دلوقتي الوقت عمود ثابت والنص يبدأ من نفس الخط */
+@media (min-width:761px){
+  .al-list>.li{display:grid;grid-template-columns:76px minmax(0,1fr);column-gap:16px;align-items:start;justify-content:stretch}
+  .al-list>.li>span:empty{display:none}
+  .al-list>.li>.who{text-align:start}
+}
+/* الكبسولة لوحدها في خانة جدول (الحالة، وافقت · معيد، مفعّل): عرض ثابت، فكلهم على نفس الخط */
+#app td>.chip:only-child{min-width:104px;justify-content:center}
+/* اختيار الدور في جدول الحسابات كان بيقص «رئيس القسم» */
+#app td>select{min-width:136px}
+@media (min-width:761px) and (pointer:fine){#app .rq-done>summary{min-height:36px;display:flex;align-items:center;cursor:pointer}} /* b185: على الكمبيوتر كانت 25px */
