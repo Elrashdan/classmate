@@ -14,8 +14,8 @@
   CM.$ = s => document.querySelector(s);
   CM.$$ = s => Array.from(document.querySelectorAll(s));
   CM.esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  CM.fmtT = t => new Date(t).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
-  CM.fmtD = t => new Date(t).toLocaleDateString("ar-EG", { day: "numeric", month: "short" });
+  CM.fmtT = t => new Date(t).toLocaleTimeString("ar-EG-u-nu-latn", { hour: "2-digit", minute: "2-digit" });
+  CM.fmtD = t => new Date(t).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short" });
   CM.mmss = ms => { ms = Math.max(0, ms); const m = Math.floor(ms / 6e4), s = Math.floor(ms % 6e4 / 1000); return m + ":" + String(s).padStart(2, "0"); };
   CM.dist = m => m == null ? "" : m >= 1000 ? (m / 1000).toFixed(1) + " كم" : m + " م";
   // سحب العنصر يمين أو شمال لحذفه (اللمس والماوس)
@@ -55,6 +55,16 @@
   CM.warnOf = n => CM.WARN[CM.lvl(n)];
   CM.warnChip = n => { const w = CM.warnOf(n); return `<span class="chip ${w.k}">${w.t}</span>`; };
   CM.times = n => n === 1 ? "مرة واحدة" : n === 2 ? "مرتين" : n <= 10 ? n + " مرات" : n + " مرة";
+  // b178: العدد والمعدود في كل البرنامج: CM.n(8, CM.W.student) → «8 طلاب»، CM.n(15, CM.W.hour) → «15 ساعة»
+  // الصيغ: [مفرد، مثنى، جمع (3–10)، تمييز (11+)]. الصفر والمفرد بالرقم، والمثنى بالكلمة بس.
+  CM.n = (n, w) => { n = +n || 0; const [one, two, few, many] = w; const k = Math.abs(n) % 100; return n === 2 ? two : n === 1 || n === 0 ? n + " " + one : k >= 3 && k <= 10 ? n + " " + few : n + " " + many; };
+  CM.W = {
+    student: ["طالب", "طالبين", "طلاب", "طالبًا"], course: ["مادة", "مادتين", "مواد", "مادة"], hour: ["ساعة", "ساعتين", "ساعات", "ساعة"],
+    minute: ["دقيقة", "دقيقتين", "دقائق", "دقيقة"], day: ["يوم", "يومين", "أيام", "يومًا"], task: ["تكليف", "تكليفين", "تكليفات", "تكليفًا"],
+    lecture: ["محاضرة", "محاضرتين", "محاضرات", "محاضرة"], absent: ["غائب", "غائبين", "غائبين", "غائبًا"], account: ["حساب", "حسابين", "حسابات", "حسابًا"],
+    period: ["فترة", "فترتين", "فترات", "فترة"], grade: ["درجة", "درجتين", "درجات", "درجة"], credit: ["ساعة معتمدة", "ساعتين معتمدتين", "ساعات معتمدة", "ساعة معتمدة"],
+    group: ["مجموعة", "مجموعتين", "مجموعات", "مجموعة"], attempt: ["محاولة", "محاولتين", "محاولات", "محاولة"], warning: ["إنذار", "إنذارين", "إنذارات", "إنذارًا"]
+  };
   CM.lvlChip = i => `<span class="chip ${CM.WARN[i].k}">${CM.WARN[i].t}</span>`;
   CM.nextWarn = n => { const l = CM.lvl(n); return l >= 4 ? "" : (CM.THR[l] - n === 1 ? "غياب آخر = " : `بعد ${CM.THR[l] - n} غيابات: `) + CM.WARN[l + 1].t; };
 
@@ -120,7 +130,7 @@
     due_required: "حدّد موعد التسليم.",
     bad_late: "اختر ما يحدث بعد موعد التسليم.",
     max_below_grades: "لا يمكن جعل الدرجة العظمى أقل من درجة رُصدت بالفعل لأحد الطلبة.",
-    appeal_not_released: "لا يمكن التظلم قبل إعلان الدرجات.", appeal_note: "اكتب سبب التظلم.", appeal_photo: "أرفق صورة المشروع.", appeal_open: "لديك تظلم قيد المراجعة في هذا التكليف.", appeal_limit: "وصلت إلى الحد الأقصى للتظلمات في هذا التكليف (3).", appeal_decided: "تم البت في هذا التظلم بالفعل.", appeal_reply: "اكتب سبب الرفض.", bad_reason: "اختر سبب التظلم.", bad_groups: "أسماء المجموعات غير صالحة (من ٢ إلى ١٢ اسمًا مختلفًا).", no_ungrouped: "كل الطلبة موزَّعون على مجموعات بالفعل.", appeal_closed: "باب التظلم مغلق في هذا التكليف.", remind_wait: "ذكّرت الفريق بهذا منذ أقل من 6 ساعات. انتظر قليلًا أو افتح المادة وتصرّف بنفسك.", remind_done: "تم التعامل مع هذا العنصر بالفعل.", bad_window: "اختر موعد إغلاق بعد موعد الفتح (حتى 120 يومًا).", bad_mode: "اختيار غير صالح.",
+    appeal_not_released: "لا يمكن التظلم قبل إعلان الدرجات.", appeal_note: "اكتب سبب التظلم.", appeal_photo: "أرفق صورة المشروع.", appeal_open: "لديك تظلم قيد المراجعة في هذا التكليف.", appeal_limit: "وصلت إلى الحد الأقصى للتظلمات في هذا التكليف (3).", appeal_decided: "تم البت في هذا التظلم بالفعل.", appeal_reply: "اكتب سبب الرفض.", bad_reason: "اختر سبب التظلم.", bad_groups: "أسماء المجموعات غير صالحة (من 2 إلى 12 اسمًا مختلفًا).", no_ungrouped: "كل الطلبة موزَّعون على مجموعات بالفعل.", appeal_closed: "باب التظلم مغلق في هذا التكليف.", remind_wait: "ذكّرت الفريق بهذا منذ أقل من 6 ساعات. انتظر قليلًا أو افتح المادة وتصرّف بنفسك.", remind_done: "تم التعامل مع هذا العنصر بالفعل.", bad_window: "اختر موعد إغلاق بعد موعد الفتح (حتى 120 يومًا).", bad_mode: "اختيار غير صالح.",
     grade_range: "توجد درجة أكبر من الدرجة العظمى للتكليف أو أقل من صفر.",
     bad_grade: "الدرجة غير صحيحة.",
     task_closed: "انتهى موعد التسليم، وأُغلق التسليم في هذا التكليف.",
@@ -256,7 +266,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b177)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b178)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -562,7 +572,7 @@
     document.body.appendChild(el); document.body.classList.add("hc-on");
     const close = () => { if (st.tab === "ask") { clearTimeout(st.lt); logQ(false); } el.remove(); document.body.classList.remove("hc-on"); if (o.onClose) o.onClose(); };
     const load = async () => { try { st.items = await o.api.list(); } catch (e) { st.items = st.items || []; st.msg = CM.errText(e); } draw(); if (o.onRead) o.onRead(); };
-    const fmt = d => new Date(d).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    const fmt = d => new Date(d).toLocaleString("ar-EG-u-nu-latn", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
     function faqHtml() {
       const res = CM.faqSearch(st.q, o.who);
       return `<div class="hc-ask"><div class="hc-bot"><span class="hc-av">${CM.ICONS ? "" : ""}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="4"/><path d="M12 3v4M9 12h.01M15 12h.01M9.5 16h5"/></svg></span><p>أهلًا! أنا مساعد Hadro. اكتب سؤالك بكلامك، وهطلعلك الإجابة.</p></div>

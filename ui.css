@@ -83,7 +83,9 @@ input[type=checkbox],input[type=radio]{accent-color:var(--ink);width:18px;height
 .pw-eye svg{width:20px;height:20px}
 
 /* ---------- البطاقات والرسائل ---------- */
-.panel{background:var(--surface);border-radius:var(--r-lg);padding:4px 0;display:grid;gap:12px}
+/* b178: الكارت ليه خلفية خاصة، فلازم مسافة داخلية (كانت 4px 0، فالعنوان والحقول والجداول لازقين في الحافة). أقسام المادة لسه 0 من ui-staff.css لأن محتواها له مسافاته */
+.panel{background:var(--surface);border-radius:var(--r-lg);padding:20px;display:grid;gap:12px}
+@media (max-width:560px){.panel{padding:16px}}
 .panel>h2,.panel>h3{margin-bottom:2px}
 .panel-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .msg{padding:12px 14px;border-radius:14px;background:var(--soft);font-size:14px;line-height:1.6}
@@ -577,10 +579,28 @@ html .seg>.cchip:not([aria-pressed="true"]),html .seg>button:not([aria-pressed="
 .lg-foot{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:0 12px;max-width:480px;margin:12px auto 0;color:var(--muted)}
 .lg-foot .lg-link{font-size:13.5px;font-weight:500;color:var(--muted);text-decoration-color:color-mix(in srgb,var(--muted) 40%,transparent)}
 @media (max-width:480px){.lg-foot{flex-direction:column}.lg-foot>span{display:none}}
-/* شاشات الدخول على الكمبيوتر: مفيش شريط جانبي، فنلغي المسافة اللي محجوزة له (272px) عشان الكارت ييجي في نص الصفحة بالظبط */
+/* b178: أي شاشة على الكمبيوتر مفيهاش شريط جانبي (الدخول، الجدول الدراسي، ملفي الشخصي…): نلغي المسافة اللي محجوزة له (272px) عشان المحتوى ما يتزقّش ويسيب عمود فاضي */
+/* الكود بيحط has-ctabs/has-dock على body لما الشريط ظاهر فعلًا؛ لوحة المسؤول ليها شريطها (.ctabs.admin). أي حاجة تانية = مفيش شريط */
 @media (min-width:1000px){
-  #app:has(>.auth-panel){padding-inline-start:32px}
-  #app:has(>.auth-panel)>header.top{margin-inline-start:0}
+  body:not(.has-ctabs):not(.has-dock) #app:not(:has(.ctabs.admin)){padding-inline-start:32px}
+  body:not(.has-ctabs):not(.has-dock) #app:not(:has(.ctabs.admin))>header.top{margin-inline-start:0}
 }
+/* b178: قواعد كانت في style.css بس (اللي الصفحات مبقتش بتحمّله) فضاعت مع إعادة البناء */
+header.top>.row #admin{display:none} /* «رجوع للمواد»: زرار الرئيسية بيعمل نفس الشغل، وكان ظاهر دايرة فاضية (نص أبيض على أبيض) */
+.l-short{display:none} /* الاسم الطويل على الكمبيوتر، والقصير على الموبايل بس — كانوا بيظهروا لازقين في بعض */
+@media (max-width:760px){nav .l-long{display:none}nav .l-short{display:inline}}
+/* b178: اسم اليوم في «جدولي» كان لازق فوق الزرار وتحته 24px فاضيين */
+.tw-days button{align-content:center;justify-items:center}
+/* b178: شاشة «الحساب مرتبط بمتصفح آخر»: النقل جوّه قسم بيتفتح، بعواقبه في نقط */
+.mv-note{margin:-4px 0 0;text-align:center}
+.mv-more{border:1px solid var(--line);border-radius:16px;padding:0 14px}
+.mv-more[open]{padding-bottom:14px}
+.mv-more>summary{display:flex;align-items:center;gap:8px;min-height:48px;cursor:pointer;list-style:none;font:600 14.5px var(--fd)}
+.mv-more>summary::-webkit-details-marker{display:none}
+.mv-more>summary::after{content:"";margin-inline-start:auto;width:7px;height:7px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg);transition:transform .15s ease}
+.mv-more[open]>summary::after{transform:rotate(-135deg)}
+.mv-list{margin:0 0 12px;padding-inline-start:20px;display:grid;gap:6px;font-size:14px;line-height:1.6}
+.btn.danger.block{border:1px solid color-mix(in srgb,var(--bad) 45%,transparent)}
+@media (prefers-reduced-motion:reduce){.mv-more>summary::after{transition:none}}
 /* الملء التلقائي في كروم كان بيلوّن الحقول أزرق فاتح — نخلّيها بنفس لون الحقل */
 html input:-webkit-autofill,html input:-webkit-autofill:hover,html input:-webkit-autofill:focus{-webkit-text-fill-color:var(--ink);caret-color:var(--ink);transition:background-color 600000s 0s,color 600000s 0s}

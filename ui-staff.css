@@ -449,9 +449,11 @@ td.c,th.c{text-align:center}
 .regt th .fh{display:grid;justify-items:center;gap:0;font-size:12px;color:var(--ink)}
 .regt .th-date{display:block;margin:4px auto 0;padding:2px 6px;border:0;border-radius:8px;background:none;font:500 11px var(--fb);color:var(--muted);cursor:pointer;white-space:nowrap}
 .regt .th-date svg{display:none}
-.regt .th-del{display:block;margin:2px auto 0;padding:2px 6px;border:0;border-radius:8px;background:none;font:500 11px var(--fb);color:var(--bad);cursor:pointer;opacity:0}
-.regt th:hover .th-del,.regt .th-del:focus-visible{opacity:1}
-.regt .th-del svg{display:none}
+/* b178: زرار «حذف المحاضرة» كان شفاف (opacity 0) ويظهر بالهوفر بس — على اللمس مفيش هوفر فكان مخفي وبيتضغط. بقى أيقونة سلة رمادية صغيرة ظاهرة دايمًا، وتحمرّ بالهوفر أو التركيز (والحذف لسه بتأكيد مرتين) */
+.regt .th-del{display:inline-grid;place-items:center;width:24px;height:24px;margin:2px auto 0;padding:0;border:0;border-radius:8px;background:none;color:var(--muted);cursor:pointer;font-size:0}
+.regt .th-del:hover,.regt .th-del:focus-visible{color:var(--bad);background:var(--bad-soft)}
+.regt .th-del:focus-visible{outline:2px solid var(--bad);outline-offset:1px}
+.regt .th-del svg{display:block;width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .regt th:hover .th-date{background:var(--soft)}
 .regt .chip{height:26px;min-width:26px;justify-content:center;padding:0 6px}
 .regt .chip.none{background:var(--bad-soft);color:var(--bad);border:0;cursor:pointer}

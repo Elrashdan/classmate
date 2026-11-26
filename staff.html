@@ -20,9 +20,9 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b177">
-<link rel="stylesheet" href="ui-tools.css?v=b177">
-<link rel="stylesheet" href="ui-staff.css?v=b177">
+<link rel="stylesheet" href="ui.css?v=b178">
+<link rel="stylesheet" href="ui-tools.css?v=b178">
+<link rel="stylesheet" href="ui-staff.css?v=b178">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -48,16 +48,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b177"></script>
-<script src="vendor/qrcode.js?v=b177"></script>
-<script src="config.js?v=b177"></script>
-<script src="common.js?v=b177"></script>
-<script src="drive.js?v=b177"></script>
-<script src="pack.js?v=b177"></script>
-<script src="catalog.js?v=b177"></script>
-<script src="voice.js?v=b177"></script>
-<script src="timetable.js?v=b177"></script>
-<script src="research.js?v=b177"></script>
+<script src="vendor/supabase.js?v=b178"></script>
+<script src="vendor/qrcode.js?v=b178"></script>
+<script src="config.js?v=b178"></script>
+<script src="common.js?v=b178"></script>
+<script src="drive.js?v=b178"></script>
+<script src="pack.js?v=b178"></script>
+<script src="catalog.js?v=b178"></script>
+<script src="voice.js?v=b178"></script>
+<script src="timetable.js?v=b178"></script>
+<script src="research.js?v=b178"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -689,8 +689,8 @@
     const put = (k, html) => document.querySelectorAll(`[data-tbx="${k}"]`).forEach(el => { el.outerHTML = `<i class="tbx" data-tbx="${k}">${html}</i>`; });
     put("live", s && !s.ended ? (pend ? `<b class="tb" title="${pend} طلب معلّق">${pend}</b>` : `<b class="live-dot" title="توجد محاضرة جارية"></b>`) : "");
     const ug = D.enroll.length > 1 && groupsOf().length ? D.enroll.filter(e => !e.grp).length : 0;
-    put("students", ug ? `<b class="tb" title="${ug} طالب دون مجموعة">${ug}</b>` : "");
-    const wp = warnPending().length; put("report", wp ? `<b class="tb" title="${wp} طالب وصلوا إلى إنذار جديد ولم يُبلَّغوا">${wp}</b>` : "");
+    put("students", ug ? `<b class="tb" title="${CM.n(ug, CM.W.student)} دون مجموعة">${ug}</b>` : "");
+    const wp = warnPending().length; put("report", wp ? `<b class="tb" title="${CM.n(wp, CM.W.student)} وصلوا إلى إنذار جديد ولم يُبلَّغوا">${wp}</b>` : "");
   }
   // المادة الجديدة: القائمة بحسب البرنامج والفصل الدراسي
   function ncRefresh() {
@@ -714,17 +714,17 @@
     if (elective || ncManual) { const l = $("#ncLevel"); l.onchange = () => { if (tb) tb.hidden = !(prog === "خاص" || +l.value >= 3); }; }
     nb.hidden = !ncManual;
     info.hidden = !e;
-    if (e) info.innerHTML = `<b>${esc(e.n.replace(/\*$/, ""))}</b><span>${[e.p ? e.p + " " + e.c : e.c, e.l ? LEVELS[e.l] + " · " + SEMS(e.s) : "مقرر اختياري: اختر مستوى الطلبة", catProg(e) === "خاص" ? PROGRAMS["خاص"] : e.tr || (e.l ? "تخصص عام" : ""), e.cr ? e.cr + " ساعات معتمدة" : "", e.cw != null && e.tot ? "أعمال فصلية " + e.cw + (e.ex ? " · امتحان " + e.ex : "") : ""].filter(Boolean).map(esc).join(" · ")}</span>${e.note ? `<small class="muted">${esc(e.note)}</small>` : ""}`;
+    if (e) info.innerHTML = `<b>${esc(e.n.replace(/\*$/, ""))}</b><span>${[e.p ? e.p + " " + e.c : e.c, e.l ? LEVELS[e.l] + " · " + SEMS(e.s) : "مقرر اختياري: اختر مستوى الطلبة", catProg(e) === "خاص" ? PROGRAMS["خاص"] : e.tr || (e.l ? "تخصص عام" : ""), e.cr ? CM.n(e.cr, CM.W.credit) + "" : "", e.cw != null && e.tot ? "أعمال فصلية " + e.cw + (e.ex ? " · امتحان " + e.ex : "") : ""].filter(Boolean).map(esc).join(" · ")}</span>${e.note ? `<small class="muted">${esc(e.note)}</small>` : ""}`;
   }
   /* ---------- الصفحة الرئيسية (أيقونات كبيرة) والملف الشخصي ---------- */
   const TITLES = ["أستاذ", "أستاذ مساعد", "مدرس", "مدرس مساعد", "معيد", "أستاذ متفرغ", "محاضر"];
   const myStaff = () => staff.find(x => x.email === me.email) || me;
   const TILE_SUB = {
     live: c => { const s = D && D.cid === c.id && D.sessions.find(x => !x.ended); return s ? "محاضرة جارية الآن · " + (s.grp ? "مجموعة " + s.grp : "الدفعة كاملة") : "ابدأ محاضرة وسجّل الحضور"; },
-    students: c => D && D.cid === c.id ? D.enroll.length + " طالب" : "الطلبة وأجهزتهم",
+    students: c => D && D.cid === c.id ? CM.n(D.enroll.length, CM.W.student) + "" : "الطلبة وأجهزتهم",
     reg: () => "كشف الحضور والغياب والإنذارات",
     report: () => "نسب الحضور والإنذارات",
-    tasks: c => D && D.cid === c.id ? D.tasks.length + " تكليف · الدرجات" + ((D.appeals || []).filter(a => a.status === "pending").length ? " · " + (D.appeals || []).filter(a => a.status === "pending").length + " تظلم ينتظر" : "") : "التكليفات والدرجات",
+    tasks: c => D && D.cid === c.id ? CM.n(D.tasks.length, CM.W.task) + " · الدرجات" + ((D.appeals || []).filter(a => a.status === "pending").length ? " · " + (D.appeals || []).filter(a => a.status === "pending").length + " تظلم ينتظر" : "") : "التكليفات والدرجات",
     team: () => "المحاضرون والمعيدون",
     log: () => "كل ما حدث في المادة"
   };
@@ -739,7 +739,7 @@
     const key = d => d.getFullYear() + "-" + d.getMonth() + "-" + d.getDate(), due = {};
     tasks.forEach(t => { if (t.due_at) { const d = new Date(t.due_at); (due[key(d)] = due[key(d)] || []).push(t.title); } });
     const cells = []; for (let i = 0; i < 21; i++) { const d = new Date(start); d.setDate(start.getDate() + i); cells.push(d); }
-    const mo = t0.toLocaleDateString("ar-EG", { month: "long" });
+    const mo = t0.toLocaleDateString("ar-EG-u-nu-latn", { month: "long" });
     return `<span class="mw-cal"><span class="mw-cal-h"><b>${mo}</b><small>مواعيد التسليم</small></span><span class="mw-cal-g">${[6, 0, 1, 2, 3, 4, 5].map(d => `<em>${AR_D[d]}</em>`).join("")}${cells.map(d => { const ts = due[key(d)] || [], td = +d === +t0;
       return `<i class="${td ? "td" : ""} ${ts.length ? "due" : ""} ${d < t0 ? "past" : ""}" ${ts.length ? `title="${esc(ts.join("، "))}"` : ""}>${d.getDate()}${ts.length > 1 ? `<sup>×${ts.length}</sup>` : ""}</i>`; }).join("")}</span></span>`;
   }
@@ -790,7 +790,7 @@
       const all = lectureStats(D.sessions, D.enroll), st = all.slice(-10), nx = nextLec(c);
       if (!st.length && !nx) return "";
       const avg = all.length ? Math.round(all.reduce((x, y) => x + y.pct, 0) / all.length) : 0, last = st[st.length - 1];
-      return w(`${st.length ? `<span class="mw-row"><em class="mw-chip">${all.length} محاضرة</em><em class="mw-chip">متوسط ${avg}%</em></span><span class="mw-bars">${st.map((x, i) => `<i class="${i === st.length - 1 ? "on" : ""}" style="--h:${Math.max(6, x.pct)}%;--i:${i}" title="م${x.s.n}: ${x.pct}%"></i>`).join("")}</span><span class="mw-m">آخر محاضرة: <b>${last.pct}%</b> حضور</span>` : ""}${nx ? `<span class="mw-next"><b>${esc(nx.when)}</b><span>${esc(nx.what)}</span></span>` : ""}`);
+      return w(`${st.length ? `<span class="mw-row"><em class="mw-chip">${CM.n(all.length, CM.W.lecture)}</em><em class="mw-chip">متوسط ${avg}%</em></span><span class="mw-bars">${st.map((x, i) => `<i class="${i === st.length - 1 ? "on" : ""}" style="--h:${Math.max(6, x.pct)}%;--i:${i}" title="م${x.s.n}: ${x.pct}%"></i>`).join("")}</span><span class="mw-m">آخر محاضرة: <b>${last.pct}%</b> حضور</span>` : ""}${nx ? `<span class="mw-next"><b>${esc(nx.when)}</b><span>${esc(nx.what)}</span></span>` : ""}`);
     }
     if (k === "students") {
       const n = D.enroll.length; if (!n) return "";
@@ -813,7 +813,7 @@
       const ung = D.tasks.filter(t => t.mode === "submit" && !collectOnly(t)).reduce((s, t) => s + Object.values(D.subs[t.id] || {}).filter(x => x.submitted_at && x.grade == null).length, 0);
       const ap = (D.appeals || []).filter(a => a.status === "pending").length;
       const days = nx ? Math.ceil((new Date(nx.due_at) - now) / 864e5) : 0;
-      return w(`${calHtml(D.tasks)}<span class="mw-row">${nx ? `<span class="mw-next"><b>${days <= 0 ? "اليوم" : days === 1 ? "بكرة" : "بعد " + days + " يوم"}</b><span>${esc(nx.title)}</span></span>` : `<span class="mw-m">لا يوجد تكليف مفتوح الآن</span>`}<span class="mw-row">${ung ? `<em class="mw-chip">${ung} بدون درجة</em>` : ""}${ap ? `<em class="mw-chip warn">${ap} تظلم</em>` : ""}</span></span>`);
+      return w(`${calHtml(D.tasks)}<span class="mw-row">${nx ? `<span class="mw-next"><b>${days <= 0 ? "اليوم" : days === 1 ? "بكرة" : "بعد " + CM.n(days, CM.W.day) + ""}</b><span>${esc(nx.title)}</span></span>` : `<span class="mw-m">لا يوجد تكليف مفتوح الآن</span>`}<span class="mw-row">${ung ? `<em class="mw-chip">${ung} بدون درجة</em>` : ""}${ap ? `<em class="mw-chip warn">${ap} تظلم</em>` : ""}</span></span>`);
     }
     if (k === "team") {
       const ppl = [c.owner_email, ...D.tas.map(t => t.email)].filter((x, i, a) => x && a.indexOf(x) === i);
@@ -899,7 +899,7 @@
   function dhTodo() { return feed ? bVis(feed.mine).slice().sort((a, b) => ageDays(b.since) - ageDays(a.since)) : null; }
   function dhHiHtml(c) {
     const td = dhToday(), todo = dhTodo(), now = new Date();
-    const day = now.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
+    const day = now.toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long" });
     const lec = td == null ? "" : td.length ? `لديك ${td.length === 1 ? "محاضرة واحدة" : td.length === 2 ? "محاضرتين" : td.length + " محاضرات"} اليوم` : "لا توجد لك محاضرات اليوم";
     const pend = todo == null ? "" : todo.length ? `${todo.length} ${todo.length === 1 ? "أمر ينتظر" : "أمور تنتظر"} ردك` : "لا شيء ينتظر ردك";
     return `<div class="dh-hi-t" id="dhHi"><span class="dh-date">${esc(day)}</span><h1>${new Date().getHours() < 12 ? "صباح الخير" : "مساء الخير"} يا ${dhFirst()}</h1><span class="dh-sub">${[lec, pend].filter(Boolean).join("، ")}${lec || pend ? "." : ""}</span></div>`;
@@ -943,13 +943,13 @@
   }
   function dhDayHtml() {
     const td = dhToday();
-    const head = `<div class="dh-h"><h2>يومي</h2><span class="dh-sub" dir="ltr">${new Date().toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" })}</span></div>`;
+    const head = `<div class="dh-h"><h2>يومي</h2><span class="dh-sub" dir="ltr">${new Date().toLocaleTimeString("ar-EG-u-nu-latn", { hour: "numeric", minute: "2-digit" })}</span></div>`;
     if (td == null) return `<article class="dh-card dh-day" id="dhDay">${head}<p class="muted small">${myTT === false ? "لم يُنشر لك جدول دراسي بعد." : `<span class="spinner"></span> جارٍ تحميل الجدول…`}</p></article>`;
     const now = new Date(), hm = now.getHours() * 60 + now.getMinutes();
     const body = td.length ? td.map((s, i) => { const a = dhTM(dhPer(s.p_from).from), b = dhTM(dhPer(s.p_to).to), st = hm >= b ? "done" : hm >= a ? "live" : "next";
       const key = s.day + ":" + s.p_from + ":" + i, open = dhOpen === key || (dhOpen == null && st === "live");
       const team = []; (s.team || []).forEach(t => (t.staff || []).forEach(p => { if (p && p.n && !team.includes(p.n)) team.push(p.n); }));
-      const meta = [s.myRoom || s.room, st === "live" ? "جارية الآن" : st === "done" ? "خلصت" : (a - hm < 60 ? "بعد " + (a - hm) + " دقيقة" : "")].filter(Boolean).join(" · ");
+      const meta = [s.myRoom || s.room, st === "live" ? "جارية الآن" : st === "done" ? "خلصت" : (a - hm < 60 ? "بعد " + CM.n((a - hm), CM.W.minute) + "" : "")].filter(Boolean).join(" · ");
       return `<button type="button" class="dh-slot s-${st}${open ? " open" : ""}" data-dhs="${key}" aria-expanded="${open}"><span class="dh-tm" dir="ltr"><b>${TT.t12(dhPer(s.p_from).from)}</b>${TT.t12(dhPer(s.p_to).to)}</span>
         <span class="dh-sb"><span class="dh-st"><i class="dh-dot"></i><b>${esc(s.title)}${s.myGroups && s.myGroups.length ? " · مجموعة " + esc(s.myGroups.join("، ")) : ""}</b></span><span class="dh-sub">${esc(meta)}</span>
         ${st === "live" ? `<span class="dh-prog"><i style="width:${Math.round((hm - a) / Math.max(1, b - a) * 100)}%"></i></span>` : ""}
@@ -978,11 +978,13 @@
       <div class="dh-leg">${lv.map((n, i) => n || i < 4 ? `<div class="dh-li" data-dhl="${i}" data-n="${n}"><i style="background:${L[i][1]}"></i><span>${L[i][0]}</span><b>${n}</b></div>` : "").join("")}</div></div>
       ${pend ? `<button type="button" class="btn primary dh-warnb" data-wal="${c.id}">${ICO(BELL_ICO)} إبلاغ ${pend} ${pend === 1 ? "طالب وصل" : "طلبة وصلوا"} لإنذار جديد</button>` : lv[1] + lv[2] + lv[3] + lv[4] ? `<span class="dh-sub ok-t">كل الإنذارات اتبلّغت.</span>` : ""}</article>`;
   }
+  // b178: نص السجل محفوظ وقت الحدث؛ «ينتظر موافقتك» بيفضل مكتوب بعد ما مهلة الـ12 ساعة تخلص، فكانت الرئيسية بتقول «لا شيء ينتظرك» وتحتها «ينتظر موافقتك». بعد 12 ساعة بنكتبه بصيغة الماضي
+  const auditTxt = a => { let t = String(a.action || "").replace(/(\d+) (طالب|محاضرة|تكليف)(?![؀-ۿ])/g, (m, n, w) => CM.n(+n, CM.W[{ "طالب": "student", "محاضرة": "lecture", "تكليف": "task" }[w]])); return Date.now() - new Date(a.at) > 12 * 36e5 ? t.replace("حضوره خلال 12 ساعة ينتظر موافقتك.", "وكان حضوره خلال 12 ساعة بعدها يحتاج موافقتك.") : t; };
   function dhFeed(c) {
     const l = D && D.cid === c.id ? (D.audit || []).slice(0, 5) : null;
     const col = t => /رفض|حذف|ألغى|إلغاء|انسحاب/.test(t) ? "bad" : /تظلم|إنذار|التماس|ذكّر|تذكير/.test(t) ? "warn" : /درجات|أعلن/.test(t) ? "mut" : "acc";
     return `<article class="dh-card dh-feed"><div class="dh-h"><h2>آخر النشاط</h2>${l && l.length ? `<button type="button" class="btn sm ghost" data-tile="log">السجل كامل</button>` : ""}</div>
-      ${l == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : l.length ? `<div class="dh-tl">${l.map(a => { const t = String(a.action || ""); return `<div class="dh-ev"><i class="c-${col(t)}"></i><span><span>${esc(t.length > 110 ? t.slice(0, 108) + "…" : t)}</span><small>${esc(staffName(a.actor) || a.actor || "")} · ${esc(ago(a.at))}</small></span></div>`; }).join("")}</div>` : `<div class="dh-empty">لا يوجد نشاط في المادة بعد.</div>`}</article>`;
+      ${l == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : l.length ? `<div class="dh-tl">${l.map(a => { const t = auditTxt(a); return `<div class="dh-ev"><i class="c-${col(t)}"></i><span><span>${esc(t.length > 110 ? t.slice(0, 108) + "…" : t)}</span><small>${esc(staffName(a.actor) || a.actor || "")} · ${esc(ago(a.at))}</small></span></div>`; }).join("")}</div>` : `<div class="dh-empty">لا يوجد نشاط في المادة بعد.</div>`}</article>`;
   }
   // b168: كارت «محاضرتك» الأسود: إجراء رئيسي واحد (ابدأ المحاضرة / افتح المحاضرة الجارية)
   function dhHero(c) {
@@ -995,7 +997,8 @@
       sub = `${pres} من ${exp.length} سجّلوا حضورهم`; btn = `<button type="button" class="btn dhx-b" data-tile="live">${ICO('<path d="M8 5.5v13l11-6.5z"/>')}افتح المحاضرة</button>`;
     } else {
       const nx = nextLec(c);
-      eb = nx ? `محاضرتك التالية · ${esc(nx.when)}` : "المحاضرة"; title = esc(c.name); sub = nx ? esc(nx.what) : (has ? `${D.sessions.length ? "أُقيمت " + D.sessions.length + (D.sessions.length > 2 && D.sessions.length < 11 ? " محاضرات" : " محاضرة") : "لم تبدأ أي محاضرة بعد"} · ${D.enroll.length} طالبًا` : "");
+      // b178: الكارت ده للمادة المختارة بس، و«يومي» جنبه لكل موادك — فكان بيبان إن «التالية: السبت» عكس «محاضرة النهارده بعد 30 دقيقة»
+      eb = nx ? `التالية في هذه المادة · ${esc(nx.when)}` : "المحاضرة"; title = esc(c.name); sub = nx ? esc(nx.what) : (has ? `${D.sessions.length ? "أُقيمت " + D.sessions.length + (D.sessions.length > 2 && D.sessions.length < 11 ? " محاضرات" : " محاضرة") : "لم تبدأ أي محاضرة بعد"} · ${D.enroll.length} طالبًا` : "");
       btn = canRun(c) ? `<button type="button" class="btn dhx-b" data-tile="live">${ICO('<path d="M8 5.5v13l11-6.5z"/>')}ابدأ المحاضرة</button>` : `<button type="button" class="btn dhx-b" data-tile="reg">افتح الكشف</button>`;
     }
     return `<section class="dhx" id="dhHero"><div class="dhx-t"><div class="dhx-eb">${eb}</div><h2>${title}</h2>${sub ? `<div class="dhx-s">${sub}</div>` : ""}${btn}</div><div class="dhx-art">${CM.mascot(s ? "tablet" : "point")}</div></section>`;
@@ -1092,8 +1095,8 @@
     petition: { t: "التماس تسليم", ic: '<path d="M4 4h16v12H8l-4 4z"/><path d="M9 9h6M9 12h4"/>', tab: "tasks", u: "طالب" },
     grade: { t: "تصحيح", ic: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/>', tab: "tasks", u: "تسليم" }
   };
-  const ago = ts => { if (!ts) return ""; const m = Math.max(0, (Date.now() - new Date(ts).getTime()) / 6e4); if (m < 1) return "الآن"; if (m < 60) return "منذ " + Math.round(m) + " دقيقة";
-    const h = m / 60; if (h < 24) return "منذ " + (Math.round(h) === 1 ? "ساعة" : Math.round(h) === 2 ? "ساعتين" : Math.round(h) + " ساعات"); const d = Math.floor(h / 24); return "منذ " + (d === 1 ? "يوم" : d === 2 ? "يومين" : d <= 10 ? d + " أيام" : d + " يومًا"); };
+  const ago = ts => { if (!ts) return ""; const m = Math.max(0, (Date.now() - new Date(ts).getTime()) / 6e4); if (m < 1) return "الآن"; if (m < 60) return "منذ " + CM.n(Math.round(m), CM.W.minute) + "";
+    const h = m / 60; if (h < 24) return "منذ " + (Math.round(h) === 1 ? "ساعة" : Math.round(h) === 2 ? "ساعتين" : CM.n(Math.round(h), CM.W.hour) + ""); const d = Math.floor(h / 24); return "منذ " + (d === 1 ? "يوم" : d === 2 ? "يومين" : d <= 10 ? CM.n(d, CM.W.day) + "" : d + " يومًا"); };
   const ageDays = ts => ts ? (Date.now() - new Date(ts).getTime()) / 864e5 : 0;
   const lateCls = it => it.kind === "att" && it.live ? "" : ageDays(it.since) >= 3 ? " late" : ageDays(it.since) >= 1 ? " old" : "";
   // «قراءة الكل» بتحفظ آخر عدد شافه لكل عنصر (ack)، و«حذف» عنصر مطلوب منك بيخفيه لحد ما يزيد عدده (hide). الاتنين على الجهاز ده.
@@ -1115,7 +1118,7 @@
     const k = FK[it.kind] || FK.appeal;
     const ak = bjGet("cm_bell_ack");
     return `<article class="bl-it${lateCls(it)}${ak[bKey(it)] >= it.n ? " seen" : " new"}" data-sw="it:${esc(bKey(it))}:${it.n}"><span class="bl-ic k-${it.kind}">${ICO(k.ic)}</span><div class="bl-tx"><b>${esc(it.title)}</b>${it.detail ? `<small class="bl-why">${esc(it.detail)}</small>` : ""}
-      <small>${it.n} ${k.u}${it.kind === "att" && it.live ? " · المحاضرة جارية الآن" : it.since ? " · " + ago(it.since) : ""}${lateCls(it) === " late" ? ` · <em class="bad-t">مستني من ${Math.floor(ageDays(it.since))} يوم</em>` : ""}${dept && it.reminded ? ` · ذُكّر الفريق ${ago(it.reminded)}` : ""}</small></div>
+      <small>${it.n} ${k.u}${it.kind === "att" && it.live ? " · المحاضرة جارية الآن" : it.since ? " · " + ago(it.since) : ""}${lateCls(it) === " late" ? ` · <em class="bad-t">مستني من ${CM.n(Math.floor(ageDays(it.since)), CM.W.day)}</em>` : ""}${dept && it.reminded ? ` · ذُكّر الفريق ${ago(it.reminded)}` : ""}</small></div>
       <div class="bl-act">${dept ? `<button class="btn xs ghost" data-blrem="${esc(it.course_id + "|" + it.kind + "|" + it.ref)}" title="إشعار لفريق المادة بأن هذا ينتظر الرد">تذكير الفريق</button>` : ""}<button class="btn xs" data-blgo="${esc(it.course_id + "|" + it.kind + "|" + it.ref + "|" + ((it.codes || [])[0] || ""))}">فتح</button><button class="btn xs ghost bl-del" data-bldel="it:${esc(bKey(it))}:${it.n}" title="إخفاء" aria-label="إخفاء">${ICO(TRASH)}</button></div></article>`;
   }
   function bellGroups(list, dept) {
@@ -1228,7 +1231,7 @@
         + (staffPush === false && ps === "ask" ? `<div class="walert-c info push-ask">${ICO('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>')}<span><b>فعّل إشعارات الهاتف</b><small>يوصلك إشعار بطلبات التسجيل والرسائل الجديدة أول بأول</small></span><button class="btn sm primary" id="stPushOn">تفعيل</button></div>` : "");
     }
     function alertsBody() {
-      return `<h3 class="sec-t">تنبيهات</h3><div class="walerts">${adminCards()}${walerts.map(a => `<button class="walert-c" data-wal="${a.course_id}">${ICO('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>')}<span><b>${esc(a.name)}</b><small>${a.n} طالب وصلوا إلى إنذار جديد ولم يُبلَّغوا · ${Object.entries(a.levels || {}).sort((x, y) => y[0] - x[0]).map(([l, k]) => CM.WARN[l].t + " " + k).join("، ")}</small></span><em>عرض وإبلاغ ←</em></button>`).join("")}</div>`;
+      return `<h3 class="sec-t">تنبيهات</h3><div class="walerts">${adminCards()}${walerts.map(a => `<button class="walert-c" data-wal="${a.course_id}">${ICO('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>')}<span><b>${esc(a.name)}</b><small>${CM.n(a.n, CM.W.student)} وصلوا إلى إنذار جديد ولم يُبلَّغوا · ${Object.entries(a.levels || {}).sort((x, y) => y[0] - x[0]).map(([l, k]) => CM.WARN[l].t + " " + k).join("، ")}</small></span><em>عرض وإبلاغ ←</em></button>`).join("")}</div>`;
     }
   }
   function wireHomeAlerts() {
@@ -1286,10 +1289,10 @@
     // أي قفل سكرول من شاشة سابقة (الكشف بملء الشاشة / الجرس) لازم يتشال، وإلا الصفحة تبان واقفة
     unlockScroll();
     const c = course();
-    const owned = courses.filter(x => x.owner_email === me.email).length;
+    // b178: شلنا «X مادة» من تحت الاسم: كانت بتعدّ المواد المسجَّلة باسمك كمالك (54 للمسؤول) وبتخالف «موادي 4» و«كل المواد (70)»
     app.innerHTML = `
       <header class="top">
-        <div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}${owned ? " · " + owned + " مادة" : ""}</p></div></div>
+        <div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">${esc(me.name)} · ${ROLE[me.role]}</p></div></div>
         <div class="top-q"><label><span class="sr">بحث</span>${ICO('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>')}<input type="search" id="topQ" placeholder="ابحث عن طالب أو مادة أو تكليف" autocomplete="off"></label><div class="sq-pop" id="topQR" hidden></div></div>
         <div class="row">
           ${view !== "home" ? `<button class="btn sm" id="goHome" aria-label="الرئيسية" data-cap="الرئيسية">${ICO(HOME_ICO)}<span class="gh-l">الرئيسية</span></button>` : ""}
@@ -1502,7 +1505,7 @@
         <div><div class="eyebrow">المحاضرة ${n}</div><h2>ابدأ محاضرة جديدة</h2></div>
         ${!D.enroll.length ? `<div class="msg warn">ارفع ملف الطلبة أولًا من تبويب «الطلبة».</div>` : ""}
         <div class="settings">
-          ${gs.length > 1 ? `<label class="f"><span>هذه المحاضرة لـ</span><select id="sGrp">${gs.map(g => `<option value="${esc(g)}" ${g === sugg ? "selected" : ""}>مجموعة ${esc(g)} (${D.enroll.filter(e => e.grp === g).length} طالب)</option>`).join("")}<option value="">الدفعة كاملة</option></select></label>` : ""}
+          ${gs.length > 1 ? `<label class="f"><span>هذه المحاضرة لـ</span><select id="sGrp">${gs.map(g => `<option value="${esc(g)}" ${g === sugg ? "selected" : ""}>مجموعة ${esc(g)} (${CM.n(D.enroll.filter(e => e.grp === g).length, CM.W.student)})</option>`).join("")}<option value="">الدفعة كاملة</option></select></label>` : ""}
           <label class="f"><span>نوع المحاضرة</span><select id="sKind"><option value="hall" ${kindPick === "hall" ? "selected" : ""}>في القاعة</option><option value="outdoor" ${kindPick === "outdoor" ? "selected" : ""}>خارجية (رسم خارجي، زيارة…)</option></select></label>
           <label class="f"><span>مدة فتح التسجيل (دقائق)</span><input type="number" id="sMin" min="1" max="120" value="${esc(store.get(kindPick === "outdoor" ? "cm_min_out" : "cm_min") || (kindPick === "outdoor" ? 30 : 10))}"></label>
           <label class="f"><span>${kindPick === "outdoor" ? "النطاق حول موقعك (متر)" : "نطاق القاعة (متر)"}</span><input type="number" id="sRad" min="20" max="500" value="${esc(store.get(kindPick === "outdoor" ? "cm_rad_out" : "cm_rad") || (kindPick === "outdoor" ? 200 : 80))}"></label>
@@ -1581,7 +1584,7 @@
   function manBoxHtml(codes, ids) {
     const names = codes.map(nameOf);
     return `<div class="manbox note-box">
-      <b>تحضير يدوي: ${codes.length === 1 ? esc(names[0]) : codes.length + " طالب"}</b>
+      <b>تحضير يدوي: ${codes.length === 1 ? esc(names[0]) : CM.n(codes.length, CM.W.student) + ""}</b>
       ${codes.length > 1 ? `<span class="small muted">${esc(names.slice(0, 8).join("، "))}${names.length > 8 ? " و" + (names.length - 8) + " آخرون" : ""}</span>` : ""}
       <label class="f"><span>السبب (يُسجَّل في سجل التعديلات)</span><input type="text" id="${ids}Reason" maxlength="200" value="${esc(manDraft)}" placeholder="مثلًا: لا يوجد إنترنت ولا GPS"></label>
       <div class="quick">${MAN_REASONS.map(t => `<button class="btn sm ghost" data-mq="${esc(t)}">${esc(t)}</button>`).join("")}</div>
@@ -1805,7 +1808,7 @@
   function renderRegM(el) {
     if (rgm.cid !== D.cid) rgm = { cid: D.cid, mode: "stu", q: "", f: "all", stu: null, sid: null, chg: {}, sheet: false, reason: "", table: false, rm: null };
     const gs = groupsOf(), mng = canManage(course()), ss = D.sessions.slice().sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
-    const top = `<div class="rgm-top"><h2>كشف الحضور</h2><span class="muted small">${D.enroll.length} طالبًا · ${D.sessions.filter(x => !x.cancelled).length} محاضرة</span></div>
+    const top = `<div class="rgm-top"><h2>كشف الحضور</h2><span class="muted small">${D.enroll.length} طالبًا · ${CM.n(D.sessions.filter(x => !x.cancelled).length, CM.W.lecture)}</span></div>
       <div class="seg2" role="tablist"><button type="button" role="tab" data-rgm="stu" aria-selected="${rgm.mode === "stu"}">الطلبة</button><button type="button" role="tab" data-rgm="lec" aria-selected="${rgm.mode === "lec"}">كشف محاضرة</button></div>`;
     const foot = `<div class="rgm-foot">${D.enroll.length ? CM.dd("تصدير الكشف", [`<button class="dd-i" id="exp">إكسل</button>`, `<button class="dd-i" id="expPdf">PDF للطباعة</button>`], { end: true }) : ""}<button type="button" class="btn sm ghost" id="rgmTbl">الجدول الكامل</button></div>`;
     let body = "";
@@ -1918,7 +1921,7 @@
     const rh = (k, extra) => { const C = RGC[k], srt = sort.col === k, flt = !!rg.f[k];
       return `<button class="fh ${(srt && rg.sort) || flt ? "on" : ""}" data-rcol="${k}" aria-haspopup="true" title="ترتيب وتصفية">${extra || C.t}<span class="fh-i">${srt ? (sort.dir > 0 ? "▲" : "▼") : ""}${flt ? "⏷" : ""}<b>▾</b></span></button>`; };
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[CM.lvl(absences(e))]++);
-    el.innerHTML = (isMob() ? `<div class="rgm-back"><button type="button" class="btn sm ghost" id="rgmBack">→ العرض المبسّط</button></div>` : "") + `<div class="panel-h"><div><div class="eyebrow">${D.sessions.filter(s => !s.cancelled).length} محاضرة${D.sessions.some(s => s.cancelled) ? ` · ${D.sessions.filter(s => s.cancelled).length} إجازة` : ""} · ${D.enroll.length} طالب</div><h2>كشف الحضور</h2></div>
+    el.innerHTML = (isMob() ? `<div class="rgm-back"><button type="button" class="btn sm ghost" id="rgmBack">→ العرض المبسّط</button></div>` : "") + `<div class="panel-h"><div><div class="eyebrow">${CM.n(D.sessions.filter(s => !s.cancelled).length, CM.W.lecture)}${D.sessions.some(s => s.cancelled) ? ` · ${D.sessions.filter(s => s.cancelled).length} إجازة` : ""} · ${CM.n(D.enroll.length, CM.W.student)}</div><h2>كشف الحضور</h2></div>
       <div class="row">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rg="${esc(k)}" aria-pressed="${regGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}${D.enroll.length ? CM.dd("المزيد", [`<div class="dd-h">تصدير</div>`, `<button class="dd-i" id="exp">تصدير إكسل</button>`, `<button class="dd-i" id="expPdf">PDF للطباعة</button>`, mng ? `<div class="dd-h">محاضرات سبقت البرنامج</div>` : "", mng ? `<button class="dd-i" id="tplBtn">تنزيل ملف التحضير</button>` : "", mng ? `<label class="dd-i" for="pastX">رفع حضور محاضرات سابقة</label>` : "", mng ? `<button class="dd-i" id="offAdd">إضافة يوم إجازة</button>` : ""], { end: true }) : ""}${mng && D.enroll.length ? `<input type="file" id="pastX" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
       ${msgHtml("reg")}
       ${impBoxHtml()}
@@ -1926,8 +1929,8 @@
       ${seBox()}
       ${offBox()}
       ${pmBox()}
-      ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.lvlChip(i)}<span class="small muted" style="margin-inline-end:8px">${n} طالب</span>` : "").join("") : `<span class="small muted">لا توجد إنذارات حتى الآن.</span>`}</div>
-      <div class="rs-bar"><input type="search" id="rgQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rg.q)}" autocomplete="off"><span class="small muted">${rows.length === base.length ? base.length + " طالب" : "عرض " + rows.length + " من " + base.length}</span>${busy ? `<button class="btn sm ghost" id="rgClear">إلغاء الترتيب والتصفية</button>` : ""}</div>
+      ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.lvlChip(i)}<span class="small muted" style="margin-inline-end:8px">${CM.n(n, CM.W.student)}</span>` : "").join("") : `<span class="small muted">لا توجد إنذارات حتى الآن.</span>`}</div>
+      <div class="rs-bar"><input type="search" id="rgQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rg.q)}" autocomplete="off"><span class="small muted">${rows.length === base.length ? CM.n(base.length, CM.W.student) + "" : "عرض " + rows.length + " من " + base.length}</span>${busy ? `<button class="btn sm ghost" id="rgClear">إلغاء الترتيب والتصفية</button>` : ""}</div>
       <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => { const lab = rh("s" + s.n, `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}${mng ? "" : `<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`}`); return `<th class="c ${delSess === s.id || editSess === s.id ? "th-on" : ""}${s.cancelled ? " th-off" : ""}">${lab}${mng ? `<br><button class="th-date" data-se="${s.id}" title="تعديل تاريخ المحاضرة ${s.n} أو تعليمها إجازة">${CM.fmtD(s.started_at)} <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>` : ""}${s.cancelled ? `<br><span class="off-t" title="${esc(s.cancelled)}">${esc(s.cancelled.length > 14 ? s.cancelled.slice(0, 13) + "…" : s.cancelled)}</span>` : ""}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="حذف المحاضرة ${s.n}" aria-label="حذف المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
       ${rows.length ? "" : `<tr><td colspan="${ss.length + 6}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
       ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${CM.lvl(ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm"><div class="nm-c"><span class="nm-t" title="${esc(e.name)}">${esc(e.name)}</span>${mng && missedSess(e).length ? `<span class="nm-tags"><button class="btn xs ghost pm-btn ${pastMark && pastMark.code === e.student_code ? "on" : ""}" data-pm="${esc(e.student_code)}" title="تحضيره في محاضرات سابقة غاب عنها">تحضير</button></span>` : ""}</div></td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
@@ -1988,14 +1991,14 @@
     const row = ws.getRow(r); vals.forEach((v, j) => { row.getCell(j + 1).value = v; }); row.height = wrap ? 46 : 22;
     row.eachCell(cl => { cl.fill = fill(XC.head); cl.font = { name: "Arial", bold: true, size: 10, color: { argb: XC.headInk } }; cl.alignment = { horizontal: "center", vertical: "middle", wrapText: true, readingOrder: "rtl" }; cl.border = box; });
   }
-  function courseSub(c) { return [c.name, clsLabel(c), "تاريخ التصدير " + new Date().toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" })].filter(Boolean).join(" · "); }
+  function courseSub(c) { return [c.name, clsLabel(c), "تاريخ التصدير " + new Date().toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "long", year: "numeric" })].filter(Boolean).join(" · "); }
   function registerSheet(wb, name, rows, ss, c) {
     const ws = wb.addWorksheet(name, { views: [{ rightToLeft: true, state: "frozen", xSplit: 3, ySplit: 5 }], properties: { defaultRowHeight: 18 } });
     const N = 3 + ss.length + 5;
     sheetTitle(ws, N, "كشف حضور " + c.name, courseSub(c));
     const cnt = [0, 0, 0, 0, 0]; rows.forEach(e => cnt[CM.lvl(absences(e))]++);
     ws.mergeCells(3, 1, 3, N);
-    ws.getCell(3, 1).value = rows.length + " طالب · " + ss.length + " محاضرة · " + [1, 2, 3, 4].map(i => CM.WARN[i].t + ": " + cnt[i]).join(" · ") + "   |   ح حاضر · ي يدوي · ت تعويض · م معلّق · غ غائب · إ إجازة أو ملغية · — ليست لمجموعته";
+    ws.getCell(3, 1).value = CM.n(rows.length, CM.W.student) + " · " + CM.n(ss.length, CM.W.lecture) + " · " + [1, 2, 3, 4].map(i => CM.WARN[i].t + ": " + cnt[i]).join(" · ") + "   |   ح حاضر · ي يدوي · ت تعويض · م معلّق · غ غائب · إ إجازة أو ملغية · — ليست لمجموعته";
     ws.getCell(3, 1).font = { name: "Arial", size: 9, color: { argb: XC.muted } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
     headRow(ws, 5, ["الكود", "الاسم", "المجموعة", ...ss.map(s => "م" + s.n + (s.grp ? "\nمج " + s.grp : "") + "\n" + new Date(s.started_at).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", timeZone: "Africa/Cairo" })), "حضر", "غاب", "النسبة", "الحالة", "ملاحظة"], true);
     rows.forEach((e, i) => {
@@ -2120,18 +2123,18 @@
       const bad = !x.day ? "تاريخ غير مفهوم" : x.day > today ? "تاريخ في المستقبل" : !(x.present.length + x.absent.length) ? "لا يوجد طلبة من المادة" : "";
       const ex = x.day && D.sessions.find(s => cairoDay(s.started_at) === x.day && (s.grp || "") === (x.grp || ""));
       const marked = new Set([...x.present, ...x.absent]), blanks = D.enroll.filter(e => (!x.grp || e.grp === x.grp) && !marked.has(e.student_code)).length;
-      const notes = [ex ? `<span class="chip warn">موجودة بالفعل (م${ex.n})، سيُحدَّث حضورها</span>` : "", blanks ? `${blanks} طالب من ${x.grp ? "مجموعة " + esc(x.grp) : "الدفعة"} دون علامة سيُحتسبون غائبين` : "", x.notIn.length ? `${x.notIn.length} كود غير مسجَّل في المادة وسيُتجاهَل` : "", x.odd.length ? `${x.odd.length} خانة تحتوي على قيمة غير «ح» أو «غ» وستُتجاهَل` : ""].filter(Boolean).join(" · ");
+      const notes = [ex ? `<span class="chip warn">موجودة بالفعل (م${ex.n})، سيُحدَّث حضورها</span>` : "", blanks ? `${CM.n(blanks, CM.W.student)} من ${x.grp ? "مجموعة " + esc(x.grp) : "الدفعة"} دون علامة سيُحتسبون غائبين` : "", x.notIn.length ? `${x.notIn.length} كود غير مسجَّل في المادة وسيُتجاهَل` : "", x.odd.length ? `${x.odd.length} خانة تحتوي على قيمة غير «ح» أو «غ» وستُتجاهَل` : ""].filter(Boolean).join(" · ");
       return `<tr class="${bad ? "bad-row" : ""}"><td class="cb"><input type="checkbox" data-ion="${i}" ${x.on && !bad ? "checked" : ""} ${bad ? "disabled" : ""}></td>
-        <td><b>${x.day ? new Date(x.day + "T12:00:00Z").toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : esc(x.head)}</b>${bad ? `<div class="small" style="color:var(--bad)">${bad}: «${esc(x.head)}»</div>` : ""}</td>
+        <td><b>${x.day ? new Date(x.day + "T12:00:00Z").toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : esc(x.head)}</b>${bad ? `<div class="small" style="color:var(--bad)">${bad}: «${esc(x.head)}»</div>` : ""}</td>
         <td><select data-igrp="${i}" ${bad ? "disabled" : ""}><option value="">الدفعة كاملة</option>${gs.map(g => `<option value="${esc(g)}" ${x.grp === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></td>
         <td class="c"><span class="chip ok">${x.present.length}</span></td><td class="c"><span class="chip bad">${x.absent.length}</span></td>
         <td class="small muted">${notes}</td></tr>`;
     };
     const n = imp.cols.filter(x => x.on && x.day && x.day <= today).length;
-    return `<div class="note-box imp" id="impBox"><b>ملف «${esc(imp.file)}»: وُجدت ${imp.cols.length} محاضرة</b>
+    return `<div class="note-box imp" id="impBox"><b>ملف «${esc(imp.file)}»: وُجدت ${CM.n(imp.cols.length, CM.W.lecture)}</b>
       <span class="small">راجع التاريخ والمجموعة لكل محاضرة. لن تُرفع إلا المحاضرات المحددة بعلامة ✓.</span>
       <div class="tbl-wrap"><table><thead><tr><th class="cb"></th><th>المحاضرة</th><th>المجموعة</th><th class="c">ح</th><th class="c">غ</th><th>ملاحظات</th></tr></thead><tbody>${imp.cols.map(line).join("")}</tbody></table></div>
-      <div class="row"><button class="btn sm primary" id="impGo" ${n ? "" : "disabled"}>${imp.busy ? "جارٍ الرفع…" : "ارفع حضور " + n + " محاضرة"}</button><button class="btn sm ghost" id="impNo">إلغاء</button></div></div>`;
+      <div class="row"><button class="btn sm primary" id="impGo" ${n ? "" : "disabled"}>${imp.busy ? "جارٍ الرفع…" : "ارفع حضور " + CM.n(n, CM.W.lecture) + ""}</button><button class="btn sm ghost" id="impNo">إلغاء</button></div></div>`;
   }
   function wireImp(el) {
     if (!imp) return;
@@ -2145,9 +2148,9 @@
       let made = 0, upd = 0;
       try {
         for (const x of todo) { const r = await rpc("import_lecture", { cid: c.id, p_date: x.day, p_grp: x.grp, p_present: x.present, p_absent: x.absent }); r.created ? made++ : upd++; }
-        say("reg", "رُفع حضور " + todo.length + " محاضرة من «" + imp.file + "»" + (made ? "، منهم " + made + " محاضرة جديدة" : "") + (upd ? "، و" + upd + " حُدِّث حضورها" : "") + ". رُتِّبت المحاضرات حسب تاريخها.");
+        say("reg", "رُفع حضور " + CM.n(todo.length, CM.W.lecture) + " من «" + imp.file + "»" + (made ? "، منهم " + CM.n(made, CM.W.lecture) + " جديدة" : "") + (upd ? "، و" + upd + " حُدِّث حضورها" : "") + ". رُتِّبت المحاضرات حسب تاريخها.");
         imp = null;
-      } catch (e) { imp.busy = false; say("reg", "!" + errText(e) + (made + upd ? " (رُفع " + (made + upd) + " محاضرة قبل حدوث الخطأ)" : "")); }
+      } catch (e) { imp.busy = false; say("reg", "!" + errText(e) + (made + upd ? " (رُفع " + CM.n((made + upd), CM.W.lecture) + " قبل حدوث الخطأ)" : "")); }
       await loadCourse().catch(showErr);
     };
   }
@@ -2174,7 +2177,7 @@
     const p = warnPending(rows); if (!p.length) return "";
     const by = [4, 3, 2, 1].map(l => [l, p.filter(x => x.l === l)]).filter(([, a]) => a.length);
     return `<div class="walert no-print" id="wAlert" role="alert">
-      <div class="walert-h">${ICO('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>')}<div><b>${p.length} طالب وصلوا إلى إنذار جديد ولم يُبلَّغوا بعد</b>
+      <div class="walert-h">${ICO('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17.5v.5"/>')}<div><b>${CM.n(p.length, CM.W.student)} وصلوا إلى إنذار جديد ولم يُبلَّغوا بعد</b>
         <p class="small">${by.map(([l, a]) => `${CM.WARN[l].t}: ${a.length}`).join(" · ")} — أعلِن لهم في المحاضرة أو جروب المادة، أو أرسل لهم تنبيهًا من هنا.</p></div></div>
       <details class="walert-l"><summary>عرض الأسماء</summary><ul>${p.map(x => `<li><span class="chip ${CM.WARN[x.l].k}">${CM.WARN[x.l].t}</span> <span class="mono">${esc(x.e.student_code)}</span> ${esc(x.e.name)}${x.e.grp ? ` <span class="muted small">· مجموعة ${esc(x.e.grp)}</span>` : ""} <span class="muted small">· غياب ${x.ab}</span></li>`).join("")}</ul></details>
       <div class="row">
@@ -2240,7 +2243,7 @@
     await loadExcelJS();
     const wb = new ExcelJS.Workbook(), ws = wb.addWorksheet("الإنذارات", { views: [{ rightToLeft: true }] });
     ws.addRow([`طلبة وصلوا إلى إنذار غياب — ${c.name}`]); ws.getRow(1).font = { bold: true, size: 14 };
-    ws.addRow([`حتى ${new Date().toLocaleDateString("ar-EG")}`]); ws.addRow([]);
+    ws.addRow([`حتى ${new Date().toLocaleDateString("ar-EG-u-nu-latn")}`]); ws.addRow([]);
     ws.addRow(["م", "الكود", "الاسم", "المجموعة", "مرات الغياب", "الحالة", "توقيع الطالب"]); ws.getRow(4).font = { bold: true };
     p.forEach((x, i) => ws.addRow([i + 1, isNaN(+x.e.student_code) ? x.e.student_code : +x.e.student_code, x.e.name, x.e.grp || "—", x.ab, CM.WARN[x.l].t, ""]));
     [5, 12, 30, 10, 11, 18, 18].forEach((w, j) => { ws.getColumn(j + 1).width = w; });
@@ -2258,7 +2261,7 @@
       sn.disabled = true; sn.textContent = "جارٍ الإرسال…";
       try {
         const r = await rpc("warning_notify", { cid: c.id, p_codes: list.map(x => x.e.student_code), p_note: "" });
-        say("report", `أُرسل التنبيه إلى ${r.sent} طالب: ${r.phones} منهم يصلهم إشعار على الهاتف الآن، والباقون يرونه عند فتح الموقع.`);
+        say("report", `أُرسل التنبيه إلى ${CM.n(r.sent, CM.W.student)}: ${r.phones} منهم يصلهم إشعار على الهاتف الآن، والباقون يرونه عند فتح الموقع.`);
         walerts = null; await loadCourse();
       } catch (e) { showErr(e); sn.disabled = false; sn.textContent = "إرسال تنبيه للطلاب"; }
     };
@@ -2299,8 +2302,8 @@
     if (!st.some(r => r.s.id === rpLec)) rpLec = st[st.length - 1].s.id;
     const r = st.find(x => x.s.id === rpLec), ab = absentIn(r.s, rows);
     return `<div class="rp-sec" id="rpAbs"><div class="panel-h"><h3>الغائبون في المحاضرة</h3>
-        <select id="rpLecSel" aria-label="اختر المحاضرة">${st.map(x => `<option value="${x.s.id}" ${x.s.id === rpLec ? "selected" : ""}>المحاضرة ${x.s.n}${x.s.grp ? " · مجموعة " + esc(x.s.grp) : ""} · ${CM.fmtD(x.s.started_at)} · ${x.own - x.pres} غائب</option>`).join("")}</select></div>
-      ${ab.length ? `<p class="small muted">غاب ${ab.length} من ${r.own} طالب.</p><div class="tbl-wrap" style="max-height:360px;overflow:auto"><table><thead><tr><th class="c">#</th><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">مجموع غيابه</th><th>الحالة</th></tr></thead><tbody>
+        <select id="rpLecSel" aria-label="اختر المحاضرة">${st.map(x => `<option value="${x.s.id}" ${x.s.id === rpLec ? "selected" : ""}>المحاضرة ${x.s.n}${x.s.grp ? " · مجموعة " + esc(x.s.grp) : ""} · ${CM.fmtD(x.s.started_at)} · ${CM.n(x.own - x.pres, CM.W.absent)}</option>`).join("")}</select></div>
+      ${ab.length ? `<p class="small muted">غاب ${ab.length} من ${CM.n(r.own, CM.W.student)}.</p><div class="tbl-wrap" style="max-height:360px;overflow:auto"><table><thead><tr><th class="c">#</th><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">مجموع غيابه</th><th>الحالة</th></tr></thead><tbody>
         ${ab.map((e, i) => { const n = absences(e); return `<tr><td class="c mono muted">${i + 1}</td><td class="mono">${esc(e.student_code)}</td><td class="nm">${esc(e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}<td class="c mono">${n}</td><td>${CM.warnChip(n)}</td></tr>`; }).join("")}
       </tbody></table></div>` : `<div class="empty">لم يغب أحد في هذه المحاضرة.</div>`}</div>`;
   }
@@ -2319,9 +2322,9 @@
     const list = info.filter(x => x.ab > 0 && (rpLevel === null || CM.lvl(x.ab) === rpLevel) && (!q || normAr(x.e.name).includes(q) || x.e.student_code.includes(q)))
       .sort((a, b) => b.ab - a.ab || a.a.pct - b.a.pct || a.e.name.localeCompare(b.e.name, "ar"));
     const KS = ["ok", "w1", "w2", "w3", "w4"];
-    const seg = [0, 1, 2, 3, 4].filter(i => lv[i]).map(i => `<button class="seg ${KS[i]} ${rpLevel === i ? "on" : ""}" style="flex:${lv[i]}" data-lvl="${i}" title="${CM.WARN[i].t}: ${lv[i]} طالب"><span>${lv[i]}</span></button>`).join("");
+    const seg = [0, 1, 2, 3, 4].filter(i => lv[i]).map(i => `<button class="seg ${KS[i]} ${rpLevel === i ? "on" : ""}" style="flex:${lv[i]}" data-lvl="${i}" title="${CM.WARN[i].t}: ${CM.n(lv[i], CM.W.student)}"><span>${lv[i]}</span></button>`).join("");
     const next = CM.nextWarn;
-    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${rows.length} طالب · ${st.length} محاضرة محتسبة</div><h2>تقرير الغياب والإنذارات</h2></div>
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${CM.n(rows.length, CM.W.student)} · ${CM.n(st.length, CM.W.lecture)} محتسبة</div><h2>تقرير الغياب والإنذارات</h2></div>
       <div class="row no-print">${gs.length > 1 ? `<div class="tabs">${[["all", "الكل"], ...gs.map(g => [g, "مجموعة " + g])].map(([k, t]) => `<button data-rpg="${esc(k)}" aria-pressed="${rpGroup === k}">${esc(t)}</button>`).join("")}</div>` : ""}
         <button class="btn sm" id="rpXls" title="ملف فيه: الملخص، والإنذارات، والغائبون في كل محاضرة">تصدير التقرير إلى إكسل</button><button class="btn sm ghost" id="rpPrint">طباعة</button></div></div>
       ${msgHtml("report")}
@@ -2344,7 +2347,7 @@
           return `<tr><td>مجموعة ${esc(g)}</td><td class="c mono">${r2.length}</td><td class="c"><span class="chip ${a2 >= 75 ? "ok" : a2 >= 50 ? "warn" : "bad"}">${a2}%</span></td>${[1, 2, 3, 4].map(i => `<td class="c mono">${l2[i] || "—"}</td>`).join("")}</tr>`; }).join("")}
       </tbody></table></div></div>` : ""}
       <div class="rp-sec"><div class="panel-h"><h3>الطلبة الذين لديهم غياب${rpLevel !== null ? " · " + CM.WARN[rpLevel].t : ""}</h3>${rpLevel !== null ? `<button class="btn sm ghost no-print" id="rpAll">عرض الكل</button>` : ""}</div>
-        <div class="rs-bar no-print"><input type="search" id="rpQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rpQ)}" autocomplete="off"><span class="small muted">${list.length} طالب</span></div>
+        <div class="rs-bar no-print"><input type="search" id="rpQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rpQ)}" autocomplete="off"><span class="small muted">${CM.n(list.length, CM.W.student)}</span></div>
         ${list.length ? `<div class="tbl-wrap" id="rpWrap" style="max-height:520px;overflow:auto"><table><thead><tr><th>الكود</th><th>الاسم</th>${gs.length > 1 ? "<th>مج</th>" : ""}<th class="c">الغياب</th><th class="c">الحضور</th><th>الحالة</th><th>الإشعار</th><th>غاب في</th><th>التالي</th></tr></thead><tbody>
           ${list.map(x => `<tr class="${CM.lvl(x.ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(x.e.student_code)}</td><td class="nm">${esc(x.e.name)}</td>${gs.length > 1 ? `<td class="c">${esc(x.e.grp || "—")}</td>` : ""}<td class="c mono"><b>${x.ab}</b></td><td class="c"><span class="chip ${x.a.pct >= 75 ? "ok" : x.a.pct >= 50 ? "warn" : "bad"}">${x.a.pct}%</span></td><td>${CM.warnChip(x.ab)}</td><td class="small">${(sn => sn ? `<span class="${sn.ok ? "seen-ok" : "seen-no"}">${sn.t}</span>` : "—")(seenOf(x.e, x.ab))}</td><td class="small muted">${x.miss.map(n => "م" + n).join("، ")}</td><td class="small">${next(x.ab)}</td></tr>`).join("")}
         </tbody></table></div>` : `<div class="empty">${q ? "لا يوجد طالب بهذا الاسم أو الكود." : "لا يوجد طلبة لديهم غياب هنا."}</div>`}
@@ -2419,7 +2422,7 @@
 
   /* ======================= التكليفات والدرجات ======================= */
   const gN = n => n == null || n === "" ? "" : Number(n).toLocaleString("en", { maximumFractionDigits: 2 });
-  const dueStr = t => new Date(t).toLocaleString("ar-EG", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  const dueStr = t => new Date(t).toLocaleString("ar-EG-u-nu-latn", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
   const subOf = (t, code) => (D.subs[t.id] || {})[code] || null;
   // الطالب في مجموعة التكليف؟ وإلا يظهر استثناءً لو سلّم أو رُصدت له درجة (مثلًا نُقل من مجموعة لأخرى، أو سلّم مع مجموعة غير مجموعته)
   const inTaskGrp = (t, e) => !t.grp || e.grp === t.grp;
@@ -2465,7 +2468,7 @@
     : refusedFor(t, e) ? ` <span class="chip bad small" title="كان غائبًا في محاضرة ${DL(t)}، والتكليف لا يُقبل ممن غاب إلا بعذر تقبله.">مرفوض · غائب ${DL(t)}</span>${excBtn(t, e)}`
     : excusedOf(t, e.student_code) ? ` <span class="chip ok small" title="${esc((D.excuses[t.id][e.student_code].note || "") + " · " + staffName(D.excuses[t.id][e.student_code].by_email))}">غاب ${DL(t)} · مقبول بعذر</span>${t.absent_rule === "refuse" ? excBtn(t, e) : ""}`
     : ` <span class="chip bad small" title="كان غائبًا في محاضرة ${DL(t)}، فيُعدّ تسليمه متأخرًا. راجِع عذره قبل رصد الدرجة.">متأخر · غاب ${DL(t)}</span>`;
-  const dayStr = d => new Date(d).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
+  const dayStr = d => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long" });
   const extraChip = (t, e) => isExtra(t, e) ? ` <span class="chip warn small" title="ليس من مجموعة هذا التكليف، ويظهر هنا استثناءً">استثناء · ${e.grp ? "مجموعة " + esc(e.grp) : "دون مجموعة"}</span>` : "";
   // خصم الطالب في التكليف (tasks.minus = {كود: قيمة})، والمجموع = الدرجة + البونص − الخصم ومينزلش عن صفر
   const minusOf = (t, code) => t && t.minus && t.minus[code] != null ? Number(t.minus[code]) || 0 : 0;
@@ -2489,7 +2492,7 @@
   const CHECK = { ok: ["ok", "لم يتغيّر"], changed: ["bad", "عُدِّل بعد التسليم"], missing: ["bad", "محذوف أو غير متاح"] };
   function bylawLine(c) {
     if (!c.cw_max && !c.exam_max && !c.bylaw_code) return `<div class="msg warn small">لم تُربط المادة بمقرر في اللائحة بعد، فلن يظهر في كشف الدرجات عمود «الأعمال الفصلية» محوَّلًا إلى نهايتها العظمى.${isOwner(c) ? ` اربطها من تبويب «الفريق» ← «مقرر اللائحة».` : ""}</div>`;
-    return `<p class="small muted">مقرر اللائحة: <b>${esc(c.bylaw_code || "—")}</b>${c.credits ? " · " + c.credits + " ساعات معتمدة" : ""} · النهاية العظمى: أعمال فصلية <b>${c.cw_max ?? "—"}</b>، امتحان <b>${c.exam_max || "—"}</b>، المجموع <b>${(c.cw_max || 0) + (c.exam_max || 0)}</b></p>`;
+    return `<p class="small muted">مقرر اللائحة: <b>${esc(c.bylaw_code || "—")}</b>${c.credits ? " · " + CM.n(c.credits, CM.W.credit) + "" : ""} · النهاية العظمى: أعمال فصلية <b>${c.cw_max ?? "—"}</b>، امتحان <b>${c.exam_max || "—"}</b>، المجموع <b>${(c.cw_max || 0) + (c.exam_max || 0)}</b></p>`;
   }
   let tkMode = "submit";
   function taskFormHtml(t) {
@@ -2572,7 +2575,7 @@
       const x = new Date(Y, M, d), k = ymd(x), isLec = lec.has(k), isNext = !isLec && k >= today && wd.has(x.getDay());
       cells.push(`<button type="button" data-cd="${k}" class="${isLec ? "lec" : ""}${isNext ? " next" : ""}${k === sel ? " sel" : ""}${k === today ? " today" : ""}" title="${isLec ? "يوم محاضرة" : isNext ? "يوم محاضرة متوقع" : ""}">${d}</button>`);
     }
-    box.innerHTML = `<div class="cal-h"><button type="button" class="btn xs ghost" data-cm="1" title="الشهر السابق">→</button><b>${first.toLocaleDateString("ar-EG", { month: "long", year: "numeric" })}</b><button type="button" class="btn xs ghost" data-cm="-1" title="الشهر التالي">←</button></div>
+    box.innerHTML = `<div class="cal-h"><button type="button" class="btn xs ghost" data-cm="1" title="الشهر السابق">→</button><b>${first.toLocaleDateString("ar-EG-u-nu-latn", { month: "long", year: "numeric" })}</b><button type="button" class="btn xs ghost" data-cm="-1" title="الشهر التالي">←</button></div>
       <div class="cal-g">${["سبت", "أحد", "اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة"].map(w => `<span>${w}</span>`).join("")}${cells.join("")}</div>`;
     box.querySelectorAll("[data-cm]").forEach(b => b.onclick = () => { const d = new Date(Y, M - +b.dataset.cm, 1); calYM = [d.getFullYear(), d.getMonth()]; drawCal(el); });
     box.querySelectorAll("[data-cd]").forEach(b => b.onclick = () => { inp.value = b.dataset.cd; drawCal(el); });
@@ -2725,7 +2728,7 @@
       } catch (e) { bad++; rows.forEach(r => { const inp = document.querySelector(`[data-gb="${tid}|${r.code}"]`); if (inp) { inp.classList.remove("pend"); inp.classList.add("bad"); } }); showErr(e); }
     }
     D.enroll.forEach(e => { const c = document.querySelector(`[data-gbavg="${CSS.escape(e.student_code)}"]`); if (c) c.textContent = gbAvgT(e); });
-    gbStatus(bad ? "تعذّر حفظ بعض الدرجات (باللون الأحمر)." : "حُفظت " + n + " درجة · " + new Date().toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" }), bad ? "bad-t" : "ok-t");
+    gbStatus(bad ? "تعذّر حفظ بعض الدرجات (باللون الأحمر)." : "حُفظت " + n + " درجة · " + new Date().toLocaleTimeString("ar-EG-u-nu-latn", { hour: "numeric", minute: "2-digit" }), bad ? "bad-t" : "ok-t");
   }
   function wireGb(el) {
     if (tkLay !== "sheet") return;
@@ -2762,7 +2765,7 @@
   window.addEventListener("beforeunload", e => { if (Object.keys(gbPend).length) { gbFlush(); e.preventDefault(); e.returnValue = ""; } });
   /* ---------- ملف الطالب: كل تكليفاته وملفاته وحالة كل تسليم، مع تعديل «متأخر / في الميعاد» ---------- */
   const STU_F = [["all", "الكل"], ["issue", "فيها مشكلة"], ["late", "متأخر"], ["none", "لم يسلّم"], ["ok", "سليم"]];
-  const durTxt = ms => { const m = Math.round(Math.abs(ms) / 6e4); if (m < 60) return m + " دقيقة"; const h = Math.round(m / 60); if (h < 48) return h + " ساعة"; return Math.round(h / 24) + " يوم"; };
+  const durTxt = ms => { const m = Math.round(Math.abs(ms) / 6e4); if (m < 60) return CM.n(m, CM.W.minute) + ""; const h = Math.round(m / 60); if (h < 48) return CM.n(h, CM.W.hour) + ""; return CM.n(Math.round(h / 24), CM.W.day) + ""; };
   const sizeTxt = b => b == null ? "" : b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + " ك.ب" : (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + " م.ب";
   const fileNm = x => x.kind === "drive" ? String(x.file_name || "الملف").replace(/^\d{6,}\s*-\s*/, "") : "رابط";
   // حالة التسليم بكلمة واحدة + كل الملاحظات اللي تخصه
@@ -2824,7 +2827,7 @@
         ${x.file_modified ? ` <span class="muted">· آخر تعديل للملف ${CM.fmtD(x.file_modified)} ${CM.fmtT(x.file_modified)}</span>` : ""}${new Date(x.at).getTime() > new Date(t.due_at).getTime() && x.ev !== "prev" ? ` <span class="chip warn">بعد الميعاد</span>` : ""}${same === true ? ` <span class="chip ok">نفس الملف</span>` : same === false ? ` <span class="chip bad">ملف مختلف</span>` : ""}${x.note ? ` <span class="muted">· ${esc(x.note)}</span>` : ""}</span></li>`;
     }).join("");
     const old = s && s.version > L.filter(x => x.ev === "upload" || x.ev === "fix").length + (L.some(x => x.ev === "backfill") ? 1 : 0);
-    return `<ul class="stu-log">${rows || `<li class="muted">لا توجد رفعات مسجلة</li>`}</ul>${old ? `<p class="small muted">الرفعات السابقة على ١٨ نوفمبر ٢٠٢٦ غير مسجلة بالتفصيل، ويظهر منها آخر نسخة فقط. ومن الآن تُسجَّل كل رفعة.</p>` : ""}`;
+    return `<ul class="stu-log">${rows || `<li class="muted">لا توجد رفعات مسجلة</li>`}</ul>${old ? `<p class="small muted">الرفعات السابقة على 18 نوفمبر 2026 غير مسجلة بالتفصيل، ويظهر منها آخر نسخة فقط. ومن الآن تُسجَّل كل رفعة.</p>` : ""}`;
   }
   function renderStu(el, c) {
     const e = D.enroll.find(x => x.student_code === tkStu), run = canRun(c), code = e.student_code;
@@ -2900,7 +2903,7 @@
     if (tkStu && !D.enroll.some(e => e.student_code === tkStu)) tkStu = null;
     if (tkStu) return renderStu(el, c);
     const totalMax = D.tasks.reduce((a, x) => a + Number(x.max_grade), 0);
-    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${D.tasks.length} تكليف · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${esc(c.name)} · ${CM.n(D.tasks.length, CM.W.task)} · مجموع الدرجات ${gN(totalMax)}</div><h2>التكليفات والدرجات</h2></div>
       <div class="row no-print">${canRun(c) && !tkForm ? `<button class="btn sm primary" id="tkNew">تكليف أو رصد جديد</button>` : ""}${(() => { if (!HD.canCheck) return ""; const all = D.tasks.filter(x => x.mode === "submit").flatMap(x => Object.values(D.subs[x.id] || {}).filter(z => z.kind === "drive" && z.file_id)); if (!all.length) return ""; const un = all.filter(z => !z.check_state).length;
         return `<button class="btn sm" id="tkCheckAll" title="يتحقق من أن ملف كل طالب في كل التكليفات ما زال موجودًا على Drive ولم يتغير، ومن حُذف ملفه يُطلب منه تلقائيًّا إعادة الرفع">${ICO('<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>')} فحص ملفات كل التكليفات${un ? ` <span class="chip warn small" title="${un} ملف لم يُفحص">${un}</span>` : ""}</button>`; })()}${CM.dd(D.tasks.length ? "تصدير واستيراد" : "استيراد", [D.tasks.length ? `<div class="dd-h">كشف الكنترول وكشف المراجعة</div>${courseGroups().length > 1 ? `<label class="dd-sel" data-keep><span>المجموعة</span><select id="tkXg" aria-label="المجموعة التي يُصدَّر كشفها"><option value="all">كل المجموعات</option>${courseGroups().map(g => `<option value="${esc(g)}" ${tkXg === g ? "selected" : ""}>مجموعة ${esc(g)}</option>`).join("")}</select></label>` : ""}${tkMaxN() > 1 ? `<label class="dd-sel" data-keep><span>يُحسب المتوسط على أعلى كم تكليف؟</span><input id="tkBest" type="number" inputmode="numeric" min="1" max="${tkMaxN() - 1}" step="1" placeholder="فارغة = كل التكليفات" value="${tkBestN() || ""}" aria-label="عدد التكليفات التي يُحسب عليها المتوسط"></label>` : ""}` : "", D.tasks.length ? `<button class="dd-i" id="tkXls" title="ملف واحد فيه كشف الكنترول (المتوسط) وكشف المراجعة (درجات كل التكليفات)">تنزيل الكنترول + المراجعة (إكسل)</button>` : "", D.tasks.length ? `<button class="dd-i" id="tkPdf" title="ملف واحد فيه كشف الكنترول وكشف المراجعة">تنزيل الكنترول + المراجعة (PDF)</button>` : "", canRun(c) ? `${D.tasks.length ? "<hr>" : ""}<button class="dd-i" id="tkMulti" title="ملف فيه اسم الطالب أو كوده ومجموعته، وعمود لكل تكليف باسمه وتحته الدرجات">استيراد تكليفات ودرجاتها من إكسل</button>` : ""], { end: true })}</div></div>
       ${D.tasks.length ? stuPickHtml() : ""}
@@ -2977,7 +2980,7 @@
       ${msgHtml("tasks")}
       ${tkForm === t.id ? taskFormHtml(t) : ""}
       ${confirmKey === "deltask" ? `<div class="msg bad" style="display:grid;gap:8px"><b>حذف التكليف نهائي.</b>
-        ${st.sub || st.graded ? `<span class="small">ستُحذف ${st.sub} تسليمات و${st.graded} درجات مرصودة (تبقى ملفات الطلبة في حساباتهم على Drive). للتأكيد اكتب العنوان كما هو: <b>${esc(t.title)}</b></span><input type="text" id="tdName" autocomplete="off">` : `<span class="small">لا توجد تسليمات ولا درجات هنا.</span>`}
+        ${st.sub || st.graded ? `<span class="small">ستُحذف ${st.sub} تسليمات و${CM.n(st.graded, CM.W.grade)} مرصودة (تبقى ملفات الطلبة في حساباتهم على Drive). للتأكيد اكتب العنوان كما هو: <b>${esc(t.title)}</b></span><input type="text" id="tdName" autocomplete="off">` : `<span class="small">لا توجد تسليمات ولا درجات هنا.</span>`}
         <div class="row"><button class="btn sm danger" id="tdGo">حذف</button><button class="btn sm ghost" id="tdCancel">إلغاء</button></div></div>` : ""}
       ${run ? `<div class="tk-tools no-print">
         ${man ? "" : `<button class="btn primary" id="tkGrader" ${st.sub ? "" : "disabled"}>${ICO('<rect x="3" y="4" width="13" height="16" rx="2"/><path d="M19 8v12M7 9h5M7 13h5"/>')} عرض الأعمال وتصحيحها</button>`}
@@ -3291,7 +3294,7 @@
     const go = $("#gxGoOn"); if (go) go.onclick = () => { hide(); grader.f = "ungraded"; grader.order = graderOrder(t, "ungraded"); grader.i = 0; grader.msg = ""; drawGrader(true); };
     const nt = $("#gxNotify"); if (nt) nt.onclick = async () => { nt.disabled = true; nt.textContent = "جارٍ الإرسال…";
       try { const n = await rpc("file_fix_request", { tid: t.id, codes: bad.map(e => e.student_code), p_reason: "missing" }); await refreshSubs(t);
-        hide(); grader.msg = "أُرسل تنبيه إلى " + n + " طالب بأن ملفه حُذف ليعيد رفعه، وفُتح لهم التسليم."; drawGrader(false); }
+        hide(); grader.msg = "أُرسل تنبيه إلى " + CM.n(n, CM.W.student) + " بأن ملفه حُذف ليعيد رفعه، وفُتح لهم التسليم."; drawGrader(false); }
       catch (e) { hide(); grader.msg = "!" + errText(e); drawGrader(false); } };
     setTimeout(() => { const f = box.querySelector(".btn.primary") || $("#gxCloseAny"); if (f) f.focus(); }, 30);
   }
@@ -3679,7 +3682,7 @@
   const AP_R = { not_graded: "سلّم ولم تُرصد درجته", wrong_grade: "الدرجة مرصودة خطأ", other: "سبب آخر" };
   let apShowOld = false;
   /* ---------- لوحة المسؤول: طلبات التسجيل ---------- */
-  const fmtAgo = d => { const m = Math.round((Date.now() - new Date(d)) / 60000); return m < 1 ? "الآن" : m < 60 ? `منذ ${m} دقيقة` : m < 1440 ? `منذ ${Math.round(m / 60)} ساعة` : new Date(d).toLocaleDateString("ar-EG", { day: "numeric", month: "short" }); };
+  const fmtAgo = d => { const m = Math.round((Date.now() - new Date(d)) / 60000); return m < 1 ? "الآن" : m < 60 ? `منذ ${CM.n(m, CM.W.minute)}` : m < 1440 ? `منذ ${CM.n(Math.round(m / 60), CM.W.hour)}` : new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short" }); };
   function adminReqHtml() {
     const pend = adminReqs.filter(r => r.status === "pending"), done = adminReqs.filter(r => r.status !== "pending" && r.status !== "cancelled");
     const RL = { ta: "معيد", lecturer: "محاضر" };
@@ -3719,7 +3722,7 @@
   const TK_ST = { open: ["بانتظار ردك", "warn"], answered: ["تم الرد", "ok"], closed: ["مغلقة", "none"] };
   function adminInboxHtml() {
     const t = inboxOpen && adminTks.find(x => x.id === inboxOpen);
-    const fmt = d => new Date(d).toLocaleString("ar-EG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    const fmt = d => new Date(d).toLocaleString("ar-EG-u-nu-latn", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
     return `<section class="panel" data-apane="inbox" ${atab === "inbox" ? "" : "hidden"}>
       <div class="panel-h"><div><div class="eyebrow">من الطلبة والمعيدين والمحاضرين</div><h2>الاستفسارات والشكاوى والمقترحات</h2></div>
         <div class="tkseg">${[["open", "بانتظار الرد"], ["answered", "تم الرد"], ["closed", "مغلقة"], ["all", "الكل"]].map(([k, l]) => `<button class="${inboxF === k ? "on" : ""}" data-tkf="${k}">${l}</button>`).join("")}</div></div>
@@ -3740,13 +3743,13 @@
   function faqStatsHtml() {
     const f = faqStats; if (!f) return "";
     const pct = f.total ? Math.round(f.answered / f.total * 100) : 0;
-    return `<details class="faqst" ${f.total ? "" : ""}><summary><b>مساعد Hadro</b> <span class="small muted">${f.total ? `جاوب على <b>${pct}%</b> من ${f.total} سؤال في آخر ${faqDays} يوم` : "لم يسأله أحد بعد"}</span></summary>
+    return `<details class="faqst" ${f.total ? "" : ""}><summary><b>مساعد Hadro</b> <span class="small muted">${f.total ? `جاوب على <b>${pct}%</b> من ${f.total} سؤال في آخر ${CM.n(faqDays, CM.W.day)}` : "لم يسأله أحد بعد"}</span></summary>
       ${f.total ? `<div class="kpis">
         <div class="kpi"><b>${f.total}</b><span>سؤال</span></div>
         <div class="kpi"><b>${pct}%</b><span>وجد لها إجابة</span></div>
         <div class="kpi"><b>${f.nohit}</b><span>لم يجد إجابة</span></div>
         <div class="kpi"><b>${f.escalated}</b><span>راسلوا الإدارة بعدها</span></div></div>
-      <div class="tkseg">${[7, 30, 90].map(d => `<button class="${faqDays === d ? "on" : ""}" data-fqd="${d}">آخر ${d} يوم</button>`).join("")}</div>
+      <div class="tkseg">${[7, 30, 90].map(d => `<button class="${faqDays === d ? "on" : ""}" data-fqd="${d}">آخر ${CM.n(d, CM.W.day)}</button>`).join("")}</div>
       ${f.missing.length ? `<h3>أسئلة تحتاج إلى إجابة <span class="small muted">(ابعتهالي أضيفها للمساعد)</span></h3><div class="tbl-wrap"><table><thead><tr><th>السؤال كما كُتب</th><th>من</th><th class="c">مرات</th></tr></thead><tbody>${f.missing.map(m => `<tr><td>${esc(m.q)}</td><td class="small">${m.who === "student" ? "طالب" : "هيئة التدريس"}</td><td class="c">${m.n}</td></tr>`).join("")}</tbody></table></div>
         <button class="btn sm ghost" id="fqCopy">نسخ القائمة</button>` : ""}
       ${f.top.length ? `<h3>أكثر الإجابات فتحًا</h3><ol class="small">${f.top.map(x => `<li>${esc(x.q)} <span class="muted">(${x.n})</span></li>`).join("")}</ol>` : ""}` : `<p class="small muted">عندما يسأل الطلبة والمعيدون المساعد، تظهر هنا النسبة والأسئلة التي لم يجد لها إجابة.</p>`}
@@ -3778,7 +3781,7 @@
   /* ---------- مهلة التظلم لكل تكليف ---------- */
   let apWin = null; // { tid, from, until } أثناء تحديد موعد
   const dtLocal = d => { const x = new Date(d), z = n => String(n).padStart(2, "0"); return `${x.getFullYear()}-${z(x.getMonth() + 1)}-${z(x.getDate())}T${z(x.getHours())}:${z(x.getMinutes())}`; };
-  const fmtDT = d => new Date(d).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
+  const fmtDT = d => new Date(d).toLocaleString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
   function appealState(t) {
     const m = t.appeal_mode || "auto", now = Date.now();
     if (m === "closed") return { k: "off", t: "باب التظلم مغلق" };
@@ -3833,7 +3836,7 @@
         ${p.file_url ? `<a class="btn sm pt-file" href="${esc(p.file_url)}" target="_blank" rel="noopener">${ICO('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>')} عرض الشهادة الطبية</a>` : p.kind === "sick" ? `<span class="chip bad">لا توجد شهادة مرفقة</span>` : ""}
         ${p.status !== "pending" ? `<div class="small ${p.status === "accepted" ? "ok-t" : "bad-t"}">${p.status === "accepted" ? "قُبل · التسليم مفتوح له حتى " + fmtDT(p.until) : "رُفض · " + esc(p.reply)}${p.decided_by ? " · " + esc(p.decided_by) : ""}</div>`
         : !can ? "" : ptDec && ptDec.id === p.id ? (ptDec.accept
-          ? `<div class="pt-dec"><b>افتح له التسليم حتى:</b><div class="row">${[1, 2, 3, 7].map(d => `<button class="btn sm" data-ptu="${d}">${d === 1 ? "بكرة" : d === 7 ? "أسبوع" : d + " أيام"}<small class="muted">${CM.fmtD(until(d))}</small></button>`).join("")}</div><button class="btn sm ghost" id="ptX">إلغاء</button></div>`
+          ? `<div class="pt-dec"><b>افتح له التسليم حتى:</b><div class="row">${[1, 2, 3, 7].map(d => `<button class="btn sm" data-ptu="${d}">${d === 1 ? "بكرة" : d === 7 ? "أسبوع" : CM.n(d, CM.W.day) + ""}<small class="muted">${CM.fmtD(until(d))}</small></button>`).join("")}</div><button class="btn sm ghost" id="ptX">إلغاء</button></div>`
           : `<div class="pt-dec"><label class="f"><span>سبب الرفض (هيوصل للطالب)</span><input type="text" id="ptWhy" maxlength="300" placeholder="مثلًا: الشهادة غير واضحة أو ليست في يوم التسليم"></label><div class="row"><button class="btn sm danger" id="ptNo">رفض الالتماس</button><button class="btn sm ghost" id="ptX">إلغاء</button></div></div>`)
           : `<div class="row"><button class="btn sm primary" data-pta="${p.id}">قبول وفتح التسليم</button><button class="btn sm ghost" data-ptr="${p.id}">رفض</button></div>`}
       </article>`;
@@ -3918,7 +3921,7 @@
         </div>`; }).join("")}</div>
       ${g.unk.length ? `<details class="small"><summary class="bad-t">${g.unk.length} صف لم يُطابَق بطالب من المادة</summary><ul class="imp-err">${g.unk.slice(0, 40).map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
       ${g.cols.some(c => c.errs.length) ? `<details class="small"><summary>الخانات غير المفهومة</summary><ul class="imp-err">${g.cols.flatMap(c => c.errs.map(x => c.title + " · " + x)).slice(0, 40).map(x => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
-      <div class="row"><button class="btn primary" id="mimpGo" ${n ? "" : "disabled"}>${on.filter(c => !c.exist).length ? "إنشاء " + on.filter(c => !c.exist).length + " تكليف و" : ""}رصد ${n} درجة</button></div></div>`;
+      <div class="row"><button class="btn primary" id="mimpGo" ${n ? "" : "disabled"}>${on.filter(c => !c.exist).length ? "إنشاء " + CM.n(on.filter(c => !c.exist).length, CM.W.task) + " و" : ""}رصد ${n} درجة</button></div></div>`;
   }
   function wireMimp() {
     if (!mimp) return;
@@ -3946,7 +3949,7 @@
         }
         say("tasks", (made ? "أُنشئ " + made + " تكليف، و" : "") + "رُصدت " + graded + " درجة من الملف. الدرجات غير معلنة للطلبة حتى تعلنها من كل تكليف.");
         mimp = null; await loadCourse();
-      } catch (e) { showErr(e); say("tasks", (made ? "أُنشئ " + made + " تكليف ورُصدت " + graded + " درجة قبل التوقف. " : "")); renderTasks(); }
+      } catch (e) { showErr(e); say("tasks", (made ? "أُنشئ " + CM.n(made, CM.W.task) + " ورُصدت " + graded + " درجة قبل التوقف. " : "")); renderTasks(); }
     };
   }
   function impBox(t) {
@@ -4253,7 +4256,7 @@
         const b = out.filter(x => x.state !== "ok").length; ok += out.length - b; bad += b; gone += out.filter(x => x.state === "missing").length;
         if (b) badT.push("«" + t.title + "» (" + b + ")");
       }
-      say("tasks", (bad ? "!" : "") + "فُحص " + (ok + bad) + " ملف في " + tasks.length + " تكليف" + (bad ? "، منها " + bad + " عُدِّل أو حُذف بعد التسليم في: " + badT.join("، ") + ". افتح التكليف واختار «ملفات تغيّرت»." + (gone ? " وأُرسل تلقائيًّا إلى " + gone + " طالب حُذف ملفه لإعادة الرفع." : "") : "، ولم يتغير أي ملف بعد التسليم.") + (fail ? " تعذّر فحص " + fail + " بسبب الاتصال." : ""));
+      say("tasks", (bad ? "!" : "") + "فُحص " + (ok + bad) + " ملف في " + CM.n(tasks.length, CM.W.task) + "" + (bad ? "، منها " + bad + " عُدِّل أو حُذف بعد التسليم في: " + badT.join("، ") + ". افتح التكليف واختار «ملفات تغيّرت»." + (gone ? " وأُرسل تلقائيًّا إلى " + CM.n(gone, CM.W.student) + " حُذف ملفه لإعادة الرفع." : "") : "، ولم يتغير أي ملف بعد التسليم.") + (fail ? " تعذّر فحص " + fail + " بسبب الاتصال." : ""));
     } catch (e) { showErr(e); }
     tkBusy = null; await loadCourse(); renderTasks(); const m = $("#tasksPanel .msg"); if (m) m.scrollIntoView({ block: "center" });
   }
@@ -4270,7 +4273,7 @@
         if (m) out.push({ code: s.student_code, state: HD.verdict(s, m) }); done++; upd(); } }));
       if (out.length) await rpc("record_checks", { tid: t.id, rows: out });
       const bad = out.filter(x => x.state !== "ok").length, gone = out.filter(x => x.state === "missing").length;
-      say("tasks", (bad ? "!" : "") + "فُحص " + out.length + " ملف" + (bad ? "، منها " + bad + " عُدِّل أو حُذف بعد التسليم. اعرضها من «ملفات تغيّرت»." + (gone ? " وأُرسل تلقائيًّا إلى " + gone + " طالب حُذف ملفه لإعادة الرفع." : "") : "، ولم يتغيّر أي منها بعد التسليم.") + (out.length < list.length ? " تعذّر فحص " + (list.length - out.length) + " بسبب الاتصال." : ""));
+      say("tasks", (bad ? "!" : "") + "فُحص " + out.length + " ملف" + (bad ? "، منها " + bad + " عُدِّل أو حُذف بعد التسليم. اعرضها من «ملفات تغيّرت»." + (gone ? " وأُرسل تلقائيًّا إلى " + CM.n(gone, CM.W.student) + " حُذف ملفه لإعادة الرفع." : "") : "، ولم يتغيّر أي منها بعد التسليم.") + (out.length < list.length ? " تعذّر فحص " + (list.length - out.length) + " بسبب الاتصال." : ""));
       if (bad) tkFilter = "issue";
     } catch (e) { showErr(e); }
     tkBusy = null; const keep = tkEdits; await loadCourse(); tkEdits = keep; renderTasks();
@@ -4278,7 +4281,7 @@
   const stampInfo = (t, code, s, c) => { const b = Number(s.bonus || 0);
     return { grade: totalOf(s), max: t.max_grade, task: t.title, course: c.name + (c.bylaw_code ? " · " + c.bylaw_code : ""), student: code + " · " + nameOf(code),
       prof: profOf(c).name ? "أستاذ المادة: " + profOf(c).name : "",
-      by: "صحّحه " + staffName(s.graded_by || me.email) + " · " + new Date(s.graded_at || Date.now()).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }) + (b ? " · منها بونص " + gN(b) : ""),
+      by: "صحّحه " + staffName(s.graded_by || me.email) + " · " + new Date(s.graded_at || Date.now()).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "long", year: "numeric" }) + (b ? " · منها بونص " + gN(b) : ""),
       footer: "Hadro · " + code + " · " + t.title + " · " + gN(totalOf(s)) + " من " + gN(t.max_grade) }; };
   // كل الأعمال المرصودة مختومة بالدرجة واسم أستاذ المادة، في ملف مضغوط (يتقسّم لو كبير)
   async function downloadStamped(t) {
@@ -4309,7 +4312,7 @@
     try {
       const bytes = await HD.publicFile(s.file_id), b = Number(s.bonus || 0);
       const out = await HD.stamped(bytes, s.mime, { grade: totalOf(s), max: t.max_grade, task: t.title, course: c.name + (c.bylaw_code ? " · " + c.bylaw_code : ""),
-        student: code + " · " + nameOf(code), prof: profOf(c).name ? "أستاذ المادة: " + profOf(c).name : "", by: "صحّحه " + staffName(s.graded_by || me.email) + " · " + new Date(s.graded_at || Date.now()).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" }) + (b ? " · منها بونص " + gN(b) : ""),
+        student: code + " · " + nameOf(code), prof: profOf(c).name ? "أستاذ المادة: " + profOf(c).name : "", by: "صحّحه " + staffName(s.graded_by || me.email) + " · " + new Date(s.graded_at || Date.now()).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "long", year: "numeric" }) + (b ? " · منها بونص " + gN(b) : ""),
         footer: "Hadro · " + code + " · " + t.title + " · " + gN(totalOf(s)) + " من " + gN(t.max_grade) });
       HD.saveBytes(out, HD.fileName(code + " - " + nameOf(code) + " - " + t.title + " - مختوم") + ".pdf");
     } catch (e) { showErr(e); }
@@ -4319,7 +4322,7 @@
   const tkMaxN = () => D.enroll.reduce((m, e) => Math.max(m, D.tasks.filter(t => inTaskGrp(t, e)).length), 0) || D.tasks.length;
   const bestTxt = n => n === 1 ? "أعلى تكليف واحد" : n === 2 ? "أعلى تكليفين" : "أعلى " + n + (n <= 10 ? " تكليفات" : " تكليف");
   const tkBestN = () => { const n = parseInt(store.get("cm_tkbest_" + (course() || {}).id) || "0", 10); return n > 0 && n < tkMaxN() ? n : 0; };
-  // تقدير اللائحة (ساعات معتمدة · كلية الفنون الجميلة): ٨٩٪ فأكثر امتياز، ٧٦٪ جيد جدًا، ٧٠٪ جيد، ٦٠٪ مقبول، أقل من ٦٠٪ راسب
+  // تقدير اللائحة (ساعات معتمدة · كلية الفنون الجميلة): 89% فأكثر امتياز، 76% جيد جدًا، 70% جيد، 60% مقبول، أقل من 60% راسب
   const GRADES = [[89, "امتياز", "FF1E7A4F", "FFFFFFFF"], [76, "جيد جدا", "FF8CCB9E", "FF0E3B24"], [70, "جيد", "FFCFE8F7", "FF0D3D5C"], [60, "مقبول", "FFFCE3A6", "FF6B4A00"], [0, "راسب", "FFF4C2C2", "FF8F1D1D"]];
   const gradeOf = pct => pct == null ? null : GRADES.find(g => pct >= g[0]);
   async function exportGrades(pdf) {
@@ -4386,11 +4389,11 @@
       const N = sumC - 1 + tail.length;
       sheetTitle(ws, N, "كشف المراجعة النهائية · درجات كل التكليفات · " + c.name, courseSub(c));
       ws.mergeCells(3, 1, 3, N);
-      ws.getCell(3, 1).value = [c.bylaw_code ? "كود المقرر " + c.bylaw_code : "", c.credits ? c.credits + " ساعات معتمدة" : "", hasCw ? "النهاية العظمى: أعمال فصلية " + cw + (ex ? "، امتحان " + ex + "، المجموع " + (cw + ex) : "") : "المادة غير مربوطة بمقرر في اللائحة", BN ? "الحساب على " + BNt + " لكل طالب" : ""].filter(Boolean).join(" · ");
+      ws.getCell(3, 1).value = [c.bylaw_code ? "كود المقرر " + c.bylaw_code : "", c.credits ? CM.n(c.credits, CM.W.credit) + "" : "", hasCw ? "النهاية العظمى: أعمال فصلية " + cw + (ex ? "، امتحان " + ex + "، المجموع " + (cw + ex) : "") : "المادة غير مربوطة بمقرر في اللائحة", BN ? "الحساب على " + BNt + " لكل طالب" : ""].filter(Boolean).join(" · ");
       ws.getCell(3, 1).font = { name: "Arial", size: 10, bold: true, color: { argb: XC.title } }; ws.getCell(3, 1).alignment = { horizontal: "right", readingOrder: "rtl" };
       ws.mergeCells(4, 1, 4, N);
       ws.getCell(4, 1).value = (BN ? "يُحسب لكل طالب " + BNt + " من تكليفاته (بنسبة درجته في كل تكليف)، والتكليف المستبعد درجته رمادي ومشطوبة. " + (hasCw ? "الأعمال الفصلية = مجموع درجاته في التكليفات المحسوبة ÷ مجموع درجاتها العظمى × " + cw + "، مقرّبة إلى أقرب عدد صحيح. " : "")
-        : hasCw ? "الأعمال الفصلية = مجموع درجات التكليفات ÷ " + gN(S) + " × " + cw + "، مقرّبة إلى أقرب عدد صحيح، ولا تتجاوز " + cw + " مع البونص. " : "") + "التقدير حسب اللائحة من نسبة المتوسط: ٨٩٪ فأكثر امتياز، ٧٦٪ جيد جدا، ٧٠٪ جيد، ٦٠٪ مقبول، أقل من ٦٠٪ راسب. درجة كل تكليف تشمل البونص، والتكليف المقسّم تظهر تحته درجات مشاريعه الفرعية ثم مجموعه. الخلية الفارغة: لم تُرصد درجة. الخلية الوردية: لم يسلّم.";
+        : hasCw ? "الأعمال الفصلية = مجموع درجات التكليفات ÷ " + gN(S) + " × " + cw + "، مقرّبة إلى أقرب عدد صحيح، ولا تتجاوز " + cw + " مع البونص. " : "") + "التقدير حسب اللائحة من نسبة المتوسط: 89% فأكثر امتياز، 76% جيد جدًا، 70% جيد، 60% مقبول، أقل من 60% راسب. درجة كل تكليف تشمل البونص، والتكليف المقسّم تظهر تحته درجات مشاريعه الفرعية ثم مجموعه. الخلية الفارغة: لم تُرصد درجة. الخلية الوردية: لم يسلّم.";
       ws.getCell(4, 1).font = { name: "Arial", size: 9, color: { argb: XC.muted } }; ws.getCell(4, 1).alignment = { horizontal: "right", readingOrder: "rtl", wrapText: true }; ws.getRow(4).height = 28;
       const hc = (r, c2, v, sub) => { const cl = ws.getCell(r, c2); cl.value = v; cl.fill = fill(sub ? "FF2C5A4E" : XC.head); cl.font = { name: "Arial", bold: true, size: sub ? 9 : 10, color: { argb: XC.headInk } }; cl.alignment = { horizontal: "center", vertical: "middle", wrapText: true, readingOrder: "rtl" }; cl.border = box; };
       const both = (c2, v) => { hc(6, c2, v); hc(7, c2, ""); ws.mergeCells(6, c2, 7, c2); };
@@ -4477,7 +4480,7 @@
     const clash = split.all ? [] : names.filter(n => ex.includes(n));
     const grpSess = D.sessions.filter(x => x.grp).length, grpTasks = D.tasks.filter(x => x.grp).length;
     return `<div class="split-box ${split.all ? "all" : ""}" role="group" aria-label="تقسيم تلقائي">
-      <div class="split-h"><b>${split.all ? `إعادة تقسيم كل طلبة المادة (${pool.length}) من الأول` : `تقسيم ${pool.length} طالب ليس لهم مجموعة`}</b><button class="btn sm ghost" id="spX">إلغاء</button></div>
+      <div class="split-h"><b>${split.all ? `إعادة تقسيم كل طلبة المادة (${pool.length}) من الأول` : `تقسيم ${CM.n(pool.length, CM.W.student)} ليس لهم مجموعة`}</b><button class="btn sm ghost" id="spX">إلغاء</button></div>
       <div class="split-f">
         <label class="f"><span>عدد المجموعات</span><select id="spK">${[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter(k => k <= pool.length).map(k => `<option value="${k}" ${split.k === k ? "selected" : ""}>${k}</option>`).join("")}</select></label>
         <label class="f"><span>التسمية</span><select id="spS"><option value="letters" ${split.style === "letters" ? "selected" : ""}>مجموعة أ، ب، ج…</option><option value="ordinal" ${split.style === "ordinal" ? "selected" : ""}>المجموعة الأولى، الثانية…</option></select></label>
@@ -4485,7 +4488,7 @@
       </div>
       <div class="split-pv">${names.map((n, i) => `<span class="chip">${split.style === "ordinal" ? "المجموعة" : "مجموعة"} ${esc(n)} · ${base + (i < extra ? 1 : 0)} طالب</span>`).join("")}</div>
       ${clash.length ? `<p class="small muted">مجموعة ${clash.map(esc).join("، ")} موجودة بالفعل، وسيُضاف إليها الطلبة الجدد.</p>` : ""}
-      ${split.all ? `<div class="msg warn small"><b>تنبيه:</b> سيتغير مجموعة كل الطلبة حسب الترتيب الجديد.${grpSess || grpTasks ? ` في المادة ${grpSess ? grpSess + " محاضرة" : ""}${grpSess && grpTasks ? " و" : ""}${grpTasks ? grpTasks + " تكليف" : ""} مرتبطة بمجموعة بعينها، والطالب الذي تتغير مجموعته يُحسب غيابه وتكليفاته على مجموعته الجديدة.` : ""} الأفضل أن تعيد التقسيم في بداية الترم.</div>
+      ${split.all ? `<div class="msg warn small"><b>تنبيه:</b> سيتغير مجموعة كل الطلبة حسب الترتيب الجديد.${grpSess || grpTasks ? ` في المادة ${grpSess ? CM.n(grpSess, CM.W.lecture) + "" : ""}${grpSess && grpTasks ? " و" : ""}${grpTasks ? CM.n(grpTasks, CM.W.task) + "" : ""} مرتبطة بمجموعة بعينها، والطالب الذي تتغير مجموعته يُحسب غيابه وتكليفاته على مجموعته الجديدة.` : ""} الأفضل أن تعيد التقسيم في بداية الترم.</div>
         <label class="ap-r"><input type="checkbox" id="spSure" ${split.sure ? "checked" : ""}><span>فهمت، أعد تقسيم كل الطلبة</span></label>`
         : `<p class="small muted">يُقسَّم الطلبة ${split.order === "code" ? "بترتيب الكود" : "بالترتيب الأبجدي"} إلى أجزاء متساوية تقريبًا، ولا يتغير الطلبة الموزَّعون بالفعل.</p>`}
       <div class="row"><button class="btn primary" id="spGo" ${split.all && !split.sure ? "disabled" : ""}>${split.all ? "إعادة التقسيم الآن" : "تقسيم الآن"}</button></div>
@@ -4505,7 +4508,7 @@
       g.disabled = true; g.textContent = "جارٍ التقسيم…";
       try {
         const r = await rpc("split_groups", { cid: c.id, p_names: splitNames(split), p_order: split.order, p_all: !!split.all });
-        flash.roster = split.all ? `أُعيد تقسيم ${r.moved} طالب على ${split.k} مجموعات.` : `تم تقسيم ${r.moved} طالب على ${split.k} مجموعات.`; split = null;
+        flash.roster = split.all ? `أُعيد تقسيم ${CM.n(r.moved, CM.W.student)} على ${CM.n(split.k, CM.W.group)}.` : `تم تقسيم ${CM.n(r.moved, CM.W.student)} على ${CM.n(split.k, CM.W.group)}.`; split = null;
         await loadCourse();
       } catch (e) { showErr(e); g.disabled = false; g.textContent = "تقسيم الآن"; }
     };
@@ -4515,7 +4518,7 @@
     if (!D.enroll.length) return "";
     const on = D.enroll.filter(e => D.push.has(e.student_code)).length, off = D.enroll.length - on, pct = Math.round(on / D.enroll.length * 100);
     return `<div class="push-sum"><div class="push-bar" role="img" aria-label="${pct}% فعّلوا الإشعارات"><i style="width:${pct}%"></i></div>
-      <span class="small"><b>${on}</b> من ${D.enroll.length} طالب فعّلوا الإشعارات على هواتفهم${off ? ` · <b>${off}</b> لم يفعّلوها بعد` : " ✓"}</span>
+      <span class="small"><b>${on}</b> من ${CM.n(D.enroll.length, CM.W.student)} فعّلوا الإشعارات على هواتفهم${off ? ` · <b>${off}</b> لم يفعّلوها بعد` : " ✓"}</span>
       ${off ? `<button class="btn sm ghost" id="pushCopy">نسخ رسالة تذكير لهم</button>` : ""}</div>`;
   }
   function wirePushSum(c) {
@@ -4532,7 +4535,7 @@
   function renderRoster() {
     const c = course(), el = $("#rosterPanel"), mng = canManage(c), add = canRun(c);
     const gOpts = [...new Set(["أ", "ب", "ج", ...groupsOf()])].sort();
-    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${D.enroll.length} طالب</div><h2>طلبة المادة</h2></div>
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${CM.n(D.enroll.length, CM.W.student)}</div><h2>طلبة المادة</h2></div>
       <div class="row">${add ? `<button class="btn sm ${addOpen ? "primary" : ""}" id="stAddT">إضافة طالب</button>` : ""}${CM.dd("المزيد", [add && D.enroll.length > 1 && groupsOf().length && !split ? `<button class="dd-i" id="spAll">إعادة تقسيم المجموعات</button>` : "", mng ? `<label class="dd-i" for="xls">رفع ملف إكسل</label>` : "", mng ? `<button class="dd-i" id="rsTpl">تنزيل نموذج إكسل</button>` : ""], { end: true })}${mng ? `<input type="file" id="xls" accept=".xlsx,.xls,.csv" hidden>` : ""}</div></div>
       ${msgHtml("roster")}
       ${splitHtml(c)}
@@ -4673,7 +4676,7 @@
         : `<tr><td colspan="${ncol}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
       </tbody>`;
     const busy = !!rv.q.trim() || !!rv.f.grp || !!rv.f.acc || !!rv.f.now || rv.sort.col !== "code" || rv.sort.dir !== 1;
-    const cnt = $("#rsCount"); if (cnt) cnt.textContent = rows.length === D.enroll.length ? D.enroll.length + " طالب" : "عرض " + rows.length + " من " + D.enroll.length;
+    const cnt = $("#rsCount"); if (cnt) cnt.textContent = rows.length === D.enroll.length ? CM.n(D.enroll.length, CM.W.student) + "" : "عرض " + rows.length + " من " + D.enroll.length;
     const rc = $("#rsClear"); if (rc) rc.hidden = !busy;
     tb.querySelectorAll("[data-fcol]").forEach(b => b.onclick = ev => { ev.stopPropagation(); fpopCol === b.dataset.fcol ? closeFpop() : openFpop(b, RG, ""); });
     const again = () => { renderRosterTable(); };
@@ -4778,7 +4781,7 @@
         if (!list.length) throw { message: "empty_roster" };
         const n = await rpc("replace_roster", { cid: c.id, rows: list, p_file: file.name });
         const gs = [...new Set(list.map(x => x.grp).filter(Boolean))].sort();
-        say("roster", "أُضيف " + n + " طالب من «" + file.name + "»" + (gs.length > 1 ? "، موزّعين على " + gs.map(g => "مجموعة " + g + " (" + list.filter(x => x.grp === g).length + ")").join(" و") : "") + (list.some(x => x.pin) ? "، ومعهم رموز تفعيل" : "") + ".");
+        say("roster", "أُضيف " + CM.n(n, CM.W.student) + " من «" + file.name + "»" + (gs.length > 1 ? "، موزّعين على " + gs.map(g => "مجموعة " + g + " (" + list.filter(x => x.grp === g).length + ")").join(" و") : "") + (list.some(x => x.pin) ? "، ومعهم رموز تفعيل" : "") + ".");
       } catch (e) { say("roster", "!" + (e.message === "empty_roster" ? errText(e) : "تعذّرت قراءة الملف. تأكّد من وجود عمود للكود وعمود للاسم. " + errText(e))); }
       await loadCourse().catch(showErr);
     };
@@ -4819,7 +4822,7 @@
           </div></div>
         <div class="set-row"><div><b>الأرشفة</b><span class="muted small">تُخفي المادة عن الطلبة في نهاية الفصل، وتحتفظ بالكشف والدرجات. يمكن إعادتها في أي وقت.</span></div><button class="btn sm" id="arch">${c.archived ? "إعادة المادة من الأرشيف" : "أرشفة المادة"}</button></div>` : ""}
         ${me.role === "head" && c.owner_email !== me.email ? "" : `<section class="dz" aria-labelledby="dzT"><h3 id="dzT">منطقة الخطر</h3>
-          <div class="set-row"><div><b>حذف المادة نهائيًّا</b><span class="muted small">يحذف ${D.sessions.length} محاضرة بما فيها من حضور وإنذارات، وطلبة المادة. لا يمكن التراجع عنه.</span></div><button class="btn sm danger" id="delAsk">حذف المادة…</button></div></section>`}
+          <div class="set-row"><div><b>حذف المادة نهائيًّا</b><span class="muted small">يحذف ${CM.n(D.sessions.length, CM.W.lecture)} بما فيها من حضور وإنذارات، وطلبة المادة. لا يمكن التراجع عنه.</span></div><button class="btn sm danger" id="delAsk">حذف المادة…</button></div></section>`}
       </div>` : ""}`;
     const pe = $("#profEditB"); if (pe) pe.onclick = () => { profEdit = true; renderTeam(); const i = $("#profIn"); if (i) i.focus(); };
     const pc = $("#profCancel"); if (pc) pc.onclick = () => { profEdit = false; renderTeam(); };
@@ -4850,7 +4853,7 @@
     const da = $("#delAsk"); if (da) da.onclick = () => {
       const ov = document.createElement("div"); ov.className = "sheet-ov dz-ov";
       ov.innerHTML = `<div class="sheet dz-dlg" role="alertdialog" aria-modal="true" aria-labelledby="dzH"><h3 id="dzH">حذف «${esc(c.name)}» نهائيًّا؟</h3>
-        <p class="small">سيُحذف ${D.sessions.length} محاضرة بما فيها من حضور وإنذارات، وطلبة المادة وتكليفاتها. إذا احتجت الكشف فصدّره إلى إكسل أولًا.</p>
+        <p class="small">سيُحذف ${CM.n(D.sessions.length, CM.W.lecture)} بما فيها من حضور وإنذارات، وطلبة المادة وتكليفاتها. إذا احتجت الكشف فصدّره إلى إكسل أولًا.</p>
         <label class="f"><span>للتأكيد اكتب اسم المادة كما هو: <b>${esc(c.name)}</b></span><input type="text" id="delName" autocomplete="off"></label>
         <p class="small bad-t" id="delErr" hidden></p>
         <div class="row"><button class="btn danger" id="delGo" disabled>حذف المادة نهائيًّا</button><button class="btn ghost" id="delCancel">إلغاء</button></div></div>`;
@@ -4879,7 +4882,7 @@
   function auditList(items, showCourse) {
     if (!items.length) return `<div class="empty">لا توجد تعديلات حتى الآن.</div>`;
     return `<div class="list">${items.map(a => { const c = courses.find(x => x.id === a.course_id);
-      return `<div class="li"><span class="small muted mono">${CM.fmtD(a.at)} ${CM.fmtT(a.at)}</span><div class="who"><b>${esc(staffName(a.actor))}</b><small>${esc(a.action)}${showCourse && c ? " · " + esc(c.name) : ""}</small></div><span></span></div>`; }).join("")}</div>`;
+      return `<div class="li"><span class="small muted mono">${CM.fmtD(a.at)} ${CM.fmtT(a.at)}</span><div class="who"><b>${esc(staffName(a.actor))}</b><small>${esc(auditTxt(a))}${showCourse && c ? " · " + esc(c.name) : ""}</small></div><span></span></div>`; }).join("")}</div>`;
   }
   function renderAudit() {
     $("#auditPanel").innerHTML = `<div class="panel-h"><div><div class="eyebrow">من فعل ماذا ومتى</div><h2>سجل تعديلات المادة</h2></div></div>
@@ -4929,7 +4932,7 @@
       ${adminReqHtml()}
       ${adminInboxHtml()}
       <section class="panel" data-apane="staff" ${atab === "staff" ? "" : "hidden"}>
-        <div class="panel-h"><div><div class="eyebrow">${staff.length} حساب</div><h2>المحاضرين والمعيدين</h2></div></div>
+        <div class="panel-h"><div><div class="eyebrow">${CM.n(staff.length, CM.W.account)}</div><h2>المحاضرين والمعيدين</h2></div></div>
         ${msgHtml("admin")}
         ${tmpPw ? `<div class="tpw"><div><div class="eyebrow">كلمة سر مؤقتة لـ${esc(tmpPw.name)} · تظهر هنا مرة واحدة</div>
           <div class="tpw-v mono" dir="ltr">${esc(tmpPw.password)}</div>

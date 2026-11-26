@@ -20,7 +20,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b177">
+<link rel="stylesheet" href="ui.css?v=b178">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -28,12 +28,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b177"></script>
-<script src="config.js?v=b177"></script>
-<script src="common.js?v=b177"></script>
-<script src="drive.js?v=b177"></script>
-<script src="catalog.js?v=b177"></script>
-<script src="regform.js?v=b177"></script>
+<script src="vendor/qrcode.js?v=b178"></script>
+<script src="config.js?v=b178"></script>
+<script src="common.js?v=b178"></script>
+<script src="drive.js?v=b178"></script>
+<script src="catalog.js?v=b178"></script>
+<script src="regform.js?v=b178"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -221,21 +221,25 @@
 
   function renderMove() {
     const i = move.info || {}, when = d => d ? CM.fmtD(d) : "";
-    const can = !i.next_at;
+    const can = !i.next_at, old = esc(i.label || "هاتفك الآخر");
+    // b178: الاختيار الآمن (الدخول دون نقل) هو الزرار الأساسي، والنقل — اللي بيوقف الحساب على الهاتف القديم — جوّه «غيّرت هاتفك؟» ومحتاج ضغطتين
     app.innerHTML = header() + `<section class="panel col">
       <h2>الحساب مرتبط بمتصفح آخر</h2>
-      <p>حسابك مرتبط الآن بـ <b>${esc(i.label || "هاتف آخر")}</b>${i.bound_at ? ` منذ ${esc(when(i.bound_at))}` : ""}، وأنت تفتح الآن من <b>${esc(devLabel)}</b>.</p>
+      <p>حسابك مرتبط بـ <b>${old}</b>${i.bound_at ? ` منذ ${esc(when(i.bound_at))}` : ""}، وأنت تفتح الآن من <b>${esc(devLabel)}</b>.</p>
       ${inAppWarn()}
-      <div class="msg"><b>إذا كان هذا هاتفك نفسه:</b> فغالبًا فتحت الموقع من متصفح مختلف (مثل فتحه من رابط في واتساب أو من كاميرا الهاتف). ارجع وافتحه من ${esc(i.label || "المتصفح الذي أنشأت منه الحساب")} وسيعمل مباشرة.</div>
-      <div class="msg"><b>إذا غيّرت هاتفك أو مسحت بيانات المتصفح:</b> انقل حسابك إلى هنا بنفسك. سيتوقف الحساب على المتصفح القديم، ويظهر النقل للمحاضر، ويحتاج حضورك خلال 12 ساعة بعد النقل إلى موافقته. يمكنك النقل مرة كل 3 أيام.</div>
-      ${can ? "" : `<div class="msg warn">نقلت حسابك مؤخرًا، ويمكنك نقله مرة أخرى يوم ${esc(when(i.next_at))}. وإن احتجت قبل ذلك فاطلب من المحاضر فك ربط الهاتف.</div>`}
+      <div class="msg"><b>نفس هاتفك؟</b> غالبًا فتحت الموقع من متصفح مختلف، مثل رابط في واتساب أو كاميرا الهاتف. افتحه من ${old} وسيعمل مباشرة.</div>
       ${authMsg ? `<div class="msg bad">${esc(authMsg)}</div>` : ""}
-      ${pk.ok ? `<div class="msg ok"><b>فعّلت الدخول ببصمة الوجه أو الإصبع من قبل؟</b> ادخل بها الآن، فينتقل حسابك إلى هنا فورًا دون انتظار ودون موافقة المحاضر.</div>${pkBtn("pkMv")}` : ""}
-      ${can ? `<button class="btn primary block" id="mvGo" ${busy ? "disabled" : ""}>${busy ? `<span class="spinner"></span>` : "انقل حسابي إلى هذا المتصفح"}</button>` : ""}
-      <div class="msg"><b>تريد فقط تسليم تكليف أو متابعة درجاتك من هذا الجهاز؟</b> ادخل دون نقل الحساب. يبقى حسابك مرتبطًا بهاتفك، وتسجّل حضورك منه كالمعتاد.</div>
-      <button class="btn ${can ? "" : "primary "}block" id="mvWeb" ${busy ? "disabled" : ""}>ادخل لتسليم التكليفات فقط</button>
+      <button class="btn primary block" id="mvWeb" ${busy ? "disabled" : ""}>${busy && !move.sure ? `<span class="spinner"></span>` : "ادخل لتسليم التكليفات ومتابعة الدرجات"}</button>
+      <p class="muted small mv-note">يبقى حسابك مرتبطًا بهاتفك، وتسجّل حضورك منه كالمعتاد.</p>
+      ${pk.ok ? `<div class="msg ok"><b>فعّلت الدخول ببصمة الوجه أو الإصبع من قبل؟</b> ادخل بها، فينتقل حسابك إلى هنا فورًا دون موافقة المحاضر.</div>${pkBtn("pkMv")}` : ""}
+      <details class="mv-more" ${move.sure ? "open" : ""}>
+        <summary>غيّرت هاتفك أو مسحت بيانات المتصفح؟</summary>
+        <ul class="mv-list"><li>سيتوقف حسابك على ${old}.</li><li>يظهر النقل للمحاضر، وحضورك خلال 12 ساعة بعده يحتاج موافقته.</li><li>يمكنك النقل مرة واحدة كل 3 أيام.</li></ul>
+        ${can ? `<button class="btn danger block" id="mvGo" ${busy ? "disabled" : ""}>${busy && move.sure ? `<span class="spinner"></span>` : move.sure ? "تأكيد: انقل حسابي وأوقفه على الهاتف الآخر" : "انقل حسابي إلى هذا المتصفح"}</button>`
+          : `<div class="msg warn">نقلت حسابك مؤخرًا، ويمكنك نقله مرة أخرى يوم ${esc(when(i.next_at))}. وإن احتجت قبل ذلك فاطلب من المحاضر فك ربط الهاتف.</div>`}
+      </details>
       ${iosTip()}
-      <button class="btn block" id="mvBack">رجوع</button></section>`;
+      <button class="btn ghost block" id="mvBack">رجوع</button></section>`;
     const pm = $("#pkMv"); if (pm) pm.onclick = pkLoginUI;
     $("#mvWeb").onclick = async () => {
       if (busy) return; busy = true; authMsg = ""; renderMove();
@@ -247,7 +251,9 @@
     };
     $("#mvBack").onclick = () => { move = null; authMsg = ""; renderAuth(); };
     if ($("#mvGo")) $("#mvGo").onclick = async () => {
-      if (busy) return; busy = true; authMsg = ""; renderMove();
+      if (busy) return;
+      if (!move.sure) { move.sure = true; authMsg = ""; return renderMove(); }   // الضغطة الأولى بتطلب التأكيد بس
+      busy = true; authMsg = ""; renderMove();
       try {
         const r = await rpc("student_move_device", { p_code: move.code, p_password: move.pass, p_device: device, p_label: devLabel, p_confirm: true });
         token = r.token; store.set("cm_token", token); setLim(false); store.set("cm_last_code", move.code); move = null; busy = false; await loadHome();
@@ -665,13 +671,20 @@
   const pushOk = () => !!VAPID && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
   async function loadNotifs() {
     if (!token) return;
-    try { const r = await rpc("student_notifications", { p_token: token }); const ch = r.unread !== nt.unread || !nt.items; nt.items = r.items; nt.unread = r.unread; if (ch && home && !tkId && !rf) renderHome(); } catch (e) {}
+    try {
+      const r = await rpc("student_notifications", { p_token: token });
+      // b178: نفس التنبيه بالظبط ممكن يوصل مرتين (لو الدرجات اتخفت واتعلنت تاني)؛ بنعرض الأحدث بس ونطرح المكرر من عدّاد الجديد
+      const seen = new Set(), items = []; let dup = 0;
+      for (const n of r.items || []) { const k = n.kind + "|" + n.title + "|" + (n.body || ""); if (seen.has(k)) { if (!n.read_at) dup++; continue; } seen.add(k); items.push(n); }
+      const unread = Math.max(0, (r.unread || 0) - dup), ch = unread !== nt.unread || !nt.items;
+      nt.items = items; nt.unread = unread; if (ch && home && !tkId && !rf) renderHome();
+    } catch (e) {}
   }
   async function checkSub() {
     if (!pushOk()) return;
     try { const reg = await navigator.serviceWorker.getRegistration(); const s = reg && await reg.pushManager.getSubscription(); const was = nt.sub; nt.sub = s ? "on" : (Notification.permission === "denied" ? "denied" : "off"); if (was !== nt.sub && home) renderHome(); } catch (e) {}
   }
-  const ago = t => { const m = Math.round((Date.now() - new Date(t)) / 60000); return m < 1 ? "الآن" : m < 60 ? "منذ " + m + " دقيقة" : m < 1440 ? "منذ " + Math.round(m / 60) + " ساعة" : new Date(t).toLocaleDateString("ar-EG", { day: "numeric", month: "short" }); };
+  const ago = t => { const m = Math.round((Date.now() - new Date(t)) / 60000); return m < 1 ? "الآن" : m < 60 ? "منذ " + CM.n(m, CM.W.minute) + "" : m < 1440 ? "منذ " + CM.n(Math.round(m / 60), CM.W.hour) + "" : new Date(t).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short" }); };
   function ntPanel() {
     const TR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>';
     const has = nt.items && nt.items.length;
@@ -811,7 +824,7 @@
   const stCol = c => { const l = CM.lvl(c.absences); return l >= 2 ? "bad" : l === 1 ? "warn" : "acc"; };
   function stHeader() {
     const first = esc((home.name || "").split(" ")[0]), ini = esc(String(home.name || "؟").trim().charAt(0) || "؟");
-    return `<header class="top st-top"><div class="brand"><span class="st-ava" aria-hidden="true">${ini}</span><div><h1 class="st-hi">أهلًا ${first}</h1><p class="small muted"><span class="mono">${esc(home.code)}</span>${home.courses.length ? " · " + home.courses.length + (home.courses.length > 2 && home.courses.length < 11 ? " مواد" : " مادة") : ""}</p></div></div>
+    return `<header class="top st-top"><div class="brand"><span class="st-ava" aria-hidden="true">${ini}</span><div><h1 class="st-hi">أهلًا ${first}</h1><p class="small muted">كود <span class="mono">${esc(home.code)}</span>${home.courses.length ? " · " + (home.courses.length === 1 ? "مادة واحدة" : CM.n(home.courses.length, CM.W.course)) : ""}</p></div></div>
       <div class="row"><button class="btn icon bell" id="ntBtn" aria-label="التنبيهات" title="التنبيهات">${BELL}${nt.unread ? `<span class="nt-badge">${nt.unread > 9 ? "9+" : nt.unread}</span>` : ""}</button>
       ${CM.dd(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>${hcUnread ? `<i class="hc-dot">${hcUnread}</i>` : ""}<span class="dd-hide">القائمة</span>`, [`<div class="dd-h">${esc(home.name || "")}<small>${esc(home.code)}</small></div><button class="dd-i" id="helpBtn">المساعدة والتواصل${hcUnread ? ` <span class="chip bad">${hcUnread}</span>` : ""}</button><button class="dd-i" data-look-btn>المظهر (فاتح / داكن)</button><button class="dd-i" id="pwBtn">كلمة السر</button>${!limited && pk.ok && pk.count === 0 ? `<button class="dd-i" id="pkOn">تفعيل الدخول بالبصمة</button>` : ""}`, `<button class="dd-i danger" id="out">خروج</button>`], { end: true, ghost: true, title: "القائمة", cls: "st-acc" })}</div></header>`;
   }
@@ -821,7 +834,8 @@
       <div class="st-cc" role="tablist" aria-label="موادي">${home.courses.map((c, i) => { const p = stPct(c), k = stCol(c);
         return `<button type="button" role="tab" class="st-card k-${k}${sel && c.id === sel.id ? " on" : ""}" data-stc="${c.id}" aria-selected="${!!sel && c.id === sel.id}" style="--i:${i}">
           <span class="st-ring"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="26" class="t"/><circle cx="32" cy="32" r="26" class="v" stroke-dasharray="${L.toFixed(2)}" style="--off:${(L * (1 - (p == null ? 0 : p) / 100)).toFixed(2)};--L:${L.toFixed(2)}" transform="rotate(-90 32 32)"/></svg><b>${p == null ? "—" : p + "%"}</b>${c.session && !limited ? `<i class="st-live" title="محاضرة جارية"></i>` : ""}</span>
-          <b class="st-cn">${esc(c.name)}</b><span class="st-cs">${CM.WARN[CM.lvl(c.absences)].t}${c.absences ? " · غبت " + c.absences : ""}</span></button>`; }).join("")}</div></section>`;
+          <b class="st-cn">${esc(c.name)}</b><span class="st-cs">${CM.WARN[CM.lvl(c.absences)].t}${c.held ? ` · حضرت ${c.held - (c.absences || 0)} من ${c.held}` : ""}</span></button>`; }).join("")}</div></section>`;
+    // b178: الدايرة فيها نسبة الحضور؛ السطر تحت الاسم بقى «حضرت X من Y» عشان الـ0% يبقى مفهوم (كان «غبت 1» جنب 0% من غير ما يتقال إنها نسبة الحضور)
   }
   function stMeter(c) {
     const ab = c.absences || 0, L = ["غياب 1", "إنذار أول", "إنذار ثانٍ", "نهائي", "انسحاب"];
@@ -839,7 +853,7 @@
     return `<section class="st-sec"><div class="st-h"><h2>درجاتي</h2>${wait ? `<span class="small muted">${wait} ${wait === 1 ? "تسليم مستني" : "تسليمات مستنية"} التصحيح</span>` : ""}</div>
       ${tasks == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : g.length ? g.map((t, i) => { const m = t.mine, v = tot(m), w = Math.min(100, v / Math.max(1, Number(t.max)) * 100), win = apWins[t.id];
         return `<button type="button" class="st-gr" data-task="${t.id}" style="--i:${i}"><span class="st-gh"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}</small></span><b class="st-gv">${gNum(v)}<small> من ${gNum(t.max)}</small></b></span>
-          <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap">التظلم على الدرجة مفتوح${win.until ? " حتى " + esc(new Date(win.until).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })) : ""}</span>` : ""}</button>`; }).join("")
+          <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap">التظلم على الدرجة مفتوح${win.until ? " حتى " + esc(new Date(win.until).toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long" })) : ""}</span>` : ""}</button>`; }).join("")
       : CM.empty("لم تُعلَن لك أي درجات بعد.", "think")}</section>`;
   }
   // ملفات طلب الفريق إعادة رفعها: تنبيه واضح فوق في الرئيسية لحد ما الطالب يرفعها
@@ -967,14 +981,14 @@
   const nowS = () => Date.now() + tkOff;
   function relDue(t) {
     const ms = new Date(t.due_at).getTime() - nowS(), a = Math.abs(ms), h = Math.round(a / 36e5), d = Math.round(a / 864e5);
-    const span = a < 36e5 ? Math.max(1, Math.round(a / 6e4)) + " دقيقة" : a < 864e5 * 2 ? (h === 1 ? "ساعة" : h === 2 ? "ساعتين" : h + " ساعة") : (d === 2 ? "يومين" : d + " أيام");
+    const span = a < 36e5 ? Math.max(1, Math.round(a / 6e4)) + " دقيقة" : a < 864e5 * 2 ? (h === 1 ? "ساعة" : h === 2 ? "ساعتين" : CM.n(h, CM.W.hour) + "") : (d === 2 ? "يومين" : CM.n(d, CM.W.day) + "");
     return ms >= 0 ? "باقٍ " + span : "مضى " + span;
   }
-  const dueTxt = t => new Date(t.due_at).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
+  const dueTxt = t => new Date(t.due_at).toLocaleString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
   const gNum = n => Number(n).toLocaleString("en", { maximumFractionDigits: 2 });
   const tot = m => Math.max(0, Number(m.grade) + Number(m.bonus || 0) - Number(m.minus || 0));
   const sDL = t => t.present_day ? "يوم طرح المشروع" : t.mode === "manual" ? "يوم الاستلام" : "يوم التسليم";
-  const presTxt = t => new Date(t.present_day + "T12:00:00").toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" });
+  const presTxt = t => new Date(t.present_day + "T12:00:00").toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long" });
   function tkState(t) {
     const m = t.mine || {}, past = new Date(t.due_at).getTime() < nowS();
     if (m.fix) return ["bad", "مشكلة في ملفك · أعد رفعه"];
@@ -1002,7 +1016,7 @@
   }
   const TKC = { todo: "مطلوب منك", done: "سلّمته · بانتظار التصحيح", graded: "درجاتك", wait: "سيرصدها المحاضر", missed: "فات موعده" };
   const tkOrder = (a, b) => new Date(a.due_at) - new Date(b.due_at);
-  const dueShort = t => new Date(t.due_at).toLocaleString("ar-EG", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  const dueShort = t => new Date(t.due_at).toLocaleString("ar-EG-u-nu-latn", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
   function tkRow(t, withCourse) {
     const [k, s] = tkState(t), cat = tkCat(t), soon = cat === "todo" && new Date(t.due_at).getTime() - nowS() < 864e5;
     const cn = withCourse ? ((home.courses.find(c => c.id === t.course_id) || {}).name || "") : "";
@@ -1028,7 +1042,7 @@
     const ab = home.courses.reduce((a, c) => a + (c.absences || 0), 0), lv = Math.max(0, ...home.courses.map(c => CM.lvl(c.absences)));
     const todo = (tasks || []).filter(t => home.courses.some(c => c.id === t.course_id) && tkCat(t) === "todo").sort(tkOrder);
     return `<div class="hc2">
-      <button type="button" class="hc2-c" data-stab="abs"><span>غيابي هذا الفصل</span><b>${ab}<small> ${ab === 1 ? "مرة" : ab === 2 ? "مرتان" : "مرات"}</small></b><i class="chip ${lv >= 2 ? "bad" : lv === 1 ? "warn" : "ok"}">${lv ? CM.WARN[lv].t : "لا إنذارات"}</i></button>
+      <button type="button" class="hc2-c" data-stab="abs"><span>غيابي هذا الفصل</span><b>${ab}<small> ${ab === 1 || ab > 10 || ab === 0 ? "مرة" : ab === 2 ? "مرتان" : "مرات"}</small></b><i class="chip ${lv >= 2 ? "bad" : lv === 1 ? "warn" : "ok"}">${lv ? CM.WARN[lv].t : "لا إنذارات"}</i></button>
       <button type="button" class="hc2-c" data-stab="tasks"><span>تكليفات مطلوبة</span><b>${tasks ? todo.length : "…"}</b><i class="chip ${todo.length ? "warn" : "ok"}">${todo.length ? "الأقرب: " + esc(todo[0].title) : "لا شيء الآن"}</i></button></div>`;
   }
   // في الرئيسية: سطر واحد يدل على التكليفات المطلوبة، والقائمة كاملة في «تكليفاتي»
@@ -1045,7 +1059,7 @@
     if (!cats.includes(tkF)) tkF = "todo";
     const list = all.filter(t => tkCat(t) === tkF).sort(tkF === "todo" ? tkOrder : (a, b) => tkOrder(b, a));
     const SH = { todo: "مطلوب", done: "سلّمته", graded: "درجات", missed: "فات" };
-    return `<section class="panel tk-over" id="tkOver"><div class="row between"><h3>تكليفاتي</h3><span class="small muted">${all.length} تكليف في ${new Set(all.map(t => t.course_id)).size} مادة</span></div>
+    return `<section class="panel tk-over" id="tkOver"><div class="row between"><h3>تكليفاتي</h3><span class="small muted">${CM.n(all.length, CM.W.task)} في ${CM.n(new Set(all.map(t => t.course_id)).size, CM.W.course)}</span></div>
       <div class="tk-tabs" role="tablist">${cats.map(k => `<button type="button" role="tab" class="k-${k}" data-tkf="${k}" aria-selected="${tkF === k}"><b>${n(k)}</b><span>${SH[k]}</span></button>`).join("")}</div>
       <div class="tk-olist">${list.length ? list.map(t => tkRow(t, true)).join("") : (tkF === "todo" ? CM.empty("لا شيء مطلوب منك الآن. استرح قليلًا، وسنخبرك حين يُنشر تكليف جديد.") : `<div class="empty">لا يوجد.</div>`)}</div></section>`;
   }
@@ -1056,7 +1070,7 @@
     try { if (!(history.state && history.state.tk)) history.pushState({ tk: id }, ""); } catch (e) {}
   }
   function closeTask() { if (up) return; if (history.state && history.state.tk) { history.back(); return; } tkId = null; $("#tkOv").hidden = true; renderHome(); }
-  const extTxt = t => new Date(t.ext_until).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
+  const extTxt = t => new Date(t.ext_until).toLocaleString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
   const canSubmit = t => (t.mine && t.mine.fix) || t.mode !== "manual" && !t.refused && !(t.mine && t.mine.graded) && (t.late === "accept" || !!t.ext_until || new Date(t.due_at).getTime() >= nowS());
   function renderTask() {
     const t = (tasks || []).find(x => x.id === tkId), el = $("#tkIn");
@@ -1200,7 +1214,7 @@
       ${last.status === "accepted" ? `<span>الدرجة الجديدة: <b>${gNum(last.new_grade)}</b> من ${gNum(t.max)}${last.reply ? " · " + esc(last.reply) : ""}</span>` : ""}
       ${last.status === "rejected" ? `<span>سبب الرفض: ${esc(last.reply)}</span>` : ""}
       ${last.status === "pending" ? `<span class="small muted">سيراجعه المحاضر أو المعيد، ويصلك تنبيه بالقرار.</span><button class="btn sm ghost" id="apWd" style="justify-self:start">سحب التظلم</button>` : ""}</div>`;
-    const w = apWins[t.id], fmtW = d => new Date(d).toLocaleString("ar-EG", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
+    const w = apWins[t.id], fmtW = d => new Date(d).toLocaleString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
     const used = mine.filter(a => a.status !== "withdrawn").length, grant = !!(w && w.grant);
     if (last && last.status === "pending") return out;
     if ((used >= 3 || mine.length >= 12) && !grant) return out + `<div class="ap-win muted">استنفدت عدد التظلمات المسموح به على هذا التكليف. وإن كان لديك سبب، فاطلب من أستاذ المادة فتح تظلم جديد لك.</div>`;

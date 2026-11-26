@@ -15,7 +15,7 @@
   const q = (a, p) => { const s = a.filter(x => x != null && !isNaN(x)).sort((x, y) => x - y); if (!s.length) return null; const i = (s.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return s[lo] + (s[hi] - s[lo]) * (i - lo); };
   const sum = o => Object.values(o || {}).reduce((a, b) => a + (+b || 0), 0);
   const days = h => h == null ? null : h / 24;
-  const dstr = d => new Date(d).toLocaleDateString("ar-EG", { day: "numeric", month: "long", year: "numeric" });
+  const dstr = d => new Date(d).toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "long", year: "numeric" });
   const ROLE = { admin: "المسؤول", lecturer: "محاضر", head: "رئيس قسم", ta: "معيد", system: "النظام (آلي)" };
   const METHOD = { code: "رمز رقمي يكتبه الطالب من شاشة القاعة", qr: "مسح رمز QR متغيّر كل 15 ثانية", scan: "مسح بطاقة الطالب بهاتف عضو الفريق", manual: "تسجيل يدوي من الفريق (حالة استثنائية)", import: "مستورد من كشوف ورقية أو إكسل (الطريقة اليدوية)" };
   const REASON = { replayed_qr: "استخدام رمز QR قديم (صورة أو رمز منقول)", expired_code: "رمز انتهت صلاحيته", wrong_code: "رمز خطأ", out_of_range: "خارج النطاق الجغرافي للقاعة", other: "أسباب أخرى" };
@@ -289,7 +289,7 @@
   }
   function docMeta(d) {
     return [["المنصة", "Hadro · " + CM.APP.title + " · الإصدار " + CM.APP.version + " " + (document.querySelector("footer") ? (document.querySelector("footer").textContent.match(/\(b\d+\)/) || [""])[0] : "")],
-      ["الجهة", CM.APP.org], ["فترة البيانات", dstr(d.meta.from) + " إلى " + dstr(d.meta.to)], ["تاريخ استخراج البيانات", new Date(d.meta.generated_at).toLocaleString("ar-EG")],
+      ["الجهة", CM.APP.org], ["فترة البيانات", dstr(d.meta.from) + " إلى " + dstr(d.meta.to)], ["تاريخ استخراج البيانات", new Date(d.meta.generated_at).toLocaleString("ar-EG-u-nu-latn")],
       ["مصدر البيانات", "قاعدة بيانات المنصة (PostgreSQL)، الدالة research_stats"], ["رقم التحقق SHA-256", X.hash],
       ["طريقة التحقق", "يُعاد حساب SHA-256 لمحتوى ورقة «البيانات الخام (JSON)» فيطابق الرقم إن لم تُعدَّل البيانات"]];
   }
@@ -324,7 +324,7 @@
       P("مؤشرات استخدام منصة Hadro لإدارة الحضور والتكليفات والدرجات", { center: true, b: true, size: 34, after: 120 }),
       P(CM.APP.org, { center: true, size: 26, after: 360 }),
       P("فترة البيانات: من " + dstr(M.from) + " إلى " + dstr(M.to), { center: true }),
-      P("تاريخ الاستخراج: " + new Date(M.generated_at).toLocaleString("ar-EG"), { center: true }),
+      P("تاريخ الاستخراج: " + new Date(M.generated_at).toLocaleString("ar-EG-u-nu-latn"), { center: true }),
       P("أُعدّ هذا التقرير آليًا من سجلات المنصة لأغراض البحث العلمي، ولا يتضمن أي بيانات تعريفية للطلبة أو لأعضاء هيئة التدريس.", { center: true, size: 22, i: true, after: 240 }),
       P([run("رقم التحقق من سلامة البيانات (SHA-256):", { size: 20, b: true })], { center: true, after: 40 }),
       new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: X.hash, font: "Consolas", size: 18 })] }),

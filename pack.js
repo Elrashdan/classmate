@@ -14,7 +14,7 @@
   const fill = argb => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
   const thin = { style: "thin", color: { argb: XC.line } }, box = { top: thin, left: thin, bottom: thin, right: thin };
   const gN = n => Number(n).toLocaleString("en", { maximumFractionDigits: 2 });
-  const fmtDT = d => { const x = new Date(d); return x.toLocaleDateString("ar-EG", { day: "numeric", month: "short", year: "numeric" }) + " " + x.toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" }); };
+  const fmtDT = d => { const x = new Date(d); return x.toLocaleDateString("ar-EG-u-nu-latn", { day: "numeric", month: "short", year: "numeric" }) + " " + x.toLocaleTimeString("ar-EG-u-nu-latn", { hour: "numeric", minute: "2-digit" }); };
   const codeVal = c => isNaN(+c) ? c : +c;
   function sheetTitle(ws, cols, title, sub) {
     ws.mergeCells(1, 1, 1, cols); ws.mergeCells(2, 1, 2, cols);
@@ -164,7 +164,7 @@
   function cellText(cell) {
     let v = cell.value;
     if (v == null) return "";
-    if (v instanceof Date) return v.toLocaleDateString("ar-EG");
+    if (v instanceof Date) return v.toLocaleDateString("ar-EG-u-nu-latn");
     if (typeof v === "object") {
       if (v.richText) v = v.richText.map(x => x.text).join("");
       else if ("formula" in v || "sharedFormula" in v) v = v.result == null || typeof v.result === "object" ? "" : v.result;
