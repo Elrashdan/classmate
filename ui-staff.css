@@ -757,18 +757,7 @@ header.top .brand p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* ---------- عرض الأعمال وتصحيحها: عمودان على الشاشات العريضة ---------- */
 .gx-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:6px;border-top:1px solid var(--gx-line,var(--line))}
 .gx-nav .btn{min-height:40px;gap:4px} .gx-nav .btn svg{width:16px;height:16px}
-@media (min-width:900px){
-  .gr.gx{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,400px);grid-template-rows:auto minmax(0,1fr)}
-  .gx .gr-prev{grid-column:1;grid-row:1/3}
-  .gx .gx-top{grid-column:2;grid-row:1;margin:10px 10px 0;flex-wrap:wrap}
-  .gx .gx-panel{grid-column:2;grid-row:2;align-self:start;margin:10px;padding:14px;max-height:calc(100% - 20px);overflow:auto;display:grid;gap:12px}
-  .gx .gx-arr{display:none}
-  .gx .gx-bar{flex-direction:column;align-items:stretch;gap:12px}
-  .gx .gx-name{white-space:normal;font-size:1.1rem}
-  .gx .gx-sub{white-space:normal}
-  .gx .gx-grade{flex-wrap:wrap}
-  .gx .gx-save{flex:1 1 100%;min-height:48px}
-}
+/* b183: اتشال وضع «عمودين» للكمبيوتر (من b169): التصحيح بقى نفس الشكل على كل المقاسات — شريط فوق فيه «إغلاق» والعنوان، والرصد تحت */
 
 /* ---------- كشف الدرجات: «رصد تكليف واحد» ---------- */
 .gb-mode{margin-bottom:10px;background:var(--card);border:1px solid var(--card-b)}
@@ -1146,3 +1135,26 @@ html .gx .gx-f input:not([type=checkbox]):not([type=radio]):not([type=file]):not
   #tasksPanel .btn.fit-wide{grid-column:1/-1}
   #tasksPanel .btn{white-space:normal;text-overflow:clip;line-height:1.3;padding-block:8px;height:auto;text-align:center}
 }
+/* b183: شريط الرصد في التصحيح (نفس الشكل على كل المقاسات):
+   - خانة الدرجة والبونص بمقاس الرقم (كانت width:100% من القاعدة العامة فبقت 370px والاسم اتزنق في 99px)
+   - الاسم ياخد الباقي، والشريط يلف لصفين لو ما كفّاش (كان بيتقص على التابلت) */
+html .gx .gx-f input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]):not([type=hidden]){width:4.5ch!important;flex:none}
+html .gx .gx-b input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]):not([type=hidden]){width:3ch!important}
+.gx .gx-f{flex:none}
+.gx .gx-bar{flex-wrap:wrap;row-gap:10px}
+.gx .gx-who{flex:1 1 240px;min-width:0}
+.gx .gx-grade{flex:0 1 auto;flex-wrap:wrap;row-gap:8px}
+.gx .gx-nav{flex:none}
+@media (max-width:1100px){.gx .gx-nav{flex:1 1 100%}}
+/* b183: شريطين «التظلمات» و«التماسات التسليم»: الحشو كان بجهات فيزيائية (يسار 18 ويمين 6) فالعنوان بقى لازق في الحرف اليمين في الصفحة العربي — بقى بجهات منطقية */
+#tasksPanel .ap-box:not(:has(>:nth-child(2))){padding-block:6px!important;padding-inline-start:22px!important;padding-inline-end:6px!important}
+/* b183: سويتش «بطاقات التكليفات / كشف الدرجات»: بعرض الصفحة بنصّين متساويين، والكلام في نص كل كبسولة */
+@media (min-width:761px){#tasksPanel .tk-sortbar>.cchips.seg:first-child{max-width:none;width:100%}}
+#tasksPanel .tk-sortbar>.cchips.seg:first-child{display:grid;grid-template-columns:1fr 1fr}
+#tasksPanel .tk-sortbar>.cchips.seg:first-child>.cchip{display:flex;align-items:center;justify-content:center;text-align:center;min-height:44px;padding-inline:14px}
+/* b183: تباين صفحة التكليف: نص جدول الطلبة، وفلاتر «الكل/سلّم/…»، وعناوين كروت الأعداد كانوا رمادي (~5:1) — بقوا أوضح */
+#tasksPanel table td{color:var(--ink)}
+#tasksPanel table td.muted,#tasksPanel table th{color:color-mix(in srgb,var(--ink) 78%,var(--muted))}
+#tasksPanel .tabs>button:not([aria-pressed="true"]){color:var(--ink)}
+#tasksPanel .kpis .kpi>span{color:color-mix(in srgb,var(--ink) 78%,var(--muted))}
+#tasksPanel input::placeholder{color:var(--muted);opacity:1}
