@@ -481,7 +481,7 @@ td.c,th.c{text-align:center}
 .tkseg{display:flex;gap:4px;padding:4px;border-radius:var(--pill);background:var(--soft);overflow-x:auto;scrollbar-width:none}
 .tkseg button{flex:1 0 auto;min-height:38px;padding:0 14px;border:0;border-radius:var(--pill);background:transparent;font:600 13px var(--fd);color:var(--muted);cursor:pointer;white-space:nowrap}
 .tkseg button[aria-pressed="true"],.tkseg button[aria-selected="true"],.tkseg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-@media (max-width:760px){
+@media (max-width:1100px){ /* b186: كان 760، والجدول مش بيكفي التابلت (الأسماء كلمة في سطر و⋯ مقصوص) */
   .staff-tbl,.staff-tbl tbody{display:block;width:100%} .staff-tbl thead{display:none}
   .staff-tbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line)}
   .staff-tbl td{display:block;padding:0;border:0;min-width:0}
@@ -1319,7 +1319,7 @@ html .gx .gx-b input:not([type=checkbox]):not([type=radio]):not([type=file]):not
 /* رابط صفحة الدخول في «طلبات التسجيل» كلمة طويلة من غير مسافات، فكانت بتوسّع الصفحة على الموبايل */
 #app .empty .mono,#app .msg .mono{overflow-wrap:anywhere;word-break:break-all}
 /* الحسابات على الموبايل: الاسم والإيميل يمين، واختيار الدور شمال. تحت: سطر المواد، وبعده الحالة يمين و«إجراءات» شمال بنفس عرض اختيار الدور */
-@media (max-width:760px){
+@media (max-width:1100px){
   #app tr:has(>td.acc-act){grid-template-columns:minmax(0,1fr) 136px!important;align-items:center}
   #app tr:has(>td.acc-act)>td:has(>.chip){grid-column:1!important;justify-self:start}
   #app tr:has(>td.acc-act)>td:has(>.chip)>.chip{min-width:96px}
