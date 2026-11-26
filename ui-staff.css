@@ -1331,3 +1331,11 @@ html .gx .gx-b input:not([type=checkbox]):not([type=radio]):not([type=file]):not
   #app tr:has(>td.acc-act)>td>select{width:100%!important;min-width:0}
 }
 #app .empty .mono[dir=ltr]{display:block;margin:8px auto;text-align:center}
+
+/* ===== b187 ===== */
+/* المفتاح بأربع اختيارات أو أقل (فلاتر الرسائل وغيرها) على الموبايل: بعرض اللوحة، والاختيارات بعرض متساوي */
+@media (max-width:760px){
+  #app .tkseg:not(:has(>button:nth-child(5))){width:100%}
+  #app .tkseg:not(:has(>button:nth-child(5)))>button{flex:1 1 0;min-width:0;padding-inline:6px;text-align:center;justify-content:center}
+}
+#app .faqst>summary{min-height:44px;display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;cursor:pointer} /* b187: سطر «مساعد Hadro» كان 25px */
