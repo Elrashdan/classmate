@@ -853,7 +853,7 @@
     return `<section class="st-sec"><div class="st-h"><h2>درجاتي</h2>${wait ? `<span class="small muted">${wait} ${wait === 1 ? "تسليم مستني" : "تسليمات مستنية"} التصحيح</span>` : ""}</div>
       ${tasks == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : g.length ? g.map((t, i) => { const m = t.mine, v = tot(m), w = Math.min(100, v / Math.max(1, Number(t.max)) * 100), win = apWins[t.id];
         return `<button type="button" class="st-gr" data-task="${t.id}" style="--i:${i}"><span class="st-gh"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}</small></span><b class="st-gv">${gNum(v)}<small> من ${gNum(t.max)}</small></b></span>
-          <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap"><span>تظلّم على الدرجة${win.until ? " · متاح حتى " + esc(new Date(win.until).toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long" })) : ""}</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></span>` : `<span class="st-more">التفاصيل<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></span>`}</button>`; }).join("")
+          <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win && limited ? `<span class="st-more">التظلم من هاتفك المرتبط بحسابك<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></span>` : win ? `<span class="st-ap"><span>تظلّم على الدرجة${win.until ? " · متاح حتى " + esc(new Date(win.until).toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long" })) : ""}</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></span>` : `<span class="st-more">التفاصيل<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></span>`}</button>`; }).join("")
       : CM.empty("لم تُعلَن لك أي درجات بعد.", "think")}</section>`;
   }
   // ملفات طلب الفريق إعادة رفعها: تنبيه واضح فوق في الرئيسية لحد ما الطالب يرفعها
@@ -1205,7 +1205,9 @@
   }
   /* ---------- التظلم على الدرجة ---------- */
   function appealHtml(t) {
-    if (!t.released || limited) return "";
+    if (!t.released) return "";
+    // b180: في الدخول للتكليفات فقط التظلم مقفول عمدًا (لازم من الهاتف المرتبط) — بنقول كده بدل ما القسم يختفي من غير سبب
+    if (limited) return (apWins[t.id] || {}).open ? `<div class="ap-win muted">التظلم على هذه الدرجة يُقدَّم من هاتفك المرتبط بحسابك، لأنك دخلت هنا للتكليفات فقط.</div>` : "";
     const mine = appeals.filter(a => a.task_id === t.id), last = mine[0], m = t.mine || {};
     const stTxt = a => a.status === "pending" ? "قيد المراجعة" : a.status === "accepted" ? "مقبول" : a.status === "rejected" ? "مرفوض" : "مسحوب";
     let out = "";
