@@ -577,5 +577,10 @@ html .seg>.cchip:not([aria-pressed="true"]),html .seg>button:not([aria-pressed="
 .lg-foot{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:0 12px;max-width:480px;margin:12px auto 0;color:var(--muted)}
 .lg-foot .lg-link{font-size:13.5px;font-weight:500;color:var(--muted);text-decoration-color:color-mix(in srgb,var(--muted) 40%,transparent)}
 @media (max-width:480px){.lg-foot{flex-direction:column}.lg-foot>span{display:none}}
+/* شاشات الدخول على الكمبيوتر: مفيش شريط جانبي، فنلغي المسافة اللي محجوزة له (272px) عشان الكارت ييجي في نص الصفحة بالظبط */
+@media (min-width:1000px){
+  #app:has(>.auth-panel){padding-inline-start:32px}
+  #app:has(>.auth-panel)>header.top{margin-inline-start:0}
+}
 /* الملء التلقائي في كروم كان بيلوّن الحقول أزرق فاتح — نخلّيها بنفس لون الحقل */
 html input:-webkit-autofill,html input:-webkit-autofill:hover,html input:-webkit-autofill:focus{-webkit-text-fill-color:var(--ink);caret-color:var(--ink);transition:background-color 600000s 0s,color 600000s 0s}
