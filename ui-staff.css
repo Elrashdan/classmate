@@ -1101,3 +1101,5 @@ th .fh{min-height:32px}
   :is(.ctabs,.nx-dock)>.nav-x{display:flex!important}
   :is(.ctabs,.nx-dock)>.nav-sep{display:block!important;height:1px;margin:10px 12px;background:var(--line)}
 }
+/* b181: «طلبات تمت مراجعتها» (رجعت من ui-legacy.css) كانت 24px على الموبايل */
+@media (pointer:coarse),(max-width:760px){#app .rq-done>summary{min-height:44px;display:flex;align-items:center}}

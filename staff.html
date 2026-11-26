@@ -20,9 +20,10 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b180">
-<link rel="stylesheet" href="ui-tools.css?v=b180">
-<link rel="stylesheet" href="ui-staff.css?v=b180">
+<link rel="stylesheet" href="ui.css?v=b181">
+<link rel="stylesheet" href="ui-tools.css?v=b181">
+<link rel="stylesheet" href="ui-legacy.css?v=b181">
+<link rel="stylesheet" href="ui-staff.css?v=b181">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -48,16 +49,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b180"></script>
-<script src="vendor/qrcode.js?v=b180"></script>
-<script src="config.js?v=b180"></script>
-<script src="common.js?v=b180"></script>
-<script src="drive.js?v=b180"></script>
-<script src="pack.js?v=b180"></script>
-<script src="catalog.js?v=b180"></script>
-<script src="voice.js?v=b180"></script>
-<script src="timetable.js?v=b180"></script>
-<script src="research.js?v=b180"></script>
+<script src="vendor/supabase.js?v=b181"></script>
+<script src="vendor/qrcode.js?v=b181"></script>
+<script src="config.js?v=b181"></script>
+<script src="common.js?v=b181"></script>
+<script src="drive.js?v=b181"></script>
+<script src="pack.js?v=b181"></script>
+<script src="catalog.js?v=b181"></script>
+<script src="voice.js?v=b181"></script>
+<script src="timetable.js?v=b181"></script>
+<script src="research.js?v=b181"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -5009,7 +5010,7 @@
       await rpc("admin_save_staff", { p_email: e, p_name: n, p_role: r });
       say("admin", "أُضيف " + n + ". أرسل إليه رابط صفحة المحاضرين: " + location.href.split("#")[0]);
     }, async () => { await loadBase(); renderAdmin(); });
-    el.querySelectorAll("[data-role]").forEach(sel => sel.onchange = () => act(async () => { await rpc("admin_set_role", { p_email: sel.dataset.role, p_role: sel.value }); say("admin", "تغيّر دور " + staffName(sel.dataset.role) + " لـ" + ROLE[sel.value] + "."); }, async () => { await loadBase(); renderAdmin(); }));
+    // b181: تغيير الدور بقى محتاج تأكيد (كان بيتنفّذ من أول اختيار، و«مسؤول» بتدّي صلاحيات القسم كلها)، ولو اتلغى بيرجع للدور القديم\n    el.querySelectorAll("[data-role]").forEach(sel => { sel.dataset.prev = sel.value; sel.onchange = () => { const to = sel.value, who = staffName(sel.dataset.role), big = to === "admin" || to === "head"; if (!confirm(`تغيير دور ${who} من «${ROLE[sel.dataset.prev]}» إلى «${ROLE[to]}»؟${big ? "\n\nتنبيه: هذا الدور يعطي صلاحيات على القسم كله (كل المواد والحسابات)." : ""}`)) { sel.value = sel.dataset.prev; return; } act(async () => { await rpc("admin_set_role", { p_email: sel.dataset.role, p_role: to }); say("admin", "تغيّر دور " + who + " لـ" + ROLE[to] + "."); }, async () => { await loadBase(); renderAdmin(); }); }; });
     el.querySelectorAll("[data-dopen]").forEach(b => b.onclick = () => { curId = b.dataset.dopen; store.set("cm_course", curId); ctab = "reg"; store.set("cm_tab", ctab); view = "course"; flash = {}; loadCourse().catch(showErr); });
     const dr = $("#dovRef"); if (dr) dr.onclick = () => { deptOv = null; renderAdmin(); };
     if ($("#taCreate")) $("#taCreate").onchange = ev => act(async () => { await rpc("admin_set_ta_create", { p_on: ev.target.checked }); say("admin", ev.target.checked ? "أصبح بإمكان المعيدين إنشاء مواد." : "لن يتمكن المعيدون من إنشاء مواد."); }, async () => { await loadBase(); render(); });

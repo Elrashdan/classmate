@@ -4041,15 +4041,22 @@ create or replace trigger sessions_notify after insert on public.sessions for ea
 
 create or replace function public.trg_notify_task() returns trigger
 language plpgsql security definer set search_path = public as $$
+-- b181: ما يتبعتش «أُعلنت درجات» تاني لنفس الطالب بنفس الدرجة لو الدرجات اتخفت واتعلنت تاني؛ والدرجة بعد الخصم (task_minus) زي القاعدة الحية
 declare cn text := (select name from courses where id = new.course_id);
 begin
   if tg_op = 'INSERT' and new.mode = 'submit' then
     perform notify_course(new.course_id, new.grp, 'task', 'تكليف جديد في ' || cn, '«' || new.title || '» · آخر موعد للتسليم ' || to_char(new.due_at at time zone 'Africa/Cairo', 'YYYY/MM/DD HH24:MI'));
   elsif tg_op = 'UPDATE' and new.released and not old.released then
     insert into notifications(student_code, kind, title, body, url)
-    select s.student_code, 'grades', 'أُعلنت درجات «' || new.title || '»',
-      cn || ' · درجتك ' || trim_scale(s.grade + coalesce(s.bonus, 0)) || ' من ' || trim_scale(new.max_grade), 'https://elrashdan.github.io/classmate/'
-    from submissions s join students st on st.student_code = s.student_code where s.task_id = new.id and s.grade is not null;
+    select x.student_code, 'grades', x.title, x.body, 'https://elrashdan.github.io/classmate/'
+    from (
+      select s.student_code,
+        'أُعلنت درجات «' || new.title || '»' as title,
+        cn || ' · درجتك ' || trim_scale(greatest(0, s.grade + coalesce(s.bonus, 0) - task_minus(s.task_id, s.student_code))) || ' من ' || trim_scale(new.max_grade) as body
+      from submissions s join students st on st.student_code = s.student_code
+      where s.task_id = new.id and s.grade is not null
+    ) x
+    where not exists (select 1 from notifications n where n.student_code = x.student_code and n.kind = 'grades' and n.title = x.title and n.body = x.body);
   end if;
   return null;
 end $$;
