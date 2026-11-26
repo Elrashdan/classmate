@@ -562,3 +562,7 @@ table.gb .gb-th{min-width:84px;max-width:150px;white-space:normal}
 table.gb .gb-nm b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ap-box{margin:0 0 10px!important}
 html .seg>.cchip:not([aria-pressed="true"]),html .seg>button:not([aria-pressed="true"]):not([aria-selected="true"]){border-color:transparent!important}
+/* b176: كارت الدخول وطلب الحساب: مسافة داخلية عشان العنوان والحقول والزرار ما يلزقوش في حافة الكارت */
+.panel.auth-panel{padding:24px}
+@media (max-width:560px){.panel.auth-panel{padding:20px 16px}}
+.auth-form{display:grid;gap:12px;margin:0;min-width:0}

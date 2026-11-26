@@ -20,9 +20,9 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b175">
-<link rel="stylesheet" href="ui-tools.css?v=b175">
-<link rel="stylesheet" href="ui-staff.css?v=b175">
+<link rel="stylesheet" href="ui.css?v=b176">
+<link rel="stylesheet" href="ui-tools.css?v=b176">
+<link rel="stylesheet" href="ui-staff.css?v=b176">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -48,16 +48,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b175"></script>
-<script src="vendor/qrcode.js?v=b175"></script>
-<script src="config.js?v=b175"></script>
-<script src="common.js?v=b175"></script>
-<script src="drive.js?v=b175"></script>
-<script src="pack.js?v=b175"></script>
-<script src="catalog.js?v=b175"></script>
-<script src="voice.js?v=b175"></script>
-<script src="timetable.js?v=b175"></script>
-<script src="research.js?v=b175"></script>
+<script src="vendor/supabase.js?v=b176"></script>
+<script src="vendor/qrcode.js?v=b176"></script>
+<script src="config.js?v=b176"></script>
+<script src="common.js?v=b176"></script>
+<script src="drive.js?v=b176"></script>
+<script src="pack.js?v=b176"></script>
+<script src="catalog.js?v=b176"></script>
+<script src="voice.js?v=b176"></script>
+<script src="timetable.js?v=b176"></script>
+<script src="research.js?v=b176"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -132,7 +132,7 @@
     const art = st === "req" ? CM.illus("password") : rs === "approved" ? CM.mascot("joy") : rs === "pending" ? CM.mascot("think") : CM.mascot("sorry");
     CM.html(app, `<header class="top" data-pre><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">طلب حساب جديد</p></div></div><div class="row">${CM.themeBtn()}</div></header>
       <div class="hd-authart">${art}<h2>${st === "req" ? "اطلب حسابك" : "حالة طلبك"}</h2><p>أعضاء هيئة التدريس والمعيدون</p></div>
-      <section class="panel" style="max-width:480px;margin-inline:auto">${body}</section>`);
+      <section class="panel auth-panel" style="max-width:480px;margin-inline:auto">${body}</section>`);
     const lb = $("#lgBack"); if (lb) lb.onclick = () => { login = { step: "pass", email: (reqSt && reqSt.email) || req.email || "", err: "", busy: false }; renderLogin(); };
     const keep = () => { const g = id => { const x = $(id); return x ? x.value : ""; }; if ($("#rqEmail")) Object.assign(req, { email: g("#rqEmail").trim().toLowerCase(), name: g("#rqName"), phone: g("#rqPhone"), note: g("#rqNote") }); };
     document.querySelectorAll("[data-rqr]").forEach(b => b.onclick = () => { keep(); req.role = b.dataset.rqr; renderRequest(); });
@@ -177,13 +177,15 @@
     if (st === "req" || st === "reqst") return renderRequest();
     CM.html(app, `<header class="top" data-pre><div class="brand">${CM.markHtml()}<div><h1 class="wm">hadro</h1><p class="muted small">دخول أعضاء هيئة التدريس والمعيدين</p></div></div><div class="row">${CM.themeBtn()}</div></header>
       <div class="hd-authart">${st === "pass" ? CM.mascot("wave") : st === "code" ? CM.illus("notify") : CM.illus("password")}<h2>${st === "pass" ? "مرحبًا بعودتك" : st === "code" ? "تأكيد البريد" : "كلمة السر"}</h2><p>أعضاء هيئة التدريس والمعيدون</p></div>
-      <section class="panel" style="max-width:480px;margin-inline:auto">
+      <section class="panel auth-panel" style="max-width:480px;margin-inline:auto">
       ${st === "pass" ? `
         <h2>الدخول</h2>
+        <form id="lgForm" class="auth-form" novalidate>
         <label class="f"><span>البريد</span><input type="email" id="lgEmail" dir="ltr" autocomplete="username" value="${esc(login.email)}"></label>
         <label class="f"><span>كلمة السر</span><input type="password" id="lgPass" autocomplete="current-password"></label>
         ${login.err ? `<div class="msg bad">${esc(login.err)}</div>` : ""}
-        <button class="btn primary block" id="lgPwGo" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button>
+        <button type="submit" class="btn primary block" id="lgPwGo" ${login.busy ? "disabled" : ""}>${login.busy ? `<span class="spinner"></span>` : "دخول"}</button>
+        </form>
         <div class="row" style="gap:16px"><button class="linkish" id="lgFirst">أول مرة؟ اختر كلمة السر</button><button class="linkish" id="lgForgot">نسيت كلمة السر</button></div>
         <div class="lg-req">${sreqGet() ? `<span>قدّمت طلب حساب من هذا الجهاز.</span><button class="btn sm primary" id="lgReqSt">متابعة طلبك</button>` : `<span>معيد أو محاضر جديد وليس لك حساب؟</span><button class="btn sm" id="lgReq">اطلب حسابًا</button>`}</div>
         <p class="small" style="text-align:center;margin:6px 0 0"><button class="linkish" id="lgHelp">لديك مشكلة؟ اسأل مساعد Hadro</button></p>
@@ -233,7 +235,8 @@
         } catch (e) { login.err = e.message && /[؀-ۿ]/.test(e.message) ? e.message : errText(e); }
         login.busy = false; renderLogin();
       };
-      $("#lgPwGo").onclick = go; $("#lgPass").onkeydown = e => { if (e.key === "Enter") go(); };
+      // b176: الدخول جوّه <form> حقيقي: Enter من أي حقل يدخل، ومدير كلمات السر يحفظ البيانات ويملاها
+      $("#lgForm").onsubmit = e => { e.preventDefault(); if (!login.busy) go(); };
       const to = first => { login = { step: "setpw", email: $("#lgEmail").value.trim().toLowerCase(), err: "", busy: false, first }; renderLogin(); };
       $("#lgFirst").onclick = () => to(true); $("#lgForgot").onclick = () => to(false);
       const rq = $("#lgReq"); if (rq) rq.onclick = () => { req = { email: $("#lgEmail").value.trim().toLowerCase(), name: "", role: "ta", phone: "", note: "", sub: null, err: "", busy: false }; login.step = "req"; renderLogin(); };
