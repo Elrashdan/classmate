@@ -20,10 +20,10 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b181">
-<link rel="stylesheet" href="ui-tools.css?v=b181">
-<link rel="stylesheet" href="ui-legacy.css?v=b181">
-<link rel="stylesheet" href="ui-staff.css?v=b181">
+<link rel="stylesheet" href="ui.css?v=b182">
+<link rel="stylesheet" href="ui-tools.css?v=b182">
+<link rel="stylesheet" href="ui-legacy.css?v=b182">
+<link rel="stylesheet" href="ui-staff.css?v=b182">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -49,16 +49,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b181"></script>
-<script src="vendor/qrcode.js?v=b181"></script>
-<script src="config.js?v=b181"></script>
-<script src="common.js?v=b181"></script>
-<script src="drive.js?v=b181"></script>
-<script src="pack.js?v=b181"></script>
-<script src="catalog.js?v=b181"></script>
-<script src="voice.js?v=b181"></script>
-<script src="timetable.js?v=b181"></script>
-<script src="research.js?v=b181"></script>
+<script src="vendor/supabase.js?v=b182"></script>
+<script src="vendor/qrcode.js?v=b182"></script>
+<script src="config.js?v=b182"></script>
+<script src="common.js?v=b182"></script>
+<script src="drive.js?v=b182"></script>
+<script src="pack.js?v=b182"></script>
+<script src="catalog.js?v=b182"></script>
+<script src="voice.js?v=b182"></script>
+<script src="timetable.js?v=b182"></script>
+<script src="research.js?v=b182"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -1941,7 +1941,10 @@
       ${pmBox()}
       ${ss.length ? `<div class="row">${cnt.slice(1).some(Boolean) ? cnt.map((n, i) => i && n ? `${CM.lvlChip(i)}<span class="small muted" style="margin-inline-end:8px">${CM.n(n, CM.W.student)}</span>` : "").join("") : `<span class="small muted">لا توجد إنذارات حتى الآن.</span>`}</div>
       <div class="rs-bar"><input type="search" id="rgQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(rg.q)}" autocomplete="off"><span class="small muted">${rows.length === base.length ? CM.n(base.length, CM.W.student) + "" : "عرض " + rows.length + " من " + base.length}</span>${busy ? `<button class="btn sm ghost" id="rgClear">إلغاء الترتيب والتصفية</button>` : ""}</div>
-      <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => { const lab = rh("s" + s.n, `م${s.n}${gs.length > 1 ? `<br>${s.grp ? "مج " + esc(s.grp) : "الكل"}` : ""}${mng ? "" : `<br><span class="muted" style="font-weight:400">${CM.fmtD(s.started_at)}</span>`}`); return `<th class="c ${delSess === s.id || editSess === s.id ? "th-on" : ""}${s.cancelled ? " th-off" : ""}">${lab}${mng ? `<br><button class="th-date" data-se="${s.id}" title="تعديل تاريخ المحاضرة ${s.n} أو تعليمها إجازة">${CM.fmtD(s.started_at)} <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>` : ""}${s.cancelled ? `<br><span class="off-t" title="${esc(s.cancelled)}">${esc(s.cancelled.length > 14 ? s.cancelled.slice(0, 13) + "…" : s.cancelled)}</span>` : ""}${mng ? `<br><button class="th-del" data-ds="${s.id}" title="حذف المحاضرة ${s.n}" aria-label="حذف المحاضرة ${s.n}"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>حذف</button>` : ""}</th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
+      <div class="tbl-wrap" id="regWrap" style="max-height:560px;overflow:auto"><table class="regt"><thead><tr><th>${rh("code")}</th><th>${rh("name")}</th>${gs.length > 1 ? `<th>${rh("grp", "مج")}</th>` : ""}${ss.map(s => {
+          // b182: رأس كل محاضرة عناصر منفصلة: «م1» (للترتيب) — المجموعة كشارة — التاريخ — زرارين أيقونة واضحين: تعديل وحذف (كانوا «م1الكل» لازقين وتحتهم التاريخ والحذف ملزوقين)
+          const grp = gs.length > 1 ? `<span class="rh-g">${s.grp ? "مج " + esc(s.grp) : "الكل"}</span>` : "";
+          return `<th class="c rh-col ${delSess === s.id || editSess === s.id ? "th-on" : ""}${s.cancelled ? " th-off" : ""}"><div class="rh-cell">${rh("s" + s.n, `م${s.n}`)}${grp}<span class="rh-d">${CM.fmtD(s.started_at)}</span>${s.cancelled ? `<span class="off-t" title="${esc(s.cancelled)}">${esc(s.cancelled.length > 14 ? s.cancelled.slice(0, 13) + "…" : s.cancelled)}</span>` : ""}${mng ? `<span class="rh-acts"><button type="button" class="rh-b" data-se="${s.id}" title="تعديل المحاضرة ${s.n}: التاريخ أو تعليمها إجازة" aria-label="تعديل المحاضرة ${s.n}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button><button type="button" class="rh-b del" data-ds="${s.id}" title="حذف المحاضرة ${s.n}" aria-label="حذف المحاضرة ${s.n}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg></button></span>` : ""}</div></th>`; }).join("")}<th class="c">${rh("pct")}</th><th class="c">${rh("abs")}</th><th>${rh("st")}</th></tr></thead><tbody>
       ${rows.length ? "" : `<tr><td colspan="${ss.length + 6}"><div class="empty">لا يوجد طلبة مطابقون للبحث أو التصفية.</div></td></tr>`}
       ${rows.map(e => { const a = attendance(e), ab = absences(e); return `<tr class="${CM.lvl(ab) >= 4 ? "withdrawn" : ""}"><td class="mono">${esc(e.student_code)}</td><td class="nm"><div class="nm-c"><span class="nm-t" title="${esc(e.name)}">${esc(e.name)}</span>${mng && missedSess(e).length ? `<span class="nm-tags"><button class="btn xs ghost pm-btn ${pastMark && pastMark.code === e.student_code ? "on" : ""}" data-pm="${esc(e.student_code)}" title="تحضيره في محاضرات سابقة غاب عنها">تحضير</button></span>` : ""}</div></td>${gs.length > 1 ? `<td class="c">${esc(e.grp || "—")}</td>` : ""}${ss.map(s => `<td class="c">${cell(s, e)}</td>`).join("")}<td class="c"><span class="chip ${a.pct >= 75 ? "ok" : a.pct >= 50 ? "warn" : "bad"}">${a.pct}%</span></td><td class="c mono">${ab}</td><td>${CM.warnChip(ab)}</td></tr>`; }).join("")}
       </tbody></table></div>

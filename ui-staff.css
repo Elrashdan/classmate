@@ -1103,3 +1103,46 @@ th .fh{min-height:32px}
 }
 /* b181: «طلبات تمت مراجعتها» (رجعت من ui-legacy.css) كانت 24px على الموبايل */
 @media (pointer:coarse),(max-width:760px){#app .rq-done>summary{min-height:44px;display:flex;align-items:center}}
+/* b182: رأس أعمدة المحاضرات في الكشف — رقم المحاضرة، المجموعة كشارة، التاريخ، وزرارين منفصلين (تعديل محايد، حذف أحمر) */
+.regt th.rh-col{vertical-align:top;padding:8px 6px;min-width:88px}
+.rh-cell{display:grid;justify-items:center;gap:4px}
+.regt th.rh-col .fh{font:700 13px var(--fd);color:var(--ink);min-height:28px}
+.rh-g{display:inline-block;padding:1px 8px;border-radius:var(--pill);background:var(--soft2);font:600 11px var(--fd);color:var(--ink);white-space:nowrap}
+.rh-d{font:500 12px var(--fb);color:var(--muted);white-space:nowrap}
+.rh-acts{display:flex;gap:6px;margin-top:2px}
+.rh-b{display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);color:var(--ink);cursor:pointer}
+.rh-b svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rh-b:hover{background:var(--soft)}
+.rh-b.del{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+.rh-b.del:hover{background:var(--bad-soft)}
+.rh-b:focus-visible{outline:2px solid currentColor;outline-offset:1px}
+@media (pointer:coarse),(max-width:760px){.rh-b{width:40px;height:40px}.regt th.rh-col{min-width:100px}}
+/* b182: «سجل المادة» و«الفريق والإعدادات» بعرض القسم زي باقي الأقسام (كانوا max-width:780px فبيسيبوا نص الشاشة فاضي) */
+#teamPanel,#auditPanel{max-width:none}
+/* b182: فورم «ابدأ محاضرة جديدة» بيملا الكارت على الكمبيوتر: المجموعة والنوع والمدة والنطاق في صف واحد، والزرار بعرض الكارت */
+@media (min-width:1000px){
+  #sessionArea .ss-form>*{max-width:none}
+  .ss-grid{grid-template-columns:minmax(0,2fr) minmax(0,2fr) minmax(0,1fr) minmax(0,1fr)}
+  .ss-grid .ss-wide{grid-column:auto}
+}
+/* b182: نافذة التصحيح: حقل الدرجة/البونص مصمّم كخانة واحدة (.gx-f) جوّاها input من غير حدود. قاعدة b175 العامة (حد وخلفية !important لكل input) كانت بترسم صندوق تاني جوّاه فيركب على كلمة «الدرجة» و«/100» */
+html .gx .gx-f input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]):not([type=hidden]),html .gx .gx-f input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]):not([type=hidden]):focus{border:0!important;background:transparent!important;box-shadow:none!important;min-height:0!important;height:auto;padding:0!important;outline:0}
+/* b182: جدول رصد التكليف: خانة الدرجة والبونص كانوا ~200px لرقم من خانتين/تلاتة — بقوا بمقاس الرقم، والملاحظة هي اللي بتاخد الباقي */
+@media (min-width:761px){
+  #tasksPanel table.tk-tbl td.tk-g{width:1%;white-space:nowrap}
+  #tasksPanel table.tk-tbl input.gin{width:88px;min-width:0;text-align:center;font-family:var(--fm);font-weight:600}
+  #tasksPanel table.tk-tbl input.gin.bin{width:72px}
+  #tasksPanel table.tk-tbl input.fin{min-width:200px;max-width:360px}
+}
+/* b182: زراير الحفظ في «الفريق والإعدادات» كانت بتتمدّد بطول الحقل اللي جنبها (72px) — بقت في صف لوحدها بطولها العادي */
+#teamPanel .settings>.btn{grid-column:1/-1;justify-self:start;align-self:start;min-width:220px}
+/* b182: زرارين رأس الكشف 32px على الأقل بالماوس */
+.rh-b{width:32px;height:32px}
+@media (pointer:coarse),(max-width:760px){.rh-b{width:40px;height:40px}}
+/* b182: «المواد المشمولة» في تقارير البحث العلمي كانت 25px */
+.rs-cs>summary{min-height:40px;display:flex;align-items:center}
+/* b182: على الموبايل أزرار التكليفات ذات الأسماء الطويلة كانت nowrap+ellipsis في عمود 168px، فالكلام يتقص والأيقونة تطلع برّه الكبسولة. الطويل ياخد صف لوحده، والنص يلف لسطرين بدل ما يتقص */
+@media (max-width:760px){
+  #tasksPanel .btn.fit-wide{grid-column:1/-1}
+  #tasksPanel .btn{white-space:normal;text-overflow:clip;line-height:1.3;padding-block:8px;height:auto;text-align:center}
+}
