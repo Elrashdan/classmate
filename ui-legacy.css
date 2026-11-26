@@ -588,3 +588,10 @@ html[data-skin="nx"] :is(.panel, .st-box, .st-card, .tk-over, .notice, .pk-cta, 
   45% { transform: scale(1.22) rotate(-10deg); }
   75% { transform: scale(0.94); }
 }
+
+/* b184: keyframes كانت ناقصة لما اتنقل الستايل القديم هنا في b181. أهمها nxWord: من غيرها عناوين الصفحات المتقسّمة كلمات (زي اسمك في «ملفي الشخصي») كانت بتفضل مخفية */
+@keyframes nxWord{to{transform:none;opacity:1}}
+@keyframes dhRise{from{opacity:0;transform:translateY(14px)}}
+@keyframes gvPulse{50%{transform:scale(1.25)}}
+@keyframes vcin{from{background:var(--accent-soft)}to{}}
+@keyframes vcpulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--bad) 45%,transparent)}50%{box-shadow:0 0 0 14px transparent}}

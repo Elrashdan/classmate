@@ -1044,7 +1044,7 @@ th .fh{min-height:32px}
 .tt-s .tt-meta{color:color-mix(in srgb,var(--ink) 72%,var(--muted))} /* خلايا الجدول ليها خلفية رمادية (التعارض أغمق)، فالرمادي العادي كان 4.3:1 */
 @media (pointer:coarse),(max-width:760px){#app :is(.cpk-cur,.rgm-f>button,.rs-sort>button,.legend .lg,.cchips .cchip,.tkseg>button,.seg>button,.btn.sm,.btn.xs){min-height:44px}} /* قواعد أقدم أخصّ كانت بتصغّرهم (32–38px) */
 /* b180: فورم «ابدأ محاضرة جديدة»: بعرض 640 بدل الشاشة كلها، والحقول القصيرة جنب بعض، والاختيارات والتنبيه قبل الزرار */
-#sessionArea .ss-form>*{max-width:640px}
+/* b184: الفورم بعرض الصفحة زي باقي الشاشات (كان 640 فبيسيب فراغ على التابلت والكمبيوتر) */
 .ss-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
 .ss-grid .f{margin:0}
 .ss-grid .ss-wide{grid-column:1/-1}
@@ -1158,3 +1158,48 @@ html .gx .gx-b input:not([type=checkbox]):not([type=radio]):not([type=file]):not
 #tasksPanel .tabs>button:not([aria-pressed="true"]){color:var(--ink)}
 #tasksPanel .kpis .kpi>span{color:color-mix(in srgb,var(--ink) 78%,var(--muted))}
 #tasksPanel input::placeholder{color:var(--muted);opacity:1}
+
+/* ===== b184: نسبة وتناسب ===== */
+/* زراير «ghost» كانت من غير إطار، فبتبان كلام عادي جنب زرار بإطار (زي «تحويله إلى معيد» جنب «إزالة»، و«طباعة» جنب «تصدير»). دلوقتي كلها بإطار خفيف */
+#app .btn.ghost:not(.icon):not(.xs):not(.danger):not(:is(.dd-m,table,.tabs,.seg) *){border:1px solid var(--card-b)}
+/* زرار الإجراء في آخر كل صندوق (التظلمات، الالتماسات، تقسيم المجموعات، تذكير الإشعارات) بقى بعرض واحد، بدل ما كل واحد على قد كلامه */
+#app :is(.ap-box>.row.between,.push-sum,.split-hint>.row)>.btn{min-width:176px;justify-content:center;text-align:center}
+/* الفريق: الشارة والاسم في عمود، والزراير في آخر الصف ناحية الشمال، وبنفس المقاس في كل الصفوف */
+@media (min-width:761px){
+  #teamPanel .list>.li{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;row-gap:4px;align-items:center;justify-content:stretch}
+  #teamPanel .list>.li>:not(.acts){grid-column:1}
+  #teamPanel .list>.li>.acts{grid-column:2;grid-row:1/span 3;flex-wrap:nowrap;justify-content:flex-end;align-self:center}
+}
+#teamPanel .acts>[data-kind]{min-width:176px;justify-content:center}
+/* كروت التكليفات: الشارة («الدرجات معلنة») دايمًا في نفس الركن، والعنوان الطويل يلف تحتها بدل ما يزق الشارة لسطر لوحدها */
+.tk-card .row.between:has(>.tk-name){flex-wrap:nowrap;align-items:flex-start}
+.tk-card .tk-name{flex:1;min-width:0}
+.tk-card .row.between:has(>.tk-name)>.chip{flex:none}
+/* تقارير البحث العلمي: 4 حقول كانت 3+1، والعنوان اللي على سطرين كان بينزّل الخانة بتاعته عن جيرانها. دلوقتي عمودين (التاريخين، والزمنين) والخانات على خط واحد */
+.rs-form{grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}
+.rs-form .f>span small{display:block;margin-top:2px}
+@media (max-width:560px){.rs-form{grid-template-columns:1fr}}
+/* الموبايل: «موادي» في ملفي الشخصي كانت جدول 4 أعمدة مزنوق (الفترة على 6 سطور وزرار «فتح» مقصوص). بقت صفوف: الاسم والفترة والدور تحت بعض، و«فتح» على الشمال */
+@media (max-width:600px){
+  .my-c thead{display:none}
+  .my-c,.my-c tbody{display:block;width:100%}
+  .my-c tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .my-c td{display:block;padding:0!important;border:0!important}
+  .my-c td:nth-child(-n+3){grid-column:1}
+  .my-c td:nth-child(4){grid-column:2;grid-row:1/span 3;align-self:center}
+  .my-c td:nth-child(3) .chip{justify-self:start}
+}
+/* الموبايل: الجدول الدراسي: الأيام 3×2 بنفس العرض بدل 3 سطور مختلفة، وزراير «تصدير / إعدادات / إخفاء» صف واحد متساوي تحت اختيار الفصل */
+@media (max-width:760px){
+  .tt-days{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .tt-days>.cchip{justify-content:center;width:100%}
+  .panel-h>.row:has(>#ttPick){display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;width:100%}
+  .panel-h>.row:has(>#ttPick)>#ttPick{grid-column:1/-1}
+  .panel-h>.row:has(>#ttPick)>details,.panel-h>.row:has(>#ttPick)>details>summary,.panel-h>.row:has(>#ttPick)>.btn{width:100%;justify-content:center;text-align:center}
+}
+@media (max-width:760px){
+  .tt-bar>.tkseg{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tt-bar>.tkseg>button{justify-content:center;text-align:center}
+  .tt-bar>.tt-who{width:100%}
+  .tt-bar>.tt-who>select{flex:1;min-width:0;width:auto}
+}
