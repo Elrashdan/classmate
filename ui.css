@@ -566,3 +566,16 @@ html .seg>.cchip:not([aria-pressed="true"]),html .seg>button:not([aria-pressed="
 .panel.auth-panel{padding:24px}
 @media (max-width:560px){.panel.auth-panel{padding:20px 16px}}
 .auth-form{display:grid;gap:12px;margin:0;min-width:0}
+/* b177: ترتيب كارت الدخول — زرار واحد أساسي، و«نسيت كلمة السر؟» تحت حقلها، والباقي سطور بنفس الشكل بدل خليط روابط وزرار ومحاذاة مختلفة */
+.lg-link{display:inline-flex;align-items:center;min-height:32px;padding:0 2px;background:none;border:0;border-radius:6px;color:var(--ink);font:600 14px var(--fd);text-decoration:underline;text-underline-offset:4px;text-decoration-color:color-mix(in srgb,var(--ink) 35%,transparent);cursor:pointer}
+.lg-link:hover{text-decoration-color:currentColor}
+.lg-link:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.lg-forgot{display:flex;justify-content:flex-end;margin-top:-14px}
+.lg-forgot .lg-link{font-size:13.5px;min-height:28px}
+.lg-alt{display:grid;gap:4px;margin-top:4px;padding-top:16px;border-top:1px solid var(--line);text-align:center}
+.lg-alt p{margin:0;font-size:14px;color:var(--muted)}
+.lg-foot{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:0 12px;max-width:480px;margin:12px auto 0;color:var(--muted)}
+.lg-foot .lg-link{font-size:13.5px;font-weight:500;color:var(--muted);text-decoration-color:color-mix(in srgb,var(--muted) 40%,transparent)}
+@media (max-width:480px){.lg-foot{flex-direction:column}.lg-foot>span{display:none}}
+/* الملء التلقائي في كروم كان بيلوّن الحقول أزرق فاتح — نخلّيها بنفس لون الحقل */
+html input:-webkit-autofill,html input:-webkit-autofill:hover,html input:-webkit-autofill:focus{-webkit-text-fill-color:var(--ink);caret-color:var(--ink);transition:background-color 600000s 0s,color 600000s 0s}
