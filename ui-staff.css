@@ -1314,3 +1314,20 @@ html .gx .gx-b input:not([type=checkbox]):not([type=radio]):not([type=file]):not
 /* اختيار الدور في جدول الحسابات كان بيقص «رئيس القسم» */
 #app td>select{min-width:136px}
 @media (min-width:761px) and (pointer:fine){#app .rq-done>summary{min-height:36px;display:flex;align-items:center;cursor:pointer}} /* b185: على الكمبيوتر كانت 25px */
+
+/* ===== b186 ===== */
+/* رابط صفحة الدخول في «طلبات التسجيل» كلمة طويلة من غير مسافات، فكانت بتوسّع الصفحة على الموبايل */
+#app .empty .mono,#app .msg .mono{overflow-wrap:anywhere;word-break:break-all}
+/* الحسابات على الموبايل: الاسم والإيميل يمين، واختيار الدور شمال. تحت: سطر المواد، وبعده الحالة يمين و«إجراءات» شمال بنفس عرض اختيار الدور */
+@media (max-width:760px){
+  #app tr:has(>td.acc-act){grid-template-columns:minmax(0,1fr) 136px!important;align-items:center}
+  #app tr:has(>td.acc-act)>td:has(>.chip){grid-column:1!important;justify-self:start}
+  #app tr:has(>td.acc-act)>td:has(>.chip)>.chip{min-width:96px}
+  #app tr:has(>td.acc-act)>td.acc-act{grid-column:2!important;grid-row:auto/span 1;width:100%;justify-self:stretch}
+  #app tr:has(>td.acc-act)>td:has(>.chip)+td.acc-act{grid-row:auto}
+  #app td.acc-act>details.dd,#app td.acc-act>details.dd>summary{width:100%}
+  #app td.acc-act>details.dd>summary{justify-content:center;gap:6px}
+  #app td.acc-act>details.dd>summary>.dd-hide{display:inline!important}
+  #app tr:has(>td.acc-act)>td>select{width:100%!important;min-width:0}
+}
+#app .empty .mono[dir=ltr]{display:block;margin:8px auto;text-align:center}
