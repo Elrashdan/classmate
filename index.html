@@ -20,7 +20,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b179">
+<link rel="stylesheet" href="ui.css?v=b180">
 </head>
 <body>
 <div class="wrap narrow" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -28,12 +28,12 @@
 <div class="stscan" id="stScan" hidden><video id="stVid" playsinline muted autoplay></video><div class="frame"><i></i></div><div class="foot"><b id="stMsg">وجّه الكاميرا نحو رمز QR على الشاشة</b><button class="btn" id="stClose">إغلاق الكاميرا</button></div></div>
 <div class="sheet-ov" id="tkOv" hidden><div class="sheet" id="tkIn" role="dialog" aria-modal="true" aria-labelledby="tkTitle"></div></div>
 
-<script src="vendor/qrcode.js?v=b179"></script>
-<script src="config.js?v=b179"></script>
-<script src="common.js?v=b179"></script>
-<script src="drive.js?v=b179"></script>
-<script src="catalog.js?v=b179"></script>
-<script src="regform.js?v=b179"></script>
+<script src="vendor/qrcode.js?v=b180"></script>
+<script src="config.js?v=b180"></script>
+<script src="common.js?v=b180"></script>
+<script src="drive.js?v=b180"></script>
+<script src="catalog.js?v=b180"></script>
+<script src="regform.js?v=b180"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store } = CM;
@@ -853,7 +853,7 @@
     return `<section class="st-sec"><div class="st-h"><h2>درجاتي</h2>${wait ? `<span class="small muted">${wait} ${wait === 1 ? "تسليم مستني" : "تسليمات مستنية"} التصحيح</span>` : ""}</div>
       ${tasks == null ? `<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p>` : g.length ? g.map((t, i) => { const m = t.mine, v = tot(m), w = Math.min(100, v / Math.max(1, Number(t.max)) * 100), win = apWins[t.id];
         return `<button type="button" class="st-gr" data-task="${t.id}" style="--i:${i}"><span class="st-gh"><span><b>${esc(t.title)}</b><small>${esc(cn(t))}</small></span><b class="st-gv">${gNum(v)}<small> من ${gNum(t.max)}</small></b></span>
-          <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap">التظلم على الدرجة مفتوح${win.until ? " حتى " + esc(new Date(win.until).toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long" })) : ""}</span>` : ""}</button>`; }).join("")
+          <span class="st-gb"><i class="${w >= 75 ? "" : "lo"}" style="--w:${w.toFixed(1)}%"></i></span>${win ? `<span class="st-ap"><span>تظلّم على الدرجة${win.until ? " · متاح حتى " + esc(new Date(win.until).toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long" })) : ""}</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></span>` : `<span class="st-more">التفاصيل<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></span>`}</button>`; }).join("")
       : CM.empty("لم تُعلَن لك أي درجات بعد.", "think")}</section>`;
   }
   // ملفات طلب الفريق إعادة رفعها: تنبيه واضح فوق في الرئيسية لحد ما الطالب يرفعها
@@ -1058,7 +1058,7 @@
     const n = k => all.filter(t => tkCat(t) === k).length, cats = ["todo", "done", "graded", "missed"].filter(k => k === "todo" || n(k));
     if (!cats.includes(tkF)) tkF = "todo";
     const list = all.filter(t => tkCat(t) === tkF).sort(tkF === "todo" ? tkOrder : (a, b) => tkOrder(b, a));
-    const SH = { todo: "مطلوب", done: "سلّمته", graded: "درجات", missed: "فات" };
+    const SH = { todo: "مطلوب", done: "سلّمته", graded: "صُحّحت", missed: "فات" };   // b180: «صُحّحت» بدل «درجات» — كانت نفس اسم تبويب «الدرجات» اللي فوقها
     return `<section class="panel tk-over" id="tkOver"><div class="row between"><h3>تكليفاتي</h3><span class="small muted">${CM.n(all.length, CM.W.task)} في ${CM.n(new Set(all.map(t => t.course_id)).size, CM.W.course)}</span></div>
       <div class="tk-tabs" role="tablist">${cats.map(k => `<button type="button" role="tab" class="k-${k}" data-tkf="${k}" aria-selected="${tkF === k}"><b>${n(k)}</b><span>${SH[k]}</span></button>`).join("")}</div>
       <div class="tk-olist">${list.length ? list.map(t => tkRow(t, true)).join("") : (tkF === "todo" ? CM.empty("لا شيء مطلوب منك الآن. استرح قليلًا، وسنخبرك حين يُنشر تكليف جديد.") : `<div class="empty">لا يوجد.</div>`)}</div></section>`;

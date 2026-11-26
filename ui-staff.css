@@ -1054,3 +1054,50 @@ th .fh{min-height:32px}
 .regt .th-date{min-height:28px;padding:4px 8px} /* تاريخ المحاضرة في رأس الكشف (بيفتح تعديلها) كان 21px */
 .tt-s .tt-meta{color:color-mix(in srgb,var(--ink) 72%,var(--muted))} /* خلايا الجدول ليها خلفية رمادية (التعارض أغمق)، فالرمادي العادي كان 4.3:1 */
 @media (pointer:coarse),(max-width:760px){#app :is(.cpk-cur,.rgm-f>button,.rs-sort>button,.legend .lg,.cchips .cchip,.tkseg>button,.seg>button,.btn.sm,.btn.xs){min-height:44px}} /* قواعد أقدم أخصّ كانت بتصغّرهم (32–38px) */
+/* b180: فورم «ابدأ محاضرة جديدة»: بعرض 640 بدل الشاشة كلها، والحقول القصيرة جنب بعض، والاختيارات والتنبيه قبل الزرار */
+#sessionArea .ss-form>*{max-width:640px}
+.ss-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.ss-grid .f{margin:0}
+.ss-grid .ss-wide{grid-column:1/-1}
+.ss-mk{display:grid;gap:4px}
+.ss-mk p{margin:0;padding-inline-start:28px}
+/* b180: كروت أرقام الحضور: 4 في صف على الكمبيوتر، 2×2 على الموبايل (كان «غائب» بيقع لوحده في صف بالعرض الكامل) */
+#livePanel .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+#livePanel .stats .stat{flex:none}
+@media (max-width:760px){#livePanel .stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* b180: الرئيسية: كروت الصف الواحد بنفس الارتفاع (كانت align-items:start فكل كارت بطوله)، والصف التاني 3 أعمدة متساوية، والكارت الفاضي محتواه في النص */
+@media (min-width:1000px){
+  .dh-row{align-items:stretch}
+  .dh-row.r2{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+.dh-row>.dh-card{min-height:100%}
+.dh-row>.dh-card:has(>.dh-empty){grid-template-rows:auto 1fr}.dh-row>.dh-card>.dh-empty{align-self:center}
+/* b180: قايمة الطلبة على الكمبيوتر عمود واحد (العمودين كانوا بيخلّوا الترتيب زجزاج)، وكل صف فيه نسبة الحضور وشارة الإنذار زي كشف الموبايل */
+@media (min-width:1000px){.rs-rows{grid-template-columns:minmax(0,1fr)}}
+.rs-row .rs-t{flex:1;min-width:0}
+.rs-end{display:flex;align-items:center;gap:10px;flex:none;margin-inline-start:auto}
+.rs-p{font:700 16px var(--fd);min-width:64px;text-align:end} .rs-p.low{color:var(--bad)}
+.rs-p small{font:500 11px var(--fb);color:var(--muted);margin-inline-start:3px}
+/* b180: شريط «التظلمات» في التكليفات: كان واخد max-width:620px من قاعدة مشتركة مع النوافذ المنبثقة، فبيبان أضيق من الزراير اللي فوقه ومزقوق. دلوقتي بعرضهم، ولما يكون سطر واحد بنفس شكل الزرار (pill)، ولما يتفتح فيه تظلمات يرجع كارت */
+#tasksPanel .ap-box{max-width:none;width:100%;margin:0!important;max-height:none;overflow:visible}
+#tasksPanel .ap-box:not(:has(>:nth-child(2))){border-radius:var(--pill);padding:6px 6px 6px 18px!important;min-height:0}
+#tasksPanel .ap-box>.row.between{min-height:44px;flex-wrap:nowrap}
+#tasksPanel .ap-box h3{font-size:15px}
+@media (min-width:761px){#tasksPanel .tk-sortbar>.cchips.seg:first-child{max-width:440px}} /* b180: «بطاقات التكليفات / كشف الدرجات» كان ممطوط 1100px على الكمبيوتر */
+/* b180: السجل: عنوان لكل يوم، وفلاتر النوع */
+.al-day{position:sticky;top:0;z-index:1;padding:14px 2px 6px;background:var(--surface);font:600 13px var(--fd);color:var(--muted);border-bottom:1px solid var(--line)}
+.al-list>.al-day:first-child{padding-top:2px}
+.al-f{flex-wrap:wrap;gap:8px}
+.al-f .cchip b{font-weight:600;opacity:.6;margin-inline-start:2px}
+.al-f .cchip[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.kpi.warn b{color:var(--warn)} /* b180: إنذار ثالث بالكهرماني لما يكون فيه طلبة، والصفر بلون عادي */
+/* b180: لوحة المسؤول: إجراءات كل حساب في قايمة «⋯» بدل زرارين في كل صف */
+.acc-act{width:64px;text-align:end;white-space:nowrap}
+.acc-dd>summary .dd-chev{display:none}
+.acc-dd .dd-m{min-width:200px}
+/* b180: روابط عامة تحت أقسام المادة في الشريط الجانبي — الكمبيوتر بس (على الموبايل موجودين في «المزيد» و«⋯») */
+.nav-x,.nav-sep{display:none!important}
+@media (min-width:1000px){
+  :is(.ctabs,.nx-dock)>.nav-x{display:flex!important}
+  :is(.ctabs,.nx-dock)>.nav-sep{display:block!important;height:1px;margin:10px 12px;background:var(--line)}
+}

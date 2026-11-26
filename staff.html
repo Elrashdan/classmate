@@ -20,9 +20,9 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b179">
-<link rel="stylesheet" href="ui-tools.css?v=b179">
-<link rel="stylesheet" href="ui-staff.css?v=b179">
+<link rel="stylesheet" href="ui.css?v=b180">
+<link rel="stylesheet" href="ui-tools.css?v=b180">
+<link rel="stylesheet" href="ui-staff.css?v=b180">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -48,16 +48,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b179"></script>
-<script src="vendor/qrcode.js?v=b179"></script>
-<script src="config.js?v=b179"></script>
-<script src="common.js?v=b179"></script>
-<script src="drive.js?v=b179"></script>
-<script src="pack.js?v=b179"></script>
-<script src="catalog.js?v=b179"></script>
-<script src="voice.js?v=b179"></script>
-<script src="timetable.js?v=b179"></script>
-<script src="research.js?v=b179"></script>
+<script src="vendor/supabase.js?v=b180"></script>
+<script src="vendor/qrcode.js?v=b180"></script>
+<script src="config.js?v=b180"></script>
+<script src="common.js?v=b180"></script>
+<script src="drive.js?v=b180"></script>
+<script src="pack.js?v=b180"></script>
+<script src="catalog.js?v=b180"></script>
+<script src="voice.js?v=b180"></script>
+<script src="timetable.js?v=b180"></script>
+<script src="research.js?v=b180"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -624,7 +624,7 @@
     ["reg", "الكشف", ICO('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>')],
     ["report", "التقرير", ICO('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')],
     ["tasks", "التكليفات", ICO('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 14l2 2 4-4"/>')],
-    ["team", "الفريق", ICO('<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/><path d="M19 3.5v3M20.5 5h-3"/>')],
+    ["team", "الفريق والإعدادات", ICO('<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/><path d="M19 3.5v3M20.5 5h-3"/>')],
     ["log", "السجل", ICO('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>')]
   ];
   const HOME_ICO = '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/>';
@@ -633,7 +633,7 @@
   document.addEventListener("click", e => { if (e.target.closest && e.target.closest("[data-ch-back]")) { const to = prevTab && prevTab !== ctab ? prevTab : "live"; const b = document.querySelector(`.ctabs [data-ct="${to}"]`); if (b) b.click(); } });
   // زر «رجوع» في الهاتف: يتنقّل بين أقسام البرنامج بدل أن يخرج منه
   // شريط المادة: خلفيته مستمدة من أيقونة القسم المفتوح، ويتغيّر مع التبويب
-  const TAB_SUB = { live: "ابدأ محاضرة وتابع الحضور لحظة بلحظة", students: "ملف الطلبة والمجموعات والأجهزة", reg: "كشف الحضور والغياب والإنذارات", report: "نسب الحضور وتقارير المادة", tasks: "التكليفات والتسليم والدرجات", team: "المحاضرون والمعيدون في المادة", log: "كل ما حدث في المادة" };
+  const TAB_SUB = { live: "ابدأ محاضرة وتابع الحضور لحظة بلحظة", students: "ملف الطلبة والمجموعات والأجهزة", reg: "كشف الحضور والغياب والإنذارات", report: "نسب الحضور وتقارير المادة", tasks: "التكليفات والتسليم والدرجات", team: "المحاضرون والمعيدون، وبيانات المادة وأرشفتها", log: "كل ما حدث في المادة" };
   const icoInner = ic => ic.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
   function courseBand(c) {
     const t = CTABS.find(x => x[0] === ctab) || CTABS[0];
@@ -959,7 +959,8 @@
   }
   function dhTodoHtml() {
     const l = dhTodo();
-    const head = n => `<div class="dh-h"><h2>يحتاج انتباهك</h2>${n != null ? `<span class="dh-pill ${n ? "warn" : "ok"}">${n ? n + " " + (n === 1 ? "أمر" : "أمور") : "لا شيء"}</span>` : ""}</div>`;
+    // b180: الشارة بتظهر لما يكون فيه حاجة بس — «لا شيء» كانت مكررة مع «لا شيء ينتظرك» تحتها على طول
+    const head = n => `<div class="dh-h"><h2>يحتاج انتباهك</h2>${n ? `<span class="dh-pill warn">${n} ${n === 1 ? "أمر" : n === 2 ? "أمران" : n <= 10 ? "أمور" : "أمرًا"}</span>` : ""}</div>`;
     if (l == null) return `<article class="dh-card dh-todo" id="dhTodo">${head(null)}<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p></article>`;
     const kc = { appeal: "bad", petition: "bad", att: "acc", warn: "warn", grade: "acc" };
     return `<article class="dh-card dh-todo" id="dhTodo">${head(l.length)}${l.length ? `<div class="dh-tasks">${l.slice(0, 6).map(it => { const k = FK[it.kind] || FK.appeal, d = ageDays(it.since), late = d >= 3;
@@ -1336,6 +1337,13 @@
       </div>`;
     document.body.classList.toggle("has-ctabs", view === "course" && !!$(".ctabs"));
     document.body.classList.toggle("has-dock", view === "home" && !!$(".nx-dock"));
+    // b180: على الكمبيوتر: الجدول الدراسي ولوحة المسؤول وملفي الشخصي في الشريط الجانبي (كانوا مستخبيين في «⋯» بس). بيضغطوا نفس زراير القايمة، فمفيش منطق جديد
+    { const nav = $(".nx-dock") || $(".ctabs:not(.admin)");
+      const X = [["goTT", "الجدول الدراسي", '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>'], ["admin", me.role === "head" ? "متابعة القسم" : "لوحة المسؤول", '<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/>'], ["goProf", "ملفي الشخصي", '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>']].filter(([id]) => document.getElementById(id));
+      if (nav && X.length && !nav.querySelector(".nav-x")) {
+        nav.insertAdjacentHTML("beforeend", `<span class="nav-sep" aria-hidden="true"></span>${X.map(([id, t, ic]) => `<button type="button" class="nav-x" data-navx="${id}">${ICO(ic)}<span class="l">${t}</span></button>`).join("")}`);
+        nav.querySelectorAll("[data-navx]").forEach(b => b.onclick = () => { const t = document.getElementById(b.dataset.navx); if (t) t.click(); });
+      } }
     document.querySelectorAll("[data-dock-home]").forEach(b => b.onclick = () => { view = "home"; render(); window.scrollTo({ top: 0 }); });
     wireHome(c); wirePicker(); navMark(); wireBell(); wireSearch();
     if (view === "home") { wireDash(); if (lastRise !== "home" || dhAnim.cid !== (c && c.id) + ":" + !!(D && c && D.cid === c.id)) { dhAnim.cid = (c && c.id) + ":" + !!(D && c && D.cid === c.id); dhAnim($(".dh")); } }
@@ -1501,27 +1509,28 @@
       const n = (D.sessions[D.sessions.length - 1] || { n: 0 }).n + 1, gs = groupsOf();
       let sugg = "", why = "";
       if (gs.length > 1) { const last = [...D.sessions].reverse().find(x => x.grp); sugg = last ? gs[(gs.indexOf(last.grp) + 1) % gs.length] : gs[0]; why = last ? `كانت آخر محاضرة للمجموعة ${last.grp}، فالدور الآن على المجموعة ${sugg}.` : ""; }
-      el.innerHTML = `<section class="panel">
+      // b180: كل الاختيارات والتنبيه المهم قبل زرار البدء (كانوا تحته)، والحقول القصيرة جنب بعض، والفورم بعرض معقول
+      el.innerHTML = `<section class="panel ss-form">
         <div><div class="eyebrow">المحاضرة ${n}</div><h2>ابدأ محاضرة جديدة</h2></div>
         ${!D.enroll.length ? `<div class="msg warn">ارفع ملف الطلبة أولًا من تبويب «الطلبة».</div>` : ""}
-        <div class="settings">
-          ${gs.length > 1 ? `<label class="f"><span>هذه المحاضرة لـ</span><select id="sGrp">${gs.map(g => `<option value="${esc(g)}" ${g === sugg ? "selected" : ""}>مجموعة ${esc(g)} (${CM.n(D.enroll.filter(e => e.grp === g).length, CM.W.student)})</option>`).join("")}<option value="">الدفعة كاملة</option></select></label>` : ""}
-          <label class="f"><span>نوع المحاضرة</span><select id="sKind"><option value="hall" ${kindPick === "hall" ? "selected" : ""}>في القاعة</option><option value="outdoor" ${kindPick === "outdoor" ? "selected" : ""}>خارجية (رسم خارجي، زيارة…)</option></select></label>
-          <label class="f"><span>مدة فتح التسجيل (دقائق)</span><input type="number" id="sMin" min="1" max="120" value="${esc(store.get(kindPick === "outdoor" ? "cm_min_out" : "cm_min") || (kindPick === "outdoor" ? 30 : 10))}"></label>
-          <label class="f"><span>${kindPick === "outdoor" ? "النطاق حول موقعك (متر)" : "نطاق القاعة (متر)"}</span><input type="number" id="sRad" min="20" max="500" value="${esc(store.get(kindPick === "outdoor" ? "cm_rad_out" : "cm_rad") || (kindPick === "outdoor" ? 200 : 80))}"></label>
-          <button class="btn primary" id="sStart" ${startState === "locating" || !D.enroll.length ? "disabled" : ""}>${startState === "locating" ? `<span class="spinner"></span> جارٍ تحديد موقعك…` : "ابدأ المحاضرة " + n}</button>
+        <div class="ss-grid">
+          ${gs.length > 1 ? `<label class="f ss-wide"><span>هذه المحاضرة لـ</span><select id="sGrp">${gs.map(g => `<option value="${esc(g)}" ${g === sugg ? "selected" : ""}>مجموعة ${esc(g)} (${CM.n(D.enroll.filter(e => e.grp === g).length, CM.W.student)})</option>`).join("")}<option value="">الدفعة كاملة</option></select></label>` : ""}
+          <label class="f ss-wide"><span>نوع المحاضرة</span><select id="sKind"><option value="hall" ${kindPick === "hall" ? "selected" : ""}>في القاعة</option><option value="outdoor" ${kindPick === "outdoor" ? "selected" : ""}>خارجية (رسم خارجي، زيارة…)</option></select></label>
+          <label class="f"><span>مدة فتح التسجيل (دقائق)</span><input type="text" id="sMin" inputmode="numeric" pattern="[0-9]*" dir="ltr" value="${esc(store.get(kindPick === "outdoor" ? "cm_min_out" : "cm_min") || (kindPick === "outdoor" ? 30 : 10))}"></label>
+          <label class="f"><span>${kindPick === "outdoor" ? "النطاق حول موقعك (متر)" : "نطاق القاعة (متر)"}</span><input type="text" id="sRad" inputmode="numeric" pattern="[0-9]*" dir="ltr" value="${esc(store.get(kindPick === "outdoor" ? "cm_rad_out" : "cm_rad") || (kindPick === "outdoor" ? 200 : 80))}"></label>
         </div>
-        ${gs.length > 1 ? `<label class="row small"><input type="checkbox" id="sMk"> السماح بالحضور التعويضي لطلبة المجموعة الأخرى</label><p class="muted small">${why} يُلغي الحضور التعويضي غيابًا واحدًا من غيابات الطالب في مجموعته.</p>` : ""}
+        ${gs.length > 1 ? `<div class="ss-mk"><label class="row"><input type="checkbox" id="sMk"> السماح بالحضور التعويضي لطلبة المجموعة الأخرى</label><p class="muted small">${why} يُلغي الحضور التعويضي غيابًا واحدًا من غيابات الطالب في مجموعته.</p></div>` : ""}
         ${startState && startState.geoFail ? `<div class="msg warn">${startState.geoFail === "denied" ? "رفض المتصفح إذن الموقع. فعّله من إعدادات المتصفح لموقع Hadro، ثم أعد المحاولة." : "تعذّر تحديد موقعك. جرّب بالقرب من نافذة أو من الهاتف."}
           <div class="row" style="margin-top:8px"><button class="btn sm" id="sRetry">أعد المحاولة</button><button class="btn sm ghost" id="sNoGeo">ابدأ دون التحقق من الموقع</button></div></div>` : ""}
-        <p class="muted small">${kindPick === "outdoor"
-          ? "المحاضرة الخارجية: يصبح موقعك عند البدء مركز المكان، ويظهر الرمز على هاتفك لتعرضه ملء الشاشة. أما الطلبة الذين يتعذّر عليهم الوصول إلى الرمز أو لا يتوفر لديهم إنترنت، فامسح بطاقات حضورهم من زر «مسح بطاقات الطلبة»."
-          : "عند البدء، يصبح موقعك الحالي مركز القاعة، ويولّد الخادم مفتاحًا جديدًا لرمز هذه المحاضرة وحدها. لذا ابدأ المحاضرة وأنت داخل القاعة."}</p>
+        <div class="msg ss-tip">${kindPick === "outdoor"
+          ? "<b>محاضرة خارجية:</b> موقعك عند البدء يصبح مركز المكان، والرمز يظهر على هاتفك لتعرضه ملء الشاشة. ومن تعذّر عليه الوصول للرمز أو الإنترنت، امسح بطاقة حضوره من «مسح بطاقات الطلبة»."
+          : "<b>ابدأ وأنت داخل القاعة:</b> موقعك عند البدء يصبح مركز القاعة، ويولّد الخادم مفتاحًا جديدًا لرمز هذه المحاضرة وحدها."}</div>
+        <button class="btn primary block ss-go" id="sStart" ${startState === "locating" || !D.enroll.length ? "disabled" : ""}>${startState === "locating" ? `<span class="spinner"></span> جارٍ تحديد موقعك…` : "ابدأ المحاضرة " + n}</button>
       </section>`;
       $("#sKind").onchange = () => { kindPick = $("#sKind").value; renderSession(); };
       const start = async (geo) => {
         const kind = $("#sKind").value, out = kind === "outdoor";
-        const grp = $("#sGrp") ? $("#sGrp").value : "", mk = !!($("#sMk") && $("#sMk").checked), mins = +$("#sMin").value || (out ? 30 : 10), rad = +$("#sRad").value || (out ? 200 : 80);
+        const grp = $("#sGrp") ? $("#sGrp").value : "", mk = !!($("#sMk") && $("#sMk").checked), mins = Math.min(120, Math.max(1, +CM.normDigits($("#sMin").value) || (out ? 30 : 10))), rad = Math.min(500, Math.max(20, +CM.normDigits($("#sRad").value) || (out ? 200 : 80)));
         store.set(out ? "cm_min_out" : "cm_min", mins); store.set(out ? "cm_rad_out" : "cm_rad", rad);
         let pos = { lat: null, lng: null };
         if (geo) { startState = "locating"; renderSession(); pos = await CM.getPosition(20000); if (pos.error) { startState = { geoFail: pos.error, grp, mk }; return renderSession(); } }
@@ -1634,7 +1643,7 @@
     const allChecked = shownSel.length && shownSel.every(k => lvSel.has(k));
     const TABN = { all: "الكل", pend: "معلّق", pres: "حاضر", rej: "محاولات مرفوضة", abs: "غائب" };
     const manCodes = Array.isArray(manFor) ? manFor : null;
-    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">المحاضرة ${s.n} · ${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كاملة"}${s.ended ? " · منتهية" : ""}</div><h2>الحضور${s.ended ? "" : " المباشر"}</h2></div>
+    el.innerHTML = `<div class="panel-h"><div><div class="eyebrow">${s.grp ? "مجموعة " + esc(s.grp) : "الدفعة كاملة"} · ${esc(CM.fmtD(s.started_at))}${s.ended ? " · منتهية" : " · جارية الآن"}</div><h2>حضور المحاضرة ${s.n}</h2></div>
       <div class="tabs" role="group">${Object.entries(TABN).map(([k, t]) => `<button data-lt="${k}" aria-pressed="${liveTab === k}">${t}${k === "pend" && pend.length ? ` <b class="cnt">${pend.length}</b>` : ""}</button>`).join("")}</div></div>
       <div class="stats"><div class="stat"><b>${pres.length}</b><span>حاضر</span></div><div class="stat"><b>${pend.length}</b><span>بحاجة إلى موافقة</span></div><div class="stat"><b>${rej.length}</b><span>محاولة مرفوضة</span></div><div class="stat"><b>${abs.length}</b><span>${done ? "غائب" : "لم يسجّل بعد"}</span></div></div>
       <div class="rs-bar"><input type="search" id="lvQ" placeholder="ابحث باسم الطالب أو كوده" value="${esc(lv.q)}" autocomplete="off">
@@ -2331,11 +2340,12 @@
       ${warnAlertHtml(c, rows)}
       <div class="kpis">
         <div class="kpi"><b>${avg}%</b><span>متوسط الحضور</span></div>
-        <div class="kpi"><b>${warned}</b><span>طالب لديهم إنذار</span></div>
-        <div class="kpi"><b>${lv[3]}</b><span>إنذار ثالث ونهائي</span></div>
-        <div class="kpi bad"><b>${lv[4]}</b><span>انسحاب إجباري</span></div>
+        <div class="kpi"><b>${warned}</b><span>طلبة لديهم إنذار</span></div>
+        <div class="kpi${lv[3] ? " warn" : ""}"><b>${lv[3]}</b><span>إنذار ثالث ونهائي</span></div>
+        <div class="kpi${lv[4] ? " bad" : ""}"><b>${lv[4]}</b><span>انسحاب إجباري</span></div>
       </div>
-      ${warned ? `<p class="small muted">حدود الإنذارات: غيابان إنذار أول، و3 إنذار ثانٍ، و4 إنذار ثالث ونهائي، و5 انسحاب إجباري. يظهر للطالب إشعار بالإنذار عند فتح البرنامج، ${unseen ? `ولم يطّلع ${unseen} من ${warned} على إشعار إنذاره الحالي بعد.` : "وقد اطّلع الجميع على إشعاراتهم."}</p>` : ""}
+      ${warned && unseen ? `<div class="msg warn small">لم يطّلع <b style="display:inline">${unseen} من ${warned}</b> على إشعار إنذاره الحالي بعد. يظهر الإشعار للطالب عند فتح البرنامج.</div>` : ""}
+      ${warned ? `<p class="small muted">حدود الإنذارات: غيابان إنذار أول، و3 إنذار ثانٍ، و4 إنذار ثالث ونهائي، و5 انسحاب إجباري.${unseen ? "" : " وقد اطّلع الجميع على إشعارات إنذاراتهم."}</p>` : ""}
       <div class="rp-sec"><h3>توزيع الطلبة على الحالات</h3>
         <div class="segbar" role="group" aria-label="توزيع الحالات">${seg || `<div class="empty">لا يوجد طلبة.</div>`}</div>
         <div class="legend">${[0, 1, 2, 3, 4].map(i => `<button class="lg ${rpLevel === i ? "on" : ""}" data-lvl="${i}"><i class="sw ${KS[i]}"></i>${CM.WARN[i].t} <b>${lv[i]}</b></button>`).join("")}</div>
@@ -4591,7 +4601,7 @@
     const gs = groupsOf(), noAcc = D.enroll.filter(e => accOf(e) === "none").length, fk = rv.f.acc ? "acc" : rv.f.grp ? "g:" + [...rv.f.grp][0] : "all";
     const chips = gs.length || noAcc ? `<div class="rgm-f rs-f">${[["all", "الكل " + D.enroll.length], ...gs.map(g => ["g:" + g, "مجموعة " + g + " " + D.enroll.filter(e => e.grp === g).length]), ...(noAcc ? [["acc", "بلا حساب " + noAcc]] : [])].map(([k, t]) => `<button type="button" data-rsf="${esc(k)}" aria-pressed="${fk === k}">${esc(t)}</button>`).join("")}</div>` : "";
     const sortBy = ["name", "code", "grp", "acc", ...(ms ? ["now"] : [])].map(k => { const on = rv.sort.col === k; return `<button type="button" data-rso="${k}" aria-pressed="${on}">${k === "now" ? "حضور المحاضرة " + ms.n : RCOLS[k].t}${on ? (rv.sort.dir > 0 ? " ↑" : " ↓") : ""}</button>`; }).join("");
-    lw.innerHTML = chips + `<div class="rs-sort"><span class="muted small">ترتيب حسب</span>${sortBy}</div><div class="rs-rows">` + (rows.length ? rows.map(e => `<button type="button" class="rs-row" data-rss="${esc(e.student_code)}"><span class="rs-av">${esc((e.name || "؟").trim().charAt(0))}<i class="rs-dot ${ACC_DOT[accOf(e)]}" title="${ACC[accOf(e)]}"></i></span><span class="rs-t"><b>${esc(e.name)}</b><small><span class="mono">${esc(e.student_code)}</span>${e.grp ? " · مجموعة " + esc(e.grp) : ""}${e.source === "form" ? " · بالاستمارة" : ""}</small></span>${nowTag(e)}</button>`).join("")
+    lw.innerHTML = chips + `<div class="rs-sort"><span class="muted small">ترتيب حسب</span>${sortBy}</div><div class="rs-rows">` + (rows.length ? rows.map(e => `<button type="button" class="rs-row" data-rss="${esc(e.student_code)}"><span class="rs-av">${esc((e.name || "؟").trim().charAt(0))}<i class="rs-dot ${ACC_DOT[accOf(e)]}" title="${ACC[accOf(e)]}"></i></span><span class="rs-t"><b>${esc(e.name)}</b><small><span class="mono">${esc(e.student_code)}</span>${e.grp ? " · مجموعة " + esc(e.grp) : ""}${e.source === "form" ? " · بالاستمارة" : ""}</small></span>${nowTag(e)}${(() => { const a = attendance(e), ab = absences(e); return `<span class="rs-end">${lvChip(ab) || ""}<span class="rs-p${a.own && a.pct < 75 ? " low" : ""}">${a.own ? a.pct + "%" : "—"}<small>حضور</small></span></span>`; })()}</button>`).join("")
       : `<div class="empty">لا يوجد طلبة مطابقون للبحث.</div>`) + `</div>`;
     lw.querySelectorAll("[data-rso]").forEach(b => b.onclick = () => { const k = b.dataset.rso; rv.sort = { col: k, dir: rv.sort.col === k ? -rv.sort.dir : 1 }; renderRosterTable(); });
     lw.querySelectorAll("[data-rsf]").forEach(b => b.onclick = () => { const k = b.dataset.rsf; rv.f.grp = k.startsWith("g:") ? new Set([k.slice(2)]) : null; rv.f.acc = k === "acc" ? new Set(["none"]) : null; renderRosterTable(); });
@@ -4879,14 +4889,25 @@
     };
   }
 
+  // b180: السجل متقسّم حسب اليوم («اليوم»، «أمس»، التاريخ) بدل التاريخ قدّام كل سطر، وفوقه فلاتر حسب النوع
+  const AUDIT_F = [["all", "الكل"], ["att", "الحضور", /يدوي|ألغى|إلغاء حضور|اعتمد|وافق|رفض حضور|في المحاضرة/], ["dev", "الأجهزة", /نقل حسابه|بصمة|مفتاح مرور|فك ربط|هاتف/], ["grade", "الدرجات والتظلمات", /درج|تظلم|التماس|أعلن|رصد/], ["other", "أخرى", null]];
+  const auditKind = a => { const t = String(a.action || ""); const hit = AUDIT_F.slice(1, -1).find(([, , rx]) => rx.test(t)); return hit ? hit[0] : "other"; };
+  const dayLabel = d => { const x = new Date(d), t = new Date(), y = new Date(Date.now() - 864e5), same = (a, b) => a.toDateString() === b.toDateString(); return same(x, t) ? "اليوم" : same(x, y) ? "أمس" : x.toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long" }); };
+  let auditF = "all";
   function auditList(items, showCourse) {
     if (!items.length) return `<div class="empty">لا توجد تعديلات حتى الآن.</div>`;
-    return `<div class="list">${items.map(a => { const c = courses.find(x => x.id === a.course_id);
-      return `<div class="li"><span class="small muted mono">${CM.fmtD(a.at)} ${CM.fmtT(a.at)}</span><div class="who"><b>${esc(staffName(a.actor))}</b><small>${esc(auditTxt(a))}${showCourse && c ? " · " + esc(c.name) : ""}</small></div><span></span></div>`; }).join("")}</div>`;
+    let last = "";
+    return `<div class="list al-list">${items.map(a => { const c = courses.find(x => x.id === a.course_id), dl = dayLabel(a.at), head = dl !== last ? `<div class="al-day">${esc(dl)}</div>` : ""; last = dl;
+      return `${head}<div class="li"><span class="small muted mono">${CM.fmtT(a.at)}</span><div class="who"><b>${esc(staffName(a.actor))}</b><small>${esc(auditTxt(a))}${showCourse && c ? " · " + esc(c.name) : ""}</small></div><span></span></div>`; }).join("")}</div>`;
   }
   function renderAudit() {
+    const all = D.audit || [], n = k => k === "all" ? all.length : all.filter(a => auditKind(a) === k).length;
+    const list = auditF === "all" ? all : all.filter(a => auditKind(a) === auditF);
     $("#auditPanel").innerHTML = `<div class="panel-h"><div><div class="eyebrow">من فعل ماذا ومتى</div><h2>سجل تعديلات المادة</h2></div></div>
-      <p class="muted small">يُسجَّل هنا كل تسجيل يدوي، وكل موافقة أو رفض، وكل إلغاء حضور أو فك ربط هاتف أو نقل طالب بين المجموعات، ولا يمكن لأحد حذفه.</p>${auditList(D.audit, false)}`;
+      <p class="muted small">يُسجَّل هنا كل تسجيل يدوي، وكل موافقة أو رفض، وكل إلغاء حضور أو فك ربط هاتف أو نقل طالب بين المجموعات، ولا يمكن لأحد حذفه.</p>
+      ${all.length ? `<div class="cchips al-f" role="group" aria-label="نوع التعديل">${AUDIT_F.filter(([k]) => k === "all" || n(k)).map(([k, t]) => `<button type="button" class="cchip" data-alf="${k}" aria-pressed="${auditF === k}">${t} <b>${n(k)}</b></button>`).join("")}</div>` : ""}
+      ${auditList(list, false)}`;
+    $("#auditPanel").querySelectorAll("[data-alf]").forEach(b => b.onclick = () => { auditF = b.dataset.alf; renderAudit(); });
   }
 
   /* ======================= admin ======================= */
@@ -4944,7 +4965,7 @@
           const parts = [o && `صاحب ${o} ${o === 1 ? "مادة" : "مواد"}`, co && `محاضر مشارك في ${co}`, t && `معيد في ${t}`].filter(Boolean);
           return `<tr><td>${esc(u.name)}</td><td class="mono small">${esc(u.email)}</td><td>${u.email === me.email ? ROLE[u.role] : `<select data-role="${esc(u.email)}" style="width:auto;padding:3px 6px">${["ta", "lecturer", "head", "admin"].map(r => `<option value="${r}" ${u.role === r ? "selected" : ""}>${ROLE[r]}</option>`).join("")}</select>`}</td><td class="small" title="${esc([...courses.filter(c => c.owner_email === u.email && !c.no_owner && !c.archived).map(c => c.name + " (صاحبها)"), ...tasAll.filter(x => x.email === u.email && live(x.course_id)).map(x => ((courses.find(c => c.id === x.course_id) || {}).name || "") + (x.kind === "co" ? " (محاضر مشارك)" : " (معيد)"))].join("\n"))}">${parts.length ? parts.join(" · ") : `<span class="muted">—</span>`}</td>
           <td>${u.status === "active" ? `<span class="chip ok">مفعّل</span>` : u.status === "invited" ? `<span class="chip warn">لم يدخل بعد</span>` : `<span class="chip bad">موقوف</span>`}</td>
-          <td class="row" style="gap:6px;flex-wrap:nowrap">${u.email !== me.email && u.status !== "suspended" ? `<button class="btn sm ghost" data-tpw="${esc(u.email)}" title="يدخل بها مرة واحدة ثم يختار كلمة سره">كلمة سر مؤقتة</button>` : ""}${u.email === me.email ? `<span class="small muted">أنت</span>` : `<button class="btn sm ghost ${u.status === "suspended" ? "" : "danger"}" data-sus="${esc(u.email)}" data-to="${u.status === "suspended" ? "active" : "suspended"}">${u.status === "suspended" ? "تفعيل" : "إيقاف"}</button>`}</td></tr>`; }).join("")}
+          <td class="acc-act">${u.email === me.email ? `<span class="small muted">أنت</span>` : CM.dd(`<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg><span class="dd-hide">إجراءات</span>`, [u.status !== "suspended" ? `<button class="dd-i" data-tpw="${esc(u.email)}" title="يدخل بها مرة واحدة ثم يختار كلمة سره">كلمة سر مؤقتة</button>` : "", `<button class="dd-i ${u.status === "suspended" ? "" : "danger"}" data-sus="${esc(u.email)}" data-to="${u.status === "suspended" ? "active" : "suspended"}" data-keep>${u.status === "suspended" ? "تفعيل الحساب" : "إيقاف الحساب"}</button>`], { end: true, ghost: true, title: "إجراءات " + esc(u.name || u.email), cls: "acc-dd" })}</td></tr>`; }).join("")}
         </tbody></table></div>
         <h3>إضافة محاضر أو معيد</h3>
         <div class="settings">
@@ -4972,7 +4993,7 @@
     el.querySelectorAll("[data-autoc]").forEach(b => b.onclick = () => { curId = b.dataset.autoc; store.set("cm_course", curId); fYear = "all"; fTerm = "all"; ctab = "team"; store.set("cm_tab", ctab); view = "course"; flash = {}; loadCourse().catch(showErr); });
     el.querySelectorAll("[data-at]").forEach(b => b.onclick = () => { atab = b.dataset.at; store.set("cm_atab", atab); el.querySelectorAll("[data-at]").forEach(x => x.setAttribute("aria-selected", x.dataset.at === atab)); el.querySelectorAll("[data-apane]").forEach(p => p.hidden = p.dataset.apane !== atab); if (atab === "research") openResearch(); if ((atab === "inbox" && !faqStats) || (atab === "courses" && !deptOv)) renderAdmin(); });
     if (atab === "research") openResearch();
-    el.querySelectorAll("[data-sus]").forEach(b => b.onclick = () => act(async () => { await rpc("admin_set_status", { p_email: b.dataset.sus, p_status: b.dataset.to }); say("admin", (b.dataset.to === "suspended" ? "أُوقف حساب " : "فُعِّل حساب ") + staffName(b.dataset.sus) + "."); }, async () => { await loadBase(); renderAdmin(); }));
+    el.querySelectorAll("[data-sus]").forEach(b => b.onclick = () => { if (b.dataset.to === "suspended" && b.dataset.c !== "1") { b.dataset.c = "1"; b.textContent = "متأكد؟ اضغط لإيقافه"; setTimeout(() => { if (b.isConnected) { b.dataset.c = ""; b.textContent = "إيقاف الحساب"; } }, 4000); return; } act(async () => { await rpc("admin_set_status", { p_email: b.dataset.sus, p_status: b.dataset.to }); say("admin", (b.dataset.to === "suspended" ? "أُوقف حساب " : "فُعِّل حساب ") + staffName(b.dataset.sus) + "."); }, async () => { await loadBase(); renderAdmin(); }); });
     el.querySelectorAll("[data-tpw]").forEach(b => b.onclick = () => act(async () => {
       if (!confirm("إعطاء " + staffName(b.dataset.tpw) + " كلمة سر مؤقتة؟ ستتوقف كلمة سره الحالية إن كانت له واحدة.")) return;
       const { data, error } = await sb.functions.invoke("staffpass", { body: { email: b.dataset.tpw } });

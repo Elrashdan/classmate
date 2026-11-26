@@ -613,3 +613,13 @@ header.top>.row #admin{display:none} /* «رجوع للمواد»: زرار ال
 @media (pointer:coarse),(max-width:760px){#app :is(.btn.sm,.btn.xs,.rf-due .btn){min-height:44px}.btn.icon{width:44px;min-width:44px;min-height:44px}}
 /* الملء التلقائي في كروم كان بيلوّن الحقول أزرق فاتح — نخلّيها بنفس لون الحقل */
 html input:-webkit-autofill,html input:-webkit-autofill:hover,html input:-webkit-autofill:focus{-webkit-text-fill-color:var(--ink);caret-color:var(--ink);transition:background-color 600000s 0s,color 600000s 0s}
+/* b180: الفوتر: النص والرابط على نفس السطر وبنفس المقاس (كان الرابط أكبر وأوطى من النص اللي جنبه)، وعلى الموبايل تحت بعض في النص */
+footer.legal{align-items:center;line-height:1.6}
+footer.legal>span{display:inline-flex;align-items:center;min-height:32px}
+footer.legal .linkish{font-size:12px;font-weight:600;min-height:32px;padding:0 4px;display:inline-flex;align-items:center}
+@media (max-width:560px){footer.legal{flex-direction:column;gap:0}footer.legal>span,footer.legal .linkish{min-height:26px}}
+/* b180: سطر الدرجة عند الطالب بيتضغط (يفتح التفاصيل والتظلم) — بقى فيه سهم، والتظلم مكتوب كإجراء مش كحالة */
+.st-ap,.st-more{display:flex;align-items:center;justify-content:space-between;gap:8px;font:600 13px var(--fd)}
+.st-ap{color:var(--warn);padding:8px 12px;border-radius:var(--r-md);background:var(--warn-soft)}
+.st-more{color:var(--muted);font-weight:500;justify-content:flex-end}
+.st-gr:hover .st-more,.st-gr:focus-visible .st-more{color:var(--ink)}
