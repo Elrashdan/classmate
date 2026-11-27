@@ -83,7 +83,7 @@
       ${X.setOpen ? settingsHtml() : ""}
       ${X.cohortEdit ? cohortFormHtml() : ""}
       <div class="tt-bar">
-        <div class="tkseg" role="tablist">${[["day", "يوم بيوم"], ["week", "الأسبوع كله"], ["load", "توزيع العمل"]].map(([k, l]) => `<button class="${X.mode === k ? "on" : ""}" data-ttm="${k}">${l}</button>`).join("")}</div>
+        <div class="tkseg" role="tablist">${[["day", "يومًا بيوم"], ["week", "الأسبوع كله"], ["load", "توزيع العمل"]].map(([k, l]) => `<button class="${X.mode === k ? "on" : ""}" data-ttm="${k}">${l}</button>`).join("")}</div>
         ${X.mode === "day" ? `<div class="tt-days">${tt.days.map(d => `<button class="cchip" aria-pressed="${X.day === d}" data-ttd="${d}">${DAY[d]}</button>`).join("")}</div>` : ""}
         ${X.mode !== "load" ? `<label class="tt-who"><span class="small muted">إبراز:</span><select id="ttWho"><option value="">كل الفريق</option>${people.map(p => `<option value="${esc(p.k + "|" + p.n)}" ${X.who === p.k + "|" + p.n ? "selected" : ""}>${esc(p.n)} (${CM.n(p.periods, CM.W.period)})</option>`).join("")}</select></label>` : ""}
       </div>

@@ -983,7 +983,7 @@
     const pend = warnPending().length;
     return `<article class="dh-card dh-st" id="dhSt"><div class="dh-h"><h2>حالة الطلبة</h2></div><div class="dh-don"><div class="dh-ring"><svg viewBox="0 0 150 150" role="img" aria-label="توزيع الطلبة على مستويات الإنذار"><circle cx="75" cy="75" r="${R}" class="dh-trk"/><g transform="rotate(-90 75 75)">${segs}</g></svg><span class="dh-rc"><b id="dhRn">${tot}</b><small id="dhRl">طالب في المادة</small></span></div>
       <div class="dh-leg">${lv.map((n, i) => n || i < 4 ? `<div class="dh-li" data-dhl="${i}" data-n="${n}"><i style="background:${L[i][1]}"></i><span>${L[i][0]}</span><b>${n}</b></div>` : "").join("")}</div></div>
-      ${pend ? `<button type="button" class="btn primary dh-warnb" data-wal="${c.id}">${ICO(BELL_ICO)} إبلاغ ${pend} ${pend === 1 ? "طالب وصل" : "طلبة وصلوا"} لإنذار جديد</button>` : lv[1] + lv[2] + lv[3] + lv[4] ? `<span class="dh-sub ok-t">كل الإنذارات اتبلّغت.</span>` : ""}</article>`;
+      ${pend ? `<button type="button" class="btn primary dh-warnb" data-wal="${c.id}">${ICO(BELL_ICO)} إبلاغ ${pend} ${pend === 1 ? "طالب وصل" : "طلبة وصلوا"} لإنذار جديد</button>` : lv[1] + lv[2] + lv[3] + lv[4] ? `<span class="dh-sub ok-t">أُبلغ الطلبة بكل الإنذارات.</span>` : ""}</article>`;
   }
   // b178: نص السجل محفوظ وقت الحدث؛ «ينتظر موافقتك» بيفضل مكتوب بعد ما مهلة الـ12 ساعة تخلص، فكانت الرئيسية بتقول «لا شيء ينتظرك» وتحتها «ينتظر موافقتك». بعد 12 ساعة بنكتبه بصيغة الماضي
   const auditTxt = a => { let t = String(a.action || "").replace(/(\d+) (طالب|محاضرة|تكليف)(?![؀-ۿ])/g, (m, n, w) => CM.n(+n, CM.W[{ "طالب": "student", "محاضرة": "lecture", "تكليف": "task" }[w]])); return Date.now() - new Date(a.at) > 12 * 36e5 ? t.replace("حضوره خلال 12 ساعة ينتظر موافقتك.", "وكان حضوره خلال 12 ساعة بعدها يحتاج موافقتك.") : t; };
@@ -1160,7 +1160,7 @@
       <div class="bl-b">${body}</div>`;
     $("#bellX").onclick = bellClose;
     $("#bellRef").onclick = () => { feed = null; bellRender(); loadFeed(); };
-    $("#bellAll").onclick = () => { bellAckAll(); if (feed.unread) { feed.notes.forEach(n => n.read = true); feed.unread = 0; rpc("staff_notes_read").catch(() => {}); } bellBadge(); bellRender(); toast("اتصفّر عداد التنبيهات."); };
+    $("#bellAll").onclick = () => { bellAckAll(); if (feed.unread) { feed.notes.forEach(n => n.read = true); feed.unread = 0; rpc("staff_notes_read").catch(() => {}); } bellBadge(); bellRender(); toast("صُفِّر عداد التنبيهات."); };
     const del = (k, el) => { const [t, a, b] = [k.slice(0, k.indexOf(":")), k.slice(k.indexOf(":") + 1, k.lastIndexOf(":")), k.slice(k.lastIndexOf(":") + 1)];
       if (t === "n") { const id = +k.slice(2); feed.notes = feed.notes.filter(n => n.id !== id); rpc("staff_notes_hide", { p_ids: [id] }).catch(e => { toast(errText(e)); loadFeed(); }); }
       else { bellHideItem(a, +b); }
@@ -2785,7 +2785,7 @@
     });
   }
   window.addEventListener("beforeunload", e => { if (Object.keys(gbPend).length) { gbFlush(); e.preventDefault(); e.returnValue = ""; } });
-  /* ---------- ملف الطالب: كل تكليفاته وملفاته وحالة كل تسليم، مع تعديل «متأخر / في الميعاد» ---------- */
+  /* ---------- ملف الطالب: كل تكليفاته وملفاته وحالة كل تسليم، مع تعديل «متأخر / في الموعد» ---------- */
   const STU_F = [["all", "الكل"], ["issue", "فيها مشكلة"], ["late", "متأخر"], ["none", "لم يسلّم"], ["ok", "سليم"]];
   const durTxt = ms => { const m = Math.round(Math.abs(ms) / 6e4); if (m < 60) return CM.n(m, CM.W.minute) + ""; const h = Math.round(m / 60); if (h < 48) return CM.n(h, CM.W.hour) + ""; return CM.n(Math.round(h / 24), CM.W.day) + ""; };
   const sizeTxt = b => b == null ? "" : b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + " ك.ب" : (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + " م.ب";
@@ -2795,7 +2795,7 @@
     const code = e.student_code, man = isManual(t), due = new Date(t.due_at).getTime(), tags = [];
     const applies = inTaskGrp(t, e) || hasWork(t, code);
     if (!applies) return null;
-    let st = "ok", lab = "في الميعاد";
+    let st = "ok", lab = "في الموعد";
     if (man) { st = s && s.grade != null ? "ok" : "none"; lab = s && s.grade != null ? "رُصد" : "لم تُرصد بعد"; }
     else if (!s || !s.submitted_at) {
       const x = extLive(t, code);
@@ -2805,18 +2805,18 @@
     if (s && s.submitted_at && !man) {
       if (fixOpen(s)) tags.push(["bad", "طلبت منه يعيد رفع الملف · " + fixTxt(s.fix_reason)]);
       else if (s.fix_done_at) tags.push([s.fix_match ? "ok" : s.fix_match === false ? "bad" : "none", s.fix_match ? "أصلح ملفه · الملف نفسه الذي سلّمه في الموعد" : s.fix_match === false ? "صلّح ملفه · رفع ملف مختلف عن الأصلي" : "صلّح ملفه"]);
-      if (s.kind === "drive" && s.check_state === "changed") tags.push(["bad", "الملف اتعدّل على Drive بعد التسليم"]);
+      if (s.kind === "drive" && s.check_state === "changed") tags.push(["bad", "عُدِّل الملف على Drive بعد التسليم"]);
       if (s.kind === "drive" && s.check_state === "missing" && !fixOpen(s)) tags.push(["bad", "الملف محذوف أو غير متاح"]);
       if (s.kind === "drive" && s.check_state === "ok") tags.push(["ok", "فُحص · الملف كما هو"]);
       if (s.rejected_at) tags.push(["bad", "مرفوض"]);
-      if (s.file_modified && new Date(s.file_modified).getTime() > due && !s.late) tags.push(["warn", "الملف نفسه اتعدّل بعد الميعاد (" + CM.fmtD(s.file_modified) + ")"]);
+      if (s.file_modified && new Date(s.file_modified).getTime() > due && !s.late) tags.push(["warn", "عُدِّل الملف نفسه بعد الموعد (" + CM.fmtD(s.file_modified) + ")"]);
       if (s.late_by) tags.push(["none", "الحالة متعدّلة يدويًا · " + staffName(s.late_by)]);
       if (s.version > 1) tags.push(["none", "رفع " + s.version + " مرات"]);
     }
     if (refusedFor(t, e)) tags.push(["bad", "مرفوض · غاب " + DL(t)]);
     else if (excusedOf(t, code)) tags.push(["ok", "غاب " + DL(t) + " · مقبول بعذر"]);
     const x = extnOf(t, code); if (x) tags.push(["warn", "تسليم استثنائي حتى " + extTxt(x) + (x.reason ? " · " + x.reason : "")]);
-    if (excusedOf(t, code) && st === "late" && !s.late) { st = "ok"; lab = "في الميعاد (بعذر)"; }
+    if (excusedOf(t, code) && st === "late" && !s.late) { st = "ok"; lab = "في الموعد (بعذر)"; }
     const issue = tags.some(g => g[0] === "bad") || (s && s.check_state === "changed");
     return { st, lab, tags, issue };
   }
@@ -2839,14 +2839,14 @@
   }
   function stuHistHtml(t, s) {
     const L = (stuLog || []).filter(x => x.task_id === t.id);
-    if (stuLog == null) return `<div class="muted small">بيحمّل السجل…</div>`;
+    if (stuLog == null) return `<div class="muted small">جارٍ تحميل السجل…</div>`;
     let prev = null;
     const rows = L.map(x => {
-      if (x.ev === "late_set") return `<li class="sl-ev"><span class="sl-t">${CM.fmtD(x.at)} ${CM.fmtT(x.at)}</span><span>${esc(staffName(x.by_email))} خلّى الحالة <b>${x.late ? "متأخر" : "في الميعاد"}</b>${x.note ? " · «" + esc(x.note) + "»" : ""}</span></li>`;
+      if (x.ev === "late_set") return `<li class="sl-ev"><span class="sl-t">${CM.fmtD(x.at)} ${CM.fmtT(x.at)}</span><span>${esc(staffName(x.by_email))} خلّى الحالة <b>${x.late ? "متأخر" : "في الموعد"}</b>${x.note ? " · «" + esc(x.note) + "»" : ""}</span></li>`;
       const same = prev && prev.md5 && x.md5 ? prev.md5 === x.md5 : null; prev = x;
       const ev = { upload: "رفع", fix: "رفع بعد طلب الإصلاح", prev: "الملف الأصلي", backfill: "آخر نسخة مسجلة" }[x.ev] || "رفع";
       return `<li><span class="sl-t">${CM.fmtD(x.at)} ${CM.fmtT(x.at)}</span><span><b>${ev}</b>${x.version ? ` · نسخة ${x.version}` : ""} · ${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(fileNm(x))}</a>` : esc(fileNm(x))}${x.size ? ` <span class="muted">(${sizeTxt(x.size)})</span>` : ""}
-        ${x.file_modified ? ` <span class="muted">· آخر تعديل للملف ${CM.fmtD(x.file_modified)} ${CM.fmtT(x.file_modified)}</span>` : ""}${new Date(x.at).getTime() > new Date(t.due_at).getTime() && x.ev !== "prev" ? ` <span class="chip warn">بعد الميعاد</span>` : ""}${same === true ? ` <span class="chip ok">نفس الملف</span>` : same === false ? ` <span class="chip bad">ملف مختلف</span>` : ""}${x.note ? ` <span class="muted">· ${esc(x.note)}</span>` : ""}</span></li>`;
+        ${x.file_modified ? ` <span class="muted">· آخر تعديل للملف ${CM.fmtD(x.file_modified)} ${CM.fmtT(x.file_modified)}</span>` : ""}${new Date(x.at).getTime() > new Date(t.due_at).getTime() && x.ev !== "prev" ? ` <span class="chip warn">بعد الموعد</span>` : ""}${same === true ? ` <span class="chip ok">نفس الملف</span>` : same === false ? ` <span class="chip bad">ملف مختلف</span>` : ""}${x.note ? ` <span class="muted">· ${esc(x.note)}</span>` : ""}</span></li>`;
     }).join("");
     const old = s && s.version > L.filter(x => x.ev === "upload" || x.ev === "fix").length + (L.some(x => x.ev === "backfill") ? 1 : 0);
     return `<ul class="stu-log">${rows || `<li class="muted">لا توجد رفعات مسجلة</li>`}</ul>${old ? `<p class="small muted">الرفعات السابقة على 18 نوفمبر 2026 غير مسجلة بالتفصيل، ويظهر منها آخر نسخة فقط. ومن الآن تُسجَّل كل رفعة.</p>` : ""}`;
@@ -2864,7 +2864,7 @@
         ${stuPickHtml()}</div>
       <div class="stu-kpis">
         <div><b>${up.filter(i => i.s && i.s.submitted_at).length}<small> من ${up.length}</small></b><span>سلّم</span></div>
-        <div class="ok"><b>${up.filter(i => i.st === "ok").length}</b><span>في الميعاد</span></div>
+        <div class="ok"><b>${up.filter(i => i.st === "ok").length}</b><span>في الموعد</span></div>
         <div class="warn"><b>${cnt("late")}</b><span>متأخر</span></div>
         <div class="bad"><b>${up.filter(i => i.st === "none").length}</b><span>لم يسلّم</span></div>
         <div class="${cnt("issue") ? "bad" : ""}"><b>${cnt("issue")}</b><span>فيها مشكلة</span></div>
@@ -2874,9 +2874,9 @@
       ${msgHtml("tasks")}
       <div class="stu-list">${shown.length ? shown.map(({ t, s, st, lab, tags }) => { const man = isManual(t), due = new Date(t.due_at).getTime(), sub = s && s.submitted_at ? new Date(s.submitted_at).getTime() : null, open = stuHist[t.id];
         return `<article class="stu-tk st-${st}">
-          <div class="stu-tk-h"><div><b class="stu-tk-t">${esc(t.title)}</b><div class="small muted">${man ? "رصد يدوي" : "الميعاد " + esc(dueStr(t.due_at))}${t.grp ? " · مجموعة " + esc(t.grp) : ""}</div></div>
+          <div class="stu-tk-h"><div><b class="stu-tk-t">${esc(t.title)}</b><div class="small muted">${man ? "رصد يدوي" : "الموعد " + esc(dueStr(t.due_at))}${t.grp ? " · مجموعة " + esc(t.grp) : ""}</div></div>
             <span class="chip ${ST[st]} stu-st">${esc(lab)}</span></div>
-          ${!man && sub ? `<div class="stu-when">${ICO('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')} سلّم ${esc(dueStr(s.submitted_at))} · <b class="${sub > due ? "warn-t" : "ok-t"}">${sub > due ? "بعد الميعاد بـ " + durTxt(sub - due) : "قبل الميعاد بـ " + durTxt(due - sub)}</b></div>` : ""}
+          ${!man && sub ? `<div class="stu-when">${ICO('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')} سلّم ${esc(dueStr(s.submitted_at))} · <b class="${sub > due ? "warn-t" : "ok-t"}">${sub > due ? "بعد الموعد بـ " + durTxt(sub - due) : "قبل الموعد بـ " + durTxt(due - sub)}</b></div>` : ""}
           ${!man && s && s.url ? `<div class="stu-file">${ICO('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>')} <a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(fileNm(s))}</a>${s.size ? ` <span class="muted small">${sizeTxt(s.size)}</span>` : ""}${s.file_modified ? ` <span class="muted small">· آخر تعديل للملف ${CM.fmtD(s.file_modified)} ${CM.fmtT(s.file_modified)}</span>` : ""}${s.note ? `<div class="muted small">«${esc(s.note)}»</div>` : ""}</div>` : ""}
           ${tags.length ? `<div class="nm-tags stu-tags">${tags.map(([k, l]) => `<span class="chip ${k}">${esc(l)}</span>`).join("")}</div>` : ""}
           ${s && s.late_note ? `<div class="small muted">سبب تعديل الحالة: «${esc(s.late_note)}»</div>` : ""}
@@ -2903,7 +2903,7 @@
         $("#slGo").disabled = true;
         try { const r = await rpc("submission_set_late", { tid: t.id, code, p_mode: m, p_note: note });
           const s = subOf(t, code); s.late = r.late; s.late_by = m === "auto" ? null : (me || {}).email || "أنت"; s.late_note = m === "auto" ? null : note;
-          stuLate = null; say("tasks", "حالة «" + t.title + "» أصبحت: " + (r.late ? "متأخر" : "في الميعاد") + "."); await refreshSubs(t);
+          stuLate = null; say("tasks", "حالة «" + t.title + "» أصبحت: " + (r.late ? "متأخر" : "في الموعد") + "."); await refreshSubs(t);
           const lg = await sb.from("submission_log").select("*").eq("student_code", code).in("task_id", D.tasks.map(x => x.id)).order("at"); if (!lg.error) stuLog = lg.data;
           renderTasks(); } catch (e2) { $("#slGo").disabled = false; showErr(e2); } };
     }
@@ -2911,9 +2911,9 @@
   function stuLateBox(t, s) {
     const auto = new Date(s.submitted_at).getTime() > new Date(t.due_at).getTime() && !extnOf(t, s.student_code);
     return `<div class="note-box se-box" id="stuLateBox"><b>حالة تسليم «${esc(t.title)}»</b>
-      <span class="small muted">سلّم ${esc(dueStr(s.submitted_at))}، والميعاد ${esc(dueStr(t.due_at))}. الحساب التلقائي بيقول: <b>${auto ? "متأخر" : "في الميعاد"}</b>. يظهر التعديل للطالب وفي الكشف والتقارير، ويُسجَّل باسمك.</span>
-      <div class="se-r"><label><input type="radio" name="slM" value="ontime" ${!s.late ? "checked" : ""}> في الميعاد</label><label><input type="radio" name="slM" value="late" ${s.late ? "checked" : ""}> متأخر</label>${s.late_by ? `<label><input type="radio" name="slM" value="auto"> رجّعها للحساب التلقائي</label>` : ""}</div>
-      <label class="f" style="margin:0"><span>السبب (اختياري)</span><input type="text" id="slN" maxlength="300" placeholder="مثلًا: النت كان واقع في الكلية، أو رفع في الميعاد على الإيميل" value="${esc(s.late_note || "")}"></label>
+      <span class="small muted">سلّم ${esc(dueStr(s.submitted_at))}، والموعد ${esc(dueStr(t.due_at))}. وفق الحساب التلقائي: <b>${auto ? "متأخر" : "في الموعد"}</b>. يظهر التعديل للطالب وفي الكشف والتقارير، ويُسجَّل باسمك.</span>
+      <div class="se-r"><label><input type="radio" name="slM" value="ontime" ${!s.late ? "checked" : ""}> في الموعد</label><label><input type="radio" name="slM" value="late" ${s.late ? "checked" : ""}> متأخر</label>${s.late_by ? `<label><input type="radio" name="slM" value="auto"> رجّعها للحساب التلقائي</label>` : ""}</div>
+      <label class="f" style="margin:0"><span>السبب (اختياري)</span><input type="text" id="slN" maxlength="300" placeholder="مثلًا: النت كان واقع في الكلية، أو رفع في الموعد على الإيميل" value="${esc(s.late_note || "")}"></label>
       <span class="small muted">إذا رفع الطالب ملفًا جديدًا بعد ذلك، تُحسب الحالة تلقائيًّا من جديد للرفعة الجديدة.</span>
       <div class="row"><button class="btn sm primary" id="slGo">حفظ</button><button class="btn sm ghost" id="slNo">إلغاء</button></div></div>`;
   }
@@ -3455,7 +3455,7 @@
       else if (r.reject) {
         gvTxt("مرفوض · " + e.name + "…");
         await rpc("task_reject", { tid: t.id, codes: [code], p_on: true, p_source: "بالإملاء الصوتي" }); await refreshSubs(t);
-        if (grader) { if (grader.f === "ungraded") grader.order = graderOrder(t, "ungraded"); grader.i = Math.min(grader.i + (grader.f === "ungraded" ? 0 : 1), Math.max(0, grader.order.length - 1)); grader.msg = "اتسجّل «مرفوض» لـ" + e.name + ". وسيظهر له: توجّه إلى أستاذ المادة."; drawGrader(true); }
+        if (grader) { if (grader.f === "ungraded") grader.order = graderOrder(t, "ungraded"); grader.i = Math.min(grader.i + (grader.f === "ungraded" ? 0 : 1), Math.max(0, grader.order.length - 1)); grader.msg = "سُجِّل «مرفوض» لـ" + e.name + ". وسيظهر له: توجّه إلى أستاذ المادة."; drawGrader(true); }
       } else if (refusedFor(t, e)) { gvTxt("هذا التسليم مرفوض لغياب الطالب، ولا يمكن رصده.", true); }
       else if (r.grade < 0 || r.grade > Number(t.max_grade)) { gvTxt("سمعت " + gN(r.grade) + " والدرجة من " + gN(t.max_grade) + ". قلها مرة أخرى.", true); }
       else { const G = $("#grG"), B = $("#grB"); G.value = gN(r.grade); if (r.bonus != null) B.value = gN(r.bonus); G.dispatchEvent(new Event("input")); gvTxt(gN(r.grade) + (r.bonus != null ? " + بونص " + gN(r.bonus) : "") + " · " + e.name + "…"); await graderSave(t, code); }
@@ -4318,7 +4318,7 @@
       const base = HD.fileName(t.title + " - " + c.name + " - مختوم"), LIMIT = 300 * 1048576;
       const flush = async last => { if (!Object.keys(zip.files).length) return; stat("جارٍ الضغط…"); const blob = await zip.generateAsync({ type: "blob", compression: "STORE" });
         HD.saveBytes(blob, base + (part > 1 || !last ? " (" + part + ")" : "") + ".zip", "application/zip"); part++; zip = new window.JSZip(); size = 0; };
-      for (let i = 0; i < rows.length; i++) { const { e, n, s } = rows[i]; stat("بيختم " + (i + 1) + " من " + rows.length + "…");
+      for (let i = 0; i < rows.length; i++) { const { e, n, s } = rows[i]; stat("جارٍ الختم: " + (i + 1) + " من " + rows.length + "…");
         try { const out = await HD.stamped(await HD.publicFile(s.file_id), s.mime, stampInfo(t, e.student_code, s, c));
           if (size && size + out.byteLength > LIMIT) await flush(false);
           zip.file(String(n).padStart(3, "0") + " - " + HD.fileName(e.student_code + " - " + e.name) + " - " + gN(totalOf(s)) + " من " + gN(t.max_grade) + ".pdf", out); size += out.byteLength; ok++;
@@ -4776,7 +4776,7 @@
      "• الكود: كود الطالب الجامعي كما هو.", "• الاسم: الاسم الرباعي أو الثلاثي.", "• المجموعة: أ أو ب أو ج… (اختر من القائمة)، أو اتركها فارغة إذا لم تكن للمادة مجموعات.",
      "• رمز التفعيل (اختياري): آخر 4 أرقام من الرقم القومي مثلًا، ليفعّل الطالب حسابه به.", "",
      "بعد ما تخلّص احفظ الملف، وارفعه من تبويب «الطلبة» بزرار «رفع ملف إكسل».",
-     "تنبيه: رفع ملف جديد بيستبدل قائمة الطلبة كلها، والحضور القديم بيفضل محفوظ.", "", "المادة: " + c.name].forEach((t, i) => {
+     "تنبيه: رفع ملف جديد يستبدل قائمة الطلبة كلها، ويبقى الحضور السابق محفوظًا.", "", "المادة: " + c.name].forEach((t, i) => {
       const cl = hs.getCell(i + 1, 1); cl.value = t; cl.alignment = { horizontal: "right", wrapText: true }; cl.font = { name: "Arial", size: i === 0 ? 15 : 12, bold: i === 0, color: { argb: i === 0 ? "FF1D6B58" : "FF15211E" } }; });
     await saveWb(wb, "نموذج الطلبة - " + c.name.replace(/[\\/:*?"<>|]/g, " ") + ".xlsx");
   }
@@ -4934,13 +4934,13 @@
     const rank = { bad: 0, warn: 1, ok: 2 };
     rows.forEach(r => r.s = st(r.o)); rows.sort((a, b) => rank[a.s[0]] - rank[b.s[0]] || (a.o.last_at || "").localeCompare(b.o.last_at || "") || a.c.name.localeCompare(b.c.name, "ar"));
     const n = k => rows.filter(r => r.s[0] === k).length;
-    return `<div class="cchips" style="margin-bottom:10px"><span class="chip ok">${n("ok")} بياخدوا الغياب</span><span class="chip warn">${n("warn")} متوقفة منذ أكثر من 8 أيام</span><span class="chip bad">${n("bad")} ما بدأتش</span></div>
+    return `<div class="cchips" style="margin-bottom:10px"><span class="chip ok">${n("ok")} يُسجَّل فيها الحضور</span><span class="chip warn">${n("warn")} متوقفة منذ أكثر من 8 أيام</span><span class="chip bad">${n("bad")} لم تبدأ</span></div>
       <div class="tbl-wrap"><table><thead><tr><th>المادة</th><th>المحاضر</th><th class="c">الطلبة</th><th class="c">المحاضرات</th><th>آخر محاضرة</th><th class="c">متوسط الحضور</th><th class="c">تكليفات رُصدت</th><th>الحالة</th><th></th></tr></thead><tbody>
       ${rows.map(({ c, o, s }) => `<tr><td class="nm">${esc(c.name)}<div class="muted small">${esc(clsLabel(c))}</div></td><td class="small${c.no_owner ? " muted" : ""}">${esc(ownerName(c))}</td><td class="c mono">${+o.students || 0}</td><td class="c mono">${+o.lectures || 0}</td>
         <td class="small">${o.last_at ? esc(ago(o.last_at)) : "—"}</td><td class="c mono">${o.avg_pct == null ? "—" : o.avg_pct + "%"}</td><td class="c mono">${+o.tasks ? (+o.graded_tasks || 0) + " / " + o.tasks : "—"}</td>
         <td><span class="chip ${s[0]}">${s[1]}</span></td><td><button class="btn xs" data-dopen="${c.id}">فتح</button></td></tr>`).join("") || `<tr><td colspan="9" class="muted">لا توجد مواد في هذا الفلتر.</td></tr>`}
       </tbody></table></div>
-      <p class="muted small">«متوسط الحضور» محسوب على المحاضرات المنتهية لكل مجموعة. «فتح» بيوديك لكشف الحضور في المادة، وتقدر تعدّل فيها زي صاحبها.</p>`;
+      <p class="muted small">«متوسط الحضور» محسوب على المحاضرات المنتهية لكل مجموعة. «فتح» ينقلك إلى كشف الحضور في المادة، ويمكنك التعديل فيها كصاحبها.</p>`;
   }
   let adminReqs = [], adminTks = [], inboxF = "open", inboxOpen = null, rqRole = {}, faqStats = null, faqDays = 30;
   let tmpPw = null;

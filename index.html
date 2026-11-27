@@ -406,7 +406,7 @@
           
           <ol class="rf-steps"><li class="on">ارفع استمارة التسجيل</li><li>راجع بياناتك وموادك</li><li>اختر كلمة السر وادخل</li></ol>
           <p class="muted small">يرتبط الحساب بهذا الهاتف، فسجّل منه هو، ولا تستخدم التصفح الخفي.</p>
-          <details class="more"><summary>تفاصيل أكثر</summary><p>أول تسجيل على Hadro بيكون <b>باستمارة الإرشاد الأكاديمي</b> التي تنزّلها من نظام ابن الهيثم. يقرأ البرنامج منها كودك واسمك ومستواك ومقرراتك، ويسجّلك في موادك تلقائيًّا، ثم تختار كلمة السر التي ستدخل بها.</p></details>
+          <details class="more"><summary>تفاصيل أكثر</summary><p>يكون أول تسجيل على <bdi>Hadro</bdi> <b>باستمارة الإرشاد الأكاديمي</b> التي تنزّلها من نظام ابن الهيثم. يقرأ البرنامج منها كودك واسمك ومستواك ومقرراتك، ويسجّلك في موادك تلقائيًّا، ثم تختار كلمة السر التي ستدخل بها.</p></details>
         `}
         ${sstore.get("cm_pending_qr") ? `<div class="msg">سجّل الدخول أولًا، وبعدها يُسجَّل حضورك بالرمز الذي مسحته. وإن انتهت صلاحيته فامسحه من الشاشة مرة أخرى.</div>` : ""}
         ${inAppWarn()}
@@ -1149,7 +1149,7 @@
       ${last.status === "pending" ? `<span class="small muted">أستاذ المادة هيراجعه، ويوصلك تنبيه بالقرار.</span><button class="btn sm ghost" id="ptWd" style="justify-self:start">سحب الالتماس</button>` : ""}</div>`;
     if (last && last.status === "pending") return out;
     if (mine.filter(p => p.status !== "withdrawn").length >= 3) return out;
-    if (!pt || pt.tid !== t.id) return out + `<button class="btn block ap-open" id="ptOpen">فاتك ميعاد التسليم ولديك عذر؟ قدّم التماس تسليم</button>`;
+    if (!pt || pt.tid !== t.id) return out + `<button class="btn block ap-open" id="ptOpen">فاتك موعد التسليم ولديك عذر؟ قدّم التماس تسليم</button>`;
     return out + `<div class="ap-form" id="ptForm"><h3>التماس تسليم «${esc(t.title)}»</h3>
       <div class="ap-rs" role="radiogroup">
         <label class="ap-r"><input type="radio" name="ptK" value="sick" ${pt.kind === "sick" ? "checked" : ""}><span><b>عذر مرضي</b> · يجب رفع الشهادة الطبية، ولن يُقبل الالتماس بدونها</span></label>
@@ -1365,7 +1365,7 @@
     setUp("جارٍ تسجيل التسليم…", null);
     try {
       const r = await rpc("student_submit", { p_token: token, tid: t.id, p_kind: "link", p_url: url, p_file_id: null, p_name: "", p_mime: null, p_size: null, p_md5: null, p_modified: null, p_note: note });
-      tkMsg = { k: "ok", t: r.fixed ? "الرابط اتسلّم، ووصل للمحاضر تنبيه إنك صلّحت ملفك." : r.late ? "سُلِّم الرابط بعد الموعد، وسيظهر ذلك للمحاضر." : "تم تسليم الرابط." };
+      tkMsg = { k: "ok", t: r.fixed ? "سُلِّم الرابط، ووصل إلى المحاضر تنبيه بأنك أصلحت ملفك." : r.late ? "سُلِّم الرابط بعد الموعد، وسيظهر ذلك للمحاضر." : "تم تسليم الرابط." };
     } catch (e) { tkMsg = { k: "bad", t: errText(e) }; }
     up = null; await loadTasks(true); renderTask();
   }

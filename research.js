@@ -107,7 +107,7 @@
       X.sv = svId ? { meta: (X.svs || []).find(x => x.id === svId), rows: rows || [] } : null; X.val = vals || [];
       X.data.survey_rows = X.sv ? X.sv.rows.length : 0; X.data.validations = X.val;
       X.hash = await sha256(JSON.stringify({ stats: X.data, survey: X.sv ? X.sv.rows : null }));
-      draw(); msg("اتحسبت المؤشرات من " + num(X.data.meta.enrollments, 0) + " تسجيل طالب في " + X.data.meta.courses + " مادة.");
+      draw(); msg("حُسبت المؤشرات من " + num(X.data.meta.enrollments, 0) + " تسجيل طالب في " + X.data.meta.courses + " مادة.");
     } catch (e) { b.disabled = false; b.textContent = "احسب المؤشرات"; msg("!" + X.ctx.errText(e)); }
   }
 
@@ -137,7 +137,7 @@
   function svBox() {
     const L = X.svs, o = X.opt, act = L && L.find(x => x.active);
     return `<section class="rs-box" id="rsSvBox"><div class="row between"><h3>استطلاع رأي المستخدمين</h3>${act ? `<span class="chip ok">مفتوح الآن</span>` : ""}</div>
-      <p class="small muted">لما تطلقه، يظهر لكل مستخدم أول ما يفتح البرنامج ومايقدرش يكمل غير لما يجاوب. الاستطلاع: مقياس سهولة الاستخدام SUS (10 عبارات) ومحاور من نموذج قبول التقنية TAM (الفائدة، والثقة، والرضا، وعبء العمل للفريق)، وأسئلة مفتوحة. الإجابات تُحفظ بمعرّف مجهول.</p>
+      <p class="small muted">عند إطلاقه يظهر لكل مستخدم فور فتح البرنامج، ولا يستطيع المتابعة حتى يجيب. الاستطلاع: مقياس سهولة الاستخدام SUS (10 عبارات) ومحاور من نموذج قبول التقنية TAM (الفائدة، والثقة، والرضا، وعبء العمل للفريق)، وأسئلة مفتوحة. الإجابات تُحفظ بمعرّف مجهول.</p>
       ${L == null ? `<p class="small muted"><span class="spinner"></span> جارٍ التحميل…</p>` : `
       ${act ? "" : `<div class="row" style="gap:10px;align-items:end;flex-wrap:wrap"><label class="f" style="margin:0"><span>يظهر لـ</span><select id="rsAud">${Object.entries(AUD).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></label>
         <label class="row small" style="gap:6px"><input type="checkbox" id="rsDec" checked> اسمح بزرار «أعتذر عن المشاركة»</label>
@@ -151,7 +151,7 @@
     const go = X.el.querySelector("#rsSvGo"); if (go) go.onclick = async () => {
       const aud = X.el.querySelector("#rsAud").value, dec = X.el.querySelector("#rsDec").checked;
       if (!confirm("إطلاق الاستطلاع لـ" + AUD[aud] + "؟ سيظهر لكل منهم عند فتح البرنامج" + (dec ? "، ويقدر يعتذر." : "، ولن يستطيع المتابعة حتى يجيب."))) return;
-      go.disabled = true; try { await X.ctx.rpc("admin_survey_start", { p_audience: aud, p_allow_decline: dec }); X.opt.sv = null; optSet(X.opt); await loadSurveys(); msg("اتطلق الاستطلاع."); } catch (e) { go.disabled = false; msg("!" + X.ctx.errText(e)); } };
+      go.disabled = true; try { await X.ctx.rpc("admin_survey_start", { p_audience: aud, p_allow_decline: dec }); X.opt.sv = null; optSet(X.opt); await loadSurveys(); msg("أُطلق الاستطلاع."); } catch (e) { go.disabled = false; msg("!" + X.ctx.errText(e)); } };
     X.el.querySelectorAll("[data-svclose]").forEach(b => b.onclick = async () => { if (!confirm("إيقاف الاستطلاع؟ لن يظهر لأحد بعد ذلك.")) return; b.disabled = true; try { await X.ctx.rpc("admin_survey_close", { sid: b.dataset.svclose }); await loadSurveys(); } catch (e) { b.disabled = false; msg("!" + X.ctx.errText(e)); } });
     X.el.querySelectorAll('[name="rsSvPick"]').forEach(r => r.onchange = () => { X.opt.sv = r.value; optSet(X.opt); });
   }
@@ -191,7 +191,7 @@
         <tr><th>حاضر في المنصة</th><td>${r.a}</td><td>${r.b}</td></tr><tr><th>غائب في المنصة</th><td>${r.c}</td><td>${r.d}</td></tr></tbody></table></div>
         <p><b>نسبة الاتفاق: ${pct(r.a + r.d, n)} · كابا لكوهين: ${num(r.k, 3)}</b>${r.unknown ? ` <span class="small warn-t">(${r.unknown} كود في الكشف الورقي غير موجود في كشف المحاضرة، وتم تجاهلها)</span>` : ""}</p>
         ${r.diff.length ? `<details><summary class="small">الأكواد المختلفة (${r.diff.length}) · للمراجعة فقط ولا تُحفظ</summary><p class="small mono" dir="ltr">${r.diff.map(esc).join("، ")}</p></details>` : ""}
-        <button class="btn sm" id="rsVsave" ${r.saved ? "disabled" : ""}>${r.saved ? "اتحفظت ✓" : "حفظ في عينة التحقق"}</button>`; })() : ""}
+        <button class="btn sm" id="rsVsave" ${r.saved ? "disabled" : ""}>${r.saved ? "حُفظت ✓" : "حفظ في عينة التحقق"}</button>`; })() : ""}
     </section>`;
   }
   function wireVal() {
