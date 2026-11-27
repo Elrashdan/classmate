@@ -1339,3 +1339,23 @@ html .gx .gx-b input:not([type=checkbox]):not([type=radio]):not([type=file]):not
   #app .tkseg:not(:has(>button:nth-child(5)))>button{flex:1 1 0;min-width:0;padding-inline:6px;text-align:center;justify-content:center}
 }
 #app .faqst>summary{min-height:44px;display:flex;flex-wrap:wrap;align-items:center;column-gap:10px;cursor:pointer} /* b187: سطر «مساعد Hadro» كان 25px */
+
+/* ===== b188 ===== */
+/* «يحتاج انتباهك»: أيقونة النوع كانت مربع رمادي شكله زرار وهي مش بتتضغط. بقت أيقونة صغيرة من غير خلفية */
+.dh-ti{background:transparent!important;width:24px;height:24px;border-radius:0;color:var(--muted);align-self:start;margin-top:2px}
+.dh-task.late .dh-ti{color:var(--warn)}
+.dh-ta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dh-ta .ia-ok{gap:6px;padding-inline:14px}
+.dh-ta .ia-ok svg{width:16px;height:16px}
+/* الكارت الأصفر: لو المحاضرة الجاية مش النهارده، الزرار ثانوي بإطار والموعد هو العنصر الأوضح */
+.btn.dhx-b.dhx-b2{background:transparent;color:#121614;border:1.5px solid #121614}
+.btn.dhx-b.dhx-b2:hover{background:rgba(18,22,20,.08)}
+.dhx-when{font:700 18px var(--fd);color:#121614}
+/* الأزرار تحت النص في سطر لوحدها (كانت جنب النص فبتزنقه لعمود ضيق) */
+.dh-task{flex-wrap:wrap}
+.dh-task>.dh-tt{flex:1 1 0;min-width:0}
+.dh-task>.dh-ta{flex:1 1 100%;padding-inline-start:34px;margin-top:8px}
+@media (max-width:760px){
+  .dh-task>.dh-ta{display:grid;grid-template-columns:minmax(0,1fr) auto;padding-inline-start:0}
+  .dh-task>.dh-ta>.btn{width:100%;justify-content:center}
+}

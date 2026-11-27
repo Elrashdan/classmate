@@ -20,10 +20,10 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;600;700&display=swap" media="print" onload="this.media='all'">
-<link rel="stylesheet" href="ui.css?v=b187">
-<link rel="stylesheet" href="ui-tools.css?v=b187">
-<link rel="stylesheet" href="ui-legacy.css?v=b187">
-<link rel="stylesheet" href="ui-staff.css?v=b187">
+<link rel="stylesheet" href="ui.css?v=b188">
+<link rel="stylesheet" href="ui-tools.css?v=b188">
+<link rel="stylesheet" href="ui-legacy.css?v=b188">
+<link rel="stylesheet" href="ui-staff.css?v=b188">
 </head>
 <body>
 <div class="wrap" id="app"><div class="hd-loader" role="status" aria-live="polite"><div class="hd-lmark"><svg viewBox="0 0 200 200" aria-hidden="true"><g transform="translate(-14 -6)"><path class="l1" pathLength="1" d="M92 172V130L76 34" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><path class="l2" pathLength="1" d="M92 128Q92 98 121 98Q150 98 150 128V172" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/><circle class="ld" cx="122" cy="60" r="17"/></g></svg></div><span class="hd-ltext">جارٍ التحميل…</span></div></div>
@@ -49,16 +49,16 @@
   <div class="foot"><span id="scanCount"></span><button class="btn" id="scanClose">إغلاق الكاميرا</button></div>
 </div>
 
-<script src="vendor/supabase.js?v=b187"></script>
-<script src="vendor/qrcode.js?v=b187"></script>
-<script src="config.js?v=b187"></script>
-<script src="common.js?v=b187"></script>
-<script src="drive.js?v=b187"></script>
-<script src="pack.js?v=b187"></script>
-<script src="catalog.js?v=b187"></script>
-<script src="voice.js?v=b187"></script>
-<script src="timetable.js?v=b187"></script>
-<script src="research.js?v=b187"></script>
+<script src="vendor/supabase.js?v=b188"></script>
+<script src="vendor/qrcode.js?v=b188"></script>
+<script src="config.js?v=b188"></script>
+<script src="common.js?v=b188"></script>
+<script src="drive.js?v=b188"></script>
+<script src="pack.js?v=b188"></script>
+<script src="catalog.js?v=b188"></script>
+<script src="voice.js?v=b188"></script>
+<script src="timetable.js?v=b188"></script>
+<script src="research.js?v=b188"></script>
 <script>
 (function () {
   const { $, esc, rpc, errText, store, sb } = CM;
@@ -662,14 +662,14 @@
   }
   // b168: شرح بملء الشاشة أول مرة يُفتح فيها كل قسم من أقسام المادة
   const TAB_INTRO = {
-    live: [{ eb: "قسم جديد · المحاضرة", art: CM.illus("lecturer"), t: "ابدأ، واترك الباقي لـ Hadro", p: "اضغط «ابدأ المحاضرة» واعرض الرمز على شاشة القاعة. يسجّل الطلبة حضورهم من هواتفهم، وتتابع العدّاد وهو يرتفع.", tips: ["من لا يستطيع المسح تمسح أنت «بطاقة حضوره»", "الطلبات المعلّقة تعتمدها أو ترفضها من هنا"] }],
+    live: [{ eb: "قسم جديد · المحاضرة", art: CM.illus("lecturer"), t: "ابدأ، واترك الباقي لـ&nbsp;<bdi>Hadro</bdi>", p: "اضغط «ابدأ المحاضرة» واعرض الرمز على شاشة القاعة. يسجّل الطلبة حضورهم من هواتفهم، وتتابع العدّاد وهو يرتفع.", tips: ["من لا يستطيع المسح تمسح أنت «بطاقة حضوره»", "الطلبات المعلّقة تعتمدها أو ترفضها من هنا"] }],
     reg: [{ eb: "قسم جديد · الكشف", art: CM.mascot("tablet"), t: "الكشف بثلاث طرق", p: "على الهاتف: قائمة الطلبة بنسبهم، وملف كل طالب بسجل محاضراته، وكشف محاضرة واحدة بزر حاضر/غائب لكل طالب.", tips: ["اضغط اسم أي طالب لترى سجله", "«الجدول الكامل» ما زال متاحًا للتصدير والطباعة"] }],
     students: [{ eb: "قسم جديد · الطلبة", art: CM.mascot("point"), t: "كل طلبتك في مكان واحد", p: "ارفع ملف الطلبة مرة واحدة، وابحث عن أي طالب بالاسم أو الكود، وأضف أو انقل طالبًا بين المجموعات." }],
     report: [{ eb: "قسم جديد · التقرير", art: CM.illus("warning"), t: "الإنذارات في وقتها", p: "يتابع Hadro الغياب ويجهّز الإنذارات بالصياغة الرسمية، فتراجعها وتعتمدها قبل إبلاغ الطلبة." }],
     tasks: [{ eb: "قسم جديد · التكليفات", art: CM.illus("submit"), t: "التكليفات والدرجات", p: "أنشئ تكليفًا يسلّمه الطلبة من صفحتهم، أو كشف رصد يدوي، ثم صحّح وارصد الدرجات وصدّرها للكنترول." }]
   };
   let tabIntroOn = false;
-  function tabIntro(k) { if (tabIntroOn || !TAB_INTRO[k] || CM.seen("st_" + k)) return; tabIntroOn = true; CM.intro("st_" + k, TAB_INTRO[k], { doneText: "فهمت" }).then(() => { tabIntroOn = false; }); }
+  function tabIntro(k) { /* b188: الشرح بملء الشاشة يظهر مرة واحدة بس (أول قسم تفتحه)، مش في كل قسم */ if (tabIntroOn || !TAB_INTRO[k] || CM.seen("st_" + k) || Object.keys(TAB_INTRO).some(x => CM.seen("st_" + x))) return; tabIntroOn = true; CM.intro("st_" + k, TAB_INTRO[k], { doneText: "فهمت" }).then(() => { tabIntroOn = false; }); }
   function renderPane(k) {
     if (!D) return;
     try { ({ live: () => { renderSession(); renderLive(); }, students: renderRoster, reg: renderRegister, report: renderReport, tasks: renderTasks, team: renderTeam, log: renderAudit }[k] || (() => {}))(); } catch (e) { console.error(e); }
@@ -753,7 +753,7 @@
     const cand = ss.map(s => { const st = toM(per(s.p_from).from), en = toM(per(s.p_to).to), d = order(s.day); let o = d * 1440 + st - hm;
       if (d === 0 && st <= hm && en > hm) o = 0; else if (o < 0) o += 7 * 1440; return { s, o, now: d === 0 && st <= hm && en > hm }; }).sort((a, b) => a.o - b.o)[0];
     if (!cand) return null; const s = cand.s, d = Math.floor((cand.o + hm) / 1440) % 7;
-    return { when: (cand.now ? "الآن" : d === 0 ? "اليوم" : d === 1 ? "بكرة" : TT.DAY[s.day]) + " " + TT.t12(per(s.p_from).from), what: [s.myRoom || s.room, s.myGroups && s.myGroups.length ? "مجموعة " + s.myGroups.join("، ") : ""].filter(Boolean).join(" · ") || "المحاضرة الجاية" };
+    return { today: !!cand.now || d === 0, when: (cand.now ? "الآن" : d === 0 ? "اليوم" : d === 1 ? "غدًا" : TT.DAY[s.day]) + " " + TT.t12(per(s.p_from).from), what: [s.myRoom || s.room, s.myGroups && s.myGroups.length ? "مجموعة " + s.myGroups.join("، ") : ""].filter(Boolean).join(" · ") || "المحاضرة الجاية" };
   }
   // كارت «أنا»: ملخص سريع لصاحب الحساب
   function meCardHtml() {
@@ -814,7 +814,7 @@
       const ung = D.tasks.filter(t => t.mode === "submit" && !collectOnly(t)).reduce((s, t) => s + Object.values(D.subs[t.id] || {}).filter(x => x.submitted_at && x.grade == null).length, 0);
       const ap = (D.appeals || []).filter(a => a.status === "pending").length;
       const days = nx ? Math.ceil((new Date(nx.due_at) - now) / 864e5) : 0;
-      return w(`${calHtml(D.tasks)}<span class="mw-row">${nx ? `<span class="mw-next"><b>${days <= 0 ? "اليوم" : days === 1 ? "بكرة" : "بعد " + CM.n(days, CM.W.day) + ""}</b><span>${esc(nx.title)}</span></span>` : `<span class="mw-m">لا يوجد تكليف مفتوح الآن</span>`}<span class="mw-row">${ung ? `<em class="mw-chip">${ung} بدون درجة</em>` : ""}${ap ? `<em class="mw-chip warn">${ap} تظلم</em>` : ""}</span></span>`);
+      return w(`${calHtml(D.tasks)}<span class="mw-row">${nx ? `<span class="mw-next"><b>${days <= 0 ? "اليوم" : days === 1 ? "غدًا" : "بعد " + CM.n(days, CM.W.day) + ""}</b><span>${esc(nx.title)}</span></span>` : `<span class="mw-m">لا يوجد تكليف مفتوح الآن</span>`}<span class="mw-row">${ung ? `<em class="mw-chip">${ung} بدون درجة</em>` : ""}${ap ? `<em class="mw-chip warn">${ap} تظلم</em>` : ""}</span></span>`);
     }
     if (k === "team") {
       const ppl = [c.owner_email, ...D.tas.map(t => t.email)].filter((x, i, a) => x && a.indexOf(x) === i);
@@ -902,7 +902,7 @@
     const td = dhToday(), todo = dhTodo(), now = new Date();
     const day = now.toLocaleDateString("ar-EG-u-nu-latn", { weekday: "long", day: "numeric", month: "long" });
     const lec = td == null ? "" : td.length ? `لديك ${td.length === 1 ? "محاضرة واحدة" : td.length === 2 ? "محاضرتين" : td.length + " محاضرات"} اليوم` : "لا توجد لك محاضرات اليوم";
-    const pend = todo == null ? "" : todo.length ? `${todo.length} ${todo.length === 1 ? "أمر ينتظر" : "أمور تنتظر"} ردك` : "لا شيء ينتظر ردك";
+    const pend = todo == null ? "" : todo.length ? (todo.length === 1 ? "أمر واحد ينتظر ردك" : todo.length === 2 ? "أمران ينتظران ردك" : todo.length + (todo.length <= 10 ? " أمور تنتظر ردك" : " أمرًا ينتظر ردك")) : "لا شيء ينتظر ردك";
     return `<div class="dh-hi-t" id="dhHi"><span class="dh-date">${esc(day)}</span><h1>${new Date().getHours() < 12 ? "صباح الخير" : "مساء الخير"} يا ${dhFirst()}</h1><span class="dh-sub">${[lec, pend].filter(Boolean).join("، ")}${lec || pend ? "." : ""}</span></div>`;
   }
   function dhChips(c) {
@@ -950,7 +950,7 @@
     const body = td.length ? td.map((s, i) => { const a = dhTM(dhPer(s.p_from).from), b = dhTM(dhPer(s.p_to).to), st = hm >= b ? "done" : hm >= a ? "live" : "next";
       const key = s.day + ":" + s.p_from + ":" + i, open = dhOpen === key || (dhOpen == null && st === "live");
       const team = []; (s.team || []).forEach(t => (t.staff || []).forEach(p => { if (p && p.n && !team.includes(p.n)) team.push(p.n); }));
-      const meta = [s.myRoom || s.room, st === "live" ? "جارية الآن" : st === "done" ? "خلصت" : (a - hm < 60 ? "بعد " + CM.n((a - hm), CM.W.minute) + "" : "")].filter(Boolean).join(" · ");
+      const meta = [s.myRoom || s.room, st === "live" ? "جارية الآن" : st === "done" ? "انتهت" : (a - hm < 60 ? "بعد " + CM.n((a - hm), CM.W.minute) + "" : "")].filter(Boolean).join(" · ");
       return `<button type="button" class="dh-slot s-${st}${open ? " open" : ""}" data-dhs="${key}" aria-expanded="${open}"><span class="dh-tm" dir="ltr"><b>${TT.t12(dhPer(s.p_from).from)}</b>${TT.t12(dhPer(s.p_to).to)}</span>
         <span class="dh-sb"><span class="dh-st"><i class="dh-dot"></i><b>${esc(s.title)}${s.myGroups && s.myGroups.length ? " · مجموعة " + esc(s.myGroups.join("، ")) : ""}</b></span><span class="dh-sub">${esc(meta)}</span>
         ${st === "live" ? `<span class="dh-prog"><i style="width:${Math.round((hm - a) / Math.max(1, b - a) * 100)}%"></i></span>` : ""}
@@ -961,12 +961,17 @@
   function dhTodoHtml() {
     const l = dhTodo();
     // b180: الشارة بتظهر لما يكون فيه حاجة بس — «لا شيء» كانت مكررة مع «لا شيء ينتظرك» تحتها على طول
-    const head = n => `<div class="dh-h"><h2>يحتاج انتباهك</h2>${n ? `<span class="dh-pill warn">${n} ${n === 1 ? "أمر" : n === 2 ? "أمران" : n <= 10 ? "أمور" : "أمرًا"}</span>` : ""}</div>`;
+    const head = n => `<div class="dh-h"><h2>يحتاج انتباهك</h2>${n ? `<span class="dh-pill warn">${n === 1 ? "أمر واحد" : n === 2 ? "أمران" : n + " " + (n <= 10 ? "أمور" : "أمرًا")}</span>` : ""}</div>`;
+    // b188: التفاصيل جاية من قاعدة البيانات بالعامية؛ نكتبها بالفصحى هنا
+    const MSA = { "صلّح ملفه ومحتاج تصحيح تاني": ["أُعيد رفعه ويحتاج تصحيحًا جديدًا", "أُعيد رفعها وتحتاج تصحيحًا جديدًا"], "وصل بعد ما صحّحت": ["وصل بعد آخر تصحيح لك", "وصلت بعد آخر تصحيح لك"], "لسه ماتصححش": ["لم يُصحَّح بعد", "لم تُصحَّح بعد"], "اتفوّت في التصحيح": ["فاته التصحيح", "فاتها التصحيح"] };
+    const SUBW = ["تسليم", "تسليمان", "تسليمات", "تسليمًا"];
+    const msaDetail = d => String(d || "").split(" · ").map(p => { const m = /^(\d+) (.+)$/.exec(p.trim()); const f = m && MSA[m[2].trim()]; return f ? (+m[1] === 1 ? "تسليم واحد " + f[0] : CM.n(+m[1], SUBW) + " " + f[1]) : p; }).join(" · ");
+    const GO = { grade: "افتح وصحّح", appeal: "راجِع التظلم", petition: "راجِع الالتماس", att: "افتح المحاضرة", warn: "عرض الطلبة" };
     if (l == null) return `<article class="dh-card dh-todo" id="dhTodo">${head(null)}<p class="muted small"><span class="spinner"></span> جارٍ التحميل…</p></article>`;
     const kc = { appeal: "bad", petition: "bad", att: "acc", warn: "warn", grade: "acc" };
     return `<article class="dh-card dh-todo" id="dhTodo">${head(l.length)}${l.length ? `<div class="dh-tasks">${l.slice(0, 6).map(it => { const k = FK[it.kind] || FK.appeal, d = ageDays(it.since), late = d >= 3;
-      return `<div class="dh-task${late ? " late" : ""}" data-key="${esc(bKey(it))}"><span class="dh-ti c-${kc[it.kind] || "acc"}">${ICO(k.ic)}</span><span class="dh-tt"><b>${esc(it.title)}</b>${it.detail ? `<span class="dh-sub dh-why">${esc(it.detail)}</span>` : ""}<span class="dh-sub">${esc(it.course || "")}${it.course ? " · " : ""}${it.n} ${k.u} · <em class="${late ? "bad-t" : d >= 1 ? "warn-t" : ""}">${it.kind === "att" && it.live ? "المحاضرة جارية" : esc(ago(it.since))}</em></span></span>
-        <span class="dh-ta"><button type="button" class="btn sm" data-dhgo="${esc(it.course_id + "|" + it.kind + "|" + (it.ref || "") + "|" + ((it.codes || [])[0] || ""))}">فتح</button><button type="button" class="btn sm ghost icon ia-ok" data-dhok="${esc(bKey(it))}|${it.n}" title="تم: إخفاء حتى يستجد شيء" aria-label="تم">${ICO('<path d="M5 12l5 5L20 7"/>')}</button></span></div>`; }).join("")}</div>${l.length > 3 ? `<button type="button" class="btn sm ghost dh-more-b${l.length > 6 ? "" : " dh-mob"}" data-me="bell">كل التنبيهات (${l.length})</button>` : ""}`
+      return `<div class="dh-task${late ? " late" : ""}" data-key="${esc(bKey(it))}"><span class="dh-ti c-${kc[it.kind] || "acc"}" aria-hidden="true">${ICO(k.ic)}</span><span class="dh-tt"><b>${esc(it.title)}</b>${it.detail ? `<span class="dh-sub dh-why">${esc(msaDetail(it.detail))}</span>` : ""}<span class="dh-sub">${esc(it.course || "")}${it.course ? " · " : ""}${it.n} ${k.u} · <em class="${late ? "bad-t" : d >= 1 ? "warn-t" : ""}">${it.kind === "att" && it.live ? "المحاضرة جارية" : esc(ago(it.since))}</em></span></span>
+        <span class="dh-ta"><button type="button" class="btn sm" data-dhgo="${esc(it.course_id + "|" + it.kind + "|" + (it.ref || "") + "|" + ((it.codes || [])[0] || ""))}" aria-label="${esc((GO[it.kind] || "فتح") + ": " + it.title)}">${GO[it.kind] || "فتح"}</button><button type="button" class="btn sm ghost ia-ok" data-dhok="${esc(bKey(it))}|${it.n}" title="إخفاء هذا التنبيه حتى يستجد شيء" aria-label="تم، إخفاء هذا التنبيه: ${esc(it.title)}">${ICO('<path d="M5 12l5 5L20 7"/>')}<span>تم</span></button></span></div>`; }).join("")}</div>${l.length > 3 ? `<button type="button" class="btn sm ghost dh-more-b${l.length > 6 ? "" : " dh-mob"}" data-me="bell">كل التنبيهات (${l.length})</button>` : ""}`
       : `<div class="dh-empty">لا شيء ينتظرك. عمل ممتاز.</div>`}</article>`;
   }
   function dhStudents(c) {
@@ -1001,7 +1006,10 @@
       const nx = nextLec(c);
       // b178: الكارت ده للمادة المختارة بس، و«يومي» جنبه لكل موادك — فكان بيبان إن «التالية: السبت» عكس «محاضرة النهارده بعد 30 دقيقة»
       eb = nx ? `التالية في هذه المادة · <span style="white-space:nowrap">${esc(nx.when)}</span>` : "المحاضرة"; title = esc(c.name); sub = nx ? esc(nx.what) : (has ? `${D.sessions.length ? "أُقيمت " + D.sessions.length + (D.sessions.length > 2 && D.sessions.length < 11 ? " محاضرات" : " محاضرة") : "لم تبدأ أي محاضرة بعد"} · ${D.enroll.length} طالبًا` : "");
-      btn = canRun(c) ? `<button type="button" class="btn dhx-b" data-tile="live">${ICO('<path d="M8 5.5v13l11-6.5z"/>')}ابدأ المحاضرة</button>` : `<button type="button" class="btn dhx-b" data-tile="reg">افتح الكشف</button>`;
+      // b188: لو المحاضرة الجاية مش النهارده، «ابدأ المحاضرة» زرار ثانوي (لسه متاح لو عايز تبدأ استثنائي)، والموعد هو اللي يبان
+      const soon = !nx || nx.today;
+      btn = canRun(c) ? `<button type="button" class="btn dhx-b${soon ? "" : " dhx-b2"}" data-tile="live">${ICO('<path d="M8 5.5v13l11-6.5z"/>')}${soon ? "ابدأ المحاضرة" : "ابدأ محاضرة الآن"}</button>` : `<button type="button" class="btn dhx-b dhx-b2" data-tile="reg">افتح الكشف</button>`;
+      if (nx && !nx.today) eb = `المحاضرة التالية`, sub = `<b class="dhx-when">${esc(nx.when)}</b>${nx.what ? ` · ${esc(nx.what)}` : ""}`;
     }
     return `<section class="dhx" id="dhHero"><div class="dhx-t"><div class="dhx-eb">${eb}</div><h2>${title}</h2>${sub ? `<div class="dhx-s">${sub}</div>` : ""}${btn}</div><div class="dhx-art">${CM.mascot(s ? "tablet" : "point")}</div></section>`;
   }
@@ -3850,7 +3858,7 @@
         ${p.file_url ? `<a class="btn sm pt-file" href="${esc(p.file_url)}" target="_blank" rel="noopener">${ICO('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>')} عرض الشهادة الطبية</a>` : p.kind === "sick" ? `<span class="chip bad">لا توجد شهادة مرفقة</span>` : ""}
         ${p.status !== "pending" ? `<div class="small ${p.status === "accepted" ? "ok-t" : "bad-t"}">${p.status === "accepted" ? "قُبل · التسليم مفتوح له حتى " + fmtDT(p.until) : "رُفض · " + esc(p.reply)}${p.decided_by ? " · " + esc(p.decided_by) : ""}</div>`
         : !can ? "" : ptDec && ptDec.id === p.id ? (ptDec.accept
-          ? `<div class="pt-dec"><b>افتح له التسليم حتى:</b><div class="row">${[1, 2, 3, 7].map(d => `<button class="btn sm" data-ptu="${d}">${d === 1 ? "بكرة" : d === 7 ? "أسبوع" : CM.n(d, CM.W.day) + ""}<small class="muted">${CM.fmtD(until(d))}</small></button>`).join("")}</div><button class="btn sm ghost" id="ptX">إلغاء</button></div>`
+          ? `<div class="pt-dec"><b>افتح له التسليم حتى:</b><div class="row">${[1, 2, 3, 7].map(d => `<button class="btn sm" data-ptu="${d}">${d === 1 ? "غدًا" : d === 7 ? "أسبوع" : CM.n(d, CM.W.day) + ""}<small class="muted">${CM.fmtD(until(d))}</small></button>`).join("")}</div><button class="btn sm ghost" id="ptX">إلغاء</button></div>`
           : `<div class="pt-dec"><label class="f"><span>سبب الرفض (هيوصل للطالب)</span><input type="text" id="ptWhy" maxlength="300" placeholder="مثلًا: الشهادة غير واضحة أو ليست في يوم التسليم"></label><div class="row"><button class="btn sm danger" id="ptNo">رفض الالتماس</button><button class="btn sm ghost" id="ptX">إلغاء</button></div></div>`)
           : `<div class="row"><button class="btn sm primary" data-pta="${p.id}">قبول وفتح التسليم</button><button class="btn sm ghost" data-ptr="${p.id}">رفض</button></div>`}
       </article>`;

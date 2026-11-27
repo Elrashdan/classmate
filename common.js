@@ -266,7 +266,7 @@
     light: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     dark: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>'
   };
-  CM.BUILD = "(b187)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
+  CM.BUILD = "(b188)"; // رقم النسخة: بيظهر في «عن البرنامج» بس
   CM.theme = () => { const t = CM.store.get("cm_theme"); return t === "light" || t === "dark" ? t : "auto"; };
   const applyTheme = () => {
     const t = CM.theme(), root = document.documentElement;
@@ -674,6 +674,35 @@
   });
   document.addEventListener("keydown", ev => { if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches && ev.target.matches("header.top .brand")) { ev.preventDefault(); ev.target.click(); } });
   new MutationObserver(() => document.querySelectorAll("header.top .brand:not([tabindex])").forEach(b => { b.tabIndex = 0; b.setAttribute("role", "link"); b.title = "الرئيسية"; b.setAttribute("aria-label", "Hadro · الرئيسية"); })).observe(document.documentElement, { childList: true, subtree: true });
+  /* b188: سهولة الوصول (WCAG 2.1 AA) لكل الصفحات:
+     1) منطقة إعلان ثابتة: أي رسالة تظهر (نجاح/خطأ/تنبيه) يقرأها قارئ الشاشة. الرسائل اللي بتتضاف للصفحة فجأة كانت ساكتة.
+     2) كل خانة لازم يكون ليها اسم: لو مفيش label، ناخد اسمها من عنوان العمود + اسم الصف (خانات الدرجات)، أو من الـplaceholder (البحث) — الـplaceholder بيختفي أول ما تكتب.
+     3) معلم «المحتوى الرئيسي» + رابط «تخطَّ إلى المحتوى» لمستخدمي الكيبورد وقارئ الشاشة. */
+  const srLive = (() => { const d = document.createElement("div"); d.id = "srLive"; d.className = "sr-only"; d.setAttribute("role", "status"); d.setAttribute("aria-live", "polite"); d.setAttribute("aria-atomic", "true"); return d; })();
+  CM.announce = t => { t = String(t || "").replace(/\s+/g, " ").trim(); if (!t) return; if (!srLive.isConnected) document.body.appendChild(srLive); srLive.textContent = ""; setTimeout(() => { srLive.textContent = t; }, 60); };
+  const thText = td => { const tr = td.parentElement, tb = td.closest("table"); if (!tr || !tb) return ""; const i = [...tr.children].indexOf(td), th = tb.tHead && tb.tHead.rows[0] && tb.tHead.rows[0].cells[i]; return ((th && th.textContent) || td.getAttribute("data-th") || "").replace(/\s+/g, " ").trim(); };
+  const nameField = f => {
+    if (f.type === "hidden" || f.getAttribute("aria-label") || f.getAttribute("aria-labelledby") || f.title || (f.labels && f.labels.length) || f.closest("label")) return;
+    const td = f.closest("td"); let n = "";
+    if (td) { const col = thText(td), row = td.parentElement.querySelector("td.nm, td .nm-t, td b"); n = [col, row && row.textContent.replace(/\s+/g, " ").trim()].filter(Boolean).join(" — "); }
+    if (!n && f.placeholder && f.placeholder.trim() !== "—") n = f.placeholder.replace(/[.…]+$/, "").trim();
+    if (n) f.setAttribute("aria-label", n.slice(0, 120));
+  };
+  let a11yQ = 0;
+  const a11yPass = () => {
+    a11yQ = 0; if (!srLive.isConnected && document.body) document.body.appendChild(srLive);
+    document.querySelectorAll("input,select,textarea").forEach(nameField);
+    // الرسايل الجديدة (msg/toast) تتقري
+    document.querySelectorAll(".hd-flt:not([data-said]), .msg[role=status]:not([data-said]), .msg[role=alert]:not([data-said])").forEach(m => { m.dataset.said = "1"; CM.announce(m.textContent); });
+    const app = document.getElementById("app");
+    if (app && !app.hasAttribute("role")) { app.setAttribute("role", "main"); app.id = "app"; }
+    if (app && !document.querySelector(".skip-link")) {
+      const a = document.createElement("a"); a.href = "#app"; a.className = "skip-link"; a.textContent = "تخطَّ إلى المحتوى";
+      a.addEventListener("click", ev => { ev.preventDefault(); const h = [...app.querySelectorAll("h1,h2")].find(x => !x.closest("header.top") && x.getBoundingClientRect().height) || app; if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1"); h.focus(); });
+      document.body.insertBefore(a, document.body.firstChild);
+    }
+  };
+  new MutationObserver(() => { if (!a11yQ) a11yQ = setTimeout(a11yPass, 60); }).observe(document.documentElement, { childList: true, subtree: true }); setTimeout(a11yPass, 0);
   CM.copyright = () => `© ${CM.APP.year} ${CM.APP.author}. جميع الحقوق محفوظة.`;
   function legal() {
     if (document.querySelector("footer.legal")) return;
@@ -1006,7 +1035,7 @@ document.addEventListener("click", ev => {
     const ov = document.createElement("div"); ov.className = "hd-intro"; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true");
     let i = 0, x0 = null;
     const prevFocus = document.activeElement;
-    const close = v => { if (key) mark(key); ov.classList.add("out"); document.removeEventListener("keydown", kd); document.documentElement.classList.remove("hd-lock"); setTimeout(() => { ov.remove(); try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch (e) {} }, 220); res(v); };
+    const close = v => { if (key) mark(key); { const bg = document.getElementById("app"); if (bg) bg.inert = false; } ov.classList.add("out"); document.removeEventListener("keydown", kd); document.documentElement.classList.remove("hd-lock"); setTimeout(() => { ov.remove(); try { prevFocus && prevFocus.focus && prevFocus.focus(); } catch (e) {} }, 220); res(v); };
     const go = d => { const n = i + d; if (n < 0 || n >= slides.length) return; i = n; draw(); };
     const draw = () => {
       const s = slides[i], last = i === slides.length - 1, many = slides.length > 1;
@@ -1023,11 +1052,12 @@ document.addEventListener("click", ev => {
       const n = ov.querySelector("[data-n]"); if (n) { n.onclick = () => last ? close("done") : go(1); setTimeout(() => n.focus(), 30); }
       ov.querySelectorAll("[data-a]").forEach(b => b.onclick = () => close(b.dataset.a));
     };
-    const kd = e => { if (e.key === "Escape") close("skip"); else if (e.key === "ArrowLeft") go(1); else if (e.key === "ArrowRight") go(-1); };
+    const kd = e => { if (e.key === "Escape") close("skip"); else if (e.key === "ArrowLeft") go(1); else if (e.key === "ArrowRight") go(-1);
+      else if (e.key === "Tab") { const f = [...ov.querySelectorAll("button,[href],input,select,textarea,[tabindex]:not([tabindex=\"-1\"])")].filter(x => !x.disabled); if (!f.length) return; const a = f[0], z = f[f.length - 1]; if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); } } }; // b188: Tab يفضل جوه الشرح
     ov.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, { passive: true });
     ov.addEventListener("touchend", e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 50) go(dx > 0 ? 1 : -1); }, { passive: true });
     document.addEventListener("keydown", kd);
-    document.documentElement.classList.add("hd-lock");
+    document.documentElement.classList.add("hd-lock"); const bg = document.getElementById("app"); if (bg) bg.inert = true; /* b188: الصفحة ورا الشرح مش بتتقري ولا بتاخد focus */
     draw(); document.body.appendChild(ov);
   });
   // احتفال قصير بعد نجاح خطوة مهمة (يُغلق وحده أو باللمس)

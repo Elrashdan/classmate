@@ -142,17 +142,17 @@
       ${act ? "" : `<div class="row" style="gap:10px;align-items:end;flex-wrap:wrap"><label class="f" style="margin:0"><span>يظهر لـ</span><select id="rsAud">${Object.entries(AUD).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</select></label>
         <label class="row small" style="gap:6px"><input type="checkbox" id="rsDec" checked> اسمح بزرار «أعتذر عن المشاركة»</label>
         <button class="btn primary" id="rsSvGo">إطلاق الاستطلاع</button></div>
-        <p class="small muted" id="rsDecNote">لجان أخلاقيات البحث بتشترط إن المشاركة تكون اختيارية، والإجابة الإجبارية بتقلل مصداقية البيانات (اللي مش عايز يجاوب بيعلّم أي اختيار وخلاص). الاستطلاع هيظهر للكل ولازم يتعاملوا معاه، بس اللي مش عايز يشارك يقدر يعتذر، وعدد المعتذرين بيتحسب في التقرير. لو شلت العلامة هيبقى الرد إجباري.</p>`}
-      ${L.length ? `<div class="list">${L.map(x => `<div class="rs-sv"><div><b>${dstr(x.created_at)} · ${AUD[x.audience]}</b><div class="small muted">${x.n} إجابة · ${x.declined} اعتذار${x.allow_decline ? "" : " · إجباري"}${x.closed_at ? " · اتقفل " + dstr(x.closed_at) : ""}</div></div>
+        <p class="small muted" id="rsDecNote">تشترط لجان أخلاقيات البحث أن تكون المشاركة اختيارية، فالإجابة الإجبارية تُضعف مصداقية البيانات (من لا يرغب في الإجابة يختار أي إجابة). سيظهر الاستطلاع للجميع، ويستطيع من لا يرغب في المشاركة أن يعتذر، ويُحتسب عدد المعتذرين في التقرير. إذا أزلت العلامة يصبح الرد إجباريًا.</p>`}
+      ${L.length ? `<div class="list">${L.map(x => `<div class="rs-sv"><div><b>${dstr(x.created_at)} · ${AUD[x.audience]}</b><div class="small muted">${x.n} إجابة · ${x.declined} اعتذار${x.allow_decline ? "" : " · إجباري"}${x.closed_at ? " · أُغلق " + dstr(x.closed_at) : ""}</div></div>
         <div class="row" style="gap:6px"><label class="small row" style="gap:4px"><input type="radio" name="rsSvPick" value="${x.id}" ${(o.sv || L[0].id) === x.id ? "checked" : ""}> في التقرير</label>${x.active ? `<button class="btn sm danger" data-svclose="${x.id}">إيقاف</button>` : ""}</div></div>`).join("")}</div>` : `<p class="small muted">لم يُطلق أي استطلاع بعد.</p>`}`}
     </section>`;
   }
   function wireSv() {
     const go = X.el.querySelector("#rsSvGo"); if (go) go.onclick = async () => {
       const aud = X.el.querySelector("#rsAud").value, dec = X.el.querySelector("#rsDec").checked;
-      if (!confirm("إطلاق الاستطلاع لـ" + AUD[aud] + "؟ هيظهر لكل واحد منهم أول ما يفتح البرنامج" + (dec ? "، ويقدر يعتذر." : "، ومش هيقدر يكمل غير لما يجاوب."))) return;
+      if (!confirm("إطلاق الاستطلاع لـ" + AUD[aud] + "؟ سيظهر لكل منهم عند فتح البرنامج" + (dec ? "، ويقدر يعتذر." : "، ولن يستطيع المتابعة حتى يجيب."))) return;
       go.disabled = true; try { await X.ctx.rpc("admin_survey_start", { p_audience: aud, p_allow_decline: dec }); X.opt.sv = null; optSet(X.opt); await loadSurveys(); msg("اتطلق الاستطلاع."); } catch (e) { go.disabled = false; msg("!" + X.ctx.errText(e)); } };
-    X.el.querySelectorAll("[data-svclose]").forEach(b => b.onclick = async () => { if (!confirm("إيقاف الاستطلاع؟ مش هيظهر لحد تاني.")) return; b.disabled = true; try { await X.ctx.rpc("admin_survey_close", { sid: b.dataset.svclose }); await loadSurveys(); } catch (e) { b.disabled = false; msg("!" + X.ctx.errText(e)); } });
+    X.el.querySelectorAll("[data-svclose]").forEach(b => b.onclick = async () => { if (!confirm("إيقاف الاستطلاع؟ لن يظهر لأحد بعد ذلك.")) return; b.disabled = true; try { await X.ctx.rpc("admin_survey_close", { sid: b.dataset.svclose }); await loadSurveys(); } catch (e) { b.disabled = false; msg("!" + X.ctx.errText(e)); } });
     X.el.querySelectorAll('[name="rsSvPick"]').forEach(r => r.onchange = () => { X.opt.sv = r.value; optSet(X.opt); });
   }
   const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
@@ -181,7 +181,7 @@
   function valBox() {
     const v = X.vk || {}, list = X.ctx.courses.filter(c => !c.archived);
     return `<section class="rs-box" id="rsValBox"><h3>صدق التطابق: كشف ورقي مقابل المنصة</h3>
-      <p class="small muted">اختار محاضرة اتاخد فيها الحضور بالمنصة وبكشف ورقي في نفس الوقت، والصق أكواد الحاضرين من الكشف الورقي (أو ارفع ملف إكسل فيه الأكواد). البرنامج يحسب نسبة الاتفاق ومعامل كابا لكوهين، ويحفظ النتيجة (من غير أكواد) عشان تدخل في التقرير.</p>
+      <p class="small muted">اختر محاضرة سُجّل فيها الحضور بالمنصة وبكشف ورقي في الوقت نفسه، والصق أكواد الحاضرين من الكشف الورقي (أو ارفع ملف إكسل بالأكواد). يحسب البرنامج نسبة الاتفاق ومعامل كابا لكوهين، ويحفظ النتيجة (دون الأكواد) لتدخل في التقرير.</p>
       <div class="row" style="gap:10px;flex-wrap:wrap;align-items:end">
         <label class="f" style="margin:0;min-width:240px"><span>المادة</span><select id="rsVc"><option value="">اختر…</option>${list.map(c => `<option value="${c.id}" ${v.cid === c.id ? "selected" : ""}>${esc(c.name)} · ${esc(X.ctx.clsLabel(c))}</option>`).join("")}</select></label>
         <label class="f" style="margin:0;min-width:220px"><span>المحاضرة</span><select id="rsVs" ${v.sess ? "" : "disabled"}><option value="">اختر…</option>${(v.sess || []).map(x => `<option value="${x.id}" ${v.sid === x.id ? "selected" : ""}>المحاضرة ${x.n}${x.grp ? " · مجموعة " + esc(x.grp) : ""} · ${dstr(x.at)}${x.checked ? " ✓" : ""}</option>`).join("")}</select></label></div>
@@ -189,8 +189,8 @@
         <div class="row"><label class="btn sm">رفع إكسل<input type="file" id="rsVx" accept=".xlsx" hidden></label><button class="btn sm primary" id="rsVgo">احسب الاتفاق</button></div>` : ""}
       ${v.res ? (() => { const r = v.res, n = r.a + r.b + r.c + r.d; return `<div class="tbl-wrap"><table class="rs-tbl"><thead><tr><th></th><th>حاضر ورقيًا</th><th>غائب ورقيًا</th></tr></thead><tbody>
         <tr><th>حاضر في المنصة</th><td>${r.a}</td><td>${r.b}</td></tr><tr><th>غائب في المنصة</th><td>${r.c}</td><td>${r.d}</td></tr></tbody></table></div>
-        <p><b>نسبة الاتفاق: ${pct(r.a + r.d, n)} · كابا لكوهين: ${num(r.k, 3)}</b>${r.unknown ? ` <span class="small warn-t">(${r.unknown} كود في الكشف الورقي مش في كشف المحاضرة، اتجاهلوا)</span>` : ""}</p>
-        ${r.diff.length ? `<details><summary class="small">الأكواد المختلفة (${r.diff.length}) · للمراجعة بس ومش بتتحفظ</summary><p class="small mono" dir="ltr">${r.diff.map(esc).join("، ")}</p></details>` : ""}
+        <p><b>نسبة الاتفاق: ${pct(r.a + r.d, n)} · كابا لكوهين: ${num(r.k, 3)}</b>${r.unknown ? ` <span class="small warn-t">(${r.unknown} كود في الكشف الورقي غير موجود في كشف المحاضرة، وتم تجاهلها)</span>` : ""}</p>
+        ${r.diff.length ? `<details><summary class="small">الأكواد المختلفة (${r.diff.length}) · للمراجعة فقط ولا تُحفظ</summary><p class="small mono" dir="ltr">${r.diff.map(esc).join("، ")}</p></details>` : ""}
         <button class="btn sm" id="rsVsave" ${r.saved ? "disabled" : ""}>${r.saved ? "اتحفظت ✓" : "حفظ في عينة التحقق"}</button>`; })() : ""}
     </section>`;
   }
@@ -210,7 +210,7 @@
         X.vk.res = { a, b, c: cc, d, k: kappa(a, b, cc, d), diff, unknown: [...codes].filter(x => !inR.has(x)).length }; box(); }
       catch (e) { go.disabled = false; msg("!" + X.ctx.errText(e)); } };
     const sv = X.el.querySelector("#rsVsave"); if (sv) sv.onclick = async () => { const r = X.vk.res; sv.disabled = true;
-      try { await X.ctx.rpc("research_validation_save", { sid: X.vk.sid, a: r.a, b: r.b, c: r.c, d: r.d, k: r.k == null ? null : Math.round(r.k * 10000) / 10000, p_note: "" }); r.saved = true; (X.vk.sess.find(x => x.id === X.vk.sid) || {}).checked = true; box(); msg("اتحفظت. اضغط «احسب المؤشرات» تاني عشان تدخل في التقرير."); }
+      try { await X.ctx.rpc("research_validation_save", { sid: X.vk.sid, a: r.a, b: r.b, c: r.c, d: r.d, k: r.k == null ? null : Math.round(r.k * 10000) / 10000, p_note: "" }); r.saved = true; (X.vk.sess.find(x => x.id === X.vk.sid) || {}).checked = true; box(); msg("حُفظت. اضغط «احسب المؤشرات» مرة أخرى لتدخل في التقرير."); }
       catch (e) { sv.disabled = false; msg("!" + X.ctx.errText(e)); } };
   }
   /* ---------------- ملف البيانات (Excel) ---------------- */
