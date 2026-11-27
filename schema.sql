@@ -5878,7 +5878,7 @@ begin
   insert into appeal_grants(task_id, student_code, by_email) values (tid, p_code, my_email())
     on conflict (task_id, student_code) do update set by_email = excluded.by_email, at = now(), used_at = null;
   insert into notifications(student_code, kind, title, body, url)
-    values (p_code, 'appeal', 'اتفتح لك تظلم جديد · «' || t.title || '»', 'تقدر تقدّم تظلمًا على درجة هذا التكليف من صفحته.', 'https://elrashdan.github.io/classmate/');
+    values (p_code, 'appeal', 'فُتح لك تظلم جديد · «' || t.title || '»', 'يمكنك تقديم تظلم على درجة هذا التكليف من صفحته.', 'https://elrashdan.github.io/classmate/');
   perform log_audit(t.course_id, 'فتح تظلمًا جديدًا للطالب ' || nm || ' على «' || t.title || '»');
 end $$;
 revoke all on function public.appeal_grant(uuid, text) from public, anon;
@@ -5921,10 +5921,10 @@ alter table public.submissions add column if not exists fix_prev jsonb;
 
 -- الأسباب: missing (اتمسح/مش بيفتح) · unclear (مش واضح) · wrong (ملف غلط) · أو نص حر
 create or replace function public.fix_reason_text(r text) returns text language sql immutable as $$
-  select case r when 'missing' then 'الملف مش بيفتح عندنا (اتمسح من Google Drive بتاعك أو اتقفلت مشاركته)'
-                when 'unclear' then 'صورة المشروع مش واضحة'
-                when 'wrong' then 'الملف المرفوع مش هو المشروع المطلوب'
-                else coalesce(nullif(trim(r), ''), 'الملف مش مرفوع صح') end;
+  select case r when 'missing' then 'تعذّر فتح الملف (ربما حُذف من Google Drive الخاص بك أو أُوقفت مشاركته)'
+                when 'unclear' then 'صورة المشروع غير واضحة'
+                when 'wrong' then 'الملف المرفوع ليس المشروع المطلوب'
+                else coalesce(nullif(trim(r), ''), 'لم يُرفع الملف بشكل صحيح') end;
 $$;
 
 create or replace function public.file_fix_request_x(tid uuid, codes text[], p_reason text, p_by text) returns int
@@ -5938,7 +5938,7 @@ begin
     if found then
       n := n + 1;
       insert into notifications(student_code, kind, title, body, url)
-        values (c, 'fix', 'مشكلة في ملفك · «' || t.title || '»', fix_reason_text(p_reason) || '. يرجى إعادة رفع صورة المشروع من صفحة التكليف، والتسليم مفتوح لك لحد ما ترفعه.', 'https://elrashdan.github.io/classmate/');
+        values (c, 'fix', 'مشكلة في ملفك · «' || t.title || '»', fix_reason_text(p_reason) || '. يرجى إعادة رفع صورة المشروع من صفحة التكليف، والتسليم مفتوح لك حتى ترفعه.', 'https://elrashdan.github.io/classmate/');
     end if;
   end loop;
   if n > 0 then perform log_audit(t.course_id, 'طلب إعادة رفع الملف من ' || n || ' طالب في «' || t.title || '» · ' || fix_reason_text(p_reason)); end if;
@@ -6023,8 +6023,8 @@ begin
      where task_id = tid and student_code = code;
     nm := coalesce(e.name, code);
     insert into notifications(student_code, kind, title, body, url)
-      select 'staff:' || x, 'fixed', 'صلّح ملفه · «' || t.title || '»',
-             nm || ' (' || code || ') رفع ملفه تاني. ' || case when mt then 'البصمة متطابقة: نفس الملف اللي اتسلّم في الميعاد.' when mt is false then 'ملف مختلف عن اللي اتسلّم في الميعاد، راجعه.' else 'مفيش بصمة قديمة للمقارنة.' end,
+      select 'staff:' || x, 'fixed', 'أصلح ملفه · «' || t.title || '»',
+             nm || ' (' || code || ') أعاد رفع ملفه. ' || case when mt then 'البصمة متطابقة: هو الملف نفسه الذي سُلِّم في الموعد.' when mt is false then 'الملف مختلف عن الذي سُلِّم في الموعد؛ يُرجى مراجعته.' else 'لا توجد بصمة سابقة للمقارنة.' end,
              'https://elrashdan.github.io/classmate/staff.html'
         from (select owner_email x from courses where id = t.course_id union select email from course_tas where course_id = t.course_id) y;
     perform log_audit(t.course_id, nm || ' أعاد رفع ملفه في «' || t.title || '» بعد طلب الإصلاح · ' || case when mt then 'البصمة متطابقة' when mt is false then 'ملف مختلف عن الأصل' else 'بدون مقارنة' end);
@@ -6261,7 +6261,7 @@ begin
       insert into course_tas(course_id, email, kind, src) values (cid, r.email, r.kind, 'tt');
       insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, 'أضاف ' || staff_name(r.email) || ' ' || kn || ' في المادة (من الجدول الدراسي)');
       insert into notifications(student_code, kind, title, body, url)
-        values ('staff:' || r.email, 'team', 'اتضفت لفريق مادة «' || c.name || '»', 'حسب الجدول الدراسي، ' || kn || '. المادة ظهرت في موادك.', 'https://elrashdan.github.io/classmate/staff.html');
+        values ('staff:' || r.email, 'team', 'أُضفت إلى فريق مادة «' || c.name || '»', 'أُضفت وفق الجدول الدراسي ' || kn || '، وظهرت المادة في موادك.', 'https://elrashdan.github.io/classmate/staff.html');
       n := n + 1;
     elsif exists (select 1 from course_tas t where t.course_id = cid and t.email = r.email and t.src = 'tt' and t.kind <> r.kind) then
       update course_tas set kind = r.kind where course_id = cid and email = r.email;
@@ -6752,7 +6752,7 @@ begin
   select n into n2 from sessions where id = sid;
   perform log_audit(s.course_id, 'عدّل المحاضرة ' || s.n || coalesce(' (مجموعة ' || s.grp || ')', '')
     || case when coalesce(d, 0) <> 0 then ': التاريخ من ' || to_char(s.started_at at time zone 'Africa/Cairo', 'YYYY-MM-DD') || ' إلى ' || to_char(p_date, 'YYYY-MM-DD') else '' end
-    || case when c is distinct from s.cancelled then case when c is null then ' · رجّعها محاضرة عادية' else ' · علّمها «' || c || '» ومش بتتحسب في الغياب' end else '' end);
+    || case when c is distinct from s.cancelled then case when c is null then ' · أعادها محاضرة عادية' else ' · وسمها بـ«' || c || '»، ولا تُحتسب في الغياب' end else '' end);
   return json_build_object('n', n2);
 end $$;
 
@@ -6861,10 +6861,10 @@ begin
     late_note = case when p_mode = 'auto' then null else nt end
    where task_id = tid and student_code = code;
   insert into submission_log(task_id, student_code, ev, late, by_email, note)
-    values (tid, code, 'late_set', v, my_email(), case when p_mode = 'auto' then 'رجّعها للحساب التلقائي' else nt end);
+    values (tid, code, 'late_set', v, my_email(), case when p_mode = 'auto' then 'أعادها إلى الحساب التلقائي' else nt end);
   select coalesce(name, code) into nm from enrollments where course_id = t.course_id and student_code = code;
   perform log_audit(t.course_id, 'عدّل حالة تسليم ' || coalesce(nm, code) || ' في «' || t.title || '» إلى '
-    || case when p_mode = 'auto' then 'الحساب التلقائي (' || case when v then 'متأخر' else 'في الميعاد' end || ')' when v then 'متأخر' else 'في الميعاد' end
+    || case when p_mode = 'auto' then 'الحساب التلقائي (' || case when v then 'متأخر' else 'في الموعد' end || ')' when v then 'متأخر' else 'في الموعد' end
     || coalesce(' · ' || nt, ''));
   return json_build_object('late', v);
 end $$;
@@ -6941,7 +6941,7 @@ begin
     end loop;
     if cardinality(m) = 0 or (p_course is not null and not p_course = any(m)) then continue; end if;
     update tt_slots set course_id = m[1], more_courses = m[2:] where id = s.id;
-    insert into audit(actor, course_id, action) select 'الجدول الدراسي', x, 'اتربطت المادة تلقائيًا بخانة «' || s.title || '» في الجدول الدراسي' from unnest(m) x;
+    insert into audit(actor, course_id, action) select 'الجدول الدراسي', x, 'رُبطت المادة تلقائيًّا بخانة «' || s.title || '» في الجدول الدراسي' from unnest(m) x;
     n := n + 1;
   end loop;
   return n;
@@ -6995,9 +6995,9 @@ begin
       delete from course_tas where course_id = cid and email = lead;
       insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, staff_name(lead) || ' بقى المحاضر المسؤول عن المادة (من الجدول الدراسي)'
         || coalesce(' بدل ' || staff_name(old), ''));
-      perform tt_note(lead, 'مادة «' || c.name || '» بقت في موادك', 'حسب الجدول الدراسي إنت المحاضر المسؤول عن المادة دي. تقدر تبدأ المحاضرات وتعمل التكليفات على طول.');
+      perform tt_note(lead, 'مادة «' || c.name || '» أصبحت ضمن موادك', 'وفق الجدول الدراسي أنت المحاضر المسؤول عن هذه المادة، ويمكنك بدء المحاضرات وإنشاء التكليفات مباشرة.');
       if old is not null and not exists (select 1 from tt_team_want(cid) w where w.email = old) then
-        perform tt_note(old, 'اتشلت من مادة «' || c.name || '»', 'حسب الجدول الدراسي المادة دي بقت مع ' || staff_name(lead) || '.');
+        perform tt_note(old, 'أُزلت من مادة «' || c.name || '»', 'وفق الجدول الدراسي أصبحت هذه المادة مع ' || staff_name(lead) || '.');
       end if;
       c.owner_email := lead; c.no_owner := false;
     elsif lead is null and not c.no_owner then
@@ -7008,7 +7008,7 @@ begin
         if old <> ph then
           insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, staff_name(old) || ' مابقاش محاضر المادة في الجدول الدراسي، والمادة مستنية محاضر');
           if not exists (select 1 from tt_team_want(cid) w where w.email = old) then
-            perform tt_note(old, 'اتشلت من مادة «' || c.name || '»', 'المادة دي مابقتش معاك في الجدول الدراسي.');
+            perform tt_note(old, 'أُزلت من مادة «' || c.name || '»', 'لم تعد هذه المادة مسندة إليك في الجدول الدراسي.');
           end if;
         end if;
         c.owner_email := ph; c.no_owner := true;
@@ -7023,7 +7023,7 @@ begin
     if not exists (select 1 from course_tas t where t.course_id = cid and t.email = r.email) then
       insert into course_tas(course_id, email, kind, src) values (cid, r.email, r.kind, 'tt');
       insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, 'أضاف ' || staff_name(r.email) || ' ' || kn || ' في المادة (من الجدول الدراسي)');
-      perform tt_note(r.email, 'اتضفت لفريق مادة «' || c.name || '»', 'حسب الجدول الدراسي، ' || kn || '. المادة ظهرت في موادك.');
+      perform tt_note(r.email, 'أُضفت إلى فريق مادة «' || c.name || '»', 'أُضفت وفق الجدول الدراسي ' || kn || '، وظهرت المادة في موادك.');
       n := n + 1;
     elsif exists (select 1 from course_tas t where t.course_id = cid and t.email = r.email and t.src = 'tt' and t.kind <> r.kind) then
       update course_tas set kind = r.kind where course_id = cid and email = r.email;
@@ -7038,8 +7038,8 @@ begin
                      or not exists (select 1 from tt_team_want(cid) w join staff st on st.email = w.email and st.status <> 'suspended' where w.email = t.email)) loop
       delete from course_tas where course_id = cid and email = r.email;
       if r.email <> c.owner_email or c.no_owner then
-        insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, 'شال ' || staff_name(r.email) || ' من فريق المادة (اتشال منها في الجدول الدراسي)');
-        perform tt_note(r.email, 'اتشلت من فريق مادة «' || c.name || '»', 'حسب آخر تعديل في الجدول الدراسي، المادة دي مابقتش معاك.');
+        insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid, 'أزال ' || staff_name(r.email) || ' من فريق المادة (أُزيل منها في الجدول الدراسي)');
+        perform tt_note(r.email, 'أُزلت من فريق مادة «' || c.name || '»', 'وفق آخر تعديل في الجدول الدراسي، لم تعد هذه المادة مسندة إليك.');
       end if;
     end loop;
   end if;
@@ -7123,7 +7123,7 @@ begin
   if position('owner_auto' in f) > 0 then return; end if;
   f := replace(f, 'cw_max, exam_max, credits, auto_created)', 'cw_max, exam_max, credits, auto_created, owner_auto, no_owner)');
   f := replace(f, 'b.cw, b.ex, b.credits, true)', 'b.cw, b.ex, b.credits, true, true, true)');
-  f := replace(f, 'عيّن لها محاضرًا أو معيدًا من تبويب «الفريق».', 'المحاضر والمعيدين بيتعيّنوا تلقائيًا من الجدول الدراسي.');
+  f := replace(f, 'عيّن لها محاضرًا أو معيدًا من تبويب «الفريق».', 'ويُعيَّن المحاضر والمعيدون تلقائيًّا من الجدول الدراسي.');
   if f = o then raise exception 'form_enroll pattern not found'; end if;
   execute f;
 end $do$;
@@ -7293,10 +7293,10 @@ begin
       more := array(select distinct x from unnest(s.more_courses || array(select y from unnest(m) y where y <> s.course_id)) x);
       if (select count(*) from unnest(more)) = cardinality(s.more_courses) then continue; end if;
       update tt_slots set more_courses = more where id = s.id;
-      insert into audit(actor, course_id, action) select 'الجدول الدراسي', x, 'اتربطت المادة تلقائيًا بخانة «' || s.title || '» في الجدول الدراسي' from unnest(more) x where not x = any(s.more_courses);
+      insert into audit(actor, course_id, action) select 'الجدول الدراسي', x, 'رُبطت المادة تلقائيًّا بخانة «' || s.title || '» في الجدول الدراسي' from unnest(more) x where not x = any(s.more_courses);
     else
       update tt_slots set course_id = m[1], more_courses = m[2:] where id = s.id;
-      insert into audit(actor, course_id, action) select 'الجدول الدراسي', x, 'اتربطت المادة تلقائيًا بخانة «' || s.title || '» في الجدول الدراسي' from unnest(m) x;
+      insert into audit(actor, course_id, action) select 'الجدول الدراسي', x, 'رُبطت المادة تلقائيًّا بخانة «' || s.title || '» في الجدول الدراسي' from unnest(m) x;
     end if;
     n := n + 1;
   end loop;
@@ -7336,7 +7336,7 @@ begin
         values (b.name, ph, s.academic_year, s.term, s.level, tr, 'عام', 'الديكور', trim(case when b.prefix <> '' then b.prefix || ' ' else '' end || b.code),
                 b.cw, b.ex, b.credits, true, true, true) returning id into cid;
       insert into audit(actor, course_id, action) values ('الجدول الدراسي', cid,
-        'اتعملت المادة تلقائيًا من الجدول الدراسي (خانة «' || s.title || '») عشان المحاضرين والمعيدين المكتوبين فيها يلاقوها، والطلبة ينضموا لها من استماراتهم.');
+        'أُنشئت المادة تلقائيًّا من الجدول الدراسي (خانة «' || s.title || '») ليجدها المحاضرون والمعيدون المذكورون فيها، ولينضم إليها الطلبة من استماراتهم.');
       n := n + 1;
     end loop;
   end loop;
@@ -7459,12 +7459,12 @@ language sql stable security definer set search_path = public as $$
            'since', min(greatest(coalesce(s.fix_done_at, s.submitted_at), t.due_at)),
            'detail', concat_ws(' · ',
               case when count(*) filter (where s.fix_done_at is not null) > 0
-                   then count(*) filter (where s.fix_done_at is not null) || ' صلّح ملفه ومحتاج تصحيح تاني' end,
+                   then count(*) filter (where s.fix_done_at is not null) || ' أُعيد رفعه ويحتاج تصحيحًا جديدًا' end,
               case when count(*) filter (where s.fix_done_at is null and g.last is not null and s.submitted_at > g.last) > 0
-                   then count(*) filter (where s.fix_done_at is null and g.last is not null and s.submitted_at > g.last) || ' وصل بعد ما صحّحت' end,
+                   then count(*) filter (where s.fix_done_at is null and g.last is not null and s.submitted_at > g.last) || ' وصل بعد آخر تصحيح' end,
               case when count(*) filter (where s.fix_done_at is null and (g.last is null or s.submitted_at <= g.last)) > 0
                    then count(*) filter (where s.fix_done_at is null and (g.last is null or s.submitted_at <= g.last))
-                        || case when g.last is null then ' لسه ماتصححش' else ' اتفوّت في التصحيح' end end),
+                        || case when g.last is null then ' لم يُصحَّح بعد' else ' فاته التصحيح' end end),
            'codes', (array_agg(s.student_code order by s.fix_done_at nulls last, s.submitted_at))[1:5])
     from tasks t join submissions s on s.task_id = t.id
     left join lateral (select max(x.graded_at) last from submissions x where x.task_id = t.id and x.grade is not null) g on true
